@@ -290,6 +290,29 @@ Page({
       })
   },
 
+  // 文本自动换行绘制（海报专用）
+  _wrapText(ctx, text, x, startY, maxWidth, lineHeight) {
+    let y = startY
+    const chars = text.split('')
+    let line = ''
+    for (let i = 0; i < chars.length; i++) {
+      const testLine = line + chars[i]
+      const metrics = ctx.measureText(testLine)
+      if (metrics.width > maxWidth && line.length > 0) {
+        ctx.fillText(line, x, y)
+        line = chars[i]
+        y += lineHeight
+      } else {
+        line = testLine
+      }
+    }
+    if (line.length > 0) {
+      ctx.fillText(line, x, y)
+      y += lineHeight
+    }
+    return y
+  },
+
   // 圆角矩形
   _drawRoundedRect(ctx, x, y, width, height, radius) {
     ctx.beginPath()
