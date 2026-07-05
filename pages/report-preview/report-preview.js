@@ -77,66 +77,76 @@ Page({
   _loadReportFromFallback(opt) {
     let finalData = null
 
-    console.log('--- 🛡️ 开始全管道捕获诊断报告数据 ---')
-    console.log('当前页面传参 options:', opt)
+    console.log('--- 🚀 [运行机制激活] 开始全渠道捕获诊断报告数据 ---')
+    console.log('1. 当前页面路由入参 options:', opt)
     if (app.globalData) {
-      console.log('当前全局变量 globalData 快照:', app.globalData)
+      console.log('2. 当前全局变量 globalData 状态:', app.globalData)
     }
 
-    // 🚀 第一重保险：捕获标准全局变量
+    // ==========================================
+    // 📥 运行机制第一步：多轨并行"数据清洗与捕获"
+    // ==========================================
+
+    // 【第一重保险】追踪标准全局变量
     if (app.globalData && app.globalData.lastReport) {
       finalData = app.globalData.lastReport
-      console.log('--- 🗺️ 成功从 lastReport 捕获数据 ---', finalData)
+      console.log('➔ 🎯 机制命中：成功从 lastReport 捕获数据')
     }
-    // 🚀 第二重保险：兼容其他常见命名
+    // 【第二重保险】兼容 009 可能在历史版本中使用的其他全局变量名
     else if (app.globalData && app.globalData.reportData) {
       finalData = app.globalData.reportData
-      console.log('--- 🗺️ 成功从 reportData 捕获数据 ---', finalData)
+      console.log('➔ 🎯 机制命中：成功从 reportData 捕获数据')
     }
     else if (app.globalData && app.globalData.diagnosisResult) {
       finalData = app.globalData.diagnosisResult
-      console.log('--- 🗺️ 成功从 diagnosisResult 捕获数据 ---', finalData)
+      console.log('➔ 🎯 机制命中：成功从 diagnosisResult 捕获数据')
     }
 
-    // 🚀 第三重保险：URL 传参解析
+    // 【第三重保险】如果页面是通过带有 URL 参数跳转过来的（从 options 解析）
     if (!finalData && opt && opt.data) {
       try {
         finalData = JSON.parse(decodeURIComponent(opt.data))
-        console.log('--- ✉️ 成功从 URL 传参中解析出数据 ---', finalData)
+        console.log('➔ ✉️ 机制命中：成功从 URL 传参中解析出数据')
       } catch (e) {
         console.error('URL 参数解析失败:', e)
       }
     }
 
-    // 🚀 第四重保险：本地缓存强行打捞
+    // 【第四重保险】从本地持久化缓存（Storage）中强行打捞
     if (!finalData) {
-      const localCache = wx.getStorageSync('lastReport') || wx.getStorageSync('reportData')
+      const localCache = wx.getStorageSync('lastReport') || wx.getStorageSync('reportData') || wx.getStorageSync('diagnosisResult')
       if (localCache) {
         finalData = localCache
-        console.log('--- 📦 成功从本地缓存中强行打捞数据 ---', finalData)
+        console.log('➔ 📦 机制命中：成功从本地缓存中强行打捞数据')
       }
     }
 
-    // 🎯 精准对齐、强行解构并网渲染
+    // ==========================================
+    // 🔄 运行机制第二步：精准纠偏"字段映射"与"UI并网"
+    // ==========================================
     if (finalData) {
       this.setData({
         loading: false,
         reportData: {
+          // 01 致命一句话：全兼容漏斗拦截
           basicInsight: finalData.basicInsight || finalData.insight || finalData.fatalSentence || '',
+          // 02 核心问题
           mechanism: finalData.mechanism || finalData.reason || finalData.coreProblem || '',
+          // 03 系统困局
           reverseReasoning: finalData.reverseReasoning || finalData.traps || finalData.systemTrap || '',
+          // 04 翻身路径
           biasCorrection: finalData.biasCorrection || finalData.path || finalData.turnaroundPath || '',
+          // 05 行动建议
           actionPlan: finalData.actionPlan || finalData.actions || finalData.suggest || finalData.actionPlanList || '',
         }
       }, () => {
-        console.log('--- 页面数据 setData 并网渲染完成 ---', this.data.reportData)
+        console.log('--- 🎨 [运行机制完成] UI 视图渲染并网成功 ---', this.data.reportData)
       })
     } else {
-      console.error('--- 🚨 极度警告：全链路未检测到任何合规的报告数据源！ ---')
+      console.error('--- 🚨 [机制报警] 全链路未检测到任何合规的报告数据源！ ---')
       this.setData({ loading: false })
-      wx.showToast({ title: '报告数据对齐失败', icon: 'none' })
+      wx.showToast({ title: '数据流对接断档，请重新诊断', icon: 'none' })
     }
-  },
   },
 
   async _loadDiagnostic() {
