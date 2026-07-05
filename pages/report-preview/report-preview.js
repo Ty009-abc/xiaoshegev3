@@ -54,8 +54,8 @@ Page({
       return
     }
 
-    // 🚀 三重保险：全局变量 / 本地缓存 / 直接读取 reportData
-    this._loadReportFromFallback()
+    // 🚀 四重保险：全管道捕获诊断报告数据
+    this._loadReportFromFallback(opt)
   },
 
   /* 从 report 对象同步到 reportData（WXML 统一绑定） */
@@ -73,48 +73,70 @@ Page({
     })
   },
 
-  /* 三重保险：全局变量 / 本地缓存 / 兼容命名 */
-  _loadReportFromFallback() {
+  /* 四重保险：全局变量 / URL传参 / localStorage / 扩展兼容字段 */
+  _loadReportFromFallback(opt) {
     let finalData = null
 
-    // 🚀 第一重保险：全局变量 lastReport
+    console.log('--- 🛡️ 开始全管道捕获诊断报告数据 ---')
+    console.log('当前页面传参 options:', opt)
+    if (app.globalData) {
+      console.log('当前全局变量 globalData 快照:', app.globalData)
+    }
+
+    // 🚀 第一重保险：捕获标准全局变量
     if (app.globalData && app.globalData.lastReport) {
       finalData = app.globalData.lastReport
-      console.log('--- 🗺️ 成功从全局变量捕获报告数据 ---', finalData)
+      console.log('--- 🗺️ 成功从 lastReport 捕获数据 ---', finalData)
     }
-    // 🚀 第二重保险：兼容其他全局命名
+    // 🚀 第二重保险：兼容其他常见命名
     else if (app.globalData && app.globalData.reportData) {
       finalData = app.globalData.reportData
+      console.log('--- 🗺️ 成功从 reportData 捕获数据 ---', finalData)
     }
     else if (app.globalData && app.globalData.diagnosisResult) {
       finalData = app.globalData.diagnosisResult
+      console.log('--- 🗺️ 成功从 diagnosisResult 捕获数据 ---', finalData)
     }
 
-    // 🚀 第三重保险：localStorage 缓存
-    if (!finalData) {
-      const localCache = wx.getStorageSync('lastReport')
-      if (localCache) {
-        finalData = localCache
-        console.log('--- 📦 成功从本地缓存捕获报告数据 ---', finalData)
+    // 🚀 第三重保险：URL 传参解析
+    if (!finalData && opt && opt.data) {
+      try {
+        finalData = JSON.parse(decodeURIComponent(opt.data))
+        console.log('--- ✉️ 成功从 URL 传参中解析出数据 ---', finalData)
+      } catch (e) {
+        console.error('URL 参数解析失败:', e)
       }
     }
 
-    // 🎯 全量并网渲染
+    // 🚀 第四重保险：本地缓存强行打捞
+    if (!finalData) {
+      const localCache = wx.getStorageSync('lastReport') || wx.getStorageSync('reportData')
+      if (localCache) {
+        finalData = localCache
+        console.log('--- 📦 成功从本地缓存中强行打捞数据 ---', finalData)
+      }
+    }
+
+    // 🎯 精准对齐、强行解构并网渲染
     if (finalData) {
       this.setData({
         loading: false,
         reportData: {
-          basicInsight: finalData.basicInsight || finalData.insight || '',
-          mechanism: finalData.mechanism || finalData.reason || '',
-          reverseReasoning: finalData.reverseReasoning || finalData.traps || '',
-          biasCorrection: finalData.biasCorrection || finalData.path || '',
-          actionPlan: finalData.actionPlan || finalData.actions || finalData.suggest || '',
+          basicInsight: finalData.basicInsight || finalData.insight || finalData.fatalSentence || '',
+          mechanism: finalData.mechanism || finalData.reason || finalData.coreProblem || '',
+          reverseReasoning: finalData.reverseReasoning || finalData.traps || finalData.systemTrap || '',
+          biasCorrection: finalData.biasCorrection || finalData.path || finalData.turnaroundPath || '',
+          actionPlan: finalData.actionPlan || finalData.actions || finalData.suggest || finalData.actionPlanList || '',
         }
+      }, () => {
+        console.log('--- 页面数据 setData 并网渲染完成 ---', this.data.reportData)
       })
     } else {
-      console.error('--- 🚨 警告：全链路未检测到合规的报告数据源 ---')
+      console.error('--- 🚨 极度警告：全链路未检测到任何合规的报告数据源！ ---')
       this.setData({ loading: false })
+      wx.showToast({ title: '报告数据对齐失败', icon: 'none' })
     }
+  },
   },
 
   async _loadDiagnostic() {
