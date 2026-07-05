@@ -113,13 +113,27 @@ Page({
     this.setData({ posterGenerating: true })
     wx.showLoading({ title: '正在淬炼海报...', mask: true })
 
-    const sections = this.data.sections
+    // 安全兜底：sections 可能未初始化
+    const sections = Array.isArray(this.data.sections) ? this.data.sections : []
+    const getText = (i) => {
+      const item = sections[i] || {}
+      return item.text || item.content || ''
+    }
     const data = {
-      fatal:     sections[0].text || '',
-      core:      sections[1].text || '',
-      trap:      sections[2].text || '',
-      turnaround:sections[3].text || '',
-      advice:    sections[4].text || '',
+      fatal:      getText(0),
+      core:       getText(1),
+      trap:       getText(2),
+      turnaround: getText(3),
+      advice:     getText(4),
+    }
+
+    // 校验：至少有一条内容才画
+    const hasAnyContent = Object.values(data).some(v => v && v.trim().length > 0)
+    if (!hasAnyContent) {
+      wx.hideLoading()
+      self.setData({ posterGenerating: false })
+      wx.showToast({ title: '报告内容尚未生成，请等待', icon: 'none' })
+      return
     }
 
     const CANVAS_WIDTH = 750
@@ -149,10 +163,6 @@ Page({
         const canvas = res[0].node
         const ctx = canvas.getContext('2d')
 
-        // ═══ 阶段 1: 虚拟量度 → 预计算所有换行高度 ═══
-        canvas.width = 2000
-        canvas.height = 2000
-
         const secDefs = [
           { label: '⚡ 致命一句话', text: data.fatal, isRed: true },
           { label: '🎯 核心问题',   text: data.core,  isRed: false },
@@ -160,6 +170,11 @@ Page({
           { label: '🚀 翻身路径',   text: data.turnaround, isRed: false },
           { label: '📋 行动建议',   text: data.advice, isRed: false },
         ]
+
+        // ═══ 阶段 1: 预计算所有换行高度 ═══
+        // 使用临时大画布做 measureText（不对用户可见）
+        canvas.width = 2000
+        canvas.height = 2000
 
         let estY = BODY_START_Y
         secDefs.forEach(sec => {
@@ -180,7 +195,7 @@ Page({
         const qrStartY = estY + QR_GAP
         const canvasHeight = Math.max(1800, qrStartY + QR_SIZE + QR_TEXT_H + BOT_PAD)
 
-        // ═══ 阶段 2: 设死尺寸 → 一次性绘制 ═══
+        // ═══ 阶段 2: 设定最终尺寸 → 一次性绘制，绝不二次修改 ═══
         canvas.width = CANVAS_WIDTH
         canvas.height = canvasHeight
 
@@ -243,7 +258,8 @@ Page({
         }
 
         const qrImage = canvas.createImage()
-        qrImage.src = '/images/gh_qrcode.png'
+        // 使用项目中真实存在的小程序码
+        qrImage.src = '/images/qrcode.png'
 
         qrImage.onload = () => {
           ctx.fillStyle = '#FFFFFF'
@@ -253,12 +269,13 @@ Page({
           ctx.textAlign = 'center'
           ctx.fillStyle = '#888888'
           ctx.font = '24px sans-serif'
-          ctx.fillText('长按识别上方小程序，开启你的认知翻身', CANVAS_WIDTH / 2, qrY + QR_SIZE + QR_TEXT_H)
+          ctx.fillText('扫码测试你的翻身策略', CANVAS_WIDTH / 2, qrY + QR_SIZE + 24)
+          ctx.fillText('看看你的认知在什么段位', CANVAS_WIDTH / 2, qrY + QR_SIZE + 52)
           finish()
         }
 
         qrImage.onerror = () => {
-          console.error('二维码加载失败，启动无码降级通道')
+          console.error('[poster] 二维码加载失败，启动无码降级通道')
           finish()
         }
       })
