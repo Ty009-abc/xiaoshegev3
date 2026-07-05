@@ -272,7 +272,7 @@ Page({
         const canvas = res[0].node
         const ctx = canvas.getContext('2d')
 
-        // 🔥 物理扩容至 1800px 高度，确保底部不留任何遮挡死角
+        // 🔥 初始画布尺寸（后续根据内容动态扩容）
         canvas.width = 750
         canvas.height = 1800
 
@@ -337,42 +337,45 @@ Page({
           currentY += 65 // 稳固板块间距
         })
 
-        // 5. 🛠 异步加载优化：精准锁定底部裂变区坐标，绝不越界
+        // 5. 🛠 异步加载：动态推算画布高度 + 二维码居中 + 引流文案
+        const CANVAS_WIDTH = 750
+        const qrCodeSize = 140
+        const bottomPadding = 100
+        const estimatedHeight = currentY + 30 + qrCodeSize + 40 + bottomPadding
+        const canvasHeight = Math.max(1800, estimatedHeight)
+        canvas.height = canvasHeight
+
+        // 补足背景（currentY 之后到新画布底部）
+        ctx.fillStyle = '#121620'
+        ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
+
+        const qrX = (CANVAS_WIDTH - qrCodeSize) / 2
+        const qrY = currentY + 30
+
         const qrImage = canvas.createImage()
         qrImage.src = self.data.qrcodePath
 
         qrImage.onload = () => {
-          const qrSize = 140
-          const qrX = 550
-          const qrY = 1600 // 🔥 固定在 1600px 处，配合 1800px 总高，底部留 60px 绝对防空档
-
-          // 绘制圆角白底外壳
+          // 白色圆角底框
           ctx.fillStyle = '#FFFFFF'
-          self.drawRoundedRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12)
+          self.drawRoundedRect(ctx, qrX - 12, qrY - 12, qrCodeSize + 24, qrCodeSize + 24, 14)
           ctx.fill()
+          ctx.drawImage(qrImage, qrX, qrY, qrCodeSize, qrCodeSize)
 
-          // 喷绘小程序码
-          ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize)
+          // 引流文案（居中）
+          ctx.textAlign = 'center'
+          ctx.fillStyle = '#888888'
+          ctx.font = '24px sans-serif'
+          ctx.fillText('长按识别上方小程序，开启你的认知翻身', CANVAS_WIDTH / 2, qrY + qrCodeSize + 40)
 
-          // 右对齐裂变文案
-          ctx.textAlign = 'right'
-          ctx.fillStyle = '#FFFFFF'
-          ctx.font = 'bold 26px sans-serif'
-          ctx.fillText('扫码测试你的', qrX - 30, qrY + 40)
-          ctx.fillText('翻身策略', qrX - 30, qrY + 80)
-
-          ctx.fillStyle = '#8890A8'
-          ctx.font = '22px sans-serif'
-          ctx.fillText('看看你的认知在什么段位', qrX - 30, qrY + 120)
-
-          // 6. 全量导出物理高分辨率临时长图
+          // 6. 导出保存
           wx.canvasToTempFilePath({
             canvas: canvas,
-            destWidth: 750,
-            destHeight: 1800,
-            success: (res) => {
+            destWidth: CANVAS_WIDTH,
+            destHeight: canvasHeight,
+            success: (tempRes) => {
               wx.hideLoading()
-              self.saveToAlbum(res.tempFilePath)
+              self.saveToAlbum(tempRes.tempFilePath)
             },
             fail: () => {
               wx.hideLoading()
@@ -384,11 +387,10 @@ Page({
 
         qrImage.onerror = () => {
           console.error('二维码图片加载失败，启动无码海报生成降级通道')
-          // 即使没有二维码，也强制全量导出海报图片
           wx.canvasToTempFilePath({
             canvas: canvas,
-            destWidth: 750,
-            destHeight: 1800,
+            destWidth: CANVAS_WIDTH,
+            destHeight: canvasHeight,
             success: (res) => {
               wx.hideLoading()
               self.saveToAlbum(res.tempFilePath)
