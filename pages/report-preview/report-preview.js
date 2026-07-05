@@ -286,9 +286,22 @@ Page({
         }
 
         qrImage.onerror = () => {
-          wx.hideLoading()
-          self.setData({ posterGenerating: false })
-          wx.showToast({ title: '二维码加载失败', icon: 'none' })
+          console.error('二维码图片加载失败，启动无码海报生成降级通道')
+          // 即使没有二维码，也强制全量导出海报图片
+          wx.canvasToTempFilePath({
+            canvas: canvas,
+            destWidth: 750,
+            destHeight: 1800,
+            success: (res) => {
+              wx.hideLoading()
+              self.saveToAlbum(res.tempFilePath)
+            },
+            fail: () => {
+              wx.hideLoading()
+              self.setData({ posterGenerating: false })
+              wx.showToast({ title: '画布导出失败', icon: 'none' })
+            }
+          })
         }
       })
   },
