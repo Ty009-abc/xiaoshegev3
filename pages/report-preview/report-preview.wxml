@@ -1,69 +1,123 @@
-<!-- report-preview — v3.13 双模式
-     type=diagnostic: v2 6题 → 5字段翻身策略报告
-     type=challenge_final: 30天挑战 → 收费报告 -->
+<!-- report-preview — v3.14 5板块即时骨架屏
+     type=diagnostic: 框架秒跳 + 内容动态生长
+     type=challenge_final: 原有收费链路 -->
 <view class="page">
 
-  <!-- ═══════ diagnostic 5字段报告（全免费） ═══════ -->
+  <!-- ═══════ diagnostic 5字段报告（骨架屏即时渲染） ═══════ -->
   <block wx:if="{{reportType==='diagnostic'}}">
     <xsg-navbar title="翻身策略报告" showBack light />
 
-    <xsg-loading text="正在加载报告..." wx:if="{{loading}}" />
+    <!-- 🚀 顶级加载条 -->
+    <view class="global-loading-bar" wx:if="{{loading}}">
+      <text class="loading-text">正在加载报告...</text>
+      <view class="loading-dots">
+        <view class="ld-dot"></view>
+        <view class="ld-dot"></view>
+        <view class="ld-dot"></view>
+      </view>
+    </view>
 
-    <block wx:elif="{{report}}">
-      <!-- 人格标识 -->
-      <view class="diag-personality" wx:if="{{report.personality}}">
-        <text class="dp-badge">{{report.personality.emoji}} {{report.personality.name}}视角已激活</text>
+    <!-- 🚀 5 大经典板块即时框架（不论 loading，立即渲染） -->
+    <view class="report-blocks">
+
+      <!-- 01 现状基本盘认知诊断 -->
+      <view class="section-card">
+        <view class="section-header">
+          <text class="section-badge">01</text>
+          <text class="section-title">现状基本盘认知诊断</text>
+        </view>
+        <view class="section-body">
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:92%;"></view>
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:100%;"></view>
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:68%;"></view>
+          <view wx:else class="real-text">{{report.system_trap}}</view>
+        </view>
       </view>
 
-      <!-- ☠️ 致命一句话 — 最顶，最醒目 -->
-      <view class="diag-hero" wx:if="{{report.fatal_sentence}}">
-        <text class="dh-label">致命一句话</text>
-        <text class="dh-content">{{report.fatal_sentence}}</text>
+      <!-- 02 核心底层因果机理 -->
+      <view class="section-card">
+        <view class="section-header">
+          <text class="section-badge">02</text>
+          <text class="section-title">核心底层因果机理</text>
+        </view>
+        <view class="section-body">
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:88%;"></view>
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:95%;"></view>
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:72%;"></view>
+          <view wx:else class="real-text">{{report.core_problem}}</view>
+        </view>
       </view>
 
-      <!-- ⛓️ 系统困局 -->
-      <xsg-card theme="light" class="diag-card anim-fade-in">
-        <view class="dc-label dc-label-red">你被什么系统困住</view>
-        <view class="dc-body">{{report.system_trap}}</view>
-      </xsg-card>
+      <!-- 03 致命一句话（保留原 hero 样式） -->
+      <view class="section-card section-card-hero">
+        <view class="section-header">
+          <text class="section-badge">03</text>
+          <text class="section-title">致命一句话</text>
+        </view>
+        <view class="section-body">
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:80%;height:56rpx;"></view>
+          <view wx:else class="fatal-text">{{report.fatal_sentence}}</view>
+        </view>
+      </view>
 
-      <!-- 🎯 核心问题 -->
-      <xsg-card theme="light" class="diag-card anim-fade-in anim-delay-1">
-        <view class="dc-label dc-label-blue">真正的核心问题</view>
-        <view class="dc-body">{{report.core_problem}}</view>
-      </xsg-card>
+      <!-- 04 翻身策略路径 -->
+      <view class="section-card">
+        <view class="section-header">
+          <text class="section-badge">04</text>
+          <text class="section-title">翻身策略路径</text>
+        </view>
+        <view class="section-body">
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:90%;"></view>
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:100%;"></view>
+          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:75%;"></view>
+          <view wx:else class="real-text real-text-bold">{{report.strategy_path}}</view>
+        </view>
+      </view>
 
-      <!-- 🚀 翻身路径 -->
-      <xsg-card theme="light" class="diag-card anim-fade-in anim-delay-2">
-        <view class="dc-label dc-label-green">翻身路径</view>
-        <view class="dc-body dc-body-strategy">{{report.strategy_path}}</view>
-      </xsg-card>
-
-      <!-- 📋 行动建议 -->
-      <view class="diag-advice anim-fade-in anim-delay-3" wx:if="{{report.advice&&report.advice.length}}">
-        <view class="da-title">行动建议</view>
-        <view class="da-list">
-          <view class="da-item" wx:for="{{report.advice}}" wx:key="*this">
-            <text class="da-num">{{index+1}}</text>
-            <text class="da-text">{{item}}</text>
+      <!-- 05 行动建议 -->
+      <view class="section-card">
+        <view class="section-header">
+          <text class="section-badge">05</text>
+          <text class="section-title">行动建议</text>
+        </view>
+        <view class="section-body">
+          <block wx:if="{{loading}}">
+            <view class="skeleton-line pulse-animation" style="width:96%;"></view>
+            <view class="skeleton-line pulse-animation" style="width:85%;"></view>
+            <view class="skeleton-line pulse-animation" style="width:70%;"></view>
+          </block>
+          <view wx:else class="da-list">
+            <view class="da-item" wx:for="{{report.advice}}" wx:key="*this">
+              <text class="da-num">{{index+1}}</text>
+              <text class="da-text">{{item}}</text>
+            </view>
           </view>
         </view>
       </view>
 
-      <!-- 合规免责 -->
-      <view class="compliance-tips" wx:if="{{reportType==='diagnostic'}}">系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出</view>
+    </view>
 
-      <!-- 重新开始 -->
+    <!-- 报告加载完成后的内容区（非loading态才显示） -->
+    <block wx:if="{{!loading && report}}">
+      <!-- 人格标识 -->
+      <view class="personality-bar">
+        <text class="dp-badge">{{report.personality.emoji}} {{report.personality.name}}视角已激活</text>
+      </view>
+
+      <!-- 合规免责 -->
+      <view class="compliance-tips">系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出</view>
+
+      <!-- 底部操作 -->
       <view class="diag-actions">
         <button class="da-btn da-btn-retry" bindtap="onRetryDiagnostic">再来一次诊断</button>
         <button class="da-btn da-btn-share" open-type="share">分享翻身策略</button>
       </view>
     </block>
 
-    <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading}}" />
+    <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading && !report}}" />
   </block>
 
-  <!-- ═══════ challenge_final 报告（原有收费链路） ═══════ -->
+  <!-- ═══════ challenge_final 报告（原有收费链路，不变） ═══════ -->
   <block wx:else>
     <xsg-navbar title="AI诊断报告" showBack />
     <xsg-loading text="正在加载报告..." wx:if="{{loading}}" />
@@ -87,7 +141,6 @@
 
     <ai-generating id="aiGen" visible="{{showGenerating}}" bind:done="onGenerateDone" />
 
-    <!-- 二次转化弹窗 -->
     <view class="upgrade-mask" wx:if="{{showUpgradeModal}}">
       <view class="upgrade-modal anim-fade-in">
         <text class="um-icon">🧬</text>
