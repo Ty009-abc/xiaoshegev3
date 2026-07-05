@@ -84,7 +84,7 @@
     <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading && !report}}" />
 
     <!-- 🛠 隐藏 Canvas 2D 画布 -->
-    <canvas canvas-id="posterCanvas" style="width:750px;height:1334px;position:fixed;left:-9999px;top:-9999px;"></canvas>
+    <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;left:-9999px;top:-9999px;"></canvas>
   </block>
 
   <!-- ═══════ challenge_final 报告（原有收费链路，不变） ═══════ -->

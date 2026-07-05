@@ -56,5 +56,5 @@
   </view>
 
   <!-- ═══ Canvas 海报（旧版API / 1000x1500 固定画布） ═══ -->
-  <canvas canvas-id="posterCanvas" style="width:750px;height:1334px;position:fixed;left:-9999px;top:-9999px;"></canvas>
+  <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;left:-9999px;top:-9999px;"></canvas>
 </view>
