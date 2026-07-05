@@ -112,7 +112,17 @@
         <button class="da-btn da-btn-retry" bindtap="onRetryDiagnostic">再来一次诊断</button>
         <button class="da-btn da-btn-share" open-type="share">分享翻身策略</button>
       </view>
+
+      <!-- 🚀 海报按钮 EXTRA 行 -->
+      <view class="poster-row">
+        <button class="da-btn btn-poster" bindtap="generatePoster" loading="{{posterGenerating}}">
+          {{posterGenerating ? '正在生成海报...' : '生成翻身海报 · 保存相册'}}
+        </button>
+      </view>
     </block>
+
+    <!-- 🎨 隐藏 Canvas 画布（后台绘制，不影响页面布局） -->
+    <canvas type="2d" id="posterCanvas" style="width:750px;height:1334px;position:fixed;left:-9999px;top:-9999px;"></canvas>
 
     <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading && !report}}" />
   </block>
