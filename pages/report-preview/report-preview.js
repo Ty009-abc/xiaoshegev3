@@ -1,6 +1,6 @@
 /**
- * pages/report-preview — v3.13 双模式
- *   type=diagnostic: v2 6题 → 5字段翻身策略报告（全免费）
+ * pages/report-preview — v3.15 双模式
+ *   type=diagnostic: 6题 → 5字段翻身策略报告（全免费）
  *   type=challenge_final: 30天挑战 → 收费报告
  */
 const aiReportService = require('../../services/aiReportService.js')
@@ -14,15 +14,13 @@ Page({
     report:null, locked:true, loading:true, generating:false,
     showGenerating:false, showUpgradeModal:false,
     posterGenerating:false,
-    // 💡 小程序码图片路径
-    qrcodePath: '/images/qrcode.png',
-    // 新增：WXML 模板对齐数据字段
+    qrcodePath: '/images/gh_qrcode.png',
     reportData: {
-      basicInsight: '',
-      mechanism: '',
-      reverseReasoning: '',
-      biasCorrection: '',
-      actionPlan: '',
+      basicInsight: '',     // 对应 1: 致命一句话
+      mechanism: '',        // 对应 2: 核心问题
+      reverseReasoning: '', // 对应 3: 系统困局
+      biasCorrection: '',   // 对应 4: 翻身路径
+      actionPlan: ''        // 对应 5: 行动建议
     },
   },
 
@@ -30,11 +28,9 @@ Page({
     const isDiagnostic = opt.type === 'diagnostic'
     this.setData({ recordId:opt.recordId||'diag', reportType:opt.type||'challenge_final' })
 
-    // 诊断模式：自己调云函数生成报告（不阻塞问卷页的跳转）
     if (isDiagnostic && app.globalData._diagnosticAnswers) {
       this._loadDiagnostic()
     } else if (isDiagnostic && app.globalData._diagnosticReport) {
-      // 兼容旧逻辑：直接拿缓存结果
       const r = app.globalData._diagnosticReport
       const p = app.globalData._diagnosticPersonality
       app.globalData._diagnosticReport = null
@@ -146,7 +142,7 @@ Page({
   },
 
   /* ═══════════════════════════════════════
-     海报生成 — Canvas 2D v3 （画布1800 + 5标题纠偏）
+     海报生成引擎 — Canvas 2D 1800px 全链路
      ═══════════════════════════════════════ */
   generatePoster() {
     if (this.data.posterGenerating) return
@@ -154,7 +150,7 @@ Page({
     this.setData({ posterGenerating: true })
     wx.showLoading({ title: '正在淬炼海报...', mask: true })
 
-    // 从 report 映射到 reportData（WXML 对齐字段）
+    // 从 report 映射到 reportData
     const r = this.data.report
     this.setData({
       reportData: {
@@ -172,21 +168,22 @@ Page({
       .exec((res) => {
         if (!res || !res[0] || !res[0].node) {
           wx.hideLoading()
-          this.setData({ posterGenerating: false })
+          self.setData({ posterGenerating: false })
           wx.showToast({ title: '画布初始化失败', icon: 'none' })
           return
         }
         const canvas = res[0].node
         const ctx = canvas.getContext('2d')
 
+        // 🔥 物理扩容至 1800px 高度，确保底部不留任何遮挡死角
         canvas.width = 750
         canvas.height = 1800
 
-        // 1. 深色背景
+        // 1. 通铺暗黑主底色
         ctx.fillStyle = '#121620'
         ctx.fillRect(0, 0, 750, 1800)
 
-        // 2. 大标题
+        // 2. 顶级大标题
         ctx.fillStyle = '#FFFFFF'
         ctx.font = 'bold 36px sans-serif'
         ctx.textAlign = 'center'
@@ -197,130 +194,106 @@ Page({
         ctx.font = '24px sans-serif'
         ctx.fillText('🧠 认知教练视角已激活', 375, 130)
 
-        // 4. 内容板块（5大标题顺序硬编码还原）
+        // 4. 精确流式绘制 5 大板块大盘（统帅指定最新顺序）
         let currentY = 220
         const paddingX = 50
         const contentWidth = 650
 
         const sections = [
-          { label: '⚡ 致命一句话', text: '💀 ' + self.data.reportData.basicInsight, color: '#FF453A', isRed: true },
+          { label: '⚡ 致命一句话', text: self.data.reportData.basicInsight, color: '#FF453A', isRed: true },
           { label: '🎯 核心问题', text: self.data.reportData.mechanism, color: '#D0D5E0', isRed: false },
-          { label: '🔍 系统局', text: self.data.reportData.reverseReasoning, color: '#D0D5E0', isRed: false },
+          { label: '🔍 系统困局', text: self.data.reportData.reverseReasoning, color: '#D0D5E0', isRed: false },
           { label: '🚀 翻身路径', text: self.data.reportData.biasCorrection, color: '#D0D5E0', isRed: false },
           { label: '📋 行动建议', text: self.data.reportData.actionPlan, color: '#D0D5E0', isRed: false }
         ]
 
         sections.forEach(sec => {
           if (!sec.text) return
+
+          // 绘制分类标题
           ctx.textAlign = 'left'
           ctx.fillStyle = sec.isRed ? '#FF453A' : '#7B57FF'
           ctx.font = 'bold 26px sans-serif'
           ctx.fillText(sec.label, paddingX, currentY)
-          currentY += 40
+          currentY += 45
 
+          // 正文自动换行引擎
           ctx.fillStyle = sec.color
           ctx.font = sec.isRed ? 'bold 26px sans-serif' : '24px sans-serif'
-          currentY = self._wrapText(ctx, sec.text, paddingX, currentY, contentWidth, 38)
-          currentY += 60
+
+          let words = sec.text
+          let line = ''
+          const lineHeight = 38
+
+          for (let n = 0; n < words.length; n++) {
+            let testLine = line + words[n]
+            let metrics = ctx.measureText(testLine)
+            if (metrics.width > contentWidth && n > 0) {
+              ctx.fillText(line, paddingX, currentY)
+              line = words[n]
+              currentY += lineHeight
+            } else {
+              line = testLine
+            }
+          }
+          ctx.fillText(line, paddingX, currentY)
+          currentY += 65 // 稳固板块间距
         })
 
-        // 5. 加载二维码并绘制（放在 1800 底部安全区）
-        try {
-          const qrImage = canvas.createImage()
-          qrImage.src = self.data.qrcodePath
-          qrImage.onload = () => {
-            const qrSize = 160
-            const qrX = 540
-            const qrY = 1580
+        // 5. 🛠 异步加载优化：精准锁定底部裂变区坐标，绝不越界
+        const qrImage = canvas.createImage()
+        qrImage.src = self.data.qrcodePath
 
-            // 白色圆角底框
-            ctx.fillStyle = '#FFFFFF'
-            self._drawRoundedRect(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 14)
-            ctx.fill()
-            ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize)
+        qrImage.onload = () => {
+          const qrSize = 140
+          const qrX = 550
+          const qrY = 1600 // 🔥 固定在 1600px 处，配合 1800px 总高，底部留 60px 绝对防空档
 
-            // 右对齐裂变文案（在二维码左侧）
-            ctx.textAlign = 'right'
-            ctx.fillStyle = '#FFFFFF'
-            ctx.font = 'bold 28px sans-serif'
-            ctx.fillText('扫码测试你的', qrX - 36, qrY + 50)
-            ctx.fillText('翻身策略', qrX - 36, qrY + 92)
+          // 绘制圆角白底外壳
+          ctx.fillStyle = '#FFFFFF'
+          self.drawRoundedRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12)
+          ctx.fill()
 
-            ctx.fillStyle = '#8890A8'
-            ctx.font = '22px sans-serif'
-            ctx.fillText('看看你的认知在什么段位', qrX - 36, qrY + 136)
+          // 喷绘小程序码
+          ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize)
 
-            // 底部品牌
-            ctx.textAlign = 'center'
-            ctx.font = '18px sans-serif'
-            ctx.fillStyle = '#5A6078'
-            ctx.fillText('珠澳小事哥 · 认知操作系统', 375, 1770)
+          // 右对齐裂变文案
+          ctx.textAlign = 'right'
+          ctx.fillStyle = '#FFFFFF'
+          ctx.font = 'bold 26px sans-serif'
+          ctx.fillText('扫码测试你的', qrX - 30, qrY + 40)
+          ctx.fillText('翻身策略', qrX - 30, qrY + 80)
 
-            // 6. 导出保存
-            wx.canvasToTempFilePath({
-              canvas: canvas,
-              destWidth: 750,
-              destHeight: 1800,
-              success: (tempRes) => {
-                wx.hideLoading()
-                self._saveToAlbumDirect(tempRes.tempFilePath)
-              },
-              fail: () => {
-                wx.hideLoading()
-                self.setData({ posterGenerating: false })
-                wx.showToast({ title: '画布导出失败', icon: 'none' })
-              }
-            })
-          }
-          qrImage.onerror = () => {
-            wx.hideLoading()
-            self.setData({ posterGenerating: false })
-            // 二维码失败但文案已绘制，仍然可导出
-            wx.canvasToTempFilePath({
-              canvas: canvas,
-              destWidth: 750,
-              destHeight: 1800,
-              success: (tempRes) => {
-                self._saveToAlbumDirect(tempRes.tempFilePath)
-              },
-              fail: () => {
-                wx.showToast({ title: '海报生成失败', icon: 'none' })
-              }
-            })
-          }
-        } catch (e) {
+          ctx.fillStyle = '#8890A8'
+          ctx.font = '22px sans-serif'
+          ctx.fillText('看看你的认知在什么段位', qrX - 30, qrY + 120)
+
+          // 6. 全量导出物理高分辨率临时长图
+          wx.canvasToTempFilePath({
+            canvas: canvas,
+            destWidth: 750,
+            destHeight: 1800,
+            success: (res) => {
+              wx.hideLoading()
+              self.saveToAlbum(res.tempFilePath)
+            },
+            fail: () => {
+              wx.hideLoading()
+              self.setData({ posterGenerating: false })
+              wx.showToast({ title: '画布导出失败', icon: 'none' })
+            }
+          })
+        }
+
+        qrImage.onerror = () => {
           wx.hideLoading()
           self.setData({ posterGenerating: false })
-          wx.showToast({ title: '海报生成失败', icon: 'none' })
+          wx.showToast({ title: '二维码加载失败', icon: 'none' })
         }
       })
   },
 
-  // 文本自动换行绘制（海报专用）
-  _wrapText(ctx, text, x, startY, maxWidth, lineHeight) {
-    let y = startY
-    const chars = text.split('')
-    let line = ''
-    for (let i = 0; i < chars.length; i++) {
-      const testLine = line + chars[i]
-      const metrics = ctx.measureText(testLine)
-      if (metrics.width > maxWidth && line.length > 0) {
-        ctx.fillText(line, x, y)
-        line = chars[i]
-        y += lineHeight
-      } else {
-        line = testLine
-      }
-    }
-    if (line.length > 0) {
-      ctx.fillText(line, x, y)
-      y += lineHeight
-    }
-    return y
-  },
-
-  // 圆角矩形
-  _drawRoundedRect(ctx, x, y, width, height, radius) {
+  drawRoundedRect(ctx, x, y, width, height, radius) {
     ctx.beginPath()
     ctx.moveTo(x + radius, y)
     ctx.lineTo(x + width - radius, y)
@@ -334,8 +307,7 @@ Page({
     ctx.closePath()
   },
 
-  // 直接保存到相册（新版）
-  _saveToAlbumDirect(filePath) {
+  saveToAlbum(filePath) {
     const self = this
     wx.saveImageToPhotosAlbum({
       filePath: filePath,
