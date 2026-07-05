@@ -146,7 +146,7 @@ Page({
   },
 
   /* ═══════════════════════════════════════
-     海报生成 — Canvas 2D 全链路（重构版）
+     海报生成 — Canvas 2D v3 （画布1800 + 5标题纠偏）
      ═══════════════════════════════════════ */
   generatePoster() {
     if (this.data.posterGenerating) return
@@ -158,9 +158,9 @@ Page({
     const r = this.data.report
     this.setData({
       reportData: {
-        basicInsight: r?.system_trap || '',
+        basicInsight: r?.fatal_sentence || '',
         mechanism: r?.core_problem || '',
-        reverseReasoning: r?.fatal_sentence || '',
+        reverseReasoning: r?.system_trap || '',
         biasCorrection: r?.strategy_path || '',
         actionPlan: (r?.advice || []).join('\n') || '',
       }
@@ -180,11 +180,11 @@ Page({
         const ctx = canvas.getContext('2d')
 
         canvas.width = 750
-        canvas.height = 1600
+        canvas.height = 1800
 
         // 1. 深色背景
         ctx.fillStyle = '#121620'
-        ctx.fillRect(0, 0, 750, 1600)
+        ctx.fillRect(0, 0, 750, 1800)
 
         // 2. 大标题
         ctx.fillStyle = '#FFFFFF'
@@ -197,17 +197,17 @@ Page({
         ctx.font = '24px sans-serif'
         ctx.fillText('🧠 认知教练视角已激活', 375, 130)
 
-        // 4. 内容板块
+        // 4. 内容板块（5大标题顺序硬编码还原）
         let currentY = 220
         const paddingX = 50
         const contentWidth = 650
 
         const sections = [
-          { label: '⚡ 现状基本盘认知诊断', text: self.data.reportData.basicInsight, color: '#D0D5E0', isRed: false },
-          { label: '⚙️ 核心底层因果机理', text: self.data.reportData.mechanism, color: '#D0D5E0', isRed: false },
-          { label: '🔥 致命一句话', text: '💀 ' + self.data.reportData.reverseReasoning, color: '#FF453A', isRed: true },
-          { label: '🧩 认知偏差纠偏方案', text: self.data.reportData.biasCorrection, color: '#D0D5E0', isRed: false },
-          { label: '📋 系统级翻身行动建议', text: self.data.reportData.actionPlan, color: '#D0D5E0', isRed: false }
+          { label: '⚡ 致命一句话', text: '💀 ' + self.data.reportData.basicInsight, color: '#FF453A', isRed: true },
+          { label: '🎯 核心问题', text: self.data.reportData.mechanism, color: '#D0D5E0', isRed: false },
+          { label: '🔍 系统局', text: self.data.reportData.reverseReasoning, color: '#D0D5E0', isRed: false },
+          { label: '🚀 翻身路径', text: self.data.reportData.biasCorrection, color: '#D0D5E0', isRed: false },
+          { label: '📋 行动建议', text: self.data.reportData.actionPlan, color: '#D0D5E0', isRed: false }
         ]
 
         sections.forEach(sec => {
@@ -224,37 +224,43 @@ Page({
           currentY += 60
         })
 
-        // 5. 加载二维码并绘制
+        // 5. 加载二维码并绘制（放在 1800 底部安全区）
         try {
           const qrImage = canvas.createImage()
           qrImage.src = self.data.qrcodePath
           qrImage.onload = () => {
-            const qrSize = 140
-            const qrX = 550
-            const qrY = 1410
+            const qrSize = 160
+            const qrX = 540
+            const qrY = 1580
 
             // 白色圆角底框
             ctx.fillStyle = '#FFFFFF'
-            self._drawRoundedRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 12)
+            self._drawRoundedRect(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 14)
             ctx.fill()
             ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize)
 
-            // 右对齐裂变文案
+            // 右对齐裂变文案（在二维码左侧）
             ctx.textAlign = 'right'
             ctx.fillStyle = '#FFFFFF'
-            ctx.font = 'bold 26px sans-serif'
-            ctx.fillText('扫码测试你的', qrX - 30, qrY + 40)
-            ctx.fillText('翻身策略', qrX - 30, qrY + 80)
+            ctx.font = 'bold 28px sans-serif'
+            ctx.fillText('扫码测试你的', qrX - 36, qrY + 50)
+            ctx.fillText('翻身策略', qrX - 36, qrY + 92)
 
             ctx.fillStyle = '#8890A8'
             ctx.font = '22px sans-serif'
-            ctx.fillText('看看你的认知在什么段位', qrX - 30, qrY + 120)
+            ctx.fillText('看看你的认知在什么段位', qrX - 36, qrY + 136)
+
+            // 底部品牌
+            ctx.textAlign = 'center'
+            ctx.font = '18px sans-serif'
+            ctx.fillStyle = '#5A6078'
+            ctx.fillText('珠澳小事哥 · 认知操作系统', 375, 1770)
 
             // 6. 导出保存
             wx.canvasToTempFilePath({
               canvas: canvas,
               destWidth: 750,
-              destHeight: 1600,
+              destHeight: 1800,
               success: (tempRes) => {
                 wx.hideLoading()
                 self._saveToAlbumDirect(tempRes.tempFilePath)
@@ -273,7 +279,7 @@ Page({
             wx.canvasToTempFilePath({
               canvas: canvas,
               destWidth: 750,
-              destHeight: 1600,
+              destHeight: 1800,
               success: (tempRes) => {
                 self._saveToAlbumDirect(tempRes.tempFilePath)
               },
