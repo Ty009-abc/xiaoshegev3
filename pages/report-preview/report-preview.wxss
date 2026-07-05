@@ -73,6 +73,11 @@
   margin-bottom: 20rpx;
 }
 
+/* ── 03致命一句话红色板块 ── */
+.red-header .section-title { color: #DC3545 !important; }
+.text-red { color: #DC3545 !important; }
+.bg-red { background: #DC3545 !important; }
+
 .section-badge {
   background: #7B57FF;
   color: #FFFFFF;
@@ -109,24 +114,20 @@
   background-color: #E8E9EC;
 }
 
-/* ── 真实文本内容 ── */
-.real-text {
+/* ── 真实文本内容（通用板块） ── */
+.real-text-content {
   font-size: 28rpx;
   color: #344054;
   line-height: 1.8;
-  flex: 1;
-}
-.real-text-bold {
-  font-weight: 600;
-  color: #101828;
+  display: block;
 }
 
-/* 致命一句话文本 */
-.fatal-text {
-  font-size: 34rpx;
+/* ── 致命一句话文本（03板块专用） ── */
+.text-red-content {
+  font-size: 32rpx;
   font-weight: 800;
-  color: #DC3545;
-  line-height: 1.5;
+  color: #DC3545 !important;
+  line-height: 1.55;
   text-shadow: 0 0 20rpx rgba(220, 53, 69, 0.08);
 }
 
@@ -187,54 +188,41 @@
   text-align: left !important;
 }
 
-/* ── 底部操作按钮 ── */
-.diag-actions {
+/* ── 底部操作按钮（双按钮布局） ── */
+.action-buttons {
   display: flex;
   gap: 16rpx;
-  padding: 16rpx 32rpx 8rpx;
+  padding: 24rpx 32rpx 48rpx;
 }
-.da-btn {
+.btn-secondary {
   flex: 1;
   height: 88rpx;
   border-radius: 999rpx;
   font-size: 28rpx;
   font-weight: 600;
+  background: #F2F4F7;
+  color: #667085;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.da-btn::after { border: none; }
-.da-btn-retry {
-  background: #F2F4F7;
-  color: #667085;
-}
-.da-btn-share {
-  background: linear-gradient(135deg, #7F56D9, #53389E);
-  color: #FFFFFF;
-  box-shadow: 0 4rpx 16rpx rgba(127, 86, 217, 0.3);
-}
-
-/* ── 海报按钮 EXTRA 行 ── */
-.poster-row {
-  padding: 0 32rpx 48rpx;
-}
-.btn-poster {
-  flex: none;
-  width: 100%;
-  height: 96rpx;
+.btn-secondary::after { border: none; }
+.btn-primary {
+  flex: 1;
+  height: 88rpx;
   border-radius: 999rpx;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
   background: linear-gradient(135deg, #F5A623, #D97706, #B45309);
+  color: #FFFFFF;
   box-shadow: 0 8rpx 24rpx rgba(245, 166, 35, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   letter-spacing: 2rpx;
 }
-.btn-poster::after { border: none; }
-.btn-poster:active {
-  transform: scale(0.97);
-  opacity: 0.9;
-}
+.btn-primary::after { border: none; }
+.btn-primary:active { transform: scale(0.97); opacity: 0.9; }
 
 /* ═══════════════════════════════
    challenge_final 收费链路（不变）
