@@ -147,7 +147,7 @@ Page({
     const SEC_GAP = 65
     const QR_SIZE = 140
     const QR_GAP = 30
-    const QR_TEXT_H = 40
+    const QR_TEXT_BLOCK_H = 100
     const BOT_PAD = 80
 
     const query = wx.createSelectorQuery()
@@ -193,7 +193,7 @@ Page({
         })
 
         const qrStartY = estY + QR_GAP
-        const canvasHeight = Math.max(1800, qrStartY + QR_SIZE + QR_TEXT_H + BOT_PAD)
+        const canvasHeight = Math.max(1800, qrStartY + QR_SIZE + QR_TEXT_BLOCK_H + BOT_PAD)
 
         // ═══ 阶段 2: 设定最终尺寸 → 一次性绘制，绝不二次修改 ═══
         canvas.width = CANVAS_WIDTH
@@ -262,15 +262,32 @@ Page({
         qrImage.src = '/images/qrcode.png'
 
         qrImage.onload = () => {
+          // 白色圆角底框
           ctx.fillStyle = '#FFFFFF'
           self._drawRoundedRect(ctx, qrX - 12, qrY - 12, QR_SIZE + 24, QR_SIZE + 24, 14)
           ctx.fill()
           ctx.drawImage(qrImage, qrX, qrY, QR_SIZE, QR_SIZE)
+
+          // 引流文案（三行，拉开间距，炫彩配色）
           ctx.textAlign = 'center'
-          ctx.fillStyle = '#888888'
-          ctx.font = '24px sans-serif'
-          ctx.fillText('扫码测试你的翻身策略', CANVAS_WIDTH / 2, qrY + QR_SIZE + 24)
-          ctx.fillText('看看你的认知在什么段位', CANVAS_WIDTH / 2, qrY + QR_SIZE + 52)
+          const textBaseY = qrY + QR_SIZE + 34
+          const lineH = 34
+
+          // 行1：白色强调
+          ctx.fillStyle = '#FFFFFF'
+          ctx.font = 'bold 22px sans-serif'
+          ctx.fillText('扫码测试你的翻身策略', CANVAS_WIDTH / 2, textBaseY)
+
+          // 行2：粉紫渐变感（纯色高亮替代渐变）
+          ctx.fillStyle = '#FF7BB6'
+          ctx.font = '22px sans-serif'
+          ctx.fillText('看看你的认知在什么段位', CANVAS_WIDTH / 2, textBaseY + lineH)
+
+          // 行3：暗灰点缀
+          ctx.fillStyle = '#6E758A'
+          ctx.font = '20px sans-serif'
+          ctx.fillText('珠澳小事哥 · 你的认知翻身教练', CANVAS_WIDTH / 2, textBaseY + lineH * 2)
+
           finish()
         }
 
