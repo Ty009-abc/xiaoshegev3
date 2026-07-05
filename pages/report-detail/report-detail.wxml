@@ -55,6 +55,6 @@
     <button class="btn-retry" bindtap="onRetry">重做诊断</button>
   </view>
 
-  <!-- ═══ Canvas 海报（旧版API / 隐藏） ═══ -->
-  <canvas canvas-id="posterCanvas" id="posterCanvas" style="position:fixed;left:-9999px;top:-9999px;width:1000px;height:1500px;"></canvas>
+  <!-- ═══ Canvas 海报（旧版API / 1000x1500 固定画布） ═══ -->
+  <canvas canvas-id="posterCanvas" style="width:500px;height:750px;position:fixed;left:-9999px;top:-9999px;"></canvas>
 </view>
