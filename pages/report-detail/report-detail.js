@@ -117,19 +117,22 @@ Page({
     const ctx = wx.createCanvasContext('posterCanvas', this)
     const W = 750
     const H = 1334
+    const safeX = 40
+    const cardW = 670
+    const leftW = 112
+    const textStartX = safeX + leftW + 28
+    const textMaxW = cardW - leftW - 52
 
     const sections = this.data.sections || []
-    const getText = i => sections[i]?.text || ''
+    const qrPath = this.data.qrPath || '/images/qrcode.png'
 
     const cards = [
-      { no: '01', emoji: '⚡', title: '致命一句话', color: '#ff3b3b', text: getText(0) },
-      { no: '02', emoji: '🎯', title: '核心问题',   color: '#8b5cff', text: getText(1) },
-      { no: '03', emoji: '🔍', title: '系统困局',   color: '#3b8cff', text: getText(2) },
-      { no: '04', emoji: '🚀', title: '翻身路径',   color: '#ff9f1a', text: getText(3) },
-      { no: '05', emoji: '📋', title: '行动建议',   color: '#39d353', text: getText(4) }
+      { no: '01', icon: '⚡', title: '致命一句话', color: '#ff3b3b', text: sections[0]?.text || '' },
+      { no: '02', icon: '🎯', title: '核心问题',   color: '#8b5cff', text: sections[1]?.text || '' },
+      { no: '03', icon: '🔍', title: '系统困局',   color: '#3b8cff', text: sections[2]?.text || '' },
+      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: sections[3]?.text || '' },
+      { no: '05', icon: '📋', title: '行动建议',   color: '#39d353', text: sections[4]?.text || '' }
     ]
-
-    const qrPath = this.data.qrPath || '/images/qrcode.png'
 
     function roundRect(x, y, w, h, r) {
       ctx.beginPath()
@@ -146,36 +149,36 @@ Page({
     }
 
     function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines, color, size) {
-      color = color || '#e8edf7'
-      size = size || 22
+      ctx.setTextAlign('left')
       ctx.setFontSize(size)
       ctx.setFillStyle(color)
 
+      const chars = String(text || '').replace(/\n/g, ' ').split('')
       let line = ''
-      let lines = []
-      for (let i = 0; i < text.length; i++) {
-        const testLine = line + text[i]
-        if (ctx.measureText(testLine).width > maxWidth && line) {
+      const lines = []
+
+      chars.forEach(ch => {
+        const test = line + ch
+        if (ctx.measureText(test).width > maxWidth && line) {
           lines.push(line)
-          line = text[i]
+          line = ch
         } else {
-          line = testLine
+          line = test
         }
-      }
+      })
       if (line) lines.push(line)
 
+      const final = lines.slice(0, maxLines)
       if (lines.length > maxLines) {
-        lines = lines.slice(0, maxLines)
-        lines[maxLines - 1] = lines[maxLines - 1].slice(0, -2) + '…'
+        final[maxLines - 1] = final[maxLines - 1].slice(0, -1) + '…'
       }
 
-      lines.forEach((l, idx) => {
-        ctx.fillText(l, x, y + idx * lineHeight)
+      final.forEach((l, i) => {
+        ctx.fillText(l, x, y + i * lineHeight)
       })
     }
 
-    function drawGlowCircle(x, y, r, color, alpha) {
-      alpha = alpha || 0.22
+    function drawGlow(x, y, r, color, alpha) {
       const g = ctx.createCircularGradient(x, y, r)
       g.addColorStop(0, color)
       g.addColorStop(1, 'rgba(0,0,0,0)')
@@ -188,161 +191,141 @@ Page({
     // 背景
     ctx.setFillStyle('#050914')
     ctx.fillRect(0, 0, W, H)
-
-    drawGlowCircle(128, 90, 195, '#7b3cff', 0.28)
-    drawGlowCircle(615, 120, 225, '#ff2d75', 0.2)
-    drawGlowCircle(390, 1085, 285, '#2d6bff', 0.18)
+    drawGlow(160, 120, 220, '#7b3cff', 0.26)
+    drawGlow(620, 120, 240, '#ff2d75', 0.18)
+    drawGlow(375, 1120, 300, '#2d6bff', 0.18)
 
     // 标题
     ctx.setTextAlign('center')
-    ctx.setFontSize(40)
+    ctx.setFontSize(42)
     ctx.setFillStyle('#ffffff')
-    ctx.fillText('珠澳小事哥 · ', 274, 66)
+    ctx.fillText('珠澳小事哥 · 认知翻身策略', W / 2, 76)
 
-    ctx.setFillStyle('#a56cff')
-    ctx.fillText('认知翻身策略', 495, 66)
-
-    ctx.setFontSize(22)
+    ctx.setFontSize(26)
     ctx.setFillStyle('#ff5ca8')
-    ctx.fillText('🧠 认知教练视角已激活', W / 2, 109)
+    ctx.fillText('🧠 认知教练视角已激活', W / 2, 122)
 
     ctx.setStrokeStyle('rgba(255,92,168,0.45)')
     ctx.setLineWidth(1)
     ctx.beginPath()
-    ctx.moveTo(52, 118)
-    ctx.lineTo(274, 118)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(476, 118)
-    ctx.lineTo(698, 118)
+    ctx.moveTo(70, 145)
+    ctx.lineTo(680, 145)
     ctx.stroke()
 
-    // 5 大板块卡片
-    let y = 150
-    const cardX = 39
-    const cardW = 672
-    const cardH = 118
-    const gap = 10
+    // 内容卡片
+    let y = 180
 
     cards.forEach((item, index) => {
       const isLast = index === 4
-      const h = isLast ? 172 : cardH
+      const h = isLast ? 220 : 145
 
       // 卡片背景
-      ctx.save()
-      roundRect(cardX, y, cardW, h, 12)
-      ctx.setFillStyle('rgba(8,14,32,0.86)')
+      roundRect(safeX, y, cardW, h, 16)
+      ctx.setFillStyle('rgba(8,14,32,0.88)')
       ctx.fill()
       ctx.setStrokeStyle(item.color)
       ctx.setLineWidth(1.5)
       ctx.stroke()
-      ctx.restore()
 
       // 左侧编号区
       ctx.setGlobalAlpha(0.16)
       ctx.setFillStyle(item.color)
-      ctx.fillRect(cardX, y, 112, h)
+      ctx.fillRect(safeX, y, leftW, h)
       ctx.setGlobalAlpha(1)
 
       ctx.setTextAlign('center')
-      ctx.setFontSize(43)
+      ctx.setFontSize(52)
       ctx.setFillStyle(item.color)
-      ctx.fillText(item.no, cardX + 56, y + 52)
+      ctx.fillText(item.no, safeX + leftW / 2, y + 62)
 
-      ctx.setFontSize(27)
-      ctx.fillText(item.emoji, cardX + 56, y + 97)
+      ctx.setFontSize(40)
+      ctx.fillText(item.icon, safeX + leftW / 2, y + 112)
 
       // 标题
       ctx.setTextAlign('left')
-      ctx.setFontSize(25)
+      ctx.setFontSize(30)
       ctx.setFillStyle(item.color)
-      ctx.fillText(item.emoji + ' ' + item.title, cardX + 135, y + 41)
+      ctx.fillText(item.icon + ' ' + item.title, textStartX, y + 46)
 
       // 正文
-      const textX = cardX + 135
-      const textY = y + 75
-
       if (isLast) {
-        const lines = item.text
+        const points = String(item.text || '')
           .replace(/。/g, '。\n')
           .split('\n')
+          .map(s => s.trim())
           .filter(Boolean)
+          .slice(0, 5)
 
-        ctx.setFontSize(20)
-        ctx.setFillStyle('#eaf0ff')
-
-        lines.slice(0, 5).forEach((line, i) => {
+        points.forEach((p, i) => {
+          const py = y + 82 + i * 27
+          ctx.setFontSize(22)
           ctx.setFillStyle('#39d353')
-          ctx.fillText('•', textX, textY + i * 26)
-
-          ctx.setFillStyle('#eaf0ff')
-          drawWrappedText(line, textX + 20, textY + i * 26, 488, 24, 1, '#eaf0ff', 20)
+          ctx.fillText('•', textStartX, py)
+          drawWrappedText(p, textStartX + 22, py, textMaxW - 22, 26, 1, '#eaf0ff', 22)
         })
       } else {
-        drawWrappedText(item.text, textX, textY, 506, 28, 2, '#eaf0ff', 22)
+        drawWrappedText(item.text, textStartX, y + 84, textMaxW, 32, 2, '#eaf0ff', 26)
       }
 
-      y += h + gap
+      y += h + 14
     })
 
     // 底部 CTA 区
-    const ctaY = 1098
-    const ctaH = 135
+    const ctaY = 1120
+    const ctaH = 150
 
-    roundRect(52, ctaY, 645, ctaH, 21)
-    ctx.setFillStyle('rgba(10,12,40,0.92)')
+    roundRect(safeX, ctaY, cardW, ctaH, 24)
+    ctx.setFillStyle('rgba(10,12,40,0.94)')
     ctx.fill()
     ctx.setStrokeStyle('#7b5cff')
     ctx.setLineWidth(2)
     ctx.stroke()
 
     // 二维码底座
-    roundRect(71, ctaY + 15, 105, 105, 16)
+    roundRect(safeX + 20, ctaY + 20, 110, 110, 18)
     ctx.setFillStyle('#ffffff')
     ctx.fill()
-
-    ctx.drawImage(qrPath, 78, ctaY + 22, 90, 90)
+    ctx.drawImage(qrPath, safeX + 28, ctaY + 28, 94, 94)
 
     // CTA 文字
     ctx.setTextAlign('left')
-    ctx.setFontSize(31)
+    ctx.setFontSize(34)
     ctx.setFillStyle('#ff45c8')
-    ctx.fillText('扫码测试你的翻身策略', 202, ctaY + 51)
+    ctx.fillText('扫码测试你的翻身策略', safeX + 150, ctaY + 58)
 
-    ctx.setFontSize(27)
+    ctx.setFontSize(28)
     ctx.setFillStyle('#ffffff')
-    ctx.fillText('看看你的认知在什么段位', 202, ctaY + 88)
+    ctx.fillText('看看你的认知在什么段位', safeX + 150, ctaY + 96)
 
     // 三标签
     const tags = ['🧠 认知诊断', '📈 策略分析', '🎯 破局建议']
     tags.forEach((tag, i) => {
-      const tx = 202 + i * 142
-      roundRect(tx, ctaY + 103, 124, 25, 11)
+      const tx = safeX + 150 + i * 142
+      roundRect(tx, ctaY + 111, 124, 25, 11)
       ctx.setFillStyle('rgba(123,92,255,0.14)')
       ctx.fill()
       ctx.setStrokeStyle('rgba(180,130,255,0.7)')
       ctx.stroke()
-
       ctx.setFontSize(15)
       ctx.setFillStyle('#d9d6ff')
       ctx.setTextAlign('center')
-      ctx.fillText(tag, tx + 62, ctaY + 121)
+      ctx.fillText(tag, tx + 62, ctaY + 129)
     })
 
     // 底部提示
     ctx.setTextAlign('center')
-    ctx.setFontSize(20)
+    ctx.setFontSize(22)
     ctx.setFillStyle('#7b6dff')
-    ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, 1300)
+    ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, 1310)
 
     const self = this
     ctx.draw(false, () => {
       wx.canvasToTempFilePath({
         canvasId: 'posterCanvas',
-        width: W,
-        height: H,
-        destWidth: W * 2,
-        destHeight: H * 2,
+        width: 750,
+        height: 1334,
+        destWidth: 1500,
+        destHeight: 2668,
         success: res => {
           self.setData({
             posterPath: res.tempFilePath,
@@ -350,7 +333,6 @@ Page({
             showPoster: true
           })
           wx.hideLoading()
-          // 自动保存到相册
           self._saveToAlbum(res.tempFilePath)
         },
         fail: err => {
