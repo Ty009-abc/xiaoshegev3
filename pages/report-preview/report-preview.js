@@ -254,7 +254,8 @@ Page({
   },
 
   /* ═══════════════════════════════════════
-     海报生成引擎 — Canvas 2D 1800px 全链路
+     海报生成引擎 — Canvas 2D 重构版
+     原则：先预计算高度 → 设 canvas → 再绘制，绝不二次改尺寸
      ═══════════════════════════════════════ */
   generatePoster() {
     if (this.data.posterGenerating) return
@@ -262,27 +263,15 @@ Page({
     this.setData({ posterGenerating: true })
     wx.showLoading({ title: '正在淬炼海报...', mask: true })
 
-    // 从 report 映射到 reportData（如果 report 为空则保留已有 reportData）
+    // 从 report 兜底到 reportData
     const r = this.data.report
     const rd = this.data.reportData
-    if (r) {
-      this.setData({
-        reportData: {
-          basicInsight: r.fatal_sentence || '',
-          mechanism: r.core_problem || '',
-          reverseReasoning: r.system_trap || '',
-          biasCorrection: r.strategy_path || '',
-          actionPlan: (r.advice || []).join('\n') || '',
-        }
-      })
-    }
-    // 二次兜底：确保 reportData 不为空
-    const finalRD = r ? {
-      basicInsight: r?.fatal_sentence || '',
-      mechanism: r?.core_problem || '',
-      reverseReasoning: r?.system_trap || '',
-      biasCorrection: r?.strategy_path || '',
-      actionPlan: (r?.advice || []).join('\n') || '',
+    const data = r ? {
+      basicInsight: r.fatal_sentence || '',
+      mechanism: r.core_problem || '',
+      reverseReasoning: r.system_trap || '',
+      biasCorrection: r.strategy_path || '',
+      actionPlan: (r.advice || []).join('\n') || '',
     } : {
       basicInsight: rd?.basicInsight || '',
       mechanism: rd?.mechanism || '',
@@ -291,6 +280,22 @@ Page({
       actionPlan: rd?.actionPlan || '',
     }
 
+    const CANVAS_WIDTH = 750
+    const paddingX = 50
+    const contentWidth = 650
+    const HEADER_Y = 60
+    const TITLE_Y = 80
+    const SUBTITLE_Y = 130
+    const BODY_START_Y = 220
+    const SECTION_HEADER_HEIGHT = 45
+    const LINE_HEIGHT = 38
+    const SECTION_GAP = 65
+    const QR_CODE_SIZE = 140
+    const QR_GAP = 30
+    const QR_TEXT_HEIGHT = 40
+    const BOTTOM_PADDING = 80
+
+    // ═══ 阶段 1️⃣：获取 canvas 节点（不设尺寸，先只拿 ctx 做测量） ═══
     const query = wx.createSelectorQuery()
     query.select('#posterCanvas')
       .fields({ node: true, size: true })
@@ -304,103 +309,106 @@ Page({
         const canvas = res[0].node
         const ctx = canvas.getContext('2d')
 
-        // 🔥 初始画布尺寸（后续根据内容动态扩容）
-        canvas.width = 750
-        canvas.height = 1800
-
-        // 1. 通铺暗黑主底色
-        ctx.fillStyle = '#121620'
-        ctx.fillRect(0, 0, 750, 1800)
-
-        // 2. 顶级大标题
-        ctx.fillStyle = '#FFFFFF'
-        ctx.font = 'bold 36px sans-serif'
-        ctx.textAlign = 'center'
-        ctx.fillText('珠澳小事哥 · 认知翻身策略', 375, 80)
-
-        // 3. 副标题
-        ctx.fillStyle = '#FF7BB6'
-        ctx.font = '24px sans-serif'
-        ctx.fillText('🧠 认知教练视角已激活', 375, 130)
-
-        // 4. 精确流式绘制 5 大板块大盘（统帅指定最新顺序）
-        let currentY = 220
-        const paddingX = 50
-        const contentWidth = 650
-
+        // ═══ 阶段 2️⃣：预计算所有板块的换行总高度 ═══
         const sections = [
-          { label: '⚡ 致命一句话', text: finalRD.basicInsight, color: '#FF453A', isRed: true },
-          { label: '🎯 核心问题', text: finalRD.mechanism, color: '#D0D5E0', isRed: false },
-          { label: '🔍 系统困局', text: finalRD.reverseReasoning, color: '#D0D5E0', isRed: false },
-          { label: '🚀 翻身路径', text: finalRD.biasCorrection, color: '#D0D5E0', isRed: false },
-          { label: '📋 行动建议', text: finalRD.actionPlan, color: '#D0D5E0', isRed: false }
+          { label: '⚡ 致命一句话', text: data.basicInsight, isRed: true },
+          { label: '🎯 核心问题',     text: data.mechanism,        isRed: false },
+          { label: '🔍 系统困局',     text: data.reverseReasoning, isRed: false },
+          { label: '🚀 翻身路径',     text: data.biasCorrection,   isRed: false },
+          { label: '📋 行动建议',     text: data.actionPlan,       isRed: false }
         ]
 
+        // 先用虚拟的 super-size canvas 临时测文本宽度
+        canvas.width = 2000
+        canvas.height = 2000
+
+        let estY = BODY_START_Y
         sections.forEach(sec => {
           if (!sec.text) return
+          estY += SECTION_HEADER_HEIGHT
 
-          // 绘制分类标题
-          ctx.textAlign = 'left'
-          ctx.fillStyle = sec.isRed ? '#FF453A' : '#7B57FF'
-          ctx.font = 'bold 26px sans-serif'
-          ctx.fillText(sec.label, paddingX, currentY)
-          currentY += 45
-
-          // 正文自动换行引擎
-          ctx.fillStyle = sec.color
+          // 模拟换行计算行数
           ctx.font = sec.isRed ? 'bold 26px sans-serif' : '24px sans-serif'
-
-          let words = sec.text
+          const words = sec.text
           let line = ''
-          const lineHeight = 38
-
           for (let n = 0; n < words.length; n++) {
-            let testLine = line + words[n]
-            let metrics = ctx.measureText(testLine)
-            if (metrics.width > contentWidth && n > 0) {
-              ctx.fillText(line, paddingX, currentY)
+            const testLine = line + words[n]
+            const metrics = ctx.measureText(testLine)
+            if (metrics.width > contentWidth && line.length > 0) {
+              estY += LINE_HEIGHT
               line = words[n]
-              currentY += lineHeight
             } else {
               line = testLine
             }
           }
-          ctx.fillText(line, paddingX, currentY)
-          currentY += 65 // 稳固板块间距
+          estY += LINE_HEIGHT // 最后一行
+          estY += SECTION_GAP
         })
 
-        // 5. 🛠 异步加载：动态推算画布高度 + 二维码居中 + 引流文案
-        const CANVAS_WIDTH = 750
-        const qrCodeSize = 140
-        const bottomPadding = 100
-        const estimatedHeight = currentY + 30 + qrCodeSize + 40 + bottomPadding
-        const canvasHeight = Math.max(1800, estimatedHeight)
+        // 计算最终画布高度
+        const qrStartY = estY + QR_GAP
+        const totalContentHeight = qrStartY + QR_CODE_SIZE + QR_TEXT_HEIGHT + BOTTOM_PADDING
+        const canvasHeight = Math.max(1800, totalContentHeight)
+
+        // ═══ 阶段 3️⃣：一次性设定最终尺寸，不二次修改 ═══
+        canvas.width = CANVAS_WIDTH
         canvas.height = canvasHeight
 
-        // 补足背景（currentY 之后到新画布底部）
+        // ═══ 阶段 4️⃣：从头绘制背景 ═══
         ctx.fillStyle = '#121620'
         ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
 
-        const qrX = (CANVAS_WIDTH - qrCodeSize) / 2
-        const qrY = currentY + 30
+        // ═══ 阶段 5️⃣：标题区 ═══
+        ctx.fillStyle = '#FFFFFF'
+        ctx.font = 'bold 36px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText('珠澳小事哥 · 认知翻身策略', CANVAS_WIDTH / 2, TITLE_Y)
+
+        ctx.fillStyle = '#FF7BB6'
+        ctx.font = '24px sans-serif'
+        ctx.fillText('🧠 认知教练视角已激活', CANVAS_WIDTH / 2, SUBTITLE_Y)
+
+        // ═══ 阶段 6️⃣：正文 5 板块 ═══
+        let drawY = BODY_START_Y
+        sections.forEach(sec => {
+          if (!sec.text) return
+
+          // 标题
+          ctx.textAlign = 'left'
+          ctx.fillStyle = sec.isRed ? '#FF453A' : '#7B57FF'
+          ctx.font = 'bold 26px sans-serif'
+          ctx.fillText(sec.label, paddingX, drawY)
+          drawY += SECTION_HEADER_HEIGHT
+
+          // 正文
+          ctx.fillStyle = sec.isRed ? '#FF453A' : '#D0D5E0'
+          ctx.font = sec.isRed ? 'bold 26px sans-serif' : '24px sans-serif'
+
+          const words = sec.text
+          let line = ''
+          for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n]
+            const metrics = ctx.measureText(testLine)
+            if (metrics.width > contentWidth && line.length > 0) {
+              ctx.fillText(line, paddingX, drawY)
+              line = words[n]
+              drawY += LINE_HEIGHT
+            } else {
+              line = testLine
+            }
+          }
+          ctx.fillText(line, paddingX, drawY)
+          drawY += LINE_HEIGHT + SECTION_GAP
+        })
+
+        // ═══ 阶段 7️⃣：二维码区 ═══
+        const qrX = (CANVAS_WIDTH - QR_CODE_SIZE) / 2
+        const qrY = drawY + QR_GAP
 
         const qrImage = canvas.createImage()
         qrImage.src = self.data.qrcodePath
 
-        qrImage.onload = () => {
-          // 白色圆角底框
-          ctx.fillStyle = '#FFFFFF'
-          self.drawRoundedRect(ctx, qrX - 12, qrY - 12, qrCodeSize + 24, qrCodeSize + 24, 14)
-          ctx.fill()
-          ctx.drawImage(qrImage, qrX, qrY, qrCodeSize, qrCodeSize)
-
-          // 引流文案（居中）
-          ctx.textAlign = 'center'
-          ctx.fillStyle = '#888888'
-          ctx.font = '24px sans-serif'
-          ctx.fillText('长按识别上方小程序，开启你的认知翻身', CANVAS_WIDTH / 2, qrY + qrCodeSize + 40)
-
-          // 6. 导出保存
+        const finishAndExport = () => {
           wx.canvasToTempFilePath({
             canvas: canvas,
             destWidth: CANVAS_WIDTH,
@@ -417,22 +425,25 @@ Page({
           })
         }
 
+        qrImage.onload = () => {
+          // 白色圆角底框
+          ctx.fillStyle = '#FFFFFF'
+          self.drawRoundedRect(ctx, qrX - 12, qrY - 12, QR_CODE_SIZE + 24, QR_CODE_SIZE + 24, 14)
+          ctx.fill()
+          ctx.drawImage(qrImage, qrX, qrY, QR_CODE_SIZE, QR_CODE_SIZE)
+
+          // 引流文案
+          ctx.textAlign = 'center'
+          ctx.fillStyle = '#888888'
+          ctx.font = '24px sans-serif'
+          ctx.fillText('长按识别上方小程序，开启你的认知翻身', CANVAS_WIDTH / 2, qrY + QR_CODE_SIZE + QR_TEXT_HEIGHT)
+
+          finishAndExport()
+        }
+
         qrImage.onerror = () => {
           console.error('二维码图片加载失败，启动无码海报生成降级通道')
-          wx.canvasToTempFilePath({
-            canvas: canvas,
-            destWidth: CANVAS_WIDTH,
-            destHeight: canvasHeight,
-            success: (res) => {
-              wx.hideLoading()
-              self.saveToAlbum(res.tempFilePath)
-            },
-            fail: () => {
-              wx.hideLoading()
-              self.setData({ posterGenerating: false })
-              wx.showToast({ title: '画布导出失败', icon: 'none' })
-            }
-          })
+          finishAndExport()
         }
       })
   },
