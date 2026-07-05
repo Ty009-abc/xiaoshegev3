@@ -1,11 +1,11 @@
-<!-- report-preview — v3.15 统帅指令：红/灰板块分区 + 海报按钮 + canvas -->
+<!-- report-preview — v3.16 统帅指令：red-card + reportData统一绑定 -->
 <view class="page">
 
   <!-- ═══════ diagnostic 5字段报告 ═══════ -->
   <block wx:if="{{reportType==='diagnostic'}}">
     <xsg-navbar title="翻身策略报告" showBack light />
 
-    <!-- 🚀 顶部加载条 -->
+    <!-- 🚀 顶部加载条（loading先显示骨架） -->
     <view class="global-loading-bar" wx:if="{{loading}}">
       <text class="loading-text">正在加载报告...</text>
       <view class="loading-dots">
@@ -13,90 +13,59 @@
       </view>
     </view>
 
-    <!-- 🚀 5大经典翻身板块区 -->
+    <!-- 5大经典翻身板块区 -->
     <view class="report-blocks">
 
-      <!-- 01 现状基本盘认知诊断 -->
-      <view class="section-card">
+      <!-- 01 致命一句话 ⚠️ 红色板块 -->
+      <view class="section-card red-card" wx:if="{{!loading}}">
         <view class="section-header">
-          <text class="section-badge">01</text>
-          <text class="section-title">现状基本盘认知诊断</text>
-        </view>
-        <view class="section-body">
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:92%;"></view>
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:100%;"></view>
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:68%;"></view>
-          <text wx:else class="real-text-content" user-select="true">{{report.system_trap || '暂无数据'}}</text>
-        </view>
-      </view>
-
-      <!-- 02 核心底层因果机理 -->
-      <view class="section-card">
-        <view class="section-header">
-          <text class="section-badge">02</text>
-          <text class="section-title">核心底层因果机理</text>
-        </view>
-        <view class="section-body">
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:88%;"></view>
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:95%;"></view>
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:72%;"></view>
-          <text wx:else class="real-text-content" user-select="true">{{report.core_problem || '暂无数据'}}</text>
-        </view>
-      </view>
-
-      <!-- 03 致命一句话 ⚠️ 红色板块 -->
-      <view class="section-card section-card-hero">
-        <view class="section-header red-header">
-          <text class="section-badge bg-red">03</text>
+          <text class="section-badge bg-red">01</text>
           <text class="section-title text-red">致命一句话</text>
         </view>
-        <view class="section-body">
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:80%;height:56rpx;"></view>
-          <text wx:else class="real-text-content text-red-content" user-select="true">💀 {{report.fatal_sentence || '暂无数据'}}</text>
-        </view>
+        <text class="real-text-content text-red-content" user-select="true">💀 {{reportData.basicInsight || '暂无数据'}}</text>
       </view>
 
-      <!-- 04 认知偏差纠偏方案 -->
-      <view class="section-card">
+      <!-- 02 核心问题 -->
+      <view class="section-card" wx:if="{{!loading}}">
+        <view class="section-header">
+          <text class="section-badge">02</text>
+          <text class="section-title">核心问题</text>
+        </view>
+        <text class="real-text-content" user-select="true">{{reportData.mechanism || '暂无数据'}}</text>
+      </view>
+
+      <!-- 03 系统困局 -->
+      <view class="section-card" wx:if="{{!loading}}">
+        <view class="section-header">
+          <text class="section-badge">03</text>
+          <text class="section-title">系统困局</text>
+        </view>
+        <text class="real-text-content" user-select="true">{{reportData.reverseReasoning || '暂无数据'}}</text>
+      </view>
+
+      <!-- 04 翻身路径 -->
+      <view class="section-card" wx:if="{{!loading}}">
         <view class="section-header">
           <text class="section-badge">04</text>
-          <text class="section-title">认知偏差纠偏方案</text>
+          <text class="section-title">翻身路径</text>
         </view>
-        <view class="section-body">
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:90%;"></view>
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:100%;"></view>
-          <view wx:if="{{loading}}" class="skeleton-line pulse-animation" style="width:75%;"></view>
-          <text wx:else class="real-text-content" user-select="true">{{report.strategy_path || '暂无数据'}}</text>
-        </view>
+        <text class="real-text-content" user-select="true">{{reportData.biasCorrection || '暂无数据'}}</text>
       </view>
 
-      <!-- 05 系统级翻身行动建议 -->
-      <view class="section-card">
+      <!-- 05 行动建议 -->
+      <view class="section-card" wx:if="{{!loading}}">
         <view class="section-header">
           <text class="section-badge">05</text>
-          <text class="section-title">系统级翻身行动建议</text>
+          <text class="section-title">行动建议</text>
         </view>
-        <view class="section-body">
-          <block wx:if="{{loading}}">
-            <view class="skeleton-line pulse-animation" style="width:96%;"></view>
-            <view class="skeleton-line pulse-animation" style="width:85%;"></view>
-            <view class="skeleton-line pulse-animation" style="width:70%;"></view>
-          </block>
-          <view wx:else class="da-list">
-            <view class="da-item" wx:for="{{report.advice}}" wx:key="*this">
-              <text class="da-num">{{index + 1}}</text>
-              <text class="da-text">{{item}}</text>
-            </view>
-            <text class="real-text-content" wx:if="{{!report.advice || report.advice.length === 0}}" user-select="true">暂无数据</text>
-          </view>
-        </view>
+        <text class="real-text-content" user-select="true">{{reportData.actionPlan || '暂无数据'}}</text>
       </view>
 
     </view>
 
-    <!-- 人格标识 + 合规 + 底部按钮（数据就绪后显示） -->
-    <block wx:if="{{!loading && report}}">
-      <view class="personality-bar">
+    <!-- 人格标识 + 合规 + 底部按钮 -->
+    <block wx:if="{{!loading}}">
+      <view class="personality-bar" wx:if="{{report && report.personality}}">
         <text class="dp-badge">{{report.personality.emoji}} {{report.personality.name}}视角已激活</text>
       </view>
 
@@ -115,7 +84,7 @@
     <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading && !report}}" />
 
     <!-- 🛠 隐藏 Canvas 2D 画布 -->
-    <canvas type="2d" id="posterCanvas" style="width:750px;height:1800px;position:fixed;left:-9999px;top:-9999px;z-index:-1;"></canvas>
+    <canvas type="2d" id="posterCanvas" style="width: 750px; height: 1800px; position: fixed; left: -9999px; top: -9999px; z-index: -1;"></canvas>
   </block>
 
   <!-- ═══════ challenge_final 报告（原有收费链路，不变） ═══════ -->
