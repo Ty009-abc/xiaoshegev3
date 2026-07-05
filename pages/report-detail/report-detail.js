@@ -115,8 +115,8 @@ Page({
     wx.showLoading({ title: '正在生成海报...', mask: true })
 
     const ctx = wx.createCanvasContext('posterCanvas', this)
-    const W = 1000
-    const H = 1500
+    const W = 750
+    const H = 1334
 
     const sections = this.data.sections || []
     const getText = i => sections[i]?.text || ''
@@ -147,7 +147,7 @@ Page({
 
     function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines, color, size) {
       color = color || '#e8edf7'
-      size = size || 30
+      size = size || 22
       ctx.setFontSize(size)
       ctx.setFillStyle(color)
 
@@ -189,48 +189,48 @@ Page({
     ctx.setFillStyle('#050914')
     ctx.fillRect(0, 0, W, H)
 
-    drawGlowCircle(170, 120, 260, '#7b3cff', 0.28)
-    drawGlowCircle(820, 160, 300, '#ff2d75', 0.2)
-    drawGlowCircle(520, 1220, 380, '#2d6bff', 0.18)
+    drawGlowCircle(128, 90, 195, '#7b3cff', 0.28)
+    drawGlowCircle(615, 120, 225, '#ff2d75', 0.2)
+    drawGlowCircle(390, 1085, 285, '#2d6bff', 0.18)
 
     // 标题
     ctx.setTextAlign('center')
-    ctx.setFontSize(54)
+    ctx.setFontSize(40)
     ctx.setFillStyle('#ffffff')
-    ctx.fillText('珠澳小事哥 · ', 365, 88)
+    ctx.fillText('珠澳小事哥 · ', 274, 66)
 
     ctx.setFillStyle('#a56cff')
-    ctx.fillText('认知翻身策略', 660, 88)
+    ctx.fillText('认知翻身策略', 495, 66)
 
-    ctx.setFontSize(30)
+    ctx.setFontSize(22)
     ctx.setFillStyle('#ff5ca8')
-    ctx.fillText('🧠 认知教练视角已激活', W / 2, 145)
+    ctx.fillText('🧠 认知教练视角已激活', W / 2, 109)
 
     ctx.setStrokeStyle('rgba(255,92,168,0.45)')
     ctx.setLineWidth(1)
     ctx.beginPath()
-    ctx.moveTo(70, 158)
-    ctx.lineTo(365, 158)
+    ctx.moveTo(52, 118)
+    ctx.lineTo(274, 118)
     ctx.stroke()
     ctx.beginPath()
-    ctx.moveTo(635, 158)
-    ctx.lineTo(930, 158)
+    ctx.moveTo(476, 118)
+    ctx.lineTo(698, 118)
     ctx.stroke()
 
     // 5 大板块卡片
-    let y = 200
-    const cardX = 52
-    const cardW = 896
-    const cardH = 158
-    const gap = 14
+    let y = 150
+    const cardX = 39
+    const cardW = 672
+    const cardH = 118
+    const gap = 10
 
     cards.forEach((item, index) => {
       const isLast = index === 4
-      const h = isLast ? 230 : cardH
+      const h = isLast ? 172 : cardH
 
       // 卡片背景
       ctx.save()
-      roundRect(cardX, y, cardW, h, 16)
+      roundRect(cardX, y, cardW, h, 12)
       ctx.setFillStyle('rgba(8,14,32,0.86)')
       ctx.fill()
       ctx.setStrokeStyle(item.color)
@@ -241,26 +241,26 @@ Page({
       // 左侧编号区
       ctx.setGlobalAlpha(0.16)
       ctx.setFillStyle(item.color)
-      ctx.fillRect(cardX, y, 150, h)
+      ctx.fillRect(cardX, y, 112, h)
       ctx.setGlobalAlpha(1)
 
       ctx.setTextAlign('center')
-      ctx.setFontSize(58)
+      ctx.setFontSize(43)
       ctx.setFillStyle(item.color)
-      ctx.fillText(item.no, cardX + 75, y + 70)
+      ctx.fillText(item.no, cardX + 56, y + 52)
 
-      ctx.setFontSize(48)
-      ctx.fillText(item.emoji, cardX + 75, y + 130)
+      ctx.setFontSize(27)
+      ctx.fillText(item.emoji, cardX + 56, y + 97)
 
       // 标题
       ctx.setTextAlign('left')
-      ctx.setFontSize(34)
+      ctx.setFontSize(25)
       ctx.setFillStyle(item.color)
-      ctx.fillText(item.emoji + ' ' + item.title, cardX + 180, y + 55)
+      ctx.fillText(item.emoji + ' ' + item.title, cardX + 135, y + 41)
 
       // 正文
-      const textX = cardX + 180
-      const textY = y + 100
+      const textX = cardX + 135
+      const textY = y + 75
 
       if (isLast) {
         const lines = item.text
@@ -268,28 +268,28 @@ Page({
           .split('\n')
           .filter(Boolean)
 
-        ctx.setFontSize(26)
+        ctx.setFontSize(20)
         ctx.setFillStyle('#eaf0ff')
 
         lines.slice(0, 5).forEach((line, i) => {
           ctx.setFillStyle('#39d353')
-          ctx.fillText('•', textX, textY + i * 34)
+          ctx.fillText('•', textX, textY + i * 26)
 
           ctx.setFillStyle('#eaf0ff')
-          drawWrappedText(line, textX + 26, textY + i * 34, 650, 32, 1, '#eaf0ff', 26)
+          drawWrappedText(line, textX + 20, textY + i * 26, 488, 24, 1, '#eaf0ff', 20)
         })
       } else {
-        drawWrappedText(item.text, textX, textY, 675, 38, 2, '#eaf0ff', 29)
+        drawWrappedText(item.text, textX, textY, 506, 28, 2, '#eaf0ff', 22)
       }
 
       y += h + gap
     })
 
     // 底部 CTA 区
-    const ctaY = 1235
-    const ctaH = 180
+    const ctaY = 1098
+    const ctaH = 135
 
-    roundRect(70, ctaY, 860, ctaH, 28)
+    roundRect(52, ctaY, 645, ctaH, 21)
     ctx.setFillStyle('rgba(10,12,40,0.92)')
     ctx.fill()
     ctx.setStrokeStyle('#7b5cff')
@@ -297,43 +297,43 @@ Page({
     ctx.stroke()
 
     // 二维码底座
-    roundRect(95, ctaY + 20, 140, 140, 22)
+    roundRect(71, ctaY + 15, 105, 105, 16)
     ctx.setFillStyle('#ffffff')
     ctx.fill()
 
-    ctx.drawImage(qrPath, 105, ctaY + 30, 120, 120)
+    ctx.drawImage(qrPath, 78, ctaY + 22, 90, 90)
 
     // CTA 文字
     ctx.setTextAlign('left')
-    ctx.setFontSize(42)
+    ctx.setFontSize(31)
     ctx.setFillStyle('#ff45c8')
-    ctx.fillText('扫码测试你的翻身策略', 270, ctaY + 68)
+    ctx.fillText('扫码测试你的翻身策略', 202, ctaY + 51)
 
-    ctx.setFontSize(36)
+    ctx.setFontSize(27)
     ctx.setFillStyle('#ffffff')
-    ctx.fillText('看看你的认知在什么段位', 270, ctaY + 118)
+    ctx.fillText('看看你的认知在什么段位', 202, ctaY + 88)
 
     // 三标签
     const tags = ['🧠 认知诊断', '📈 策略分析', '🎯 破局建议']
     tags.forEach((tag, i) => {
-      const tx = 270 + i * 190
-      roundRect(tx, ctaY + 137, 165, 34, 15)
+      const tx = 202 + i * 142
+      roundRect(tx, ctaY + 103, 124, 25, 11)
       ctx.setFillStyle('rgba(123,92,255,0.14)')
       ctx.fill()
       ctx.setStrokeStyle('rgba(180,130,255,0.7)')
       ctx.stroke()
 
-      ctx.setFontSize(20)
+      ctx.setFontSize(15)
       ctx.setFillStyle('#d9d6ff')
       ctx.setTextAlign('center')
-      ctx.fillText(tag, tx + 82, ctaY + 161)
+      ctx.fillText(tag, tx + 62, ctaY + 121)
     })
 
     // 底部提示
     ctx.setTextAlign('center')
-    ctx.setFontSize(26)
+    ctx.setFontSize(20)
     ctx.setFillStyle('#7b6dff')
-    ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, 1460)
+    ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, 1300)
 
     const self = this
     ctx.draw(false, () => {
