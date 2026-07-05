@@ -15,6 +15,8 @@ Page({
     showGenerating:false, showUpgradeModal:false,
     posterGenerating:false,
     qrcodePath: '/images/gh_qrcode.png',
+    titlesReady: false,
+    contentVisible: true,
     reportData: {
       basicInsight: '',     // 对应 1: 致命一句话
       mechanism: '',        // 对应 2: 核心问题
@@ -122,26 +124,39 @@ Page({
     }
 
     // ==========================================
-    // 🔄 运行机制第二步：精准纠偏"字段映射"与"UI并网"
+    // 🔄 运行机制第二步：时序分流渲染（先出标题动画，再出内容）
     // ==========================================
     if (finalData) {
+      // 阶段 1：先让页面并网，此时内容全部为空，WXML 层通过判断显示"动画加载中"
       this.setData({
         loading: false,
+        titlesReady: true,      // 激活5个标题的骨架展示
+        contentVisible: false,  // 暂时隐藏文本流
         reportData: {
-          // 01 致命一句话：全兼容漏斗拦截
-          basicInsight: finalData.basicInsight || finalData.insight || finalData.fatalSentence || '',
-          // 02 核心问题
-          mechanism: finalData.mechanism || finalData.reason || finalData.coreProblem || '',
-          // 03 系统困局
-          reverseReasoning: finalData.reverseReasoning || finalData.traps || finalData.systemTrap || '',
-          // 04 翻身路径
-          biasCorrection: finalData.biasCorrection || finalData.path || finalData.turnaroundPath || '',
-          // 05 行动建议
-          actionPlan: finalData.actionPlan || finalData.actions || finalData.suggest || finalData.actionPlanList || '',
+          basicInsight: '', mechanism: '', reverseReasoning: '', biasCorrection: '', actionPlan: ''
         }
-      }, () => {
-        console.log('--- 🎨 [运行机制完成] UI 视图渲染并网成功 ---', this.data.reportData)
       })
+
+      // 弹出一个优雅的极简原生加载提示
+      wx.showLoading({ title: '教练正在深度诊断...', mask: true })
+
+      // 阶段 2：延迟 1200ms（可控），等标题淡入动画完成后，完美灌入数据
+      setTimeout(() => {
+        this.setData({
+          contentVisible: true,
+          reportData: {
+            basicInsight: finalData.basicInsight || finalData.insight || finalData.fatalSentence || '',
+            mechanism: finalData.mechanism || finalData.reason || finalData.coreProblem || '',
+            reverseReasoning: finalData.reverseReasoning || finalData.traps || finalData.systemTrap || '',
+            biasCorrection: finalData.biasCorrection || finalData.path || finalData.turnaroundPath || '',
+            actionPlan: finalData.actionPlan || finalData.actions || finalData.suggest || finalData.actionPlanList || '',
+          }
+        }, () => {
+          wx.hideLoading()
+          console.log('--- 🎨 [运行机制完成] 标题动画完毕，内容二次并网成功 ---')
+        })
+      }, 1200)
+
     } else {
       console.error('--- 🚨 [机制报警] 全链路未检测到任何合规的报告数据源！ ---')
       this.setData({ loading: false })
