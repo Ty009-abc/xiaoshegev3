@@ -121,10 +121,10 @@
       </view>
     </block>
 
-    <!-- 🎨 隐藏 Canvas 画布（后台绘制，不影响页面布局） -->
-    <canvas type="2d" id="posterCanvas" style="width:750px;height:1334px;position:fixed;left:-9999px;top:-9999px;"></canvas>
-
     <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading && !report}}" />
+
+    <!-- 🎨 隐藏 Canvas 画布 -->
+    <canvas type="2d" id="posterCanvas" style="width:750px;height:1334px;position:fixed;left:-9999px;top:-9999px;"></canvas>
   </block>
 
   <!-- ═══════ challenge_final 报告（原有收费链路，不变） ═══════ -->
