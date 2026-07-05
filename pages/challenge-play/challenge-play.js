@@ -178,11 +178,10 @@ Page({
     }
     const p = this.data.dQ.personality
 
-    // v3.13.1 修复：先跳转到结果页，让结果页自己去调云函数等待
-    // 不再在原页 await 阻塞
+    // v3.17 Progressive Reveal: 先跳 report-detail（立即显示骨架），页内自调 AI
     app.globalData._diagnosticAnswers = answers
     app.globalData._diagnosticPersonality = p
-    wx.redirectTo({ url:'/pages/report-preview/report-preview?type=diagnostic' })
+    wx.redirectTo({ url:'/pages/report-detail/report-detail?mode=diagnostic' })
   },
 
   onUnload() {
