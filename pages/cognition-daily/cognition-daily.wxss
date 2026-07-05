@@ -4,11 +4,15 @@
    ══════════════════════════════════════ */
 
 .container {
-  min-height: 100vh;
+  min-height: auto;
+  height: auto;
+  max-height: none;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   background: #f8f9fa;
   padding: 40rpx 32rpx;
+  padding-bottom: 80rpx;
   box-sizing: border-box;
 }
 

@@ -1,15 +1,22 @@
 @import '../../styles/tokens.wxss';
 /* ══════════════════════════════════════
    insight-card — 灰白质感 (light mode)
+   v4.2: 全量解除所有容器高度限制
    ══════════════════════════════════════ */
 
+/* ── 根卡片容器：强行突破任何潜在父级高度限制 ── */
 .card {
+  display: block !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
   background: #FFFFFF;
   border: 1rpx solid #eaecf0;
   border-radius: 32rpx;
   padding: 40rpx 32rpx;
+  padding-bottom: 48rpx !important;
   box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03);
-  box-sizing: border-box;
   transition: all 280ms;
 }
 .card:active { background: #F9FAFB; }
@@ -35,15 +42,17 @@
 }
 
 .content {
+  display: block !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  word-break: break-all;
+  white-space: pre-line;
+  padding-bottom: 32rpx !important;
+  box-sizing: border-box !important;
   font-size: 28rpx;
   color: #344054;
   line-height: 1.8;
-  white-space: pre-line;
-  height: auto;
-  max-height: none;
-  overflow: visible;
-  word-break: break-all;
-  padding-bottom: 24rpx;
 }
 .content.clamped {
   display: -webkit-box;
@@ -75,9 +84,17 @@
   margin-bottom: 8rpx;
 }
 .reverse-text {
+  display: block !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-bottom: 24rpx !important;
+  box-sizing: border-box !important;
   font-size: 24rpx;
   color: #344054;
   line-height: 1.7;
+  word-break: break-all;
+  white-space: pre-line;
 }
 
 /* ── 今日行动 ── */
@@ -95,9 +112,17 @@
   margin-bottom: 8rpx;
 }
 .action-text {
+  display: block !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding-bottom: 16rpx !important;
+  box-sizing: border-box !important;
   font-size: 24rpx;
   color: #344054;
   line-height: 1.6;
+  word-break: break-all;
+  white-space: pre-line;
 }
 
 /* ── 标签 ── */
