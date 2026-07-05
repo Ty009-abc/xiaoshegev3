@@ -30,7 +30,9 @@ Page({
 
     if (isDiagnostic && app.globalData._diagnosticAnswers) {
       this._loadDiagnostic()
-    } else if (isDiagnostic && app.globalData._diagnosticReport) {
+      return
+    }
+    if (isDiagnostic && app.globalData._diagnosticReport) {
       const r = app.globalData._diagnosticReport
       const p = app.globalData._diagnosticPersonality
       app.globalData._diagnosticReport = null
@@ -47,9 +49,71 @@ Page({
         locked: false,
         loading: false,
       })
+      this._syncReportToReportData()
       analytics.track('diagnostic_report_view')
+      return
+    }
+
+    // 🚀 三重保险：全局变量 / 本地缓存 / 直接读取 reportData
+    this._loadReportFromFallback()
+  },
+
+  /* 从 report 对象同步到 reportData（WXML 统一绑定） */
+  _syncReportToReportData() {
+    const r = this.data.report
+    if (!r) return
+    this.setData({
+      reportData: {
+        basicInsight: r.fatal_sentence || '',
+        mechanism: r.core_problem || '',
+        reverseReasoning: r.system_trap || '',
+        biasCorrection: r.strategy_path || '',
+        actionPlan: (Array.isArray(r.advice) ? r.advice : []).join('\n') || '',
+      }
+    })
+  },
+
+  /* 三重保险：全局变量 / 本地缓存 / 兼容命名 */
+  _loadReportFromFallback() {
+    let finalData = null
+
+    // 🚀 第一重保险：全局变量 lastReport
+    if (app.globalData && app.globalData.lastReport) {
+      finalData = app.globalData.lastReport
+      console.log('--- 🗺️ 成功从全局变量捕获报告数据 ---', finalData)
+    }
+    // 🚀 第二重保险：兼容其他全局命名
+    else if (app.globalData && app.globalData.reportData) {
+      finalData = app.globalData.reportData
+    }
+    else if (app.globalData && app.globalData.diagnosisResult) {
+      finalData = app.globalData.diagnosisResult
+    }
+
+    // 🚀 第三重保险：localStorage 缓存
+    if (!finalData) {
+      const localCache = wx.getStorageSync('lastReport')
+      if (localCache) {
+        finalData = localCache
+        console.log('--- 📦 成功从本地缓存捕获报告数据 ---', finalData)
+      }
+    }
+
+    // 🎯 全量并网渲染
+    if (finalData) {
+      this.setData({
+        loading: false,
+        reportData: {
+          basicInsight: finalData.basicInsight || finalData.insight || '',
+          mechanism: finalData.mechanism || finalData.reason || '',
+          reverseReasoning: finalData.reverseReasoning || finalData.traps || '',
+          biasCorrection: finalData.biasCorrection || finalData.path || '',
+          actionPlan: finalData.actionPlan || finalData.actions || finalData.suggest || '',
+        }
+      })
     } else {
-      this.load()
+      console.error('--- 🚨 警告：全链路未检测到合规的报告数据源 ---')
+      this.setData({ loading: false })
     }
   },
 
@@ -81,6 +145,7 @@ Page({
           locked: false,
           loading: false,
         })
+        this._syncReportToReportData()
         analytics.track('diagnostic_report_view')
       } else {
         throw new Error(r.message || '分析失败')
