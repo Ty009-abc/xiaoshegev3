@@ -259,207 +259,248 @@ Page({
      ═══════════════════════════════════════ */
   generatePoster() {
     if (this.data.posterGenerating) return
-    const self = this
     this.setData({ posterGenerating: true })
-    wx.showLoading({ title: '正在淬炼海报...', mask: true })
+    wx.showLoading({ title: '正在生成海报...', mask: true })
 
-    // 从 report 兜底到 reportData
+    // 数据源：兼容 report 和 reportData
     const r = this.data.report
     const rd = this.data.reportData
-    const data = r ? {
-      basicInsight: r.fatal_sentence || '',
-      mechanism: r.core_problem || '',
-      reverseReasoning: r.system_trap || '',
-      biasCorrection: r.strategy_path || '',
-      actionPlan: (r.advice || []).join('\n') || '',
-    } : {
-      basicInsight: rd?.basicInsight || '',
-      mechanism: rd?.mechanism || '',
-      reverseReasoning: rd?.reverseReasoning || '',
-      biasCorrection: rd?.biasCorrection || '',
-      actionPlan: rd?.actionPlan || '',
+    const getText = (i) => {
+      if (r) {
+        const map = [r.fatal_sentence, r.core_problem, r.system_trap, r.strategy_path, (r.advice||[]).join('\n')]
+        return map[i] || ''
+      }
+      const map = [rd?.basicInsight, rd?.mechanism, rd?.reverseReasoning, rd?.biasCorrection, rd?.actionPlan]
+      return map[i] || ''
     }
 
-    const CANVAS_WIDTH = 750
-    const paddingX = 50
-    const contentWidth = 650
-    const HEADER_Y = 60
-    const TITLE_Y = 80
-    const SUBTITLE_Y = 130
-    const BODY_START_Y = 220
-    const SECTION_HEADER_HEIGHT = 45
-    const LINE_HEIGHT = 38
-    const SECTION_GAP = 65
-    const QR_CODE_SIZE = 140
-    const QR_GAP = 30
-    const QR_TEXT_HEIGHT = 40
-    const BOTTOM_PADDING = 80
+    const ctx = wx.createCanvasContext('posterCanvas', this)
+    const W = 1000
+    const H = 1500
 
-    // ═══ 阶段 1️⃣：获取 canvas 节点（不设尺寸，先只拿 ctx 做测量） ═══
-    const query = wx.createSelectorQuery()
-    query.select('#posterCanvas')
-      .fields({ node: true, size: true })
-      .exec((res) => {
-        if (!res || !res[0] || !res[0].node) {
-          wx.hideLoading()
-          self.setData({ posterGenerating: false })
-          wx.showToast({ title: '画布初始化失败', icon: 'none' })
-          return
+    const cards = [
+      { no: '01', emoji: '⚡', title: '致命一句话', color: '#ff3b3b', text: getText(0) },
+      { no: '02', emoji: '🎯', title: '核心问题',   color: '#8b5cff', text: getText(1) },
+      { no: '03', emoji: '🔍', title: '系统困局',   color: '#3b8cff', text: getText(2) },
+      { no: '04', emoji: '🚀', title: '翻身路径',   color: '#ff9f1a', text: getText(3) },
+      { no: '05', emoji: '📋', title: '行动建议',   color: '#39d353', text: getText(4) }
+    ]
+
+    const qrPath = this.data.qrcodePath || '/images/qrcode.png'
+
+    function roundRect(x, y, w, h, radius) {
+      ctx.beginPath()
+      ctx.moveTo(x + radius, y)
+      ctx.lineTo(x + w - radius, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius)
+      ctx.lineTo(x + w, y + h - radius)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h)
+      ctx.lineTo(x + radius, y + h)
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius)
+      ctx.lineTo(x, y + radius)
+      ctx.quadraticCurveTo(x, y, x + radius, y)
+      ctx.closePath()
+    }
+
+    function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines, color, size) {
+      color = color || '#e8edf7'
+      size = size || 30
+      ctx.setFontSize(size)
+      ctx.setFillStyle(color)
+
+      let line = ''
+      let lines = []
+      for (let i = 0; i < text.length; i++) {
+        const testLine = line + text[i]
+        if (ctx.measureText(testLine).width > maxWidth && line) {
+          lines.push(line)
+          line = text[i]
+        } else {
+          line = testLine
         }
-        const canvas = res[0].node
-        const ctx = canvas.getContext('2d')
+      }
+      if (line) lines.push(line)
 
-        // ═══ 阶段 2️⃣：预计算所有板块的换行总高度 ═══
-        const sections = [
-          { label: '⚡ 致命一句话', text: data.basicInsight, isRed: true },
-          { label: '🎯 核心问题',     text: data.mechanism,        isRed: false },
-          { label: '🔍 系统困局',     text: data.reverseReasoning, isRed: false },
-          { label: '🚀 翻身路径',     text: data.biasCorrection,   isRed: false },
-          { label: '📋 行动建议',     text: data.actionPlan,       isRed: false }
-        ]
-
-        // 先用虚拟的 super-size canvas 临时测文本宽度
-        canvas.width = 2000
-        canvas.height = 2000
-
-        let estY = BODY_START_Y
-        sections.forEach(sec => {
-          if (!sec.text) return
-          estY += SECTION_HEADER_HEIGHT
-
-          // 模拟换行计算行数
-          ctx.font = sec.isRed ? 'bold 26px sans-serif' : '24px sans-serif'
-          const words = sec.text
-          let line = ''
-          for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n]
-            const metrics = ctx.measureText(testLine)
-            if (metrics.width > contentWidth && line.length > 0) {
-              estY += LINE_HEIGHT
-              line = words[n]
-            } else {
-              line = testLine
-            }
-          }
-          estY += LINE_HEIGHT // 最后一行
-          estY += SECTION_GAP
-        })
-
-        // 计算最终画布高度
-        const qrStartY = estY + QR_GAP
-        const totalContentHeight = qrStartY + QR_CODE_SIZE + QR_TEXT_HEIGHT + BOTTOM_PADDING
-        const canvasHeight = Math.max(1800, totalContentHeight)
-
-        // ═══ 阶段 3️⃣：一次性设定最终尺寸，不二次修改 ═══
-        canvas.width = CANVAS_WIDTH
-        canvas.height = canvasHeight
-
-        // ═══ 阶段 4️⃣：从头绘制背景 ═══
-        ctx.fillStyle = '#121620'
-        ctx.fillRect(0, 0, CANVAS_WIDTH, canvasHeight)
-
-        // ═══ 阶段 5️⃣：标题区 ═══
-        ctx.fillStyle = '#FFFFFF'
-        ctx.font = 'bold 36px sans-serif'
-        ctx.textAlign = 'center'
-        ctx.fillText('珠澳小事哥 · 认知翻身策略', CANVAS_WIDTH / 2, TITLE_Y)
-
-        ctx.fillStyle = '#FF7BB6'
-        ctx.font = '24px sans-serif'
-        ctx.fillText('🧠 认知教练视角已激活', CANVAS_WIDTH / 2, SUBTITLE_Y)
-
-        // ═══ 阶段 6️⃣：正文 5 板块 ═══
-        let drawY = BODY_START_Y
-        sections.forEach(sec => {
-          if (!sec.text) return
-
-          // 标题
-          ctx.textAlign = 'left'
-          ctx.fillStyle = sec.isRed ? '#FF453A' : '#7B57FF'
-          ctx.font = 'bold 26px sans-serif'
-          ctx.fillText(sec.label, paddingX, drawY)
-          drawY += SECTION_HEADER_HEIGHT
-
-          // 正文
-          ctx.fillStyle = sec.isRed ? '#FF453A' : '#D0D5E0'
-          ctx.font = sec.isRed ? 'bold 26px sans-serif' : '24px sans-serif'
-
-          const words = sec.text
-          let line = ''
-          for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n]
-            const metrics = ctx.measureText(testLine)
-            if (metrics.width > contentWidth && line.length > 0) {
-              ctx.fillText(line, paddingX, drawY)
-              line = words[n]
-              drawY += LINE_HEIGHT
-            } else {
-              line = testLine
-            }
-          }
-          ctx.fillText(line, paddingX, drawY)
-          drawY += LINE_HEIGHT + SECTION_GAP
-        })
-
-        // ═══ 阶段 7️⃣：二维码区 ═══
-        const qrX = (CANVAS_WIDTH - QR_CODE_SIZE) / 2
-        const qrY = drawY + QR_GAP
-
-        const qrImage = canvas.createImage()
-        qrImage.src = self.data.qrcodePath
-
-        const finishAndExport = () => {
-          wx.canvasToTempFilePath({
-            canvas: canvas,
-            destWidth: CANVAS_WIDTH,
-            destHeight: canvasHeight,
-            success: (tempRes) => {
-              wx.hideLoading()
-              self.saveToAlbum(tempRes.tempFilePath)
-            },
-            fail: () => {
-              wx.hideLoading()
-              self.setData({ posterGenerating: false })
-              wx.showToast({ title: '画布导出失败', icon: 'none' })
-            }
-          })
-        }
-
-        qrImage.onload = () => {
-          // 白色圆角底框
-          ctx.fillStyle = '#FFFFFF'
-          self.drawRoundedRect(ctx, qrX - 12, qrY - 12, QR_CODE_SIZE + 24, QR_CODE_SIZE + 24, 14)
-          ctx.fill()
-          ctx.drawImage(qrImage, qrX, qrY, QR_CODE_SIZE, QR_CODE_SIZE)
-
-          // 引流文案
-          ctx.textAlign = 'center'
-          ctx.fillStyle = '#888888'
-          ctx.font = '24px sans-serif'
-          ctx.fillText('长按识别上方小程序，开启你的认知翻身', CANVAS_WIDTH / 2, qrY + QR_CODE_SIZE + QR_TEXT_HEIGHT)
-
-          finishAndExport()
-        }
-
-        qrImage.onerror = () => {
-          console.error('二维码图片加载失败，启动无码海报生成降级通道')
-          finishAndExport()
-        }
+      if (lines.length > maxLines) {
+        lines = lines.slice(0, maxLines)
+        lines[maxLines - 1] = lines[maxLines - 1].slice(0, -2) + '…'
+      }
+      lines.forEach((l, idx) => {
+        ctx.fillText(l, x, y + idx * lineHeight)
       })
-  },
+    }
 
-  drawRoundedRect(ctx, x, y, width, height, radius) {
+    function drawGlowCircle(x, y, r, color, alpha) {
+      alpha = alpha || 0.22
+      const g = ctx.createCircularGradient(x, y, r)
+      g.addColorStop(0, color)
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.setGlobalAlpha(alpha)
+      ctx.setFillStyle(g)
+      ctx.fillRect(x - r, y - r, r * 2, r * 2)
+      ctx.setGlobalAlpha(1)
+    }
+
+    // 背景
+    ctx.setFillStyle('#050914')
+    ctx.fillRect(0, 0, W, H)
+
+    drawGlowCircle(170, 120, 260, '#7b3cff', 0.28)
+    drawGlowCircle(820, 160, 300, '#ff2d75', 0.2)
+    drawGlowCircle(520, 1220, 380, '#2d6bff', 0.18)
+
+    // 标题
+    ctx.setTextAlign('center')
+    ctx.setFontSize(54)
+    ctx.setFillStyle('#ffffff')
+    ctx.fillText('珠澳小事哥 · ', 365, 88)
+    ctx.setFillStyle('#a56cff')
+    ctx.fillText('认知翻身策略', 660, 88)
+
+    ctx.setFontSize(30)
+    ctx.setFillStyle('#ff5ca8')
+    ctx.fillText('🧠 认知教练视角已激活', W / 2, 145)
+
+    ctx.setStrokeStyle('rgba(255,92,168,0.45)')
+    ctx.setLineWidth(1)
     ctx.beginPath()
-    ctx.moveTo(x + radius, y)
-    ctx.lineTo(x + width - radius, y)
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
-    ctx.lineTo(x + width, y + height - radius)
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
-    ctx.lineTo(x + radius, y + height - radius)
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius)
-    ctx.lineTo(x, y + radius)
-    ctx.quadraticCurveTo(x, y, x + radius, y)
-    ctx.closePath()
+    ctx.moveTo(70, 158)
+    ctx.lineTo(365, 158)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(635, 158)
+    ctx.lineTo(930, 158)
+    ctx.stroke()
+
+    // 5 大板块卡片
+    let y = 200
+    const cardX = 52
+    const cardW = 896
+    const cardH = 158
+    const gap = 14
+
+    cards.forEach((item, index) => {
+      const isLast = index === 4
+      const h = isLast ? 230 : cardH
+
+      ctx.save()
+      roundRect(cardX, y, cardW, h, 16)
+      ctx.setFillStyle('rgba(8,14,32,0.86)')
+      ctx.fill()
+      ctx.setStrokeStyle(item.color)
+      ctx.setLineWidth(1.5)
+      ctx.stroke()
+      ctx.restore()
+
+      ctx.setGlobalAlpha(0.16)
+      ctx.setFillStyle(item.color)
+      ctx.fillRect(cardX, y, 150, h)
+      ctx.setGlobalAlpha(1)
+
+      ctx.setTextAlign('center')
+      ctx.setFontSize(58)
+      ctx.setFillStyle(item.color)
+      ctx.fillText(item.no, cardX + 75, y + 70)
+
+      ctx.setFontSize(48)
+      ctx.fillText(item.emoji, cardX + 75, y + 130)
+
+      ctx.setTextAlign('left')
+      ctx.setFontSize(34)
+      ctx.setFillStyle(item.color)
+      ctx.fillText(item.emoji + ' ' + item.title, cardX + 180, y + 55)
+
+      const textX = cardX + 180
+      const textY = y + 100
+
+      if (isLast) {
+        const lines = item.text
+          .replace(/。/g, '。\n')
+          .split('\n')
+          .filter(Boolean)
+
+        ctx.setFontSize(26)
+        lines.slice(0, 5).forEach((line, i) => {
+          ctx.setFillStyle('#39d353')
+          ctx.fillText('•', textX, textY + i * 34)
+          ctx.setFillStyle('#eaf0ff')
+          drawWrappedText(line, textX + 26, textY + i * 34, 650, 32, 1, '#eaf0ff', 26)
+        })
+      } else {
+        drawWrappedText(item.text, textX, textY, 675, 38, 2, '#eaf0ff', 29)
+      }
+
+      y += h + gap
+    })
+
+    // 底部 CTA 区
+    const ctaY = 1235
+    const ctaH = 180
+
+    roundRect(70, ctaY, 860, ctaH, 28)
+    ctx.setFillStyle('rgba(10,12,40,0.92)')
+    ctx.fill()
+    ctx.setStrokeStyle('#7b5cff')
+    ctx.setLineWidth(2)
+    ctx.stroke()
+
+    roundRect(95, ctaY + 20, 140, 140, 22)
+    ctx.setFillStyle('#ffffff')
+    ctx.fill()
+    ctx.drawImage(qrPath, 105, ctaY + 30, 120, 120)
+
+    ctx.setTextAlign('left')
+    ctx.setFontSize(42)
+    ctx.setFillStyle('#ff45c8')
+    ctx.fillText('扫码测试你的翻身策略', 270, ctaY + 68)
+
+    ctx.setFontSize(36)
+    ctx.setFillStyle('#ffffff')
+    ctx.fillText('看看你的认知在什么段位', 270, ctaY + 118)
+
+    const tags = ['🧠 认知诊断', '📈 策略分析', '🎯 破局建议']
+    tags.forEach((tag, i) => {
+      const tx = 270 + i * 190
+      roundRect(tx, ctaY + 137, 165, 34, 15)
+      ctx.setFillStyle('rgba(123,92,255,0.14)')
+      ctx.fill()
+      ctx.setStrokeStyle('rgba(180,130,255,0.7)')
+      ctx.stroke()
+      ctx.setFontSize(20)
+      ctx.setFillStyle('#d9d6ff')
+      ctx.setTextAlign('center')
+      ctx.fillText(tag, tx + 82, ctaY + 161)
+    })
+
+    ctx.setTextAlign('center')
+    ctx.setFontSize(26)
+    ctx.setFillStyle('#7b6dff')
+    ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, 1460)
+
+    const self = this
+    ctx.draw(false, () => {
+      wx.canvasToTempFilePath({
+        canvasId: 'posterCanvas',
+        width: W,
+        height: H,
+        destWidth: W * 2,
+        destHeight: H * 2,
+        success: res => {
+          self.setData({
+            posterPath: res.tempFilePath,
+            posterGenerating: false,
+          })
+          wx.hideLoading()
+          self.saveToAlbum(res.tempFilePath)
+        },
+        fail: err => {
+          console.error('[poster] 生成失败:', err)
+          self.setData({ posterGenerating: false })
+          wx.hideLoading()
+          wx.showToast({ title: '海报生成失败', icon: 'none' })
+        }
+      }, self)
+    })
   },
 
   saveToAlbum(filePath) {
