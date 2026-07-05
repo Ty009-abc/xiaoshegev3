@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#0f0f1a",
+  "usingComponents": {
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar"
+  }
+}

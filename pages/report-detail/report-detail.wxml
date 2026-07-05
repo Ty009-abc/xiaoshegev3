@@ -1,0 +1,29 @@
+<!-- report-detail — 完整AI报告 -->
+<view class="page page-enter">
+  <xsg-navbar title="完整诊断报告" showBack />
+  <xsg-loading wx:if="{{loading}}" text="正在加载完整报告..." />
+  <block wx:elif="{{report}}">
+    <!-- 1. 一句话诊断 -->
+    <xsg-card type="ai" class="anim-fade-in"><view class="section-number">01</view><view class="section-label">一句话诊断</view><view class="body mt-12">{{report.oneSentence||report.summary}}</view></xsg-card>
+    <!-- 2. 世界模型类型 -->
+    <xsg-card class="anim-fade-in"><view class="section-number">02</view><view class="section-label">世界模型类型</view><view class="body mt-12">{{report.type||report.worldModelType||'待分析'}}</view></xsg-card>
+    <!-- 3. 为什么还没翻身 -->
+    <xsg-card wx:if="{{report.whyNotSuccessful}}" class="anim-fade-in"><view class="section-number">03</view><view class="section-label">为什么还没有成长</view><view class="body mt-12">{{report.whyNotSuccessful}}</view></xsg-card>
+    <!-- 4. 最大认知漏洞 -->
+    <xsg-card type="danger" wx:if="{{report.biggestBlindSpot}}" class="anim-fade-in"><view class="section-number">04</view><view class="section-label">最大认知漏洞</view><view class="body mt-12">{{report.biggestBlindSpot}}</view></xsg-card>
+    <!-- 5. 翻身概率 -->
+    <xsg-card wx:if="{{report.probability!==undefined}}" class="anim-fade-in"><view class="section-number">05</view><view class="section-label">翻身概率</view><view class="prob">{{report.probability||0}}%</view></xsg-card>
+    <!-- 6. 未来3年最大风险 -->
+    <xsg-card type="danger" wx:if="{{report.biggestRisk}}" class="anim-fade-in"><view class="section-number">06</view><view class="section-label">未来3年最大风险</view><view class="body mt-12">{{report.biggestRisk}}</view></xsg-card>
+    <!-- 7. 最适合路径 -->
+    <xsg-card wx:if="{{report.bestPath}}" class="anim-fade-in"><view class="section-number">07</view><view class="section-label">最适合路径</view><view class="body mt-12">{{report.bestPath}}</view></xsg-card>
+    <!-- 8. 未来30天行动计划 -->
+    <xsg-card type="premium" wx:if="{{report.actionPlan}}" class="anim-fade-in"><view class="section-number">08</view><view class="section-label">30天行动计划</view><view class="body mt-12">{{report.actionPlan}}</view></xsg-card>
+    <!-- 9. 小事哥最后一句 -->
+    <xsg-card type="ai" wx:if="{{report.finalBlow}}" class="anim-fade-in"><view class="section-number">09</view><view class="section-label">小事哥的最后一句</view><view class="final mt-12">{{report.finalBlow}}</view></xsg-card>
+
+    <!-- 底部CTA -->
+    <xsg-button type="gold" text="加入90天认知陪跑" bind:tapbutton="goMembership" class="anim-fade-in mt-32" />
+    <view style="height:80rpx;"></view>
+  </block>
+</view>

@@ -1,0 +1,74 @@
+@import '../../styles/tokens.wxss';
+/* ══════════════════════════════════════
+   ai-message — 灰白质感 Light Mode
+   ══════════════════════════════════════ */
+
+.msg {
+  display: flex;
+  margin-bottom: 32rpx;
+  gap: 14rpx;
+}
+.msg-user { flex-direction: row-reverse; }
+.msg-author {
+  font-size: 20rpx;
+  color: #7F56D9;
+  margin-bottom: 4rpx;
+  display: block;
+  padding-left: 4rpx;
+}
+
+.avatar {
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  flex-shrink: 0;
+  background: #E5E7EB;
+}
+
+.bubble-wrap { max-width: 75%; }
+
+.bubble {
+  padding: 20rpx 32rpx;
+  border-radius: 20rpx;
+  font-size: 30rpx;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.bubble-assistant {
+  background: #FFFFFF;
+  border: 1rpx solid #eaecf0;
+  color: #101828;
+  border-radius: 4rpx 20rpx 20rpx 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.02);
+}
+
+.bubble-user {
+  background: #7F56D9;
+  color: #FFFFFF;
+  border-radius: 20rpx 4rpx 20rpx 20rpx;
+}
+
+.thinking-dots {
+  display: flex;
+  gap: 8rpx;
+  padding: 12rpx 0;
+}
+.t-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #7F56D9;
+  animation: bounce 1.4s infinite;
+  opacity: 0.3;
+}
+.t-dot:nth-child(2) { animation-delay: 0.2s; }
+.t-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-12rpx); opacity: 1; }
+}

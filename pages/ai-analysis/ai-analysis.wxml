@@ -1,0 +1,113 @@
+<!-- pages/ai-analysis/ai-analysis.wxml -->
+<!-- v3.7.4 流式重构：骨架先出 → 正文后装 -->
+<view class="page">
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- 空态：未完成挑战                          -->
+  <!-- ═══════════════════════════════════════════ -->
+  <view class="empty-state" wx:if="{{status === 'empty'}}">
+    <view class="empty-icon">🧠</view>
+    <view class="empty-title">暂无诊断数据</view>
+    <view class="empty-desc">请先完成「30 天认知博弈挑战」，系统将自动捕获你的九维思维埋点</view>
+    <button class="cta-btn" bindtap="handleBack">去挑战</button>
+  </view>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- 非空态：骨架 + 正文                      -->
+  <!-- ═══════════════════════════════════════════ -->
+  <block wx:else>
+
+    <!-- ── 报告头部（标题秒出） ── -->
+    <view class="report-header">
+      <view class="report-badge">🏆 认知诊断报告</view>
+      <view class="report-title">{{reportTitle || '军师正在为你深度诊断...'}}</view>
+      <view class="report-meta">
+        <text wx:if="{{reportMeta}}">{{reportMeta}}</text>
+        <text wx:else>基于 30 天博弈行为数据 · DeepSeek 正在剖析</text>
+      </view>
+
+      <!-- AI 状态指示条（仅在 loading 态显示） -->
+      <view class="ai-status-bar" wx:if="{{status === 'loading'}}">
+        <view class="ai-pulse"></view>
+        <text class="ai-status-text">军师正在彻夜解构你的九维数据...</text>
+      </view>
+    </view>
+
+    <!-- ── 人物画像（若有则秒出） ── -->
+    <view class="persona-card" wx:if="{{persona}}">
+      <view class="persona-label">🎭 人格画像</view>
+      <view class="persona-text">{{persona}}</view>
+    </view>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- ★ 核心：5 大板块骨架卡位 + 正文注入    -->
+    <!-- ═══════════════════════════════════════════ -->
+    <view class="sections-wrap">
+      <block wx:for="{{sections}}" wx:key="key" wx:for-item="sec">
+        <view class="section-card">
+          <!-- 板块标题（固定，永不消失） -->
+          <view class="section-head">
+            <text class="section-icon">{{sec.icon}}</text>
+            <text class="section-title">{{sec.title}}</text>
+          </view>
+
+          <!-- 正文：有内容则展示，否则骨架屏 -->
+          <view class="section-body" wx:if="{{sec.content}}">
+            <text class="section-content">{{sec.content}}</text>
+          </view>
+
+          <!-- 骨架屏 -->
+          <view class="section-skeleton" wx:else>
+            <view class="skeleton-shimmer"></view>
+            <text class="skeleton-text">{{sec.loadingText || '军师正在分析中...'}}</text>
+            <view class="skeleton-dots">
+              <view class="sk-dot"></view>
+              <view class="sk-dot"></view>
+              <view class="sk-dot"></view>
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- ── 核心评分（若有） ── -->
+    <view class="score-card" wx:if="{{avgScore}}">
+      <view class="score-label">认知综合评分</view>
+      <view class="score-value">{{avgScore}}</view>
+      <view class="score-scale">
+        <text class="scale-lo">困局</text>
+        <view class="scale-bar"><view class="scale-fill" style="width: {{avgScore}}%"></view></view>
+        <text class="scale-hi">觉醒</text>
+      </view>
+    </view>
+
+    <!-- ── 九维能力雷达 ── -->
+    <view class="radar-section" wx:if="{{dims.length > 0}}">
+      <view class="radar-header">📊 九维能力雷达</view>
+      <view class="radar-grid">
+        <block wx:for="{{dims}}" wx:key="key">
+          <view class="radar-dim" bindtap="handleDimensionTap" data-dim="{{item.label}}">
+            <view class="radar-dim-name">{{item.label}}</view>
+            <view class="radar-dim-bar">
+              <view class="radar-dim-fill" style="width: {{item.value}}%; background: {{item.value >= 70 ? 'linear-gradient(90deg,#7F56D9,#0a84ff)' : item.value >= 50 ? 'linear-gradient(90deg,#f5c16c,#7F56D9)' : 'linear-gradient(90deg,#ef4444,#f97316)'}}"></view>
+            </view>
+            <view class="radar-dim-val">{{item.value}}</view>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- ── 合规免责 ── -->
+    <view class="compliance-tips">系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出</view>
+
+    <!-- ── 操作区 ── -->
+    <view class="action-row">
+      <button class="action-btn secondary" bindtap="handleRetry">🔄 重新生成</button>
+      <button class="action-btn primary" bindtap="handleShare">📤 分享海报</button>
+    </view>
+    <view class="action-row-bottom">
+      <button class="action-btn ghost" bindtap="handleBack">返回首页</button>
+    </view>
+
+  </block>
+</view>

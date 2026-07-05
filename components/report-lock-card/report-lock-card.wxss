@@ -1,0 +1,11 @@
+@import '../../styles/tokens.wxss';
+.card{text-align:center;padding:var(--sp-32);margin-bottom:0;}
+.lock-header{margin-bottom:var(--sp-32);}
+.lock-emoji{font-size:64rpx;display:block;margin-bottom:var(--sp-16);}
+.lock-title{font-weight:700;color:#FFFFFF;display:block;}
+.benefits-section{text-align:left;margin-bottom:var(--sp-32);padding:var(--sp-24);background:#0f1526;border-radius:var(--radius-tag);}
+.benefits-label{font-size:26rpx;color:#C6B1FF;font-weight:600;margin-bottom:var(--sp-16);}
+.benefit{display:flex;align-items:center;gap:var(--sp-12);font-size:var(--font-caption);color:var(--text-secondary);padding:var(--sp-8) 0;}
+.benefit-dot{color:#8B5CF6;font-size:20rpx;}
+.xsg-glow-button{display:inline-flex;align-items:center;justify-content:center;padding:20rpx 48rpx;border-radius:var(--radius-full);font-size:32rpx;font-weight:700;color:#FFFFFF;background:linear-gradient(135deg,#8B5CF6,#4F7DFF);box-shadow:var(--xsg-glow-purple);border:none;}
+.xsg-glow-button::after{border:none;}

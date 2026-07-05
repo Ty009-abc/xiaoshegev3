@@ -1,0 +1,12 @@
+@import '../../styles/tokens.wxss';
+.page{min-height:100vh;padding:var(--sp-24);padding-top:calc(var(--sp-24)+env(safe-area-inset-top));}
+.hero{text-align:center;padding:var(--sp-48) 0 var(--sp-32);}
+.hero-icon{font-size:72rpx;display:block;margin-bottom:var(--sp-16);filter:drop-shadow(0 0 24rpx rgba(139,92,246,0.35));}
+.hero-title{font-size:var(--font-h2);font-weight:700;color:#FFFFFF;display:block;margin-bottom:var(--sp-12);}
+.hero-desc{font-size:var(--font-body);color:#C6B1FF;display:block;}
+.perks-title{font-size:var(--font-body);font-weight:600;color:#C6B1FF;display:block;margin-bottom:var(--sp-16);}
+.perk-list{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-12);}
+.perk{display:flex;align-items:center;gap:var(--sp-8);font-size:var(--font-caption);color:var(--text-secondary);}
+.perk text:first-child{font-size:20rpx;}
+.product-list{margin:var(--sp-24) 0;}
+.safe-hint{text-align:center;font-size:var(--font-caption);color:var(--text-tertiary);}

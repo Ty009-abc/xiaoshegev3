@@ -1,0 +1,6 @@
+<view class="card {{locked ? 'locked' : ''}}" bindtap="onTap">
+  <view class="top"><text class="num">{{rule.num || ''}}</text><xsg-tag wx:if="{{rule.category}}" text="{{rule.category}}" type="gold" /></view>
+  <view class="title">{{rule.title}}</view>
+  <view class="oneliner">{{rule.oneLiner}}</view>
+  <view class="lock-overlay" wx:if="{{locked}}"><text class="lock-icon">🔒</text><text class="lock-text">关注公众号解锁</text></view>
+</view>

@@ -1,0 +1,19 @@
+<view class="growth-container {{theme === 'light' ? 'light-theme' : ''}}">
+  <view class="level-header">
+    <view class="current-level-info">
+      <text class="lv-tag">LV{{level}}</text>
+      <text class="lv-name">{{levelTitle}}</text>
+    </view>
+    <text class="next-level-tips">距下一级「{{nextTitle}}」还差 {{remain}} 点</text>
+  </view>
+
+  <view class="progress-wrapper">
+    <view class="progress-bar-bg">
+      <view class="progress-bar-fill" style="width: {{pct}}%;"></view>
+    </view>
+    <view class="progress-data-labels">
+      <text class="current-points">{{cv}} CV</text>
+      <text class="target-points">{{target}} CV</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,4 @@
+<view class="wrap">
+  <view class="info"><text class="day">第{{day}}天</text><text class="stat">{{current}}/{{total}}</text></view>
+  <xsg-progress value="{{current}}" max="{{total}}" color="ai" showText="{{false}}" />
+</view>

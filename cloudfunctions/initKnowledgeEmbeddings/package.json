@@ -1,0 +1,9 @@
+{
+  "name": "initKnowledgeEmbeddings",
+  "version": "1.0.0",
+  "description": "知识库 Embedding 初始化云函数",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

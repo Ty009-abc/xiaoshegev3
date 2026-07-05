@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "openapi": []
+  },
+  "env": {
+    "EMBEDDING_MODEL": "deepseek-embedding",
+    "EMBEDDING_API_KEY": "",
+    "EMBEDDING_API_BASE": "https://api.deepseek.com/v1"
+  }
+}

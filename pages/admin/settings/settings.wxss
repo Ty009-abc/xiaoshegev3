@@ -1,0 +1,8 @@
+.page{min-height:100vh;background:#0a0a14;padding:24rpx;}
+.header{font-size:36rpx;font-weight:700;color:#fff;padding:32rpx 0 24rpx;}
+.config-list{margin-bottom:24rpx;}
+.cfg-row{display:flex;align-items:center;justify-content:space-between;background:#141428;border-radius:14rpx;padding:28rpx 24rpx;margin-bottom:12rpx;}
+.cfg-label{font-size:28rpx;color:#ddd;}
+.cfg-input{width:180rpx;height:64rpx;background:#1a1a2e;border-radius:10rpx;padding:0 16rpx;font-size:24rpx;color:#0a84ff;text-align:center;}
+.refresh{text-align:center;color:#0a84ff;font-size:24rpx;padding:24rpx;}
+.loading{text-align:center;color:#666;font-size:28rpx;padding:64rpx;}

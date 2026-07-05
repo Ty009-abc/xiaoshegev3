@@ -1,0 +1,13 @@
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#0f0f1a",
+  "usingComponents": {
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar",
+    "xsg-card": "/components/xsg-card/xsg-card",
+    "xsg-tag": "/components/xsg-tag/xsg-tag",
+    "xsg-button": "/components/xsg-button/xsg-button",
+    "xsg-loading": "/components/xsg-loading/xsg-loading",
+    "xsg-empty": "/components/xsg-empty/xsg-empty",
+    "challenge-progress": "/components/challenge-progress/challenge-progress"
+  }
+}

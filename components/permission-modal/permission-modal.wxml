@@ -1,0 +1,11 @@
+<view class="mask" wx:if="{{visible}}" catchtap="onCancel">
+  <view class="modal" catchtap="">
+    <view class="modal-icon">⭐</view>
+    <text class="modal-title">{{title}}</text>
+    <view class="perks" wx:if="{{benefits.length}}">
+      <view class="perk" wx:for="{{benefits}}" wx:key="*this"><text class="perk-dot">✦</text>{{item}}</view>
+    </view>
+    <xsg-button type="primary" text="{{btnText}}" bind:tapbutton="onConfirm" />
+    <button class="cancel-btn" bindtap="onCancel">暂不需要</button>
+  </view>
+</view>

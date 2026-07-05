@@ -1,0 +1,134 @@
+@import '../../styles/tokens.wxss';
+/* ══════════════════════════════════════
+   pages/challenge-start — v3.11 呼吸感+黄金留白
+   ══════════════════════════════════════ */
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fa;
+  padding: 32rpx 32rpx 80rpx;
+  box-sizing: border-box;
+}
+
+/* ── 头部 ── */
+.challenge-header {
+  text-align: center;
+  padding: 40rpx 0 24rpx;
+}
+
+.challenge-badge {
+  display: inline-block;
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #7F56D9;
+  background: #F4F3FF;
+  border: 1rpx solid #E0D7FE;
+}
+
+.challenge-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #101828;
+  margin: 16rpx 0;
+  text-align: center;
+}
+
+.challenge-subtitle {
+  font-size: 26rpx;
+  color: #667085;
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+/* ── 今日挑战卡片 ── */
+.day-card {
+  background: #FFFFFF;
+  border: 1rpx solid #eaecf0;
+  border-radius: 36rpx;
+  padding: 48rpx 36rpx;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.02);
+  margin-bottom: 48rpx;
+}
+
+.card-tag {
+  display: inline-block;
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 500;
+  color: #7F56D9;
+  background: #F4F3FF;
+  border: 1rpx solid #E0D7FE;
+}
+
+.card-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #101828;
+  margin: 16rpx 0;
+}
+
+.card-content {
+  font-size: 28rpx;
+  color: #344054;
+  line-height: 1.7;
+  letter-spacing: 0.5rpx;
+  margin-bottom: 24rpx;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.info {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 26rpx;
+  color: #667085;
+}
+
+/* ── 互动面板 ── */
+.action-panel {
+  margin-top: 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 160rpx;
+}
+
+.btn-lock-in {
+  width: 85% !important;
+  height: 96rpx;
+  line-height: 96rpx;
+  margin: 0 auto;
+  border-radius: 48rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #7F56D9, #6941C6);
+  box-shadow: 0 8rpx 24rpx rgba(111,76,215,0.3);
+  border: none;
+  padding: 0;
+}
+.btn-lock-in::after { border: none; }
+
+.action-tips {
+  font-size: 24rpx;
+  color: #98A2B3;
+  margin-top: 20rpx;
+}
+
+.action-sub {
+  font-size: 24rpx;
+  color: #98A2B3;
+  margin-top: 8rpx;
+}

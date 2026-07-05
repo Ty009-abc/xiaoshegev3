@@ -1,0 +1,19 @@
+<view class="mask {{visible ? 'show' : ''}}" catchtap="onClose">
+  <view class="modal {{visible ? 'slide-up' : ''}}" catchtap="">
+    <view class="close-bar"><view class="close-btn" bindtap="onClose">×</view></view>
+    <view class="product-icon">{{product.type === 'membership' ? '⭐' : '🔍'}}</view>
+    <text class="product-name">{{product.name}}</text>
+    <text class="product-desc">{{product.description}}</text>
+    <view class="price-block">
+      <text class="price-curr">¥</text>
+      <text class="price-num">{{product.priceDisplay}}</text>
+      <text class="price-dur">{{product.durationText}}</text>
+    </view>
+    <view class="original-price" wx:if="{{product.originalPriceDisplay}}">原价 ¥{{product.originalPriceDisplay}}</view>
+    <view class="benefit-list" wx:if="{{product.benefits && product.benefits.length}}">
+      <view class="benefit-item" wx:for="{{product.benefits}}" wx:key="*this">{{item}}</view>
+    </view>
+    <xsg-button type="primary" text="立即支付" loading="{{loading}}" bind:tapbutton="onPay" />
+    <view class="safe-hint">🔒 微信支付 · 安全加密</view>
+  </view>
+</view>

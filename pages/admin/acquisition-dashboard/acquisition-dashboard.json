@@ -1,0 +1,13 @@
+{
+  "usingComponents": {
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar",
+    "xsg-loading": "/components/xsg-loading/xsg-loading",
+    "xsg-card": "/components/xsg-card/xsg-card",
+    "xsg-tag": "/components/xsg-tag/xsg-tag",
+    "xsg-empty": "/components/xsg-empty/xsg-empty",
+    "xsg-progress": "/components/xsg-progress/xsg-progress"
+  },
+  "navigationBarTitleText": "获客分析",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#0a0a14"
+}

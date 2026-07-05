@@ -1,0 +1,17 @@
+.page{min-height:100vh;background:#0a0a14;padding:24rpx;}
+.filters{display:flex;gap:12rpx;margin-bottom:20rpx;flex-wrap:wrap;}
+.filter-tag{font-size:22rpx;color:#666;background:#141428;padding:8rpx 20rpx;border-radius:16rpx;}
+.filter-tag.active{background:#0a84ff;color:#fff;}
+.order-row{background:#141428;border-radius:12rpx;padding:24rpx;margin-bottom:12rpx;}
+.o-top{display:flex;justify-content:space-between;margin-bottom:8rpx;}
+.o-product{font-size:28rpx;color:#ddd;font-weight:600;}
+.o-price{font-size:28rpx;color:#f0ad4e;font-weight:600;}
+.o-mid{display:flex;justify-content:space-between;margin-bottom:6rpx;}
+.o-id{font-size:20rpx;color:var(--text-tertiary);}
+.o-status{font-size:20rpx;padding:2rpx 10rpx;border-radius:8rpx;}
+.o-status.paid{color:#2ecc71;background:rgba(46,204,113,0.1);}
+.o-status.pending_payment{color:#f0ad4e;background:rgba(240,173,78,0.1);}
+.o-status.created{color:#888;background:#13152a;}
+.o-bot{display:flex;justify-content:space-between;}
+.o-time,.o-openid{font-size:20rpx;color:var(--text-tertiary);}
+.total{text-align:center;color:var(--text-tertiary);font-size:24rpx;padding:24rpx;}

@@ -1,0 +1,64 @@
+<!-- pages/challenge/challenge.wxml -->
+<view class="c-page">
+  <!-- ═══ 头部状态栏 ═══ -->
+  <view class="c-header">
+    <view class="c-h-left">
+      <text class="c-h-day">{{currentDay > totalDays ? totalDays : currentDay}} / {{totalDays}} 天</text>
+      <view class="c-h-progress">
+        <view class="c-h-bar" style="width:{{(currentDay>totalDays?100:(currentDay-1)/totalDays*100)}}%"></view>
+      </view>
+    </view>
+    <view class="c-h-right">
+      <text class="c-h-cv">CV {{currentCV}}</text>
+      <text class="c-h-lv">{{userLevel}}</text>
+    </view>
+  </view>
+
+  <!-- ═══ 挑战中 ═══ -->
+  <block wx:if="{{!completed && eventsPool[currentDay-1]}}">
+    <view class="c-card {{animating?'c-slide-out':''}} {{showEvent&&!animating?'c-slide-in':''}}" wx:if="{{showEvent}}">
+      <view class="c-cc-day">Day {{currentDay}}</view>
+      <text class="c-cc-title">{{eventsPool[currentDay-1].title}}</text>
+      <text class="c-cc-desc">{{eventsPool[currentDay-1].description}}</text>
+    </view>
+
+    <view class="c-opts {{animating?'c-slide-out':''}}" wx:if="{{showEvent}}">
+      <view
+        class="c-opt {{selectedOption===index?'c-opt-sel':''}}"
+        wx:for="{{eventsPool[currentDay-1].options}}"
+        wx:key="text"
+        wx:for-index="index"
+        data-index="{{index}}"
+        bindtap="selectOption"
+        hover-class="c-opt-hv"
+      >
+        <text class="c-opt-text">{{item.text}}</text>
+      </view>
+    </view>
+
+    <button class="c-confirm" wx:if="{{showEvent}}" bindtap="confirmChoice" disabled="{{selectedOption<0||animating}}">
+      {{selectedOption<0 ? '请先做出抉择' : (animating ? '系统推演中…' : '⚡ 锁定这个选择 →')}}
+    </button>
+  </block>
+
+  <!-- ═══ 结算页 ═══ -->
+  <block wx:if="{{completed}}">
+    <view class="c-fin">
+      <text class="c-fin-emoji">🧬</text>
+      <text class="c-fin-t">世界模型诊断完成</text>
+      <text class="c-fin-s">九维认知指数已锁定 · CV {{currentCV}}</text>
+
+      <view class="c-fin-grid">
+        <view class="c-fin-i" wx:for="{{['laborMindset','probabilityMindset','systemThinking','leverageMindset','capitalMindset','riskCognition','infoSensitivity','longTermism','decisionStability']}}" wx:for-item="dim" wx:key="*this">
+          <text class="c-fin-l">{{dim==='laborMindset'?'劳动':dim==='probabilityMindset'?'概率':dim==='systemThinking'?'系统':dim==='leverageMindset'?'杠杆':dim==='capitalMindset'?'资本':dim==='riskCognition'?'风险':dim==='infoSensitivity'?'信息':dim==='longTermism'?'长期':dim==='decisionStability'?'决策':''}}</text>
+          <view class="c-fin-b"><view class="c-fin-f {{item>=70?'hi':item>=50?'mi':'lo'}}" style="width:{{item}}%"></view></view>
+          <text class="c-fin-v {{item>=70?'hi':item>=50?'mi':'lo'}}">{{item}}</text>
+        </view>
+      </view>
+
+      <button class="c-confirm" bindtap="goToReport">🩺 生成 AI 翻身策略报告</button>
+      <button class="c-btn-2" bindtap="goHome">🏠 返回首页</button>
+      <button class="c-btn-3" bindtap="restart">🔄 重新挑战</button>
+    </view>
+  </block>
+</view>

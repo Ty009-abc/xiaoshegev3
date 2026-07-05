@@ -1,0 +1,12 @@
+<view class="mcard {{selected ? 'selected' : ''}} {{recommended ? 'recommended' : ''}}" bindtap="onTap">
+  <view class="rec-badge" wx:if="{{recommended}}">最推荐</view>
+  <view class="mcard-name">{{product.name}}</view>
+  <view class="mcard-desc">{{product.description}}</view>
+  <view class="mcard-price">
+    <text class="m-price-curr">¥</text>
+    <text class="m-price-num">{{product.priceDisplay}}</text>
+    <text class="m-price-dur">{{product.durationText}}</text>
+  </view>
+  <view class="mcard-original" wx:if="{{product.originalPriceDisplay}}">原价 ¥{{product.originalPriceDisplay}}</view>
+  <view class="mcard-perk" wx:for="{{product.perks || []}}" wx:key="*this">{{item}}</view>
+</view>

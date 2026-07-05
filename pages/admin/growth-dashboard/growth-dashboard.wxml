@@ -1,0 +1,155 @@
+<!-- pages/admin/growth-dashboard/growth-dashboard.wxml -->
+<view class="page-container">
+  <xsg-navbar title="增长分析" />
+
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <xsg-loading />
+  </view>
+
+  <block wx:else>
+    <!-- 增长飞轮状态 -->
+    <view class="flywheel-card" wx:if="{{flywheel}}">
+      <view class="flywheel-header">
+        <text class="flywheel-icon">{{flywheel.stage === 'viral' ? '🌀' : flywheel.stage === 'spinning' ? '⚙️' : flywheel.stage === 'starting' ? '🔥' : '❄️'}}</text>
+        <view class="flywheel-info">
+          <text class="flywheel-status">{{flywheel.energy}}</text>
+          <text class="flywheel-stage">K-Factor: {{flywheel.kFactor || 0}}</text>
+        </view>
+      </view>
+      <text class="flywheel-action">{{flywheel.nextAction}}</text>
+      <!-- 飞轮环节 -->
+      <view class="flywheel-steps">
+        <view class="fw-step" wx:for="{{['content','traffic','experience','share','invite']}}" wx:key="*this" wx:for-item="key">
+          <view class="fw-dot {{flywheel.flywheel[key].rating}}"></view>
+          <text class="fw-label">{{key === 'content' ? '内容' : key === 'traffic' ? '流量' : key === 'experience' ? '体验' : key === 'share' ? '分享' : '邀请'}}</text>
+          <text class="fw-metric">{{flywheel.flywheel[key].metric}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 核心指标 -->
+    <view class="section">
+      <text class="section-title">📊 核心指标</text>
+      <view class="metric-grid">
+        <view class="metric-item highlight">
+          <text class="metric-value">{{summary.dau || 0}}</text>
+          <text class="metric-label">DAU</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{summary.mau || 0}}</text>
+          <text class="metric-label">MAU</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{summary.newUsersToday || 0}}</text>
+          <text class="metric-label">今日新增</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{summary.shareRate || 0}}%</text>
+          <text class="metric-label">分享率</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{summary.inviteRate || 0}}%</text>
+          <text class="metric-label">邀请转化</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{summary.kFactor || 0}}</text>
+          <text class="metric-label">K-Factor</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{cac.cac || 0}}</text>
+          <text class="metric-label">CAC</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{summary.dauMauRate || 0}}%</text>
+          <text class="metric-label">DAU/MAU</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 健康度评分 -->
+    <view class="section" wx:if="{{healthScore}}">
+      <text class="section-title">🩺 增长健康度</text>
+      <view class="health-card {{healthScore.status}}">
+        <view class="health-score-wrap">
+          <text class="health-score">{{healthScore.healthScore}}</text>
+          <text class="health-max">/ 100</text>
+        </view>
+        <view class="health-bar-bg">
+          <view class="health-bar-fill {{healthScore.status}}" style="width: {{healthScore.healthScore}}%"></view>
+        </view>
+        <view class="health-breakdown" wx:if="{{healthScore.breakdown}}">
+          <text class="breakdown-item" wx:for="{{['dauGrowth','shareRate','inviteRate','kFactor','retention']}}" wx:key="*this" wx:for-item="k">
+            {{k === 'dauGrowth' ? 'DAU增长' : k === 'shareRate' ? '分享率' : k === 'inviteRate' ? '邀请' : k === 'kFactor' ? 'K因子' : '留存'}}
+            <text class="breakdown-val">{{healthScore.breakdown[k].score}}/{{healthScore.breakdown[k].weight}}</text>
+          </text>
+        </view>
+        <view class="health-suggestions" wx:if="{{healthScore.suggestions.length}}">
+          <text class="sugg-title">📝 建议</text>
+          <text class="sugg-item" wx:for="{{healthScore.suggestions}}" wx:key="issue">• {{item.action}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 增长漏斗 -->
+    <view class="section" wx:if="{{summary.funnel}}">
+      <text class="section-title">📐 增长漏斗</text>
+      <view class="funnel-chart">
+        <block wx:for="{{[['video_click','短视频观看'],['landing_view','落地页浏览'],['mini_enter','进入小程序'],['challenge_start','开始挑战'],['challenge_complete','完成挑战'],['share_click','点击分享'],['invite_success','邀请成功']]}}" wx:key="*this" wx:for-item="row" wx:for-index="idx">
+          <view class="funnel-row">
+            <text class="funnel-label">{{row[1]}}</text>
+            <text class="funnel-count">{{summary.funnel[row[0]] || 0}}</text>
+            <text class="funnel-rate" wx:if="{{idx > 0}}">{{summary.rates[['videoToLanding','landingToMini','miniToChallenge','challengeDone','doneToShare','shareToInvite'][idx-1]] || 0}}%</text>
+          </view>
+        </block>
+      </view>
+    </view>
+
+    <!-- 7日 DAU 趋势 -->
+    <view class="section" wx:if="{{trend.length}}">
+      <text class="section-title">📈 7日 DAU 趋势</text>
+      <view class="trend-bars">
+        <view class="trend-bar-item" wx:for="{{trend}}" wx:key="date">
+          <text class="trend-val">{{item.dau}}</text>
+          <view class="trend-bar" style="height: {{item.dau > 0 ? 20 + item.dau * 3 : 4}}px"></view>
+          <text class="trend-date">{{item.dateLabel}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 渠道归因 -->
+    <view class="section" wx:if="{{channelStats && channelStats.channels.length}}">
+      <text class="section-title">📡 渠道归因</text>
+      <view class="channel-item" wx:for="{{channelStats.channels}}" wx:key="source">
+        <view class="channel-header">
+          <text class="channel-name">{{item.source === 'douyin' ? '抖音' : item.source === 'wechat' ? '微信' : item.source === 'referral' ? '裂变推荐' : item.source === 'xiaohongshu' ? '小红书' : '自然流量'}}</text>
+          <text class="channel-users">{{item.users}}人</text>
+        </view>
+        <view class="channel-bar-bg">
+          <view class="channel-bar-fill" style="width: {{item.userShare}}%"></view>
+        </view>
+        <view class="channel-meta">
+          <text class="channel-rev">收入 ¥{{item.revenueYuan}}</text>
+          <text class="channel-share">占比 {{item.userShare}}%</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 漏斗瓶颈 -->
+    <view class="section" wx:if="{{bottlenecks.length > 0}}">
+      <text class="section-title">⚠️ 增长瓶颈</text>
+      <view class="bottleneck-item" wx:for="{{bottlenecks}}" wx:key="stage">
+        <view class="bn-header">
+          <text class="bn-severity {{item.severity}}">{{item.severity === 'critical' ? '🔴' : '🟡'}}</text>
+          <text class="bn-stage">{{item.stage}}</text>
+        </view>
+        <text class="bn-gap">当前 {{item.currentRate}}% → 目标 {{item.target}}% (差 {{item.gap}}%)</text>
+        <text class="bn-fix">🔧 {{item.fix}}</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{bottlenecks.length === 0 && !loading}}">
+      <text class="section-title">✅ 增长瓶颈</text>
+      <text class="no-bottle">未发现显著增长瓶颈</text>
+    </view>
+  </block>
+</view>

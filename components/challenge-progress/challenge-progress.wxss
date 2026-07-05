@@ -1,0 +1,5 @@
+@import '../../styles/tokens.wxss';
+.wrap{background:var(--bg-secondary);border-radius:var(--radius-card);padding:var(--sp-24);margin-bottom:20rpx;}
+.info{display:flex;justify-content:space-between;margin-bottom:var(--sp-12);}
+.day{font-size:var(--font-caption);color:var(--accent-ai);font-weight:600;}
+.stat{font-size:var(--font-caption);color:var(--text-secondary);}

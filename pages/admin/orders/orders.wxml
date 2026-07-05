@@ -1,0 +1,24 @@
+<!-- pages/admin/orders -->
+<scroll-view scroll-y class="page" bindscrolltolower="loadMore">
+  <view class="filters">
+    <view class="filter-tag {{status===''?'active':''}}" data-s="" bindtap="onFilterStatus">全部</view>
+    <view class="filter-tag {{status==='paid'?'active':''}}" data-s="paid" bindtap="onFilterStatus">已支付</view>
+    <view class="filter-tag {{status==='pending_payment'?'active':''}}" data-s="pending_payment" bindtap="onFilterStatus">待支付</view>
+    <view class="filter-tag {{status==='created'?'active':''}}" data-s="created" bindtap="onFilterStatus">已创建</view>
+  </view>
+  <view class="order-row" wx:for="{{list}}" wx:key="orderId">
+    <view class="o-top">
+      <text class="o-product">{{item.productName}}</text>
+      <text class="o-price">¥{{item.totalAmount / 100}}</text>
+    </view>
+    <view class="o-mid">
+      <text class="o-id">{{item.orderId}}</text>
+      <text class="o-status {{item.status}}">{{item.status}}</text>
+    </view>
+    <view class="o-bot">
+      <text class="o-time">{{item.createdAt}}</text>
+      <text class="o-openid">{{item.openid}}</text>
+    </view>
+  </view>
+  <view class="total">共 {{total}} 条</view>
+</scroll-view>

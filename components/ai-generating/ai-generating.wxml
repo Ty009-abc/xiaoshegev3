@@ -1,0 +1,10 @@
+<!-- ai-generating -->
+<view class="gen-wrap" wx:if="{{visible}}">
+  <view class="gen-card anim-fade-in">
+    <view class="gen-icon">🧠</view>
+    <view class="gen-dots"><view class="gd"></view><view class="gd"></view><view class="gd"></view></view>
+    <text class="gen-text">{{currentText}}</text>
+    <view class="gen-bar-wrap"><view class="gen-bar" style="width:{{progress}}%"></view></view>
+    <text class="gen-pct">{{progress}}%</text>
+  </view>
+</view>

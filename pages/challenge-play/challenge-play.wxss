@@ -1,0 +1,159 @@
+@import '../../styles/tokens.wxss';
+/* ══════════════════════════════════════
+   pages/challenge-play — 灰白质感
+   ══════════════════════════════════════ */
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fa;
+  box-sizing: border-box;
+}
+
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.progress-bar {
+  padding: 16rpx 32rpx;
+  padding-top: calc(16rpx + env(safe-area-inset-top));
+  background: #f8f9fa;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 32rpx;
+}
+
+.card {
+  background: #FFFFFF;
+  border: 1rpx solid #eaecf0;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03);
+}
+
+.q-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #101828;
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.choice-btn {
+  padding: 20rpx 24rpx;
+  border-radius: 32rpx;
+  font-size: 30rpx;
+  color: #344054;
+  background: #F9FAFB;
+  border: 1rpx solid #E5E7EB;
+  text-align: left;
+  transition: all 160ms;
+}
+.choice-btn::after { border: none; }
+.choice-btn:active,
+.choice-btn.selected {
+  background: #F4F3FF;
+  border-color: #C6B1FF;
+  color: #7F56D9;
+}
+.choice-btn.submitted {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.key-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #F4F3FF;
+  color: #7F56D9;
+  font-weight: 700;
+  font-size: 24rpx;
+  margin-right: 12rpx;
+  vertical-align: middle;
+}
+
+.footer {
+  padding: 24rpx 32rpx;
+  border-top: 1rpx solid #E5E7EB;
+  background: #FFFFFF;
+}
+
+/* ═══════════ diagnostic 6题问卷 ═══════════ */
+.d-personality-bar {
+  display:flex; align-items:center; gap:12rpx;
+  padding:24rpx 32rpx; margin:0 32rpx;
+  background:#F5F3FF; border-radius:20rpx;
+}
+.dp-emoji { font-size:36rpx; }
+.dp-name { font-size:26rpx; color:#7F56D9; font-weight:600; }
+
+.d-progress-section {
+  display:flex; align-items:center; gap:16rpx;
+  padding:32rpx 32rpx 16rpx;
+}
+.d-progress-track {
+  flex:1; height:8rpx; background:#E5E7EB; border-radius:999rpx; overflow:hidden;
+}
+.d-progress-fill {
+  height:100%; border-radius:999rpx;
+  background:linear-gradient(135deg,#7F56D9,#53389E);
+  transition:width 0.4s ease;
+}
+.d-progress-text { font-size:24rpx; color:#667085; white-space:nowrap; }
+
+.d-card {
+  margin:0 32rpx 24rpx; background:#FFF;
+  border-radius:28rpx; padding:32rpx;
+  box-shadow:0 4rpx 20rpx rgba(0,0,0,0.04);
+}
+.d-back-row { margin-bottom:16rpx; }
+.d-back-btn { font-size:26rpx; color:#7F56D9; font-weight:600; }
+
+.d-q-header { display:flex; align-items:center; gap:16rpx; margin-bottom:16rpx; }
+.d-q-num {
+  width:52rpx; height:52rpx; border-radius:50%;
+  background:linear-gradient(135deg,#7F56D9,#53389E);
+  color:#FFF; font-size:26rpx; font-weight:700;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.d-q-title { font-size:32rpx; font-weight:700; color:#101828; }
+.d-q-subtitle { font-size:25rpx; color:#667085; display:block; margin-bottom:32rpx; line-height:1.6; min-height:40rpx; }
+
+.d-input-area {
+  background:#F9FAFB; border-radius:20rpx; padding:24rpx; min-height:120rpx;
+}
+.d-input-area input,.d-input-area textarea {
+  width:100%; font-size:30rpx; color:#101828; background:transparent;
+  min-height:72rpx; line-height:1.6;
+}
+.d-placeholder { color:#D0D5DD; }
+.d-input-hint { padding:8rpx 0 0; text-align:right; font-size:22rpx; color:#A0A0B0; }
+
+.d-action { padding:0 32rpx; display:flex; flex-direction:column; align-items:center; gap:8rpx; }
+.d-btn-next {
+  width:100%; height:96rpx; border-radius:999rpx;
+  background:linear-gradient(135deg,#7F56D9,#53389E);
+  color:#FFF; font-size:33rpx; font-weight:700;
+  border:none; display:flex; align-items:center; justify-content:center;
+}
+.d-btn-next::after { border:none; }
+.d-btn-next[disabled] { opacity:0.4; }
+.d-btn-hover { opacity:0.85; }
+.d-kb-hint { font-size:22rpx; color:#A0A0B0; transition:opacity 0.3s; }

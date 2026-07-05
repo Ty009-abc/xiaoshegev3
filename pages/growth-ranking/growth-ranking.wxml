@@ -1,0 +1,25 @@
+<!-- growth-ranking -->
+<view class="page page-enter">
+  <xsg-navbar title="认知成长榜" showBack />
+  <view class="tabs anim-fade-in">
+    <view class="tab {{tab==='cv'?'active':''}}" data-tab="cv" bindtap="onSwitchTab">CV榜</view>
+    <view class="tab {{tab==='level'?'active':''}}" data-tab="level" bindtap="onSwitchTab">等级榜</view>
+    <view class="tab {{tab==='streak'?'active':''}}" data-tab="streak" bindtap="onSwitchTab">连续榜</view>
+  </view>
+
+  <xsg-loading text="加载排行榜..." wx:if="{{loading}}" />
+  <block wx:else>
+    <!-- 我的排名 -->
+    <xsg-card type="premium" wx:if="{{myRank}}" class="anim-fade-in">
+      <view class="my-rank"><text class="mr-icon">🏆</text><text class="mr-rank">#{{myRank.rank}}</text><text class="mr-name">{{myRank.nickname||'我'}}</text><text class="mr-val">{{tab==='cv'?myRank.cvDisplay+'CV':tab==='level'?myRank.levelDisplay:myRank.streakDisplay+'天'}}</text></view>
+    </xsg-card>
+
+    <view class="rank-list anim-fade-in">
+      <view class="rank-item" wx:for="{{list}}" wx:key="_id">
+        <text class="ri-rank {{index<3?'top'+index:''}}">{{item.rank}}</text>
+        <text class="ri-name">{{item.nickname||'觉醒者'}}</text>
+        <text class="ri-val">{{tab==='cv'?item.cvDisplay+'CV':tab==='level'?item.levelDisplay:item.streakDisplay+'天'}}</text>
+      </view>
+    </view>
+  </block>
+</view>

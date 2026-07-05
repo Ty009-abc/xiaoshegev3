@@ -1,0 +1,323 @@
+/**
+ * 珠澳小事哥 · 认知操作系统 v3.0
+ * 认知挑战题库种子数据 · 10道题
+ */
+
+const now = () => Date.now()
+
+const ts = now()
+
+const DEFAULT_CHALLENGE_EVENTS = [
+  {
+    eventId: 'CE001',
+    day: 1,
+    title: '你发现一个AI副业机会',
+    description: '朋友告诉你，现在有人用AI批量生成短视频脚本，并通过本地生活账号变现。你只有晚上2小时空闲时间。',
+    choices: [
+      {
+        key: 'A',
+        text: '马上学习，先做7天测试',
+        effects: { probabilityMindset: 5, leverageThinking: 6, riskAwareness: 2, cv: 5 },
+        tags: ['行动派', '低成本试错'],
+      },
+      {
+        key: 'B',
+        text: '先观望，等别人做出结果再说',
+        effects: { decisionStability: 2, informationSensitivity: -3, cv: 1 },
+        tags: ['观望型', '机会延迟'],
+      },
+      {
+        key: 'C',
+        text: '觉得都是割韭菜，不碰',
+        effects: { laborMindset: 5, leverageThinking: -5, informationSensitivity: -5, cv: -2 },
+        tags: ['防御型认知', '机会屏蔽'],
+      },
+    ],
+    blackSwanRate: 0.03,
+    difficulty: 1,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE002',
+    day: 3,
+    title: '老板画饼：加班换股权',
+    description: '老板说公司快要融资了，周末加班冲一冲。但你已经三个月没见过加班费了，而且你知道公司财务报表不怎么样。',
+    choices: [
+      {
+        key: 'A',
+        text: '信老板一次，全力加班冲期权',
+        effects: { probabilityMindset: -3, riskAwareness: -5, cv: -3 },
+        tags: ['赌徒心态', '信息盲从'],
+      },
+      {
+        key: 'B',
+        text: '只做分内事，下班学新技能准备跳槽',
+        effects: { systemThinking: 5, longTermism: 4, cv: 3 },
+        tags: ['理性选择', '长期主义'],
+      },
+      {
+        key: 'C',
+        text: '跟老板谈判：加班可以，但要即时现金补贴',
+        effects: { leverageThinking: 4, decisionStability: 3, cv: 2 },
+        tags: ['谈判能力', '价值交换'],
+      },
+    ],
+    blackSwanRate: 0.05,
+    difficulty: 1,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE003',
+    day: 5,
+    title: '朋友拉你做投资：年化18%的理财',
+    description: '同事老张说有个P2P平台年化18%，他投了20万每月按时回款。你手上有3万闲钱，正在犹豫要不要跟。',
+    choices: [
+      {
+        key: 'A',
+        text: '投3万进去，搏一把',
+        effects: { capitalThinking: -4, riskAwareness: -6, cv: -4 },
+        tags: ['高欲望', '赌徒倾向'],
+      },
+      {
+        key: 'B',
+        text: '小试5000，亏了不心疼',
+        effects: { probabilityMindset: 2, riskAwareness: 1, cv: 1 },
+        tags: ['理性试错', '仓位管理'],
+      },
+      {
+        key: 'C',
+        text: '拒绝，并把反诈贴转给了老张',
+        effects: { riskAwareness: 8, informationSensitivity: 5, cv: 5 },
+        tags: ['风险识别', '利他行为'],
+      },
+    ],
+    blackSwanRate: 0.1,
+    difficulty: 2,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE004',
+    day: 8,
+    title: '培训机构说：零基础学IT，四个月月薪过万',
+    description: '培训机构在商场发传单："零基础转行IT，四个月包就业，月薪8000起。"课程费23800，可以办教育分期贷款。',
+    choices: [
+      {
+        key: 'A',
+        text: '签贷款合同，四个月后就是IT精英了',
+        effects: { leverageThinking: -5, riskAwareness: -8, cv: -5 },
+        tags: ['暴富幻觉', '信息盲从'],
+      },
+      {
+        key: 'B',
+        text: '不贷，用B站免费课程+GitHub自学',
+        effects: { systemThinking: 8, longTermism: 6, cv: 6 },
+        tags: ['自学能力', '理性求证'],
+      },
+      {
+        key: 'C',
+        text: '先查口碑+试听一周+对比免费资源再决定',
+        effects: { decisionStability: 6, informationSensitivity: 4, cv: 3 },
+        tags: ['系统思维', '信息验证'],
+      },
+    ],
+    blackSwanRate: 0.03,
+    difficulty: 1,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE005',
+    day: 12,
+    title: '同事跳槽薪资翻倍，你该怎么办',
+    description: '跟你同组的老周跳槽后薪资从9500涨到17000。你回到工位，看着自己9500的工资条，鼠标悬停在招聘APP上。',
+    choices: [
+      {
+        key: 'A',
+        text: '立刻裸辞海投简历，我也要翻倍',
+        effects: { probabilityMindset: -2, decisionStability: -5, cv: -2 },
+        tags: ['情绪交易', '冲动决策'],
+      },
+      {
+        key: 'B',
+        text: '请老周吃饭取经，搞清楚他凭什么翻倍',
+        effects: { informationSensitivity: 7, systemThinking: 5, cv: 4 },
+        tags: ['理性求证', '信息获取'],
+      },
+      {
+        key: 'C',
+        text: '不跳槽，但用老周的offer跟老板谈涨薪',
+        effects: { leverageThinking: 5, decisionStability: 4, cv: 3 },
+        tags: ['谈判杠杆', '稳健策略'],
+      },
+    ],
+    blackSwanRate: 0.02,
+    difficulty: 1,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE006',
+    day: 15,
+    title: '父母生病：亲情与财务的双重考验',
+    description: '妈妈被诊断需要做手术，费用约8万，新农合只能报40%。你手上有6万存款，是你攒了两年的全部积蓄。',
+    choices: [
+      {
+        key: 'A',
+        text: '拿出全部积蓄6万，先做手术再说',
+        effects: { capitalThinking: -5, longTermism: 2, cv: -1 },
+        tags: ['情感驱动', '责任担当'],
+      },
+      {
+        key: 'B',
+        text: '筹措多方来源：公司预支+医疗众筹+亲戚借款',
+        effects: { systemThinking: 6, informationSensitivity: 4, cv: 3 },
+        tags: ['资源整合', '系统思维'],
+      },
+      {
+        key: 'C',
+        text: '用储蓄+跟医院协商分期+申请大病救助',
+        effects: { decisionStability: 7, riskAwareness: 5, cv: 4 },
+        tags: ['风险管理', '政策利用'],
+      },
+    ],
+    blackSwanRate: 0.05,
+    difficulty: 2,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE007',
+    day: 18,
+    title: '股市内幕消息：兄弟说有只股票下周要重组',
+    description: '大学同学深夜发来消息："我一个券商朋友透露，XX科技下周要重组，现在2块多一股，买了闭眼数钱。"你翻了一下K线，确实连续放量。',
+    choices: [
+      {
+        key: 'A',
+        text: 'ALL IN 2万，人生能有几回搏',
+        effects: { capitalThinking: -6, riskAwareness: -8, cv: -5 },
+        tags: ['赌徒倾向', '暴富幻觉'],
+      },
+      {
+        key: 'B',
+        text: '小仓位试5000，严格设止损',
+        effects: { probabilityMindset: 4, riskAwareness: 3, cv: 2 },
+        tags: ['仓位管理', '纪律执行'],
+      },
+      {
+        key: 'C',
+        text: '不碰个股，定投指数基金',
+        effects: { longTermism: 8, capitalThinking: 5, cv: 4 },
+        tags: ['长期主义', '稳健防御'],
+      },
+    ],
+    blackSwanRate: 0.08,
+    difficulty: 2,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE008',
+    day: 22,
+    title: '第一笔理财：5万块放哪里',
+    description: '你终于攒了5万块。银行理财经理推荐"稳健型基金年化4%"。你姐夫说他认识一个私募经理"年薪8%"，名额有限。',
+    choices: [
+      {
+        key: 'A',
+        text: '投给姐夫的私募，搏一把',
+        effects: { capitalThinking: -5, riskAwareness: -7, cv: -4 },
+        tags: ['信息盲从', '高欲望'],
+      },
+      {
+        key: 'B',
+        text: '按4321法则分散配置：活期+稳健+指数+试水',
+        effects: { systemThinking: 8, capitalThinking: 6, cv: 5 },
+        tags: ['资产配置', '系统思维'],
+      },
+      {
+        key: 'C',
+        text: '买一本《指数基金投资指南》花两周自学再决定',
+        effects: { longTermism: 7, informationSensitivity: 5, cv: 4 },
+        tags: ['延迟满足', '认知优先'],
+      },
+    ],
+    blackSwanRate: 0.05,
+    difficulty: 2,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE009',
+    day: 25,
+    title: '短视频上瘾：时间黑洞与认知腐蚀',
+    description: '下班后你往床上一躺，打开了短视频。算法精准推送你喜欢的。等你抬头，已经凌晨2:37。手机屏幕使用时间：今日7小时12分钟。明天6点要起。',
+    choices: [
+      {
+        key: 'A',
+        text: '再看一会，今天太累了需要放松',
+        effects: { longTermism: -5, decisionStability: -4, cv: -3 },
+        tags: ['即时满足', '注意力税'],
+      },
+      {
+        key: 'B',
+        text: '设置屏幕时间限制，卸载短视频APP',
+        effects: { systemThinking: 6, longTermism: 7, cv: 5 },
+        tags: ['断臂求生', '注意力管理'],
+      },
+      {
+        key: 'C',
+        text: '不卸载但重新训练算法：只搜技能类和深度内容',
+        effects: { systemThinking: 4, informationSensitivity: 3, cv: 2 },
+        tags: ['工具驯化', '算法意识'],
+      },
+    ],
+    blackSwanRate: 0.02,
+    difficulty: 1,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+  {
+    eventId: 'CE010',
+    day: 28,
+    title: 'AI浪潮：你的岗位将被替代还是升级？',
+    description: '公司宣布引入AI自动化系统。你所在的部门有30%的岗位在"被评估替代"的名单上。你听到消息后，手心全是汗。',
+    choices: [
+      {
+        key: 'A',
+        text: '恐慌报班，把所有积蓄投入AI培训',
+        effects: { probabilityMindset: -3, riskAwareness: -4, cv: -2 },
+        tags: ['情绪交易', '焦虑驱动'],
+      },
+      {
+        key: 'B',
+        text: '主动学习AI工具提升效率，让自己成为"驾驭AI的人"',
+        effects: { leverageThinking: 8, systemThinking: 6, cv: 7 },
+        tags: ['认知觉醒', '主动升级'],
+      },
+      {
+        key: 'C',
+        text: '忽视变化，坚守现有工作方式',
+        effects: { laborMindset: 5, leverageThinking: -6, cv: -4 },
+        tags: ['机会恐惧', '随波逐流'],
+      },
+    ],
+    blackSwanRate: 0.06,
+    difficulty: 1,
+    status: 'active',
+    createdAt: ts,
+    updatedAt: ts,
+  },
+]
+
+module.exports = { DEFAULT_CHALLENGE_EVENTS }

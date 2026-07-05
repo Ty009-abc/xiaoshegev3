@@ -1,0 +1,8 @@
+<view class="badges-wrap">
+  <view class="badge {{item.unlocked ? 'unlocked' : 'locked'}}" wx:for="{{badges}}" wx:key="id">
+    <text class="b-icon">{{item.icon || '🏅'}}</text>
+    <text class="b-name">{{item.name}}</text>
+    <text class="b-lock" wx:if="{{!item.unlocked}}">🔒</text>
+  </view>
+  <view class="no-badges" wx:if="{{!badges.length}}">完成挑战解锁勋章</view>
+</view>

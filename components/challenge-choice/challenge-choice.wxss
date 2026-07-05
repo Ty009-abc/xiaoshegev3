@@ -1,0 +1,10 @@
+@import '../../styles/tokens.wxss';
+.choice{display:flex;align-items:center;gap:var(--sp-16);padding:var(--sp-24);background:var(--bg-secondary);border-radius:var(--radius-card);border:2rpx solid transparent;transition:all var(--dur-normal);margin-bottom:var(--sp-16);}
+.choice:active{transform:scale(0.99);}
+.choice.selected{border-color:var(--accent-gold-border);background:var(--accent-gold-soft);}
+.choice.submitted{opacity:0.5;pointer-events:none;}
+.choice.submitted.selected{opacity:0.9;border-color:var(--accent-gold-border);}
+.choice.disabled{opacity:0.35;pointer-events:none;}
+.key-tag{width:56rpx;height:56rpx;border-radius:56rpx;background:#181f33;display:flex;align-items:center;justify-content:center;font-size:var(--font-caption);font-weight:700;color:var(--text-secondary);flex-shrink:0;transition:all var(--dur-normal);}
+.selected .key-tag{background:var(--accent-gold-soft);color:var(--accent-gold);}
+.choice-text{font-size:var(--font-body);color:var(--text-primary);line-height:1.7;flex:1;}

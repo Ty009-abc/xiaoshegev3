@@ -1,0 +1,24 @@
+<!-- share-poster -->
+<view class="page page-enter">
+  <xsg-navbar title="你的认知画像" showBack />
+  <xsg-card type="premium" wx:if="{{result}}" class="anim-fade-in">
+    <text class="sp-type">{{result.mainType||'认知探索者'}}</text>
+    <text class="sp-prob">翻身概率：{{result.turnaroundProbability||'68'}}%</text>
+    <text class="sp-quote">长按保存下方海报，分享你的世界模型</text>
+  </xsg-card>
+
+  <!-- Canvas 隐藏 -->
+  <canvas canvas-id="posterCanvas" style="position:fixed;left:-9999px;width:600px;height:900px;"></canvas>
+
+  <!-- 海报预览 -->
+  <view class="poster-preview anim-fade-in" wx:if="{{posterPath}}">
+    <image src="{{posterPath}}" mode="widthFix" style="width:100%;" />
+  </view>
+
+  <view class="actions anim-fade-in anim-delay-1">
+    <xsg-button wx:if="{{!posterPath}}" type="ai" text="生成分享海报" loading="{{generating}}" bind:tapbutton="generatePoster" />
+    <xsg-button wx:if="{{posterPath}}" type="gold" text="保存海报到相册" bind:tapbutton="onSave" />
+    <xsg-button type="primary" text="邀请好友测翻身概率" openType="share" />
+    <button class="ghost-btn" bindtap="goRanking">查看认知排行榜 ›</button>
+  </view>
+</view>

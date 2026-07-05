@@ -1,0 +1,17 @@
+<view class="card card-standard" bindtap="onTap">
+  <view class="badge"><text class="badge-icon">⚡</text><text class="badge-text">今日认知暴击</text></view>
+  <view class="title">{{insight.title}}</view>
+  <view class="content {{!expanded ? 'clamped' : ''}}">{{insight.content}}</view>
+  <view class="expand-hint" wx:if="{{!expanded}}">展开完整暴击 →</view>
+  <view class="reverse" wx:if="{{expanded && insight.reverse}}">
+    <view class="reverse-title">🔄 反方向推理</view>
+    <view class="reverse-text">{{insight.reverse}}</view>
+  </view>
+  <view class="action-section" wx:if="{{expanded && insight.action && showAction}}">
+    <text class="action-label">🎯 今日行动</text>
+    <text class="action-text">{{insight.action}}</text>
+  </view>
+  <view class="tags-row" wx:if="{{insight.tags && insight.tags.length}}">
+    <xsg-tag wx:for="{{insight.tags}}" wx:key="*this" text="{{item}}" type="blue" />
+  </view>
+</view>

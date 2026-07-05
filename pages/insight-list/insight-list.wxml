@@ -1,0 +1,19 @@
+<!-- pages/insight-list -->
+<scroll-view scroll-y class="page" bindscrolltolower="onReachBottom">
+  <view class="header">认知暴击 · 历史列表</view>
+  <block wx:for="{{list}}" wx:key="insightId">
+    <view class="item {{item.locked ? 'locked' : ''}}" data-id="{{item.insightId}}" data-locked="{{item.locked}}" bindtap="onTapItem">
+      <view class="item-index">#{{index + 1}}</view>
+      <view class="item-body">
+        <view class="item-title">{{item.title}}</view>
+        <view class="item-lock" wx:if="{{item.locked}}">
+          <text class="lock-icon">🔒</text>
+          <text>VIP 解锁完整内容</text>
+        </view>
+      </view>
+      <view class="item-arrow">›</view>
+    </view>
+  </block>
+  <view class="loading" wx:if="{{loading}}">加载中...</view>
+  <view class="end" wx:if="{{!hasMore && list.length > 0}}">— 到底了 —</view>
+</scroll-view>

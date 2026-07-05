@@ -1,0 +1,118 @@
+<!-- pages/membership-center/membership-center.wxml -->
+<view class="page-container">
+  <xsg-navbar title="会员中心" />
+
+  <!-- 等级卡片 -->
+  <view class="level-card" style="border-color: {{levelColor}}">
+    <view class="level-header">
+      <text class="level-badge">{{levelBadge}}</text>
+      <view class="level-info">
+        <text class="level-name" style="color: {{levelColor}}">{{levelName}}</text>
+        <text class="level-sub">认知等级</text>
+      </view>
+      <view class="level-xp-chip">
+        <text class="xp-value">{{xp}}</text>
+        <text class="xp-label">XP</text>
+      </view>
+    </view>
+
+    <!-- XP 进度条 -->
+    <view class="xp-bar-wrap" wx:if="{{xpToNext > 0}}">
+      <view class="xp-bar-bg">
+        <view class="xp-bar-fill" style="width: {{xpPercent}}%; background: {{levelColor}}"></view>
+      </view>
+      <text class="xp-next">距 {{nextLevel || '下一级'}} 还需 {{xpToNext}} XP</text>
+    </view>
+
+    <!-- 会员到期提示 -->
+    <view class="expiry-chip" wx:if="{{daysUntilExpiry <= 7 && daysUntilExpiry > 0}}" bindtap="goMembership">
+      <text class="expiry-icon">⏳</text>
+      <text>会员还剩 {{daysUntilExpiry}} 天 — 续费保留成长记录</text>
+    </view>
+  </view>
+
+  <!-- 签到区 -->
+  <view class="checkin-card" bindtap="doCheckIn" wx:if="{{!checkedIn}}">
+    <view class="checkin-left">
+      <text class="checkin-streak">🔥 连续 {{streak}} 天</text>
+      <text class="checkin-sub">点击签到 +XP，累计成就</text>
+    </view>
+    <view class="checkin-btn {{canCheckIn ? '' : 'disabled'}}">
+      <text>{{canCheckIn ? '签到' : '已签'}}</text>
+    </view>
+  </view>
+
+  <view class="checkin-card checked" wx:if="{{checkedIn}}">
+    <text class="checkin-done">✅ 今日已签到 · 连续 {{streak}} 天</text>
+  </view>
+
+  <!-- Streak Milestones -->
+  <view class="section" wx:if="{{streak > 0}}">
+    <text class="section-title">🎯 Streak 里程碑</text>
+    <view class="milestone-bar">
+      <view class="milestone {{streak >= 7 ? 'done' : ''}}">
+        <text class="ms-icon">{{streak >= 7 ? '✅' : '7'}}</text>
+        <text class="ms-label">7天</text>
+        <text class="ms-reward">+20XP</text>
+      </view>
+      <view class="milestone-line {{streak >= 7 ? 'active' : ''}}"></view>
+      <view class="milestone {{streak >= 30 ? 'done' : ''}}">
+        <text class="ms-icon">{{streak >= 30 ? '✅' : '30'}}</text>
+        <text class="ms-label">30天</text>
+        <text class="ms-reward">+50XP</text>
+      </view>
+      <view class="milestone-line {{streak >= 30 ? 'active' : ''}}"></view>
+      <view class="milestone {{streak >= 90 ? 'done' : ''}}">
+        <text class="ms-icon">{{streak >= 90 ? '✅' : '90'}}</text>
+        <text class="ms-label">90天</text>
+        <text class="ms-reward">+100XP</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 每周报告 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">📊 本周成长报告</text>
+    </view>
+    <view class="report-card" wx:if="{{weeklyReport}}" bindtap="goReport">
+      <view class="report-row">
+        <text class="report-key">认知值</text>
+        <text class="report-val green">{{weeklyReport.cognitionChange.trend === 'up' ? '↑' : weeklyReport.cognitionChange.trend === 'down' ? '↓' : '→'}} {{weeklyReport.cognitionChange.xpChange >= 0 ? '+' : ''}}{{weeklyReport.cognitionChange.xpChange}}</text>
+      </view>
+      <view class="report-row">
+        <text class="report-key">活动</text>
+        <text class="report-val">{{weeklyReport.activitySummary.totalActions}} 次</text>
+      </view>
+      <view class="report-row">
+        <text class="report-key">趋势</text>
+        <text class="report-val">{{weeklyReport.growthTrend.direction === 'accelerating' ? '加速中 🚀' : weeklyReport.growthTrend.direction === 'consistent' ? '稳定 ✅' : '放缓'}}</text>
+      </view>
+    </view>
+    <view class="report-empty" wx:if="{{!weeklyReport}}">
+      <text>暂未生成周报</text>
+      <text class="report-empty-sub">使用7天后自动生成</text>
+    </view>
+  </view>
+
+  <!-- 权益列表 -->
+  <view class="section">
+    <text class="section-title">✨ 当前权益</text>
+    <view class="perks-list">
+      <view class="perk-item" wx:for="{{perks}}" wx:key="name">
+        <text class="perk-icon">{{item.icon}}</text>
+        <text class="perk-name">{{item.name}}</text>
+        <text class="perk-exclusive" wx:if="{{item.exclusive}}">年卡独享</text>
+      </view>
+      <view class="perk-empty" wx:if="{{perks.length === 0}}">
+        <text>升级会员解锁更多权益</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 升级入口 -->
+  <view class="upgrade-bar" bindtap="goMembership">
+    <text class="upgrade-text">{{isExpiring ? '🔥 会员即将到期，立即续费' : '🚀 升级会员解锁全部权益'}}</text>
+    <text class="upgrade-arrow">→</text>
+  </view>
+</view>

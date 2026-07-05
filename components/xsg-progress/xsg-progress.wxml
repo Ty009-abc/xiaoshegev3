@@ -1,0 +1,4 @@
+<view class="wrap">
+  <view class="label-row" wx:if="{{label}}"><text class="label-text">{{label}}</text><text class="label-value" wx:if="{{showText}}">{{value}}/{{max}}</text></view>
+  <view class="bar-bg"><view class="bar-fill fill-{{color}}" style="width:{{value/max*100}}%"></view></view>
+</view>

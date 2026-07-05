@@ -1,0 +1,33 @@
+<!-- ai-chat — 暗黑弥散光 -->
+<view class="page">
+  <xsg-navbar title="直接问小事哥" showBack="{{false}}" light />
+
+  <!-- 消息列表 -->
+  <scroll-view scroll-y class="msg-list" scroll-top="{{scrollTop}}" enhanced show-scrollbar="{{false}}">
+    <view class="msg {{item.role}}" wx:for="{{messages}}" wx:key="index">
+      <view class="msg-avatar">{{item.role === 'assistant' ? '🧠' : '👤'}}</view>
+      <view class="msg-bubble">
+        <text>{{item.content}}</text>
+        <view class="compliance-tips" wx:if="{{item.role === 'assistant'}}">系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出</view>
+      </view>
+    </view>
+    <view class="typing" wx:if="{{sending}}">
+      <view class="typing-dot"></view><view class="typing-dot"></view><view class="typing-dot"></view>
+    </view>
+    <view style="height:200rpx;"></view>
+  </scroll-view>
+
+  <!-- 快捷提问 — 玻璃条 -->
+  <view class="quick-bar" wx:if="{{messages.length <= 1}}">
+    <view class="quick-item" data-q="为什么我总是存不下钱？" bindtap="onQuickAsk">💰 为什么我总是存不下钱？</view>
+    <view class="quick-item" data-q="普通人如何通过 AI 赚钱？" bindtap="onQuickAsk">🤖 普通人如何通过 AI 赚钱？</view>
+    <view class="quick-item" data-q="如何判断一个项目是否值得做？" bindtap="onQuickAsk">🎯 如何判断一个项目是否值得做？</view>
+    <view class="quick-item" data-q="如何提升自己的认知层次？" bindtap="onQuickAsk">🧠 如何提升自己的认知层次？</view>
+  </view>
+
+  <!-- 输入栏 -->
+  <view class="input-bar">
+    <input class="chat-input" placeholder="直接问小事哥..." placeholder-style="color:#98A2B3;" value="{{inputValue}}" bindinput="onInput" confirm-type="send" bindconfirm="onSend" />
+    <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="onSend"><text>↑</text></view>
+  </view>
+</view>

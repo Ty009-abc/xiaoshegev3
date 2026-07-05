@@ -1,0 +1,108 @@
+/* pages/admin/growth-dashboard/growth-dashboard.wxss */
+@import '../../../styles/tokens.wxss';
+
+.page-container { min-height: 100vh; background: var(--bg); padding-bottom: 40px; }
+.loading-wrap { display: flex; justify-content: center; padding: 200px 0; }
+
+/* ── 飞轮 ── */
+.flywheel-card {
+  margin: 20px; padding: 28px;
+  background: linear-gradient(135deg, rgba(74,144,226,0.1), rgba(78,205,196,0.06));
+  border-radius: 20px; border: 1px solid rgba(74,144,226,0.15);
+}
+.flywheel-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.flywheel-icon { font-size: 44px; }
+.flywheel-info { display: flex; flex-direction: column; }
+.flywheel-status { font-size: 28px; font-weight: 700; color: #4a90e2; }
+.flywheel-stage { font-size: 22px; color: var(--text-tertiary); margin-top: 4px; }
+.flywheel-action { font-size: 24px; color: var(--accent); line-height: 1.5; display: block; margin-bottom: 20px; }
+.flywheel-steps { display: flex; justify-content: space-between; }
+.fw-step { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.fw-dot { width: 16px; height: 16px; border-radius: 50%; }
+.fw-dot.good { background: #4ecdc4; box-shadow: 0 0 8px rgba(78,205,196,0.5); }
+.fw-dot.weak { background: var(--text-tertiary); }
+.fw-label { font-size: 20px; color: var(--text-secondary); }
+.fw-metric { font-size: 18px; color: var(--text-tertiary); }
+
+/* ── 指标网格 ── */
+.metric-grid {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px;
+}
+.metric-item {
+  flex: 0 0 calc(50% - 7px);
+  padding: 24px 20px; background: #0f1120;
+  border-radius: 16px; border: 1px solid rgba(255,255,255,0.04);
+}
+.metric-item.highlight { background: rgba(74,144,226,0.06); border-color: rgba(74,144,226,0.15); }
+.metric-value { font-size: 32px; font-weight: 800; color: var(--accent); display: block; }
+.metric-item.highlight .metric-value { color: #4a90e2; }
+.metric-label { font-size: 22px; color: var(--text-tertiary); margin-top: 4px; display: block; }
+
+/* ── 健康度 ── */
+.health-card {
+  margin-top: 12px; padding: 28px;
+  border-radius: 18px; background: #0c0e18;
+}
+.health-score-wrap { display: flex; align-items: baseline; gap: 4px; margin-bottom: 14px; }
+.health-score { font-size: 56px; font-weight: 800; color: var(--text); }
+.health-max { font-size: 26px; color: var(--text-tertiary); }
+.health-bar-bg { height: 10px; background: #181f33; border-radius: 5px; overflow: hidden; }
+.health-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s; }
+.health-bar-fill.excellent { background: #4ecdc4; }
+.health-bar-fill.good { background: #4a90e2; }
+.health-bar-fill.warning { background: #f0ad4e; }
+.health-bar-fill.critical { background: #e74c3c; }
+.health-breakdown { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.breakdown-item { font-size: 22px; color: var(--text-secondary); display: flex; gap: 6px; }
+.breakdown-val { color: var(--text-tertiary); }
+.health-suggestions { margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.04); }
+.sugg-title { font-size: 24px; font-weight: 600; color: var(--text); display: block; margin-bottom: 10px; }
+.sugg-item { font-size: 22px; color: var(--text-secondary); display: block; line-height: 1.6; }
+
+/* ── 漏斗 ── */
+.funnel-chart { margin-top: 12px; }
+.funnel-row {
+  display: flex; align-items: center; padding: 16px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.funnel-label { font-size: 24px; color: var(--text-secondary); flex: 1; }
+.funnel-count { font-size: 26px; font-weight: 600; color: var(--accent); min-width: 70px; text-align: right; }
+.funnel-rate { font-size: 22px; color: var(--text-tertiary); min-width: 60px; text-align: right; }
+
+/* ── 趋势 ── */
+.trend-bars {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 10px; padding: 20px 0; min-height: 120px;
+}
+.trend-bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
+.trend-val { font-size: 20px; color: var(--accent); margin-bottom: 4px; }
+.trend-bar { width: 100%; max-width: 50px; background: #4a90e2; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.5s; }
+.trend-date { font-size: 18px; color: var(--text-tertiary); margin-top: 6px; }
+
+/* ── 渠道归因 ── */
+.channel-item { margin-top: 12px; padding: 20px; background: #0c0e18; border-radius: 14px; }
+.channel-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.channel-name { font-size: 26px; font-weight: 600; color: var(--text); }
+.channel-users { font-size: 22px; color: var(--accent); }
+.channel-bar-bg { height: 6px; background: #181f33; border-radius: 3px; margin-bottom: 8px; }
+.channel-bar-fill { height: 100%; background: #4a90e2; border-radius: 3px; transition: width 0.6s; }
+.channel-meta { display: flex; justify-content: space-between; }
+.channel-rev { font-size: 22px; color: var(--accent); }
+.channel-share { font-size: 20px; color: var(--text-tertiary); }
+
+/* ── 瓶颈 ── */
+.bottleneck-item {
+  margin-top: 12px; padding: 22px;
+  background: rgba(255,140,0,0.05); border-radius: 16px;
+  border: 1px solid rgba(255,140,0,0.1);
+}
+.bn-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.bn-severity { font-size: 24px; }
+.bn-stage { font-size: 26px; font-weight: 600; color: #f0ad4e; }
+.bn-gap { font-size: 24px; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+.bn-fix { font-size: 22px; color: var(--accent); display: block; }
+.no-bottle { margin-top: 12px; font-size: 24px; color: #4ecdc4; display: block; }
+
+/* ── 通用 ── */
+.section { margin: 0 20px 28px; }
+.section-title { font-size: 28px; font-weight: 700; color: var(--text); display: block; }

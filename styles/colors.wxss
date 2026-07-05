@@ -1,0 +1,20 @@
+/**
+ * colors.wxss — 颜色语义类（暗黑弥散光版）
+ */
+.bg-primary       { background: var(--bg-primary); }
+.bg-secondary     { background: var(--bg-secondary); }
+.bg-card-hover    { background: var(--bg-card-hover); }
+.bg-input         { background: var(--bg-input); }
+.bg-challenge     { background: var(--bg-challenge); }
+
+.text-primary     { color: var(--text-primary); }
+.text-secondary   { color: var(--text-secondary); }
+.text-tertiary    { color: var(--text-tertiary); }
+.text-gold        { color: var(--accent-gold); }
+.text-ai          { color: var(--accent-ai); }
+.text-blue        { color: var(--accent-blue); }
+.text-danger      { color: var(--danger); }
+.text-success     { color: var(--success); }
+
+.border-gold      { border: 1rpx solid var(--accent-gold-border); }
+.border-blue      { border: 1rpx solid rgba(79,125,255,0.18); }

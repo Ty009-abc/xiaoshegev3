@@ -1,0 +1,4 @@
+<view class="loading-wrap">
+  <view class="dots"><view class="dot"></view><view class="dot"></view><view class="dot"></view></view>
+  <text class="loading-text">{{text}}</text>
+</view>

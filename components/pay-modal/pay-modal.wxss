@@ -1,0 +1,18 @@
+@import '../../styles/tokens.wxss';
+.mask{position:fixed;inset:0;background:var(--bg-overlay);z-index:2000;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity var(--dur-normal);}
+.mask.show{opacity:1;pointer-events:auto;}
+.modal{width:100%;background:var(--bg-secondary);border-radius:var(--radius-modal) var(--radius-modal) 0 0;padding:var(--sp-32);text-align:center;max-height:85vh;overflow-y:auto;transform:translateY(100%);transition:transform var(--dur-normal) var(--ease-out);}
+.modal.slide-up{transform:translateY(0);}
+.close-bar{text-align:right;margin-bottom:var(--sp-8);}
+.close-btn{font-size:36rpx;color:var(--text-tertiary);width:48rpx;height:48rpx;display:inline-flex;align-items:center;justify-content:center;}
+.product-icon{font-size:64rpx;margin-bottom:var(--sp-16);filter:drop-shadow(0 0 24rpx rgba(245,193,108,0.3));}
+.product-name{font-weight:700;display:block;margin-bottom:var(--sp-8);}
+.product-desc{font-size:var(--font-caption);color:var(--text-secondary);display:block;margin-bottom:var(--sp-24);}
+.price-block{display:flex;align-items:baseline;justify-content:center;margin-bottom:var(--sp-8);}
+.price-curr{font-size:var(--font-caption);color:var(--accent-gold);}
+.price-num{font-size:var(--font-h1);font-weight:700;color:var(--accent-gold);margin:0 var(--sp-4);}
+.price-dur{font-size:var(--font-caption);color:var(--text-secondary);}
+.original-price{font-size:var(--font-caption);color:var(--text-tertiary);text-decoration:line-through;margin-bottom:var(--sp-24);}
+.benefit-list{text-align:left;margin-bottom:var(--sp-24);padding:var(--sp-16);background:#0f1526;border-radius:var(--radius-tag);}
+.benefit-item{font-size:var(--font-caption);color:var(--text-secondary);padding:var(--sp-4) 0;}
+.safe-hint{font-size:20rpx;color:var(--text-tertiary);margin-top:var(--sp-12);}

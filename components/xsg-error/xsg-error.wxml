@@ -1,0 +1,6 @@
+<view class="err-wrap">
+  <text class="err-icon">{{icon}}</text>
+  <text class="err-title">{{title}}</text>
+  <text class="err-desc">{{desc}}</text>
+  <button class="err-btn" bindtap="onRetry">{{btnText}}</button>
+</view>

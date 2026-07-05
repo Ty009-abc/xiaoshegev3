@@ -1,0 +1,51 @@
+/**
+ * spacing.wxss — 间距工具类
+ * 使用 8rpx 基准体系
+ */
+.m-0  { margin: 0; }
+.p-0  { padding: 0; }
+
+/* margin */
+.mt-4  { margin-top: var(--sp-4); }
+.mt-8  { margin-top: var(--sp-8); }
+.mt-12 { margin-top: var(--sp-12); }
+.mt-16 { margin-top: var(--sp-16); }
+.mt-24 { margin-top: var(--sp-24); }
+.mt-32 { margin-top: var(--sp-32); }
+.mt-48 { margin-top: var(--sp-48); }
+.mt-64 { margin-top: var(--sp-64); }
+
+.mb-4  { margin-bottom: var(--sp-4); }
+.mb-8  { margin-bottom: var(--sp-8); }
+.mb-12 { margin-bottom: var(--sp-12); }
+.mb-16 { margin-bottom: var(--sp-16); }
+.mb-24 { margin-bottom: var(--sp-24); }
+.mb-32 { margin-bottom: var(--sp-32); }
+.mb-48 { margin-bottom: var(--sp-48); }
+
+/* padding */
+.p-4   { padding: var(--sp-4); }
+.p-8   { padding: var(--sp-8); }
+.p-12  { padding: var(--sp-12); }
+.p-16  { padding: var(--sp-16); }
+.p-24  { padding: var(--sp-24); }
+.p-32  { padding: var(--sp-32); }
+.p-48  { padding: var(--sp-48); }
+
+.px-16 { padding-left: var(--sp-16); padding-right: var(--sp-16); }
+.px-24 { padding-left: var(--sp-24); padding-right: var(--sp-24); }
+.px-32 { padding-left: var(--sp-32); padding-right: var(--sp-32); }
+
+.py-8  { padding-top: var(--sp-8);  padding-bottom: var(--sp-8); }
+.py-12 { padding-top: var(--sp-12); padding-bottom: var(--sp-12); }
+.py-16 { padding-top: var(--sp-16); padding-bottom: var(--sp-16); }
+
+/* gap */
+.gap-8  { gap: var(--sp-8); }
+.gap-12 { gap: var(--sp-12); }
+.gap-16 { gap: var(--sp-16); }
+.gap-24 { gap: var(--sp-24); }
+
+/* 安全区 bottom */
+.pb-safe { padding-bottom: calc(var(--sp-24) + env(safe-area-inset-bottom)); }
+.pt-safe { padding-top:    calc(var(--sp-24) + env(safe-area-inset-top)); }

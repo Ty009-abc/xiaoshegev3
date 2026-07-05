@@ -1,0 +1,36 @@
+<!-- challenge-start — v3.8 垂直流修复 -->
+<view class="container">
+  <xsg-navbar title="认知翻身挑战" light />
+
+  <!-- 头部 -->
+  <view class="challenge-header">
+    <view class="challenge-badge">Level 3 认知觉醒</view>
+    <view class="challenge-title">30天认知升级挑战</view>
+    <view class="challenge-subtitle">120个人生事件 · 9大维度评分 · 22个认知标签 · AI诊断报告</view>
+  </view>
+
+  <!-- 今日挑战卡片 -->
+  <view class="day-card">
+    <view class="card-tag">🧠 认知系统</view>
+    <view class="card-title">🔍 破除存量思维</view>
+    <view class="card-content">
+      九大认知维度实时评分，覆盖劳动思维、概率思维、系统思维、杠杆思维、资本思维、
+      风险意识、信息敏感度、长期主义、决策稳定性。每一个维度都是你理解世界的方式。
+    </view>
+    <view class="info-list">
+      <view class="info"><text>📊</text><text>九大认知维度实时评分</text></view>
+      <view class="info"><text>🏷️</text><text>22种认知标签动态积累</text></view>
+      <view class="info"><text>🎯</text><text>完成后生成你的认知画像</text></view>
+      <view class="info"><text>💡</text><text>免费体验前3题 · 付费解锁全部</text></view>
+    </view>
+  </view>
+
+  <!-- 互动面板 -->
+  <view class="action-panel">
+    <button class="btn-lock-in" bindtap="startChallenge" loading="{{loading}}">立即解锁今日挑战</button>
+    <view class="action-tips">已有 12,450 人通过此项挑战</view>
+    <view class="action-sub">全程约5-10分钟 · 建议认真作答</view>
+  </view>
+
+  <view style="height:120rpx;"></view>
+</view>

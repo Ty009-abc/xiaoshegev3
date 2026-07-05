@@ -1,0 +1,5 @@
+<view class="navbar {{transparent ? 'transparent' : ''}} {{light ? 'navbar-light' : ''}}" style="padding-top:calc(16rpx + env(safe-area-inset-top))">
+  <view class="nav-left" wx:if="{{showBack}}" bindtap="onBack"><text class="back-icon">←</text></view>
+  <text class="nav-title">{{title}}</text>
+  <view class="nav-right"><slot /></view>
+</view>

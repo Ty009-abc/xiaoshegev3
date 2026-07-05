@@ -1,0 +1,16 @@
+.page{min-height:100vh;background:#0a0a14;padding:24rpx;}
+.header{font-size:30rpx;font-weight:600;color:#fff;margin:16rpx 0 16rpx;}
+.stat-grid{display:flex;gap:16rpx;margin-bottom:24rpx;}
+.stat-card{flex:1;background:#141428;border-radius:14rpx;padding:24rpx 12rpx;text-align:center;}
+.s-val{display:block;font-size:32rpx;font-weight:700;color:#0a84ff;margin-bottom:6rpx;}
+.s-label{display:block;font-size:20rpx;color:#666;}
+.log-row{background:#141428;border-radius:12rpx;padding:20rpx 24rpx;margin-bottom:10rpx;}
+.l-top{display:flex;justify-content:space-between;margin-bottom:4rpx;}
+.l-action{font-size:26rpx;color:#ddd;}
+.l-tokens{font-size:22rpx;color:#f0ad4e;}
+.l-bot{display:flex;justify-content:space-between;}
+.l-time{font-size:20rpx;color:var(--text-tertiary);}
+.l-status{font-size:22rpx;}
+.l-status.ok{color:#2ecc71;}
+.l-status.fail{color:#ff6b6b;}
+.total{text-align:center;color:var(--text-tertiary);font-size:24rpx;padding:24rpx;}

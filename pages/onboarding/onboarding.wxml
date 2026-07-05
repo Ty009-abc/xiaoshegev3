@@ -1,0 +1,19 @@
+<!-- onboarding - 4页引导 -->
+<view class="page">
+  <swiper class="swiper" current="{{current}}" bindchange="onSwiperChange" indicator-dots="{{true}}" indicator-color="rgba(255,255,255,0.2)" indicator-active-color="#0a84ff">
+    <swiper-item wx:for="{{pages}}" wx:key="title">
+      <view class="slide" style="--accent:{{item.color}}">
+        <view class="slide-emoji">{{item.emoji}}</view>
+        <view class="slide-title" style="color:{{item.color}}">{{item.title}}</view>
+        <view class="slide-body">{{item.body}}</view>
+      </view>
+    </swiper-item>
+  </swiper>
+
+  <view class="footer">
+    <view class="skip" wx:if="{{current < 3}}" bindtap="onStart">跳过</view>
+    <button class="cta-btn" wx:if="{{current === 3}}" bindtap="onStart">
+      开始认知诊断 →
+    </button>
+  </view>
+</view>

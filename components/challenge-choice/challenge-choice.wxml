@@ -1,0 +1,4 @@
+<view class="choice {{selected ? 'selected' : ''}} {{submitted ? 'submitted' : ''}} {{disabled ? 'disabled' : ''}}" bindtap="onTap">
+  <view class="key-tag"><text>{{choiceKey}}</text></view>
+  <text class="choice-text">{{text}}</text>
+</view>

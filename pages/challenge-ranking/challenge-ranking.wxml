@@ -1,0 +1,14 @@
+<view class="page page-enter">
+  <xsg-navbar title="挑战完成榜" showBack />
+  <xsg-loading text="加载排行榜..." wx:if="{{loading}}" />
+  <block wx:else>
+    <view class="rank-list anim-fade-in">
+      <view class="rank-item" wx:for="{{list}}" wx:key="_id">
+        <text class="ri-rank {{index<3?'top'+index:''}}">{{item.rank}}</text>
+        <text class="ri-name">觉醒者</text>
+        <text class="ri-val">{{item.daysCompleted||0}}天</text>
+      </view>
+    </view>
+    <xsg-empty icon="🎯" title="还没有人完成挑战" desc="成为第一个完成30天挑战的人" btnText="开始挑战" wx:if="{{!list.length}}" />
+  </block>
+</view>

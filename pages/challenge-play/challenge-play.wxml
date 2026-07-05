@@ -1,0 +1,95 @@
+<!-- challenge-play — v3.13 双模式
+     mode=challenge: 原有 30 天挑战 (DB 驱动)
+     mode=diagnostic: v2 6 题问卷 (纯前端 + AI 直连) -->
+<view class="page">
+  <xsg-navbar title="{{mode==='diagnostic' ? '翻身策略诊断' : '认知挑战'}}" light />
+
+  <!-- ═════ диагностический 模式 ═════ -->
+  <block wx:if="{{mode==='diagnostic'}}">
+    <!-- 人格指示条 -->
+    <view class="d-personality-bar" wx:if="{{dQ.personality}}">
+      <text class="dp-emoji">{{dQ.personality.emoji}}</text>
+      <text class="dp-name">{{dQ.personality.name}}视角已激活</text>
+    </view>
+
+    <!-- 进度条 -->
+    <view class="d-progress-section">
+      <view class="d-progress-track">
+        <view class="d-progress-fill" style="width:{{dQ.percent}}%"></view>
+      </view>
+      <text class="d-progress-text">问题 {{dQ.idx+1}} / 6</text>
+    </view>
+
+    <!-- 题目卡片 -->
+    <view class="d-card">
+      <view class="d-back-row" wx:if="{{dQ.idx>0}}">
+        <text class="d-back-btn" bindtap="onDPrev">← 上一题</text>
+      </view>
+
+      <view class="d-q-header">
+        <text class="d-q-num">{{dQ.idx+1}}</text>
+        <text class="d-q-title">{{['你今年几岁？','你现在做什么工作？','你的学历？','你现在月收入多少？','你现在最焦虑什么？','你觉得自己为什么翻不了身？'][dQ.idx]}}</text>
+      </view>
+
+      <!-- 打字机副标题 -->
+      <text class="d-q-subtitle">{{dQ.label || ['年龄决定你的牌桌大小','职业是你当前的筹码形式','学历在这张牌桌上并不决定一切','收入=认知在这个世界的兑现速度','焦虑是你看懂规则的第一步','⚠️ 这里决定AI分析深度，请认真作答'][dQ.idx]}}</text>
+
+      <!-- 输入区 -->
+      <view class="d-input-area">
+        <input  wx:if="{{dQ.idx<=3}}"
+          type="{{dQ.idx===0||dQ.idx===3?'number':'text'}}"
+          placeholder="{{['请输入数字','例如：厨师/销售/程序员','例如：高中/大专/本科','请输入数字'][dQ.idx]}}"
+          placeholder-class="d-placeholder"
+          maxlength="{{dQ.idx===0?3:140}}"
+          bindinput="onDInput" value="{{dQ.answers[dQ.idx]}}"
+          focus="{{true}}" confirm-type="next" bindconfirm="onDNext" />
+        <textarea wx:else
+          placeholder="{{['认真说一次真话…','坦诚面对自己，这是最关键的一问…'][dQ.idx-4]}}"
+          placeholder-class="d-placeholder"
+          bindinput="onDInput" value="{{dQ.answers[dQ.idx]}}"
+          focus="{{true}}" maxlength="{{dQ.idx===4?300:500}}" auto-height />
+      </view>
+
+      <!-- 字数提示 -->
+      <view class="d-input-hint" wx:if="{{dQ.idx>=4&&dQ.answers[dQ.idx]}}">
+        <text>已输入 {{dQ.answers[dQ.idx].length}} 字</text>
+      </view>
+    </view>
+
+    <!-- 提交按钮 -->
+    <view class="d-action">
+      <button class="d-btn-next" hover-class="d-btn-hover" bindtap="onDNext"
+        disabled="{{!dQ.canNext}}" loading="{{dQ.submitting}}">
+        {{dQ.idx===5?'生成翻身策略 ⚡':'下一题 →'}}
+      </button>
+      <text class="d-kb-hint" wx:if="{{dQ.idx<=3}}" style="{{dQ.canNext?'opacity:1':'opacity:0'}}">按键盘「完成」键继续</text>
+    </view>
+  </block>
+
+  <!-- ═════ challenge 模式 (原有) ═════ -->
+  <block wx:else>
+    <xsg-loading text="加载下一题..." wx:if="{{loading}}" />
+    <block wx:else>
+      <challenge-progress current="{{progress.current}}" total="{{progress.total}}" day="{{progress.day}}" class="anim-fade-in" />
+
+      <view class="event-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}" wx:if="{{event}}">
+        <xsg-card>
+          <xsg-tag text="{{event.category||'决策题'}}" type="ai" />
+          <view class="event-title mt-16">{{event.title}}</view>
+          <view class="event-desc mt-12">{{event.description}}</view>
+        </xsg-card>
+      </view>
+
+      <view class="choices-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}" wx:if="{{event}}">
+        <challenge-choice wx:for="{{event.choices}}" wx:key="key"
+          choiceKey="{{item.key}}" text="{{item.text}}"
+          selected="{{selectedKey===item.key}}" submitted="{{submitted}}"
+          bind:select="onSelect" />
+      </view>
+
+      <xsg-button type="primary" text="{{submitted?'你的选择已记录 ✓':'确认选择'}}" disabled="{{!selectedKey||submitted}}" bind:tapbutton="onSubmit" />
+
+      <xsg-empty icon="🏁" title="诊断完成" desc="6题诊断已结束，查看你的翻身策略报告" btnText="查看报告" wx:if="{{end}}" bind:tap="goResult" />
+    </block>
+  </block>
+</view>

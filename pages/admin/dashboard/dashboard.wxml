@@ -1,0 +1,53 @@
+<!-- pages/admin/dashboard -->
+<scroll-view scroll-y class="page">
+  <view class="header">📊 数据总览</view>
+  <block wx:if="{{stats}}">
+    <view class="stat-grid">
+      <view class="stat-card" data-page="users" bindtap="navTo">
+        <text class="stat-val">{{stats.totalUsers}}</text>
+        <text class="stat-label">总用户</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-val">+{{stats.todayNewUsers}}</text>
+        <text class="stat-label">今日新增</text>
+      </view>
+      <view class="stat-card" data-page="orders" bindtap="navTo">
+        <text class="stat-val">{{stats.paidOrders}}/{{stats.totalOrders}}</text>
+        <text class="stat-label">支付订单</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-val">¥{{stats.totalRevenueYuan}}</text>
+        <text class="stat-label">总收入</text>
+      </view>
+    </view>
+    <view class="stat-grid">
+      <view class="stat-card">
+        <text class="stat-val">¥{{stats.todayRevenueYuan}}</text>
+        <text class="stat-label">今日收入</text>
+      </view>
+      <view class="stat-card" data-page="ai-logs" bindtap="navTo">
+        <text class="stat-val">{{stats.aiCalls}}</text>
+        <text class="stat-label">AI调用</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-val">¥{{stats.aiCost}}</text>
+        <text class="stat-label">AI成本</text>
+      </view>
+      <view class="stat-card">
+        <text class="stat-val">{{stats.vipUsers}}</text>
+        <text class="stat-label">会员</text>
+      </view>
+    </view>
+    <view class="stat-row">
+      <view class="stat-card wide">
+        <text class="stat-val">{{stats.paidRate}}</text>
+        <text class="stat-label">付费率</text>
+      </view>
+      <view class="stat-card wide">
+        <text class="stat-val">{{stats.errorRate}}</text>
+        <text class="stat-label">AI错误率</text>
+      </view>
+    </view>
+  </block>
+  <view class="loading" wx:if="{{loading}}">加载中...</view>
+</scroll-view>

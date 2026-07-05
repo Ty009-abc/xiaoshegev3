@@ -1,0 +1,14 @@
+@import './styles/tokens.wxss';
+@import './styles/typography.wxss';
+@import './styles/spacing.wxss';
+@import './styles/colors.wxss';
+@import './styles/shadows.wxss';
+
+/* 全局页面纯实色亮底 — 全屋洗白 */
+page {
+  background: #f4f5f7;
+  color: #101828;
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow-x: hidden;
+  box-sizing: border-box;
+}

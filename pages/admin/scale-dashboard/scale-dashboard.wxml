@@ -1,0 +1,222 @@
+<!-- pages/admin/scale-dashboard/scale-dashboard.wxml -->
+<xsg-navbar title="规模化增长" />
+<xsg-loading wx:if="{{loading}}" text="加载增长数据..." />
+
+<scroll-view wx:else scroll-y class="dashboard-scroll">
+  <!-- Tab 切换 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab==='phase'?'active':''}}" data-tab="phase" bindtap="switchTab">阶段</view>
+    <view class="tab-item {{activeTab==='kpi'?'active':''}}" data-tab="kpi" bindtap="switchTab">指标</view>
+    <view class="tab-item {{activeTab==='simulate'?'active':''}}" data-tab="simulate" bindtap="switchTab">模拟</view>
+    <view class="tab-item {{activeTab==='bottleneck'?'active':''}}" data-tab="bottleneck" bindtap="switchTab">瓶颈</view>
+    <view class="tab-item {{activeTab==='plan'?'active':''}}" data-tab="plan" bindtap="switchTab">扩张</view>
+  </view>
+
+  <!-- ═══════ 阶段 ═══════ -->
+  <view wx:if="{{activeTab==='phase'}}" class="tab-content">
+    <!-- Current Phase -->
+    <xsg-card wx:if="{{phase}}" title="📍 当前增长阶段">
+      <view class="phase-badge" style="background:{{getPhaseColor(phase.currentPhase.phase)}}">
+        {{phase.currentPhase.label}} ({{phase.totalUsers}} 用户)
+      </view>
+      <view class="metric-row">阶段瓶颈: {{phase.currentPhase.bottleneck}}</view>
+      <view class="metric-row">策略: {{phase.currentPhase.strategy}}</view>
+      <view class="metric-row">核心指标: {{phase.currentPhase.metric}}</view>
+      <view wx:if="{{phase.nextPhase}}" class="metric-row">
+        下一阶段: {{phase.nextPhase.label}} (还需 {{phase.nextPhase.range[0] - phase.totalUsers}} 人)
+      </view>
+      <xsg-progress percent="{{phase.progressToNext}}" />
+      <view class="progress-label">距下阶段: {{phase.progressToNext}}%</view>
+    </xsg-card>
+
+    <!-- Timeline -->
+    <xsg-card wx:if="{{timeline}}" title="🗺️ 增长路线图">
+      <view wx:for="{{timeline}}" wx:key="phase" class="timeline-item">
+        <view class="timeline-dot"></view>
+        <view class="timeline-content">
+          <text class="timeline-phase">{{item.phase}}: {{item.label}}</text>
+          <text class="timeline-duration">⏱ {{item.duration}}</text>
+          <text class="timeline-method">→ {{item.method}}</text>
+        </view>
+      </view>
+    </xsg-card>
+
+    <!-- Content Scaling -->
+    <xsg-card wx:if="{{contentScalingPlan}}" title="📝 内容规模化">
+      <view class="insight-text">目标：{{contentScalingPlan.currentTarget}} → {{contentScalingPlan.scaledTarget}}</view>
+      <view wx:for="{{contentScalingPlan.layers}}" wx:key="layer" class="layer-row">
+        <xsg-tag text="{{item.label}}" />
+        <text>{{item.share}}% · {{item.description}}</text>
+      </view>
+      <view class="pipeline-title">📋 内容管线</view>
+      <view wx:for="{{contentScalingPlan.pipeline}}" wx:key="*this" class="pipeline-step">
+        <text wx:if="{{index==='ideate'}}">💡</text>
+        <text wx:if="{{index==='draft'}}">✍️</text>
+        <text wx:if="{{index==='review'}}">✅</text>
+        <text wx:if="{{index==='distribute'}}">📤</text>
+        <text wx:if="{{index==='analyze'}}">📊</text>
+        {{item}}
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ KPI ═══════ -->
+  <view wx:if="{{activeTab==='kpi'}}" class="tab-content">
+    <view wx:if="{{scaleKPIs}}" class="kpi-grid">
+      <view class="kpi-card">
+        <text class="kpi-value">{{formatNum(scaleKPIs.dau)}}</text>
+        <text class="kpi-label">DAU</text>
+      </view>
+      <view class="kpi-card">
+        <text class="kpi-value">{{formatNum(scaleKPIs.mau)}}</text>
+        <text class="kpi-label">MAU</text>
+      </view>
+      <view class="kpi-card">
+        <text class="kpi-value">{{scaleKPIs.dauMauRatio}}%</text>
+        <text class="kpi-label">DAU/MAU</text>
+      </view>
+      <view class="kpi-card accent-green">
+        <text class="kpi-value">{{formatPercent(scaleKPIs.shareRate)}}</text>
+        <text class="kpi-label">分享率</text>
+      </view>
+      <view class="kpi-card accent-gold">
+        <text class="kpi-value">{{scaleKPIs.kFactor}}</text>
+        <text class="kpi-label">K-Factor</text>
+      </view>
+      <view class="kpi-card">
+        <text class="kpi-value">{{formatPercent(scaleKPIs.retention)}}</text>
+        <text class="kpi-label">留存率</text>
+      </view>
+      <view class="kpi-card {{scaleKPIs.revenueGrowth>=0?'accent-green':'accent-red'}}">
+        <text class="kpi-value">{{formatPercent(scaleKPIs.revenueGrowth)}}</text>
+        <text class="kpi-label">收入增长</text>
+      </view>
+    </view>
+
+    <!-- Benchmarks -->
+    <xsg-card wx:if="{{scaleKPIs.benchmarks}}" title="🎯 指标对照">
+      <view class="bench-row">
+        <text>DAU</text>
+        <text>{{formatNum(scaleKPIs.benchmarks.dau.current)}} / {{formatNum(scaleKPIs.benchmarks.dau.target)}}</text>
+        <xsg-progress percent="{{scaleKPIs.benchmarks.dau.progress}}" />
+      </view>
+      <view class="bench-row">
+        <text>分享率</text>
+        <text style="color:{{scaleKPIs.benchmarks.shareRate.status==='hit'?'#2ecc71':'#f39c12'}}">
+          {{scaleKPIs.benchmarks.shareRate.current}}% (目标{{scaleKPIs.benchmarks.shareRate.target}}%)
+        </text>
+      </view>
+      <view class="bench-row">
+        <text>K-Factor</text>
+        <text style="color:{{scaleKPIs.benchmarks.kFactor.status==='viral'?'#2ecc71':'#f39c12'}}">
+          {{scaleKPIs.benchmarks.kFactor.current}} (目标{{scaleKPIs.benchmarks.kFactor.target}})
+        </text>
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ 模拟 ═══════ -->
+  <view wx:if="{{activeTab==='simulate'}}" class="tab-content">
+    <xsg-card wx:if="{{simulation}}" title="🧪 增长模拟">
+      <view class="metric-row">当前DAU: {{formatNum(simulation.currentDau)}}</view>
+      <view class="metric-row">总用户: {{formatNum(simulation.currentTotalUsers)}}</view>
+    </xsg-card>
+
+    <!-- Scenarios -->
+    <xsg-card wx:if="{{simulation.scenarios}}" title="📈 三场景90日预测">
+      <view wx:for="{{simulation.scenarios}}" wx:key="*this" class="scenario-card">
+        <view class="scenario-header">
+          <text class="scenario-label">
+            <text wx:if="{{index==='pessimistic'}}">🔻</text>
+            <text wx:if="{{index==='baseline'}}">➖</text>
+            <text wx:if="{{index==='optimistic'}}">🔼</text>
+            {{item.label}}
+          </text>
+          <text class="scenario-dau">{{formatNum(item.summary.dau90d)}} DAU(90d)</text>
+        </view>
+        <view class="scenario-stats">
+          <text>增长: {{item.summary.growth}}%</text>
+          <text>总用户: {{formatNum(item.summary.totalUsers90d)}}</text>
+          <text>裂变占比: {{item.summary.viralShare}}%</text>
+        </view>
+      </view>
+    </xsg-card>
+
+    <!-- Milestones -->
+    <xsg-card wx:if="{{simulation.scenarios.baseline.summary}}" title="🎯 里程碑预测">
+      <view wx:for="{{simulation.scenarios.baseline.summary.milestones || []}}" wx:key="target" class="milestone-row">
+        <text>{{item.label}}</text>
+        <text>预计 {{item.days}} 天达成</text>
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ 瓶颈 ═══════ -->
+  <view wx:if="{{activeTab==='bottleneck'}}" class="tab-content">
+    <xsg-card wx:if="{{bottlenecks.topBottleneck}}" title="⚠️ 增长瓶颈检测">
+      <view class="bottleneck-alert" style="background:{{getSeverityColor(bottlenecks.topBottleneck.severity)}}20">
+        <text>{{getSeverityIcon(bottlenecks.topBottleneck.severity)}} {{bottlenecks.topBottleneck.label}} ({{bottlenecks.topBottleneck.severity}})</text>
+      </view>
+      <view class="metric-row">原因: {{bottlenecks.topBottleneck.cause || '--'}}</view>
+      <view class="insight-text">🔧 建议: {{bottlenecks.topBottleneck.fix || '--'}}</view>
+    </xsg-card>
+
+    <!-- All Bottlenecks -->
+    <xsg-card wx:if="{{bottlenecks.bottlenecks}}" title="📋 瓶颈清单">
+      <view wx:for="{{bottlenecks.bottlenecks}}" wx:key="type" class="bottleneck-row">
+        <view class="bn-left">
+          <text style="color:{{getSeverityColor(item.severity)}}">{{getSeverityIcon(item.severity)}}</text>
+          <text class="bn-type">{{item.label}}</text>
+        </view>
+        <view class="bn-right">
+          <text class="bn-score">{{item.rawScore}}分</text>
+          <text class="bn-weight">权重{{item.weight}}</text>
+        </view>
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ 扩张 ═══════ -->
+  <view wx:if="{{activeTab==='plan'}}" class="tab-content">
+    <xsg-card wx:if="{{expansionPlan}}" title="🚀 扩张计划">
+      <view class="insight-text highlight">{{expansionPlan.summary || '--'}}</view>
+    </xsg-card>
+
+    <!-- Recommendations -->
+    <xsg-card wx:if="{{expansionPlan.recommendations}}" title="📌 执行建议">
+      <view wx:for="{{expansionPlan.recommendations}}" wx:key="action" class="rec-card">
+        <view class="rec-header">
+          <text class="rec-priority">P{{item.priority}}</text>
+          <text class="rec-action-text">{{item.action}}</text>
+          <view class="rec-impact" style="color:{{item.expectedImpact==='high'?'#2ecc71':'#f39c12'}}">
+            {{item.expectedImpact==='high'?'🚀':'📈'}}
+          </view>
+        </view>
+        <text class="rec-detail">{{item.detail}}</text>
+      </view>
+    </xsg-card>
+
+    <!-- Budget Allocation -->
+    <xsg-card wx:if="{{expansionPlan.budgetAllocation}}" title="💰 预算分配">
+      <view class="metric-row">总预算: ¥{{expansionPlan.budgetAllocation.total / 100}}</view>
+      <view wx:for="{{expansionPlan.budgetAllocation.allocation}}" wx:key="channel" class="budget-row">
+        <text class="budget-tier" style="color:{{item.tier==='primary'?'#2ecc71':item.tier==='secondary'?'#4a90e2':'#f39c12'}}">
+          {{item.tier==='primary'?'★':item.tier==='secondary'?'▲':'●'}}
+        </text>
+        <text>{{item.channel}}</text>
+        <text>¥{{item.budget / 100}}</text>
+      </view>
+    </xsg-card>
+
+    <!-- Paid Rules -->
+    <xsg-card wx:if="{{paidRules}}" title="⚡ 投流规则">
+      <view class="metric-row">最小 LTV/CAC: {{paidRules.rules.minLtvCacRatio}}x</view>
+      <view class="metric-row">日预算上限: ¥{{paidRules.rules.maxDailyBudget / 100}}</view>
+      <view wx:for="{{paidRules.channels}}" wx:key="channel" class="rule-row">
+        <text>{{item.channel}}</text>
+        <text style="color:{{item.allowed?'#2ecc71':'#e74c3c'}}">{{item.allowed ? '✅ 允许' : '🚫 禁止'}}</text>
+      </view>
+      <view class="insight-text">{{paidRules.recommendation || '--'}}</view>
+    </xsg-card>
+  </view>
+</scroll-view>

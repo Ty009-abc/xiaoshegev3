@@ -1,0 +1,110 @@
+/* pages/admin/revenue-dashboard/revenue-dashboard.wxss */
+@import '../../../styles/tokens.wxss';
+
+.page-container { min-height: 100vh; background: var(--bg); padding-bottom: 40px; }
+.loading-wrap { display: flex; justify-content: center; padding: 200px 0; }
+
+/* ── AI CFO Brief ── */
+.brief-card {
+  margin: 20px;
+  padding: 28px;
+  background: linear-gradient(135deg, rgba(78,205,196,0.08), rgba(160,132,220,0.06));
+  border-radius: 20px; border: 1px solid rgba(78,205,196,0.15);
+}
+.brief-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.brief-icon { font-size: 36px; }
+.brief-title { font-size: 26px; font-weight: 700; color: #4ecdc4; }
+.brief-headline { font-size: 36px; font-weight: 800; color: var(--text); display: block; margin-bottom: 10px; }
+.brief-summary { font-size: 24px; color: var(--text-secondary); line-height: 1.5; display: block; }
+.brief-meta { margin-top: 14px; font-size: 22px; color: var(--text-tertiary); }
+
+/* ── 指标网格 ── */
+.metric-grid {
+  display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px;
+}
+.metric-item {
+  flex: 0 0 calc(50% - 7px);
+  padding: 24px 20px; background: #0f1120;
+  border-radius: 16px; border: 1px solid rgba(255,255,255,0.04);
+}
+.metric-value { font-size: 32px; font-weight: 800; color: var(--accent); display: block; }
+.metric-label { font-size: 22px; color: var(--text-tertiary); margin-top: 4px; display: block; }
+
+/* ── 商品排行 ── */
+.product-list { margin-top: 12px; }
+.product-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px; margin-bottom: 8px;
+  background: #0c0e18; border-radius: 14px;
+}
+.product-rank { font-size: 28px; font-weight: 800; color: var(--text-tertiary); min-width: 40px; }
+.product-info { flex: 1; display: flex; flex-direction: column; }
+.product-name { font-size: 26px; color: var(--text); }
+.product-count { font-size: 20px; color: var(--text-tertiary); }
+.product-rev { text-align: right; }
+.product-rev-val { font-size: 28px; font-weight: 700; color: var(--accent); display: block; }
+.product-bar-bg { width: 80px; height: 4px; background: #181f33; border-radius: 2px; margin-top: 6px; margin-left: auto; }
+.product-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
+
+/* ── 收入结构 ── */
+.structure-card { margin-top: 12px; padding: 28px; background: #0c0e18; border-radius: 18px; }
+.structure-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; }
+.struct-seg.first { background: #4ecdc4; }
+.struct-seg.renew { background: #a084dc; }
+.struct-seg.consult { background: #f39c12; }
+.structure-legend { display: flex; gap: 24px; margin-top: 16px; }
+.legend-item { font-size: 22px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.health-badge { margin-top: 18px; padding: 10px 20px; border-radius: 10px; text-align: center; }
+.health-badge text { font-size: 24px; font-weight: 600; }
+.health-badge.excellent { background: rgba(78,205,196,0.1); color: #4ecdc4; }
+.health-badge.good { background: rgba(78,205,196,0.06); color: #4ecdc4; }
+.health-badge.warning { background: rgba(255,140,0,0.1); color: #f0ad4e; }
+.health-badge.critical { background: rgba(231,76,60,0.1); color: #e74c3c; }
+
+/* ── 漏损 ── */
+.leak-item {
+  margin-top: 12px; padding: 22px;
+  background: rgba(255,140,0,0.05); border-radius: 16px;
+  border: 1px solid rgba(255,140,0,0.1);
+}
+.leak-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.leak-severity { font-size: 24px; }
+.leak-type { font-size: 26px; font-weight: 600; color: #f0ad4e; }
+.leak-detail { font-size: 24px; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+.leak-suggestion { font-size: 22px; color: var(--accent); display: block; }
+.no-leak { margin-top: 12px; font-size: 24px; color: #4ecdc4; display: block; }
+
+/* ── 预测 ── */
+.forecast-row {
+  display: flex; align-items: center; padding: 18px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.forecast-label { font-size: 24px; color: var(--text-secondary); min-width: 70px; }
+.forecast-base { font-size: 28px; font-weight: 700; color: var(--accent); min-width: 120px; }
+.forecast-range { font-size: 22px; color: var(--text-tertiary); }
+.forecast-trend { font-size: 22px; color: var(--text-secondary); margin-top: 14px; display: block; }
+
+/* ── 定价建议 ── */
+.pricing-item {
+  margin-top: 12px; padding: 22px;
+  background: rgba(160,132,220,0.05); border-radius: 16px;
+  border: 1px solid rgba(160,132,220,0.1);
+}
+.pricing-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pricing-conf { font-size: 20px; padding: 4px 12px; border-radius: 8px; }
+.pricing-conf.high { background: rgba(78,205,196,0.15); color: #4ecdc4; }
+.pricing-conf.medium { background: rgba(160,132,220,0.15); color: #a084dc; }
+.pricing-conf.low { background: #15172e; color: var(--text-tertiary); }
+.pricing-product { font-size: 26px; font-weight: 600; color: var(--text); }
+.pricing-change { font-size: 30px; font-weight: 700; color: var(--accent); display: block; margin-bottom: 6px; }
+.pricing-reason { font-size: 24px; color: var(--text-secondary); display: block; line-height: 1.4; }
+.pricing-note { font-size: 20px; color: #f0ad4e; margin-top: 6px; display: block; }
+
+/* ── 通用 ── */
+.section {
+  margin: 0 20px 28px;
+}
+.section-title {
+  font-size: 28px; font-weight: 700; color: var(--text); display: block;
+}

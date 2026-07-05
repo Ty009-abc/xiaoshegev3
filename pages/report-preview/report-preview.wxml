@@ -1,0 +1,107 @@
+<!-- report-preview — v3.13 双模式
+     type=diagnostic: v2 6题 → 5字段翻身策略报告
+     type=challenge_final: 30天挑战 → 收费报告 -->
+<view class="page">
+
+  <!-- ═══════ diagnostic 5字段报告（全免费） ═══════ -->
+  <block wx:if="{{reportType==='diagnostic'}}">
+    <xsg-navbar title="翻身策略报告" showBack light />
+
+    <xsg-loading text="正在加载报告..." wx:if="{{loading}}" />
+
+    <block wx:elif="{{report}}">
+      <!-- 人格标识 -->
+      <view class="diag-personality" wx:if="{{report.personality}}">
+        <text class="dp-badge">{{report.personality.emoji}} {{report.personality.name}}视角已激活</text>
+      </view>
+
+      <!-- ☠️ 致命一句话 — 最顶，最醒目 -->
+      <view class="diag-hero" wx:if="{{report.fatal_sentence}}">
+        <text class="dh-label">致命一句话</text>
+        <text class="dh-content">{{report.fatal_sentence}}</text>
+      </view>
+
+      <!-- ⛓️ 系统困局 -->
+      <xsg-card theme="light" class="diag-card anim-fade-in">
+        <view class="dc-label dc-label-red">你被什么系统困住</view>
+        <view class="dc-body">{{report.system_trap}}</view>
+      </xsg-card>
+
+      <!-- 🎯 核心问题 -->
+      <xsg-card theme="light" class="diag-card anim-fade-in anim-delay-1">
+        <view class="dc-label dc-label-blue">真正的核心问题</view>
+        <view class="dc-body">{{report.core_problem}}</view>
+      </xsg-card>
+
+      <!-- 🚀 翻身路径 -->
+      <xsg-card theme="light" class="diag-card anim-fade-in anim-delay-2">
+        <view class="dc-label dc-label-green">翻身路径</view>
+        <view class="dc-body dc-body-strategy">{{report.strategy_path}}</view>
+      </xsg-card>
+
+      <!-- 📋 行动建议 -->
+      <view class="diag-advice anim-fade-in anim-delay-3" wx:if="{{report.advice&&report.advice.length}}">
+        <view class="da-title">行动建议</view>
+        <view class="da-list">
+          <view class="da-item" wx:for="{{report.advice}}" wx:key="*this">
+            <text class="da-num">{{index+1}}</text>
+            <text class="da-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 合规免责 -->
+      <view class="compliance-tips" wx:if="{{reportType==='diagnostic'}}">系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出</view>
+
+      <!-- 重新开始 -->
+      <view class="diag-actions">
+        <button class="da-btn da-btn-retry" bindtap="onRetryDiagnostic">再来一次诊断</button>
+        <button class="da-btn da-btn-share" open-type="share">分享翻身策略</button>
+      </view>
+    </block>
+
+    <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading}}" />
+  </block>
+
+  <!-- ═══════ challenge_final 报告（原有收费链路） ═══════ -->
+  <block wx:else>
+    <xsg-navbar title="AI诊断报告" showBack />
+    <xsg-loading text="正在加载报告..." wx:if="{{loading}}" />
+
+    <block wx:elif="{{report}}">
+      <xsg-card type="ai" class="anim-fade-in">
+        <xsg-tag text="AI诊断" type="ai" />
+        <view class="main-title mt-16">{{report.summary||report.oneSentence||'你的认知画像已生成'}}</view>
+        <view class="sub-title mt-8" wx:if="{{report.type}}">{{report.type}}</view>
+      </xsg-card>
+
+      <report-lock-card wx:if="{{locked}}" title="完整AI诊断报告已生成"
+        benefits="{{['世界模型深度评分','翻身概率预测','最大认知漏洞分析','未来3年风险预警','30天定制行动建议','小事哥的最终认知暴击']}}"
+        bind:unlock="onUnlock" />
+
+      <xsg-button wx:if="{{locked}}" type="ai" text="9.9元生成完整报告" bind:tapbutton="onGenerate" class="anim-fade-in anim-delay-2" />
+      <xsg-button wx:if="{{!locked}}" type="gold" text="查看完整报告" bind:tapbutton="goFull" class="anim-fade-in" />
+    </block>
+
+    <xsg-empty icon="📄" title="暂无报告" desc="先完成一次认知挑战" btnText="去挑战" wx:elif="{{!loading&&!report}}" />
+
+    <ai-generating id="aiGen" visible="{{showGenerating}}" bind:done="onGenerateDone" />
+
+    <!-- 二次转化弹窗 -->
+    <view class="upgrade-mask" wx:if="{{showUpgradeModal}}">
+      <view class="upgrade-modal anim-fade-in">
+        <text class="um-icon">🧬</text>
+        <text class="um-title">你的完整世界模型已生成</text>
+        <view class="um-benefits">
+          <text class="umb">🧠 无限AI认知分析</text>
+          <text class="umb">📄 历史认知报告库</text>
+          <text class="umb">🎯 30天挑战完整解锁</text>
+          <text class="umb">📜 世界规则库全权限</text>
+        </view>
+        <text class="um-price">升级为认知系统会员</text>
+        <xsg-button type="primary" text="立即升级" bind:tapbutton="onUpgrade" />
+        <button class="um-skip" bindtap="onCloseUpgrade">先看报告 →</button>
+      </view>
+    </view>
+  </block>
+</view>

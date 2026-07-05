@@ -1,0 +1,8 @@
+<view class="card card-premium anim-fade-in">
+  <view class="lock-header"><text class="lock-emoji">🔒</text><text class="lock-title">{{title}}</text></view>
+  <view class="benefits-section">
+    <view class="benefits-label">解锁后你将看到：</view>
+    <view class="benefit" wx:for="{{benefits}}" wx:key="*this"><text class="benefit-dot">✦</text><text>{{item}}</text></view>
+  </view>
+  <xsg-button type="primary" text="{{btnText}}" bind:tapbutton="onTap" />
+</view>

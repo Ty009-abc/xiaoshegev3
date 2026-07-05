@@ -1,0 +1,7 @@
+@import '../../styles/tokens.wxss';
+.page{background:var(--bg-primary);min-height:100vh;padding:var(--sp-24);padding-top:calc(var(--sp-24)+env(safe-area-inset-top));}
+.rank-item{display:flex;align-items:center;padding:var(--sp-24);border-bottom:1rpx solid rgba(255,255,255,0.04);}
+.ri-rank{width:60rpx;font-size:var(--font-body);font-weight:600;color:var(--text-secondary);}
+.ri-rank.top0{color:#FFD700;font-weight:800;}.ri-rank.top1{color:#C0C0C0;font-weight:800;}.ri-rank.top2{color:#CD7F32;font-weight:800;}
+.ri-name{flex:1;font-size:var(--font-body);color:var(--text-primary);}
+.ri-val{font-size:var(--font-body);font-weight:700;color:var(--accent-gold);}

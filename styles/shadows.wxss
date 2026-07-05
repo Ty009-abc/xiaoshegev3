@@ -1,0 +1,11 @@
+/**
+ * shadows.wxss — 阴影体系（暗黑弥散光版）
+ */
+.shadow-light   { box-shadow: var(--shadow-light); }
+.shadow-float   { box-shadow: var(--shadow-float); }
+.shadow-gold    { box-shadow: var(--shadow-gold); }
+.shadow-none    { box-shadow: none; }
+
+.glow-pulse {
+  animation: glowPulse 3s var(--ease-out) infinite;
+}

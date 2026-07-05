@@ -1,0 +1,11 @@
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#0a0a14",
+  "usingComponents": {
+    "xsg-card": "/components/xsg-card/xsg-card",
+    "xsg-tag": "/components/xsg-tag/xsg-tag",
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar",
+    "growth-panel": "/components/growth-panel/growth-panel",
+    "badge-list": "/components/badge-list/badge-list"
+  }
+}

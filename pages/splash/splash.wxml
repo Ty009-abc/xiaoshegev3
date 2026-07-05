@@ -1,0 +1,10 @@
+<!-- splash - 启动页 -->
+<view class="splash">
+  <view class="logo-area">
+    <view class="logo-text">🧠</view>
+    <view class="title">珠澳小事哥</view>
+    <view class="subtitle">认知操作系统</view>
+  </view>
+  <view class="tagline">理解世界，比努力生活更重要</view>
+  <view class="fade-hint">正在加载你的世界模型...</view>
+</view>

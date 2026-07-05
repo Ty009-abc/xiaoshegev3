@@ -1,0 +1,72 @@
+# ═══════════════════════════════════════════════════════════════
+# 珠澳小事哥 · 认知操作系统 v3.0
+# 云开发 Collection 创建清单 (47个)
+# ═══════════════════════════════════════════════════════════════
+# 在微信云开发控制台 → 数据库 → 逐个创建以下集合
+
+## 基础数据 (9)
+products
+daily_insights
+world_rules
+challenge_events
+cognition_tags
+badges
+system_configs
+admin_logs
+rate_limits
+
+## AI 模块 (7)
+ai_cache
+ai_chats
+response_metrics
+response_feedback
+prompt_versions
+knowledge_suggestions
+evolution_logs
+
+## 支付 (5)
+orders
+payments
+memberships
+entitlements
+quota_usage
+
+## 漏斗 (4)
+funnel_events
+conversion_metrics
+user_funnel_state
+membership_metrics
+
+## 会员分析 (3)
+weekly_reports
+churn_predictions
+
+## 收入 (6)
+revenue_metrics
+product_revenue
+cohort_metrics
+refund_metrics
+forecast_revenue
+
+## 裂变 (3)
+referrals
+viral_metrics
+share_events
+
+## 私域 (4)
+crm_contacts
+private_metrics
+lead_scores
+
+## 获客 (4)
+acquisition_metrics
+content_roi
+ltv_by_source
+acquisition_sources
+
+## 规模化 (4)
+scale_metrics
+growth_bottlenecks
+expansion_plans
+growth_metrics
+growth_events

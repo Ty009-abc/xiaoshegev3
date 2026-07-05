@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+miniprogram_npm/
+
+# 微信小程序本地临时文件
+.miniprogram/
+.wechat_devtools/
+*.wxvpkg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 云函数本地调试产物
+cloudfunctions/*/node_modules/
+
+# 构建产物
+dist/
+build/
+
+# 测试
+coverage/
+__tests__/

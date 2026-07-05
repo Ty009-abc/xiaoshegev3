@@ -1,0 +1,42 @@
+<!-- membership — 会员页 -->
+<view class="page page-enter">
+  <xsg-navbar title="认知操作系统" />
+  <xsg-loading text="加载会员方案..." wx:if="{{loading}}" />
+  <block wx:else>
+    <!-- 头部 -->
+    <view class="hero anim-fade-in">
+      <text class="hero-icon">⭐</text>
+      <text class="hero-title">认知操作系统·会员</text>
+      <text class="hero-desc">你不是在买会员，你是在给自己的世界模型升级</text>
+    </view>
+
+    <!-- 权益 -->
+    <xsg-card type="premium" class="anim-fade-in">
+      <text class="perks-title">解锁后的世界：</text>
+      <view class="perk-list">
+        <view class="perk"><text>🧠</text><text>无限AI认知分析</text></view>
+        <view class="perk"><text>📄</text><text>完整AI诊断报告</text></view>
+        <view class="perk"><text>🎯</text><text>30天认知挑战</text></view>
+        <view class="perk"><text>📅</text><text>认知暴击历史库</text></view>
+        <view class="perk"><text>📜</text><text>世界规则库全解锁</text></view>
+        <view class="perk"><text>📊</text><text>成长复盘</text></view>
+      </view>
+    </xsg-card>
+
+    <!-- 商品卡片 -->
+    <view class="product-list anim-fade-in">
+      <membership-card
+        wx:for="{{products}}" wx:key="productId"
+        product="{{item}}"
+        recommended="{{item.durationDays>=365}}"
+        selected="{{selectedProduct.productId===item.productId}}"
+        data-pid="{{item.productId}}"
+        bind:select="onSelect" />
+    </view>
+
+    <!-- CTA -->
+    <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : (selectedProduct ? '立即开通 · ¥'+selectedProduct.priceDisplay : '请选择方案')}}" loading="{{paying}}" disabled="{{!selectedProduct||paying}}" bind:tapbutton="onPay" class="anim-fade-in" />
+    <view class="safe-hint mt-16">🔒 微信支付 · 即时开通 · 可随时取消</view>
+    <view style="height:80rpx;"></view>
+  </block>
+</view>

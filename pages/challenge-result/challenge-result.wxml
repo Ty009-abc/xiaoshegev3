@@ -1,0 +1,29 @@
+<!-- challenge-result -->
+<view class="page">
+  <xsg-navbar title="挑战结果" light />
+  <xsg-loading text="正在分析你的认知画像..." wx:if="{{loading}}" />
+  <block wx:elif="{{result}}">
+    <view class="result-hero anim-fade-in">
+      <text class="r-type">{{result.mainType||'认知探索者'}}</text>
+      <text class="r-sub">你的世界模型初步类型</text>
+    </view>
+    <xsg-card class="anim-fade-in">
+      <view class="scores-title">九维评分</view>
+      <view class="scores-grid">
+        <view class="score" wx:for="{{['laborMindset','probabilityMindset','systemThinking','leverageThinking','capitalThinking','riskAwareness','informationSensitivity','longTermism','decisionStability']}}" wx:key="*this">
+          <text class="sc-num">{{result.profile[item]||50}}</text>
+          <text class="sc-label">{{item==='laborMindset'?'劳动':item==='probabilityMindset'?'概率':item==='systemThinking'?'系统':item==='leverageThinking'?'杠杆':item==='capitalThinking'?'资本':item==='riskAwareness'?'风险':item==='informationSensitivity'?'信息':item==='longTermism'?'长期':'决策'}}</text>
+        </view>
+      </view>
+    </xsg-card>
+    <xsg-card wx:if="{{result.tags&&result.tags.length}}" class="anim-fade-in">
+      <view class="scores-title">核心标签</view>
+      <view class="tag-row"><xsg-tag wx:for="{{result.tags}}" wx:for-item="t" wx:key="*this" text="{{t}}" type="gold" /></view>
+    </xsg-card>
+        <!-- CTA 区块 -->
+    <xsg-button type="ai" text="生成我的世界模型报告" bind:tapbutton="goReport" class="anim-fade-in" />
+    <xsg-card type="premium" clickable bindtap="goShare" class="anim-fade-in anim-delay-1">
+      <view class="share-cta"><text class="scta-icon">📤</text><text class="scta-text">保存认知海报 · 分享翻身概率</text><text class="scta-arrow">→</text></view>
+    </xsg-card>
+  </block>
+</view>

@@ -1,0 +1,7 @@
+<!-- xsg-card -->
+<view class="card card-{{type}} {{theme === 'light' ? 'card-light' : ''}} {{clickable ? 'clickable' : ''}}" bindtap="onTap" style="padding:{{padding}}rpx">
+  <view class="card-title" wx:if="{{title}}">{{title}}</view>
+  <view class="card-subtitle" wx:if="{{subtitle}}">{{subtitle}}</view>
+  <slot />
+  <view class="card-arrow" wx:if="{{showArrow}}">›</view>
+</view>

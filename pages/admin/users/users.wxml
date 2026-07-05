@@ -1,0 +1,28 @@
+<!-- pages/admin/users -->
+<scroll-view scroll-y class="page" bindscrolltolower="loadMore">
+  <view class="search-bar">
+    <input class="search-input" placeholder="搜索昵称" bindinput="onInput" value="{{keyword}}" />
+    <button class="search-btn" bindtap="onSearch">搜索</button>
+  </view>
+  <view class="filters">
+    <view class="filter-tag {{level===''?'active':''}}" data-l="" bindtap="onFilterLevel">全部</view>
+    <view class="filter-tag {{level==='vip_month'?'active':''}}" data-l="vip_month" bindtap="onFilterLevel">月卡</view>
+    <view class="filter-tag {{level==='vip_year'?'active':''}}" data-l="vip_year" bindtap="onFilterLevel">年卡</view>
+    <view class="filter-tag {{level==='free'?'active':''}}" data-l="free" bindtap="onFilterLevel">免费</view>
+    <view class="filter-tag {{filterStatus==='blocked'?'active':''}}" data-s="blocked" bindtap="onFilterStatus">已封禁</view>
+  </view>
+  <view class="user-list">
+    <view class="user-row" wx:for="{{list}}" wx:key="openid" data-user="{{item}}" bindtap="onTapUser">
+      <view class="u-info">
+        <text class="u-name">{{item.nickname || '未设置'}}</text>
+        <text class="u-openid">{{item.openid}}</text>
+      </view>
+      <view class="u-meta">
+        <text class="u-cv">CV:{{item.cv}}</text>
+        <text class="u-level {{item.membershipLevel}}">{{item.membershipLevel}}</text>
+        <text class="u-status {{item.status}}">{{item.status}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="total">共 {{total}} 人</view>
+</scroll-view>

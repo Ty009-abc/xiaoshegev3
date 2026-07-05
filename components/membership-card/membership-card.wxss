@@ -1,0 +1,14 @@
+@import '../../styles/tokens.wxss';
+.mcard{background:var(--bg-secondary);border:2rpx solid transparent;border-radius:var(--radius-card);padding:var(--sp-32);margin-bottom:20rpx;transition:all var(--dur-normal);position:relative;overflow:hidden;}
+.mcard:active{transform:scale(0.99);}
+.mcard.selected{border-color:var(--accent-gold-border);background:var(--accent-gold-soft);box-shadow:var(--shadow-gold);}
+.mcard.recommended{border-color:var(--accent-gold-border);}
+.rec-badge{position:absolute;top:0;right:0;font-size:20rpx;color:#fff;background:linear-gradient(135deg,var(--accent-gold),#D89A3B);padding:8rpx 24rpx 8rpx 32rpx;border-radius:0 24rpx 0 16rpx;font-weight:600;}
+.mcard-name{font-weight:700;color:var(--text-primary);margin-bottom:var(--sp-8);}
+.mcard-desc{font-size:var(--font-caption);color:var(--text-secondary);margin-bottom:var(--sp-16);}
+.mcard-price{display:flex;align-items:baseline;margin-bottom:var(--sp-8);}
+.m-price-curr{font-size:var(--font-caption);color:var(--accent-gold);}
+.m-price-num{font-size:var(--font-h1);font-weight:700;color:var(--accent-gold);margin:0 var(--sp-4);}
+.m-price-dur{font-size:var(--font-caption);color:var(--text-secondary);}
+.mcard-original{font-size:var(--font-caption);color:var(--text-tertiary);text-decoration:line-through;margin-bottom:var(--sp-16);}
+.mcard-perk{font-size:var(--font-caption);color:var(--text-secondary);padding:var(--sp-4) 0;}

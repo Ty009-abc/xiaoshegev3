@@ -1,0 +1,145 @@
+<!-- pages/admin/revenue-dashboard/revenue-dashboard.wxml -->
+<view class="page-container">
+  <xsg-navbar title="收入分析" />
+
+  <view wx:if="{{loading}}" class="loading-wrap">
+    <xsg-loading />
+  </view>
+
+  <block wx:else>
+    <!-- AI CFO 每日简报 -->
+    <view class="brief-card" wx:if="{{dailyBrief}}">
+      <view class="brief-header">
+        <text class="brief-icon">🤖</text>
+        <text class="brief-title">AI CFO · 今日收入简报</text>
+      </view>
+      <text class="brief-headline">{{dailyBrief.headline}}</text>
+      <text class="brief-summary">{{dailyBrief.summary}}</text>
+      <view class="brief-meta" wx:if="{{dailyBrief.topProduct}}">
+        <text>主收入源：{{dailyBrief.topProduct.productId}}（{{dailyBrief.topProduct.share}}）</text>
+      </view>
+    </view>
+
+    <!-- 核心指标 -->
+    <view class="section">
+      <text class="section-title">📊 核心指标</text>
+      <view class="metric-grid">
+        <view class="metric-item">
+          <text class="metric-value">¥{{summary.grossRevenueYuan || '0'}}</text>
+          <text class="metric-label">总收入</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">¥{{summary.netRevenueYuan || '0'}}</text>
+          <text class="metric-label">净收入</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">¥{{summary.MRRYuan || '0'}}</text>
+          <text class="metric-label">MRR</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">¥{{summary.ARRYuan || '0'}}</text>
+          <text class="metric-label">ARR</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">¥{{summary.ARPUYuan || '0.00'}}</text>
+          <text class="metric-label">ARPU</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">¥{{summary.ARPPUYuan || '0.00'}}</text>
+          <text class="metric-label">ARPPU</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">¥{{summary.LTVYuan || '0'}}</text>
+          <text class="metric-label">LTV</text>
+        </view>
+        <view class="metric-item">
+          <text class="metric-value">{{summary.orderCount || 0}}</text>
+          <text class="metric-label">订单数</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 商品收入排行 -->
+    <view class="section" wx:if="{{productRevenue.length}}">
+      <text class="section-title">🏆 商品收入排行</text>
+      <view class="product-list">
+        <view class="product-row" wx:for="{{productRevenue}}" wx:key="productId">
+          <text class="product-rank">{{index + 1}}</text>
+          <view class="product-info">
+            <text class="product-name">{{item.productId}}</text>
+            <text class="product-count">{{item.count}} 笔</text>
+          </view>
+          <view class="product-rev">
+            <text class="product-rev-val">¥{{item.revenueYuan}}</text>
+            <view class="product-bar-bg">
+              <view class="product-bar-fill" style="width: {{item.share || 0}}%"></view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 收入结构 -->
+    <view class="section" wx:if="{{revenueStructure.structure}}">
+      <text class="section-title">📐 收入结构</text>
+      <view class="structure-card" wx:if="{{revenueStructure.totalRevenue}}">
+        <view class="structure-bar">
+          <view class="struct-seg first" style="flex: {{revenueStructure.structure.firstPurchase.share}}"></view>
+          <view class="struct-seg renew" style="flex: {{revenueStructure.structure.renewal.share}}"></view>
+          <view class="struct-seg consult" style="flex: {{revenueStructure.structure.consulting.share}}"></view>
+        </view>
+        <view class="structure-legend">
+          <text class="legend-item"><text class="legend-dot" style="background:#4ecdc4"></text>首购 {{revenueStructure.structure.firstPurchase.share}}%</text>
+          <text class="legend-item"><text class="legend-dot" style="background:#a084dc"></text>续费 {{revenueStructure.structure.renewal.share}}%</text>
+          <text class="legend-item"><text class="legend-dot" style="background:#f39c12"></text>咨询 {{revenueStructure.structure.consulting.share}}%</text>
+        </view>
+        <view class="health-badge {{revenueStructure.healthStatus}}">
+          <text>健康度：{{revenueStructure.healthScore}} 分</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 漏损检测 -->
+    <view class="section" wx:if="{{leaks.length > 0}}">
+      <text class="section-title">⚠️ 收入漏损</text>
+      <view class="leak-item" wx:for="{{leaks}}" wx:key="type">
+        <view class="leak-header">
+          <text class="leak-severity {{item.severity}}">{{item.severity === 'high' ? '🔴' : '🟡'}}</text>
+          <text class="leak-type">{{item.metric}}</text>
+        </view>
+        <text class="leak-detail">{{item.detail}}</text>
+        <text class="leak-suggestion">{{item.suggestion}}</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{leaks.length === 0 && !loading}}">
+      <text class="section-title">✅ 收入漏损</text>
+      <text class="no-leak">未发现显著收入漏损</text>
+    </view>
+
+    <!-- 收入预测 -->
+    <view class="section" wx:if="{{forecast}}">
+      <text class="section-title">📈 收入预测</text>
+      <view class="forecast-row" wx:for="{{[7,30,90]}}" wx:key="*this" wx:if="{{forecast.forecasts[item + 'd']}}">
+        <text class="forecast-label">{{item}} 天</text>
+        <text class="forecast-base">¥{{forecast.forecasts[item + 'd'].baseYuan}}</text>
+        <text class="forecast-range">¥{{forecast.forecasts[item + 'd'].conservativeYuan}} – ¥{{forecast.forecasts[item + 'd'].optimisticYuan}}</text>
+      </view>
+      <text class="forecast-trend" wx:if="{{forecast.inputs}}">趋势：{{forecast.inputs.trendLabel === 'up' ? '📈 上升' : forecast.inputs.trendLabel === 'down' ? '📉 下降' : '→ 稳定'}}</text>
+    </view>
+
+    <!-- 定价建议 -->
+    <view class="section" wx:if="{{pricingSuggestions.length}}">
+      <text class="section-title">💡 定价优化建议</text>
+      <view class="pricing-item" wx:for="{{pricingSuggestions}}" wx:key="productId">
+        <view class="pricing-header">
+          <text class="pricing-conf {{item.confidence}}">{{item.confidence === 'high' ? '强烈建议' : item.confidence === 'medium' ? '建议考虑' : '参考'}}</text>
+          <text class="pricing-product">{{item.productId}}</text>
+        </view>
+        <text class="pricing-change">¥{{item.currentPriceYuan}} → ¥{{item.suggestedPriceYuan}}</text>
+        <text class="pricing-reason">{{item.reasoning}}</text>
+        <text class="pricing-note" wx:if="{{item.note}}">{{item.note}}</text>
+      </view>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,33 @@
+<!-- pages/admin/content -->
+<scroll-view scroll-y class="page">
+  <view class="tabs">
+    <view class="tab {{activeCol === item.key ? 'active' : ''}}" wx:for="{{collections}}" wx:key="key" data-col="{{item.key}}" bindtap="onTab">{{item.label}}</view>
+  </view>
+  <button class="add-btn" bindtap="onAdd">+ 新增</button>
+  <view class="item-row {{item.status === 'inactive' ? 'disabled' : ''}}" wx:for="{{list}}" wx:key="_id">
+    <view class="i-header">
+      <text class="i-title">{{item.title || item.rule || item.description || '(无标题)'}}</text>
+      <text class="i-status {{item.status}}">{{item.status}}</text>
+    </view>
+    <view class="i-actions">
+      <text class="i-act" data-doc="{{item}}" bindtap="onEdit">编辑</text>
+      <text class="i-act" wx:if="{{item.status === 'active'}}" data-id="{{item._id}}" bindtap="onDisable">禁用</text>
+      <text class="i-act" wx:else data-id="{{item._id}}" bindtap="onEnable">启用</text>
+    </view>
+  </view>
+  <view class="empty" wx:if="{{!loading && list.length === 0}}">暂无内容</view>
+</scroll-view>
+
+<!-- 编辑弹窗 -->
+<view class="modal" wx:if="{{showForm}}">
+  <view class="modal-mask" bindtap="onCancel"></view>
+  <view class="modal-body">
+    <form bindsubmit="onSave">
+      <view class="form-title">{{editingDoc ? '编辑' : '新增'}} - {{activeCol}}</view>
+      <input name="title" class="f-input" placeholder="标题" value="{{editingDoc.title || ''}}" />
+      <textarea name="content" class="f-textarea" placeholder="内容" value="{{editingDoc.content || editingDoc.description || ''}}" />
+      <button class="f-btn" formType="submit">保存</button>
+      <button class="f-btn cancel" bindtap="onCancel">取消</button>
+    </form>
+  </view>
+</view>

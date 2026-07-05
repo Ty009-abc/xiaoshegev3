@@ -1,0 +1,404 @@
+{
+  "version": "2.0",
+  "envId": "fanshex-d2g0adgv7dfbc9bdc",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "login",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getUserProfile",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "updateUserProfile",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getMembership",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getOrderDetail",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "startChallenge",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "AI_API_KEY": "<YOUR_AI_API_KEY>",
+        "AI_API_URL": "<YOUR_AI_API_URL>",
+        "AI_MODEL_FLASH": "v4-flash"
+      }
+    },
+    {
+      "name": "submitChallengeChoice",
+      "runtime": "Nodejs18.15",
+      "timeout": 30,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "AI_API_KEY": "<YOUR_AI_API_KEY>",
+        "AI_API_URL": "<YOUR_AI_API_URL>",
+        "AI_MODEL_FLASH": "v4-flash"
+      }
+    },
+    {
+      "name": "getChallengeEvent",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getChallengeRecord",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getDailyInsight",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "AI_API_KEY": "<YOUR_AI_API_KEY>",
+        "AI_API_URL": "<YOUR_AI_API_URL>",
+        "AI_MODEL_FLASH": "v4-flash"
+      }
+    },
+    {
+      "name": "getInsightList",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getWorldRules",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getWorldRuleDetail",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "generateAiReport",
+      "runtime": "Nodejs18.15",
+      "timeout": 60,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "AI_API_KEY": "sk-1e22630f6ba74bc58b27232da7ea05d4",
+        "AI_API_BASE_URL": "https://api.deepseek.com/v1",
+        "AI_MODEL_FLASH": "deepseek-chat",
+        "AI_MODEL_PRO": "deepseek-chat"
+      }
+    },
+    {
+      "name": "getAiReport",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getMemory",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "updateMemory",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "clearMemory",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "toggleMemory",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "summarizeConversation",
+      "runtime": "Nodejs18.15",
+      "timeout": 30,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "AI_API_KEY": "<YOUR_AI_API_KEY>",
+        "AI_API_URL": "<YOUR_AI_API_URL>",
+        "AI_MODEL_FLASH": "v4-flash"
+      }
+    },
+    {
+      "name": "submitFeedback",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "runEvolutionCycle",
+      "runtime": "Nodejs18.15",
+      "timeout": 120,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "AI_API_KEY": "<YOUR_AI_API_KEY>",
+        "AI_API_URL": "<YOUR_AI_API_URL>",
+        "AI_MODEL_FLASH": "v4-flash"
+      }
+    },
+    {
+      "name": "createOrder",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "WXPAY_MCHID": "1747400090",
+        "WXPAY_APPID": "wxd441fbf3b9f10aa3",
+        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
+        "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>",
+        "WXPAY_NOTIFY_URL": "<FILL_ME>"
+      }
+    },
+    {
+      "name": "payCallback",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_APPID": "wxd441fbf3b9f10aa3"
+      }
+    },
+    {
+      "name": "verifyPayment",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "WXPAY_MCHID": "1747400090",
+        "WXPAY_APPID": "wxd441fbf3b9f10aa3",
+        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
+        "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>"
+      }
+    },
+    {
+      "name": "getPaymentResult",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "refundOrder",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "WXPAY_MCHID": "1747400090",
+        "WXPAY_APPID": "wxd441fbf3b9f10aa3",
+        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
+        "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>"
+      }
+    },
+    {
+      "name": "getProductList",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "consumeFreeQuota",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "recordInvite",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "trackFunnelEvent",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "expireMemberships",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getSystemConfig",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "checkPermission",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "ADMIN_OPENIDS": "<YOUR_ADMIN_OPENID_LIST_COMMA_SEPARATED>"
+      }
+    },
+    {
+      "name": "adminCheckAccess",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "ADMIN_OPENIDS": "<YOUR_ADMIN_OPENID_LIST_COMMA_SEPARATED>"
+      }
+    },
+    {
+      "name": "adminGetDashboard",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminGetAnalytics",
+      "runtime": "Nodejs18.15",
+      "timeout": 30,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminGetUsers",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminGetOrders",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminGetReports",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminGetAiLogs",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminManageContent",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminUpdateSystemConfig",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "adminUpdateUser",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "seedWorldRules",
+      "runtime": "Nodejs18.15",
+      "timeout": 30,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "initDatabase",
+      "runtime": "Nodejs18.15",
+      "timeout": 60,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "initKnowledgeEmbeddings",
+      "runtime": "Nodejs18.15",
+      "timeout": 120,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {
+        "EMBEDDING_API_KEY": "sk-1e22630f6ba74bc58b27232da7ea05d4",
+        "EMBEDDING_MODEL": "deepseek-embedding",
+        "EMBEDDING_API_BASE": "https://api.deepseek.com/v1"
+      }
+    }
+  ]
+}

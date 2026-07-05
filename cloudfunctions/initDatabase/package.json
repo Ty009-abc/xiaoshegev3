@@ -1,0 +1,9 @@
+{
+  "name": "initDatabase",
+  "version": "1.0.0",
+  "description": "珠澳小事哥 · 认知操作系统 - 数据库自举云函数",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  },
+  "main": "index.js"
+}

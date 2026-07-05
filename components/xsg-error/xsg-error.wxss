@@ -1,0 +1,7 @@
+@import '../../styles/tokens.wxss';
+.err-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--sp-64) var(--sp-32);}
+.err-icon{font-size:64rpx;margin-bottom:var(--sp-16);}
+.err-title{font-size:var(--font-body);color:var(--text-tertiary);margin-bottom:var(--sp-8);text-align:center;}
+.err-desc{font-size:var(--font-caption);color:var(--text-muted);text-align:center;margin-bottom:var(--sp-24);}
+.err-btn{margin-top:var(--sp-8);}
+.err-btn::after{border:none;}

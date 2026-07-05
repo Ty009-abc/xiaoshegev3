@@ -1,0 +1,16 @@
+<!-- world-rule-detail -->
+<view class="page">
+  <xsg-navbar title="规则详情" showBack />
+  <xsg-loading text="正在加载..." wx:if="{{loading}}" />
+  <block wx:elif="{{rule}}">
+    <xsg-card type="premium">
+      <xsg-tag text="{{rule.category||'规则'}}" type="gold" />
+      <view class="title mt-16">{{rule.title}}</view>
+      <view class="oneliner mt-8">{{rule.oneLiner}}</view>
+    </xsg-card>
+    <xsg-card><view class="section-title">世界规则</view><view class="body">{{rule.content}}</view></xsg-card>
+    <xsg-card wx:if="{{rule.reverse}}"><view class="section-title">反向逻辑</view><view class="body">{{rule.reverse}}</view></xsg-card>
+    <xsg-card wx:if="{{rule.case}}"><view class="section-title">现实案例</view><view class="body">{{rule.case}}</view></xsg-card>
+  </block>
+  <xsg-empty wx:elif="{{!loading}}" icon="📜" title="规则未找到" desc="该规则可能已被移除" btnText="返回规则列表" />
+</view>

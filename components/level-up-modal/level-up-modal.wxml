@@ -1,0 +1,13 @@
+<view class="mask {{visible ? 'show' : ''}}" catchtap="">
+  <view class="modal {{anim ? 'up' : ''}}">
+    <view class="glow-ring"><view class="inner-ring"><text class="up-icon">🎉</text></view></view>
+    <text class="up-title">认知等级提升</text>
+    <view class="level-change">
+      <view class="lv from"><text class="lv-num">LV{{fromLevel}}</text><text class="lv-name">{{fromTitle}}</text></view>
+      <text class="arrow">→</text>
+      <view class="lv to"><text class="lv-num gold">LV{{toLevel}}</text><text class="lv-name gold">{{toTitle}}</text></view>
+    </view>
+    <text class="up-msg">{{message || ('你正在从「努力思维」进入「系统思维」。')}}</text>
+    <xsg-button type="primary" text="继续升级世界模型" bind:tapbutton="onConfirm" />
+  </view>
+</view>

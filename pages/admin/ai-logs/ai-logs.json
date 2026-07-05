@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "AI日志",
+  "backgroundColor": "#0a0a14",
+  "navigationBarBackgroundColor": "#0a0a14",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true
+}

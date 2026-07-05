@@ -1,0 +1,11 @@
+@import '../../styles/tokens.wxss';
+.mask{position:fixed;inset:0;background:var(--bg-overlay);display:flex;align-items:flex-end;justify-content:center;z-index:1000;opacity:0;pointer-events:none;animation:fadeSlideUp var(--dur-normal) var(--ease-out);}
+.mask.show{opacity:1;pointer-events:auto;}
+.modal{width:100%;background:var(--bg-secondary);border-radius:var(--radius-modal) var(--radius-modal) 0 0;padding:var(--sp-48) var(--sp-32) var(--sp-32);text-align:center;max-height:80vh;overflow-y:auto;}
+.modal-icon{font-size:72rpx;margin-bottom:var(--sp-16);filter:drop-shadow(0 0 24rpx rgba(245,193,108,0.3));}
+.modal-title{font-weight:700;display:block;margin-bottom:var(--sp-24);}
+.perks{margin-bottom:var(--sp-32);}
+.perk{display:flex;align-items:center;gap:var(--sp-12);font-size:var(--font-body);color:var(--text-secondary);padding:var(--sp-8) 0;}
+.perk-dot{color:var(--accent-gold);font-size:18rpx;}
+.cancel-btn{margin-top:var(--sp-16);font-size:var(--font-caption);color:var(--text-tertiary);background:transparent;border:none;padding:var(--sp-16);}
+.cancel-btn::after{border:none;}

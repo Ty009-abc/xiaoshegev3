@@ -1,0 +1,102 @@
+@import '../../styles/tokens.wxss';
+.page{background:var(--bg-primary);min-height:100vh;padding:var(--sp-24);padding-top:calc(var(--sp-24)+env(safe-area-inset-top));}
+.tag-row{margin-bottom:0;}
+.main-title{font-size:var(--font-h3);font-weight:700;color:var(--text-primary);line-height:1.6;}
+.sub-title{font-size:var(--font-body);color:var(--accent-ai);font-weight:600;}
+/* 二次转化弹窗 */
+.upgrade-mask{position:fixed;inset:0;background:var(--bg-overlay);z-index:2000;display:flex;align-items:center;justify-content:center;}
+.upgrade-modal{background:var(--bg-secondary);border-radius:var(--radius-modal);padding:var(--sp-48) var(--sp-32) var(--sp-32);width:85vw;max-width:560rpx;text-align:center;border:1rpx solid var(--accent-gold-border);}
+.um-icon{font-size:64rpx;display:block;margin-bottom:var(--sp-16);}
+.um-title{font-size:var(--font-body);font-weight:700;color:var(--text-primary);display:block;margin-bottom:var(--sp-24);}
+.um-benefits{display:flex;flex-direction:column;gap:var(--sp-12);margin-bottom:var(--sp-24);text-align:left;padding:0 var(--sp-16);}
+.umb{font-size:var(--font-caption);color:var(--text-secondary);line-height:1.8;}
+.um-price{font-size:var(--font-caption);color:var(--accent-gold);display:block;margin-bottom:var(--sp-24);}
+.um-skip{font-size:var(--font-caption);color:var(--text-tertiary);background:transparent;border:none;padding:var(--sp-16);margin-top:var(--sp-8);}
+.um-skip::after{border:none;}
+
+/* ═══════ diagnostic 5字段报告 ═══════ */
+.diag-personality {
+  display:flex; justify-content:center; padding:24rpx 0 8rpx;
+}
+.dp-badge {
+  font-size:24rpx; color:#7F56D9; background:#F5F3FF;
+  padding:8rpx 24rpx; border-radius:999rpx; font-weight:600;
+}
+
+/* 致命一句话 — 最顶层血红卡片 */
+.diag-hero {
+  margin:8rpx 32rpx 24rpx;
+  padding:32rpx; border-radius:24rpx;
+  background:linear-gradient(135deg,#FFF1F1,#FFFBEB);
+  border:2rpx solid rgba(220,53,69,0.15);
+  text-align:center;
+}
+.dh-label {
+  display:block; font-size:22rpx; color:#DC3545; font-weight:700;
+  margin-bottom:12rpx; text-transform:uppercase; letter-spacing:4rpx;
+}
+.dh-content {
+  font-size:34rpx; font-weight:800; color:#DC3545; line-height:1.5;
+  text-shadow:0 0 20rpx rgba(220,53,69,0.08);
+}
+
+/* 5字段卡片 */
+.diag-card { margin:0 32rpx 20rpx; }
+.dc-label { font-size:22rpx; font-weight:700; margin-bottom:12rpx; }
+.dc-label-red { color:#DC3545; }
+.dc-label-blue { color:#2563EB; }
+.dc-label-green { color:#059669; }
+.dc-label-purple { color:#7F56D9; }
+.dc-body {
+  font-size:28rpx; color:#344054; line-height:1.75;
+}
+.dc-body-strategy {
+  font-size:28rpx; font-weight:600; color:#101828;
+}
+
+/* 行动建议 */
+.diag-advice {
+  margin:0 32rpx 24rpx; background:#FFF; border-radius:24rpx;
+  padding:28rpx; box-shadow:0 4rpx 20rpx rgba(0,0,0,0.04);
+}
+.da-title {
+  font-size:22rpx; font-weight:700; color:#7F56D9; margin-bottom:16rpx;
+}
+.da-list { display:flex; flex-direction:column; gap:12rpx; }
+.da-item { display:flex; align-items:flex-start; gap:12rpx; }
+.da-num {
+  width:40rpx; height:40rpx; border-radius:50%;
+  background:linear-gradient(135deg,#7F56D9,#53389E);
+  color:#FFF; font-size:22rpx; font-weight:700;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.da-text { font-size:27rpx; color:#344054; line-height:1.6; flex:1; }
+
+/* 底部操作 */
+.diag-actions {
+  display:flex; gap:16rpx; padding:16rpx 32rpx 48rpx;
+}
+.da-btn {
+  flex:1; height:88rpx; border-radius:999rpx;
+  font-size:28rpx; font-weight:600;
+  display:flex; align-items:center; justify-content:center;
+}
+.da-btn::after { border:none; }
+.da-btn-retry {
+  background:#F2F4F7; color:#667085;
+}
+.da-btn-share {
+  background:linear-gradient(135deg,#7F56D9,#53389E);
+  color:#FFF; box-shadow:0 4rpx 16rpx rgba(127,86,217,0.3);
+}
+
+/* ── 合规免责声明 ── */
+.compliance-tips {
+  font-size: 22rpx !important;
+  color: #8890A8 !important;
+  line-height: 1.4 !important;
+  margin-top: 20rpx !important;
+  padding-top: 16rpx !important;
+  border-top: 1rpx dashed #E0E5ED;
+  text-align: left !important;
+}

@@ -1,0 +1,15 @@
+<view class="msg msg-{{role}}">
+  <view class="avatar" wx:if="{{showAvatar}}">
+    <text wx:if="{{role === 'assistant'}}">🧠</text>
+    <text wx:else>👤</text>
+  </view>
+  <view class="bubble-wrap">
+    <text class="msg-author" wx:if="{{role === 'assistant'}}">小事哥</text>
+    <view class="bubble bubble-{{role}}">
+      <text wx:if="{{!loading}}">{{content}}</text>
+      <view class="thinking-dots" wx:else>
+        <view class="t-dot"></view><view class="t-dot"></view><view class="t-dot"></view>
+      </view>
+    </view>
+  </view>
+</view>

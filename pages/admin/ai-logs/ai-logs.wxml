@@ -1,0 +1,22 @@
+<!-- pages/admin/ai-logs -->
+<scroll-view scroll-y class="page" bindscrolltolower="loadMore">
+  <view class="header">📈 AI 调用统计</view>
+  <view class="stat-grid" wx:if="{{stats}}">
+    <view class="stat-card"><text class="s-val">{{stats.totalCalls}}</text><text class="s-label">总调用</text></view>
+    <view class="stat-card"><text class="s-val">{{stats.totalTokens}}</text><text class="s-label">Token</text></view>
+    <view class="stat-card"><text class="s-val">¥{{stats.totalCost}}</text><text class="s-label">估算成本</text></view>
+    <view class="stat-card"><text class="s-val">{{stats.errorRate}}</text><text class="s-label">错误率</text></view>
+  </view>
+  <view class="header">最近调用记录</view>
+  <view class="log-row" wx:for="{{list}}" wx:key="_id">
+    <view class="l-top">
+      <text class="l-action">{{item.action}}</text>
+      <text class="l-tokens">{{item.tokens}} tokens</text>
+    </view>
+    <view class="l-bot">
+      <text class="l-time">{{item.createdAt}}</text>
+      <text class="l-status {{item.success ? 'ok' : 'fail'}}">{{item.success ? '✓' : '✗'}}</text>
+    </view>
+  </view>
+  <view class="total">共 {{total}} 条</view>
+</scroll-view>

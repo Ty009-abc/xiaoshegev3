@@ -1,0 +1,18 @@
+.page{min-height:100vh;background:#0a0a14;padding:24rpx;}
+.search-bar{display:flex;margin-bottom:16rpx;gap:12rpx;}
+.search-input{flex:1;height:72rpx;background:#141428;border-radius:12rpx;padding:0 20rpx;font-size:26rpx;color:#ccc;}
+.search-btn{width:120rpx;height:72rpx;line-height:72rpx;background:#0a84ff;color:#fff;font-size:24rpx;border-radius:12rpx;border:none;padding:0;}
+.search-btn::after{border:none;}
+.filters{display:flex;gap:12rpx;margin-bottom:20rpx;flex-wrap:wrap;}
+.filter-tag{font-size:22rpx;color:#666;background:#141428;padding:8rpx 20rpx;border-radius:16rpx;}
+.filter-tag.active{background:#0a84ff;color:#fff;}
+.user-row{background:#141428;border-radius:12rpx;padding:24rpx;margin-bottom:12rpx;display:flex;justify-content:space-between;align-items:center;}
+.u-info{flex:1;}
+.u-name{display:block;font-size:28rpx;color:#ddd;margin-bottom:4rpx;}
+.u-openid{display:block;font-size:20rpx;color:var(--text-tertiary);}
+.u-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4rpx;}
+.u-cv{font-size:22rpx;color:#f0ad4e;}
+.u-level{font-size:20rpx;padding:2rpx 10rpx;border-radius:8rpx;color:#888;background:#13152a;}
+.u-level.vip_year,.u-level.vip_month{color:#0a84ff;background:rgba(10,132,255,0.1);}
+.u-status.blocked{color:#ff6b6b;}
+.total{text-align:center;color:var(--text-tertiary);font-size:24rpx;padding:24rpx;}

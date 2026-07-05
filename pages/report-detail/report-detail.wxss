@@ -1,0 +1,7 @@
+@import '../../styles/tokens.wxss';
+.page{background:var(--bg-primary);min-height:100vh;padding:var(--sp-24);padding-top:calc(var(--sp-24)+env(safe-area-inset-top));}
+.section-number{font-size:var(--font-caption);color:var(--accent-ai);font-weight:600;margin-bottom:var(--sp-4);}
+.section-label{font-size:var(--font-h3);font-weight:600;color:var(--text-primary);}
+.body{font-size:var(--font-body);color:var(--text-secondary);line-height:1.9;white-space:pre-line;}
+.prob{font-size:var(--font-h1);font-weight:800;color:var(--accent-gold);}
+.final{font-size:var(--font-body);color:var(--accent-gold);font-weight:600;line-height:1.9;white-space:pre-line;font-style:italic;}

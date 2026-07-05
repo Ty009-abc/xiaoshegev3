@@ -1,0 +1,80 @@
+@import '../../styles/tokens.wxss';
+/* ══════════════════════════════════════
+   pages/cognition-daily — 灰白质感
+   ══════════════════════════════════════ */
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8f9fa;
+  padding: 40rpx 32rpx;
+  box-sizing: border-box;
+}
+
+/* ── 展开/收起按钮 ── */
+.toggle-row {
+  text-align: center;
+  margin-top: 32rpx;
+}
+.toggle-btn {
+  font-size: 24rpx;
+  color: #7F56D9;
+  background: #F4F3FF;
+  border-radius: 28rpx;
+  padding: 12rpx 32rpx;
+  border: 1rpx solid #E0D7FE;
+  display: inline-block;
+}
+.toggle-btn::after { border: none; }
+
+/* ── 完成按钮 ── */
+.cta-area {
+  margin-top: 32rpx;
+}
+
+/* ── 完成状态 ── */
+.status-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 60rpx;
+  text-align: center;
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 48rpx 32rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03);
+  border: 1px solid #eaecf0;
+  box-sizing: border-box;
+}
+.status-icon {
+  font-size: 64rpx;
+  display: block;
+}
+.status-title {
+  color: #101828;
+  font-size: 32rpx;
+  font-weight: 700;
+  margin-top: 24rpx;
+}
+.cv-reward {
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+  margin-top: 16rpx;
+}
+.cv-reward.show {
+  opacity: 1;
+  transform: scale(1);
+}
+.cv-plus {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: #7F56D9;
+}
+.status-tips {
+  color: #667085;
+  font-size: 26rpx;
+  margin-top: 12rpx;
+}

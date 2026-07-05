@@ -1,0 +1,10 @@
+@import '../../styles/tokens.wxss';
+.wrap{width:100%;}
+.label-row{display:flex;justify-content:space-between;margin-bottom:var(--sp-8);}
+.label-text{font-size:var(--font-caption);color:var(--text-tertiary);}
+.label-value{font-size:var(--font-caption);color:var(--text-secondary);}
+.bar-bg{height:8rpx;background:#181f33;border-radius:4rpx;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4rpx;transition:width 0.4s var(--ease-out);}
+.fill-gold{background:linear-gradient(90deg,#F5C16C,#D89A3B);box-shadow:0 0 12rpx rgba(245,193,108,0.25);}
+.fill-ai{background:linear-gradient(90deg,#8B5CF6,#4F7DFF);box-shadow:0 0 12rpx rgba(139,92,246,0.3);}
+.fill-blue{background:linear-gradient(90deg,#4F7DFF,#38BDF8);}

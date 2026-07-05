@@ -1,0 +1,16 @@
+<!-- payment-result — 支付成功（金效） -->
+<view class="page page-enter">
+  <view class="result-card {{showAnim ? 'active' : ''}}">
+    <view class="glow-ring"><view class="inner-ring"><text class="r-icon">🎉</text></view></view>
+    <text class="r-title">解锁成功</text>
+    <view class="r-gains">
+      <text class="gain" wx:if="{{reportId}}">📄 AI深度翻身报告</text>
+      <text class="gain">⚡ 认知操作系统完整访问</text>
+    </view>
+  </view>
+  <view class="actions anim-fade-in anim-delay-1">
+    <xsg-button wx:if="{{reportId}}" type="gold" text="立即查看完整报告 →" bind:tapbutton="viewReport" />
+    <xsg-button type="ai" text="去挑战" bind:tapbutton="viewChallenge" />
+    <button class="ghost-btn" bindtap="goHome">返回首页</button>
+  </view>
+</view>

@@ -1,0 +1,13 @@
+@import '../../styles/tokens.wxss';
+/* 默认 — 暗色 */
+.navbar{display:flex;align-items:center;justify-content:center;padding:16rpx 24rpx 12rpx;background:#060817;position:relative;}
+.navbar.transparent{background:transparent;}
+.nav-left{position:absolute;left:24rpx;}
+.back-icon{font-size:36rpx;color:#D0D5E0;padding:8rpx;}
+.nav-title{font-size:34rpx;font-weight:600;color:#FFFFFF;}
+.nav-right{position:absolute;right:24rpx;}
+
+/* Light 模式 — 灰白页 */
+.navbar-light{background:#f2f3f4;border-bottom:1rpx solid #e0e0e0;}
+.navbar-light .back-icon{color:#667085;}
+.navbar-light .nav-title{color:#101828;}

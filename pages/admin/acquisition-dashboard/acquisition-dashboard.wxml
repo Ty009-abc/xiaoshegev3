@@ -1,0 +1,180 @@
+<!-- pages/admin/acquisition-dashboard/acquisition-dashboard.wxml -->
+<xsg-navbar title="获客分析" />
+<xsg-loading wx:if="{{loading}}" text="加载获客数据..." />
+
+<scroll-view wx:else scroll-y class="dashboard-scroll">
+  <!-- Tab 切换 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab==='overview'?'active':''}}" data-tab="overview" bindtap="switchTab">总览</view>
+    <view class="tab-item {{activeTab==='sources'?'active':''}}" data-tab="sources" bindtap="switchTab">渠道</view>
+    <view class="tab-item {{activeTab==='content'?'active':''}}" data-tab="content" bindtap="switchTab">内容ROI</view>
+    <view class="tab-item {{activeTab==='ltv'?'active':''}}" data-tab="ltv" bindtap="switchTab">LTV</view>
+    <view class="tab-item {{activeTab==='optimize'?'active':''}}" data-tab="optimize" bindtap="switchTab">投放</view>
+  </view>
+
+  <!-- ═══════ 总览 ═══════ -->
+  <view wx:if="{{activeTab==='overview'}}" class="tab-content">
+    <!-- KPI 卡片 -->
+    <view wx:if="{{summary}}" class="kpi-grid">
+      <view class="kpi-card">
+        <text class="kpi-value">{{summary.todayNew || 0}}</text>
+        <text class="kpi-label">今日新增</text>
+      </view>
+      <view class="kpi-card">
+        <text class="kpi-value">{{summary.totalAcquired || 0}}</text>
+        <text class="kpi-label">总获客</text>
+      </view>
+      <view class="kpi-card accent-green">
+        <text class="kpi-value">{{summary.overallActivationRate || 0}}%</text>
+        <text class="kpi-label">激活率</text>
+      </view>
+      <view class="kpi-card accent-gold">
+        <text class="kpi-value">{{summary.overallPaidRate || 0}}%</text>
+        <text class="kpi-label">付费转化</text>
+      </view>
+      <view class="kpi-card">
+        <text class="kpi-value">{{summary.averageLtv || 0}}</text>
+        <text class="kpi-label">平均LTV(分)</text>
+      </view>
+      <view class="kpi-card {{summary.healthStatus==='healthy'?'accent-green':'accent-red'}}">
+        <text class="kpi-value">{{summary.ltvCacRatio || 0}}x</text>
+        <text class="kpi-label">LTV/CAC</text>
+      </view>
+    </view>
+
+    <!-- 整体 CAC -->
+    <xsg-card wx:if="{{summary}}" title="📊 整体指标">
+      <view class="metric-row">总投入: {{summary.totalCost || 0}} 分</view>
+      <view class="metric-row">综合CAC: {{summary.overallCAC || 0}} 分</view>
+      <view class="metric-row">健康状态: <text style="color:{{summary.healthStatus==='healthy'?'#2ecc71':'#e74c3c'}}">{{summary.healthStatus==='healthy'?'🟢 健康':'⚠️ 需优化'}}</text></view>
+    </xsg-card>
+
+    <!-- 今日来源 -->
+    <xsg-card wx:if="{{summary.todayBySource}}" title="📥 今日来源">
+      <view wx:for="{{summary.todayBySource}}" wx:key="*this" class="source-row">
+        <text class="source-name">{{index}}</text>
+        <text class="source-count">{{item}} 人</text>
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ 渠道 ═══════ -->
+  <view wx:if="{{activeTab==='sources'}}" class="tab-content">
+    <!-- 渠道质量 -->
+    <xsg-card wx:if="{{sourceQuality.quality}}" title="🏆 渠道质量评分">
+      <view wx:for="{{sourceQuality.quality}}" wx:key="source" class="quality-row">
+        <view class="quality-left">
+          <text class="quality-source">{{item.source}}</text>
+          <text class="quality-grade" style="color:{{getTierColor(item.grade)}}">{{item.grade}}级</text>
+        </view>
+        <xsg-progress percent="{{item.qualityScore}}" />
+        <text class="quality-score">{{item.qualityScore}}分</text>
+      </view>
+      <view class="insight-text">🏅 最佳渠道: {{sourceQuality.bestSource || '--'}}</view>
+    </xsg-card>
+
+    <!-- CAC by Source -->
+    <xsg-card wx:if="{{cacBySource.cacBySource}}" title="💰 CAC 对比">
+      <view wx:for="{{cacBySource.cacBySource}}" wx:key="*this" class="metric-row-compare">
+        <text>{{index}}</text>
+        <text style="color:{{item.status==='within_target'?'#2ecc71':'#e74c3c'}}">{{item.cac}} 分 (目标: {{item.target}})</text>
+        <text>{{item.status==='within_target' ? '✅' : '⚠️'}}</text>
+      </view>
+    </xsg-card>
+
+    <!-- Activation Rate -->
+    <xsg-card wx:if="{{activationBySource.activationBySource}}" title="🚀 激活率">
+      <view wx:for="{{activationBySource.activationBySource}}" wx:key="*this" class="metric-row-compare">
+        <text>{{index}}</text>
+        <text>{{item.activationRate}}% ({{item.activated}}/{{item.acquired}})</text>
+      </view>
+    </xsg-card>
+
+    <!-- Paid Conversion -->
+    <xsg-card wx:if="{{paidConversionBySource.paidConversionBySource}}" title="💳 付费转化率">
+      <view wx:for="{{paidConversionBySource.paidConversionBySource}}" wx:key="*this" class="metric-row-compare">
+        <text>{{index}}</text>
+        <text>{{item.paidConversionRate}}% ({{item.paid}}/{{item.acquired}})</text>
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ 内容 ROI ═══════ -->
+  <view wx:if="{{activeTab==='content'}}" class="tab-content">
+    <!-- 归因报告 -->
+    <xsg-card wx:if="{{attributionReport}}" title="🔍 归因报告">
+      <view class="insight-text">{{attributionReport.insight || '--'}}</view>
+    </xsg-card>
+
+    <!-- Top Content -->
+    <xsg-card wx:if="{{attributionReport.topContent}}" title="🔥 Top 获客内容">
+      <view wx:for="{{attributionReport.topContent}}" wx:for-item="c" wx:for-index="i" wx:key="contentId" class="content-roi-row">
+        <view class="rank-badge rank-{{i+1}}">{{i+1}}</view>
+        <view class="content-meta">
+          <text class="content-id">{{c.contentId}}</text>
+          <text class="content-source">{{c.source}}</text>
+        </view>
+        <text class="content-count">{{c.acquisitions}}人</text>
+      </view>
+    </xsg-card>
+
+    <!-- Content ROI -->
+    <xsg-card wx:if="{{contentROI.contentROI}}" title="💎 内容ROI">
+      <view wx:for="{{contentROI.contentROI}}" wx:for-item="r" wx:key="contentId" class="content-roi-row">
+        <text class="content-id">{{r.contentId}}</text>
+        <view class="content-roi-meta">
+          <text>{{r.users}}人</text>
+          <text>{{r.roiLabel || (r.roi + 'x')}}</text>
+        </view>
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ LTV ═══════ -->
+  <view wx:if="{{activeTab==='ltv'}}" class="tab-content">
+    <!-- LTV by Source -->
+    <xsg-card wx:if="{{ltvBySource.ltvBySource}}" title="💰 LTV 按来源">
+      <view wx:for="{{ltvBySource.ltvBySource}}" wx:key="*this" class="metric-row-compare">
+        <text>{{index}}</text>
+        <text>{{item.averageLtv}} 分</text>
+        <text style="color:{{item.health==='healthy'?'#2ecc71':item.health==='ok'?'#f39c12':'#e74c3c'}}">{{item.ltvCacRatio}}x</text>
+      </view>
+    </xsg-card>
+
+    <!-- LTV Health -->
+    <xsg-card wx:if="{{ltvHealth.health}}" title="🩺 LTV 健康度">
+      <view wx:for="{{ltvHealth.health}}" wx:key="*this" class="health-row">
+        <text>{{index}}</text>
+        <text>{{item.statusIcon}} LTV:{{item.avgLtv}} CAC:{{item.cac}} → {{item.ltvCacRatio}}x</text>
+        <text style="color:{{getHealthColor(item.health)}}">{{item.health}}</text>
+      </view>
+    </xsg-card>
+  </view>
+
+  <!-- ═══════ 投放优化 ═══════ -->
+  <view wx:if="{{activeTab==='optimize'}}" class="tab-content">
+    <!-- Budget Optimizer -->
+    <xsg-card wx:if="{{budgetOptimizer}}" title="🧠 投放优化建议">
+      <view class="insight-text highlight">{{budgetOptimizer.summary || '--'}}</view>
+      <view wx:for="{{budgetOptimizer.recommendations}}" wx:key="source" class="rec-row">
+        <view class="rec-action" style="color:{{getActionColor(item.action)}}">{{getActionLabel(item.action)}}</view>
+        <view class="rec-detail">
+          <text class="rec-source">{{item.source}}</text>
+          <text class="rec-reason">{{item.reason}}</text>
+        </view>
+        <xsg-tag text="{{item.confidence==='high'?'高置信':'中置信'}}" />
+      </view>
+    </xsg-card>
+
+    <!-- High Value Segments -->
+    <xsg-card wx:if="{{highValueSegments}}" title="🎯 高价值人群发现">
+      <view class="insight-text">{{highValueSegments.insight || '--'}}</view>
+      <view wx:if="{{highValueSegments.bestSegment}}" class="metric-row">最佳段位: {{highValueSegments.bestSegment}}</view>
+      <view wx:if="{{highValueSegments.bestSource}}" class="metric-row">最佳来源: {{highValueSegments.bestSource}}</view>
+      <view wx:for="{{highValueSegments.segments}}" wx:key="key" class="seg-row">
+        <text class="seg-key">{{item.key}}</text>
+        <text>{{item.avgLtv}}分 / {{item.paidRate}}% 付费</text>
+      </view>
+    </xsg-card>
+  </view>
+</scroll-view>

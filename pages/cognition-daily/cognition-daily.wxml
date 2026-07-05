@@ -1,0 +1,37 @@
+<!-- cognition-daily — v3.x 布局/色彩修正 -->
+<view class="container">
+  <xsg-navbar title="每日认知暴击" showBack light />
+
+  <!-- 加载中 -->
+  <xsg-loading text="正在加载今日暴击..." wx:if="{{loading}}" />
+
+  <!-- 内容区 -->
+  <block wx:elif="{{insight}}">
+    <insight-card insight="{{insight}}" showAction="{{true}}" expanded="{{expanded}}" bind:expand="onExpand" />
+
+    <!-- 展开/收起 -->
+    <view class="toggle-row" wx:if="{{!completed}}">
+      <button class="toggle-btn" bindtap="{{expanded ? 'onCollapse' : 'onExpand'}}">
+        {{expanded ? '收起推理 ↑' : '查看反方向推理 ↓'}}
+      </button>
+    </view>
+
+    <!-- 完成按钮 -->
+    <view class="cta-area" wx:if="{{expanded && !completed}}">
+      <xsg-button type="primary" text="完成今日行动 · 获得 +3 CV" bind:tapbutton="onComplete" />
+    </view>
+
+    <!-- 完成状态 -->
+    <view class="status-card" wx:if="{{completed}}">
+      <text class="status-icon">✅</text>
+      <text class="status-title">今日认知暴击已完成</text>
+      <view class="cv-reward {{cvAdded ? 'show' : ''}}">
+        <text class="cv-plus">⚡ +3 CV</text>
+      </view>
+      <text class="status-tips">明天再来，持续升级你的认知系统</text>
+    </view>
+  </block>
+
+  <!-- 空态 -->
+  <xsg-empty icon="📅" title="暂无今日暴击" desc="每天一条，帮你重新理解世界" btnText="去首页看看" bind:action="goHome" wx:elif="{{!loading && !insight}}" />
+</view>

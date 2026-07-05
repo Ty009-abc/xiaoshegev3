@@ -1,0 +1,6 @@
+<!-- xsg-button -->
+<button class="btn btn-{{type}} {{size}} {{block ? 'block' : ''}}" 
+  bindtap="onTap" loading="{{loading}}" disabled="{{disabled || loading}}"
+  hover-class="btn-hover">
+  {{text}}<slot />
+</button>

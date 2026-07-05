@@ -1,0 +1,13 @@
+@import '../../styles/tokens.wxss';
+/* xsg-button — 霓虹按钮 */
+.btn{display:flex;align-items:center;justify-content:center;border-radius:var(--radius-full);font-weight:700;color:#fff;border:none;transition:all var(--dur-fast) var(--ease-out);}
+.btn::after{border:none;}
+.btn-primary{background:linear-gradient(135deg,#8B5CF6,#4F7DFF);box-shadow:var(--xsg-glow-purple);}
+.btn-ai{background:linear-gradient(135deg,#8B5CF6,#EC4899);box-shadow:0 0 36rpx rgba(236,72,153,0.35);}
+.btn-gold{background:linear-gradient(135deg,#F5C16C,#D89A3B);}
+.btn-outline{background:transparent;border:1rpx solid rgba(255,255,255,0.08);color:#fff;}
+.btn.block{width:100%;}
+.btn:active{transform:scale(0.97);opacity:0.9;}
+.btn-sm{height:64rpx;font-size:26rpx;padding:0 var(--sp-32);}
+.btn-md{height:80rpx;font-size:30rpx;padding:0 var(--sp-48);}
+.btn-lg{height:96rpx;font-size:34rpx;padding:0 var(--sp-56);}
