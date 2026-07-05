@@ -22,7 +22,7 @@
           <text class="section-badge bg-red">01</text>
           <text class="section-title text-red">致命一句话</text>
         </view>
-        <text class="real-text-content text-red-content" user-select="true">💀 {{reportData.basicInsight || '暂无数据'}}</text>
+        <text class="real-text-content text-red-content {{contentVisible ? 'fade-in' : 'hidden-status'}}" user-select="true">💀 {{reportData.basicInsight || '暂无数据'}}</text>
       </view>
 
       <!-- 02 核心问题 -->
@@ -31,7 +31,7 @@
           <text class="section-badge">02</text>
           <text class="section-title">核心问题</text>
         </view>
-        <text class="real-text-content" user-select="true">{{reportData.mechanism || '暂无数据'}}</text>
+        <text class="real-text-content {{contentVisible ? 'fade-in' : 'hidden-status'}}" user-select="true">{{reportData.mechanism || '暂无数据'}}</text>
       </view>
 
       <!-- 03 系统困局 -->
@@ -40,7 +40,7 @@
           <text class="section-badge">03</text>
           <text class="section-title">系统困局</text>
         </view>
-        <text class="real-text-content" user-select="true">{{reportData.reverseReasoning || '暂无数据'}}</text>
+        <text class="real-text-content {{contentVisible ? 'fade-in' : 'hidden-status'}}" user-select="true">{{reportData.reverseReasoning || '暂无数据'}}</text>
       </view>
 
       <!-- 04 翻身路径 -->
@@ -49,7 +49,7 @@
           <text class="section-badge">04</text>
           <text class="section-title">翻身路径</text>
         </view>
-        <text class="real-text-content" user-select="true">{{reportData.biasCorrection || '暂无数据'}}</text>
+        <text class="real-text-content {{contentVisible ? 'fade-in' : 'hidden-status'}}" user-select="true">{{reportData.biasCorrection || '暂无数据'}}</text>
       </view>
 
       <!-- 05 行动建议 -->
@@ -58,7 +58,7 @@
           <text class="section-badge">05</text>
           <text class="section-title">行动建议</text>
         </view>
-        <text class="real-text-content" user-select="true">{{reportData.actionPlan || '暂无数据'}}</text>
+        <text class="real-text-content {{contentVisible ? 'fade-in' : 'hidden-status'}}" user-select="true">{{reportData.actionPlan || '暂无数据'}}</text>
       </view>
 
     </view>
