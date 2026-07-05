@@ -191,7 +191,7 @@ Page({
     }
   },
 
-  // 获取小程序码（优先云函数，fallback 本地占位）
+  // 获取小程序码（优先云函数，fallback 本地固定码）
   async _fetchQrcode() {
     try {
       const res = await wx.cloud.callFunction({
@@ -202,10 +202,10 @@ Page({
         return res.result.data
       }
     } catch (e) {
-      // 云函数未部署时静默 fallback
       console.warn('[poster] getWxacode cloud function not deployed, using fallback')
     }
-    return ''
+    // fallback: 本地固定小程序码
+    return '/images/qrcode.png'
   },
 
   _getCanvasNode() {
