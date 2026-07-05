@@ -262,17 +262,34 @@ Page({
     this.setData({ posterGenerating: true })
     wx.showLoading({ title: '正在淬炼海报...', mask: true })
 
-    // 从 report 映射到 reportData
+    // 从 report 映射到 reportData（如果 report 为空则保留已有 reportData）
     const r = this.data.report
-    this.setData({
-      reportData: {
-        basicInsight: r?.fatal_sentence || '',
-        mechanism: r?.core_problem || '',
-        reverseReasoning: r?.system_trap || '',
-        biasCorrection: r?.strategy_path || '',
-        actionPlan: (r?.advice || []).join('\n') || '',
-      }
-    })
+    const rd = this.data.reportData
+    if (r) {
+      this.setData({
+        reportData: {
+          basicInsight: r.fatal_sentence || '',
+          mechanism: r.core_problem || '',
+          reverseReasoning: r.system_trap || '',
+          biasCorrection: r.strategy_path || '',
+          actionPlan: (r.advice || []).join('\n') || '',
+        }
+      })
+    }
+    // 二次兜底：确保 reportData 不为空
+    const finalRD = r ? {
+      basicInsight: r?.fatal_sentence || '',
+      mechanism: r?.core_problem || '',
+      reverseReasoning: r?.system_trap || '',
+      biasCorrection: r?.strategy_path || '',
+      actionPlan: (r?.advice || []).join('\n') || '',
+    } : {
+      basicInsight: rd?.basicInsight || '',
+      mechanism: rd?.mechanism || '',
+      reverseReasoning: rd?.reverseReasoning || '',
+      biasCorrection: rd?.biasCorrection || '',
+      actionPlan: rd?.actionPlan || '',
+    }
 
     const query = wx.createSelectorQuery()
     query.select('#posterCanvas')
@@ -312,11 +329,11 @@ Page({
         const contentWidth = 650
 
         const sections = [
-          { label: '⚡ 致命一句话', text: self.data.reportData.basicInsight, color: '#FF453A', isRed: true },
-          { label: '🎯 核心问题', text: self.data.reportData.mechanism, color: '#D0D5E0', isRed: false },
-          { label: '🔍 系统困局', text: self.data.reportData.reverseReasoning, color: '#D0D5E0', isRed: false },
-          { label: '🚀 翻身路径', text: self.data.reportData.biasCorrection, color: '#D0D5E0', isRed: false },
-          { label: '📋 行动建议', text: self.data.reportData.actionPlan, color: '#D0D5E0', isRed: false }
+          { label: '⚡ 致命一句话', text: finalRD.basicInsight, color: '#FF453A', isRed: true },
+          { label: '🎯 核心问题', text: finalRD.mechanism, color: '#D0D5E0', isRed: false },
+          { label: '🔍 系统困局', text: finalRD.reverseReasoning, color: '#D0D5E0', isRed: false },
+          { label: '🚀 翻身路径', text: finalRD.biasCorrection, color: '#D0D5E0', isRed: false },
+          { label: '📋 行动建议', text: finalRD.actionPlan, color: '#D0D5E0', isRed: false }
         ]
 
         sections.forEach(sec => {
