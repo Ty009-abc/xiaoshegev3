@@ -264,32 +264,21 @@ Page({
 
     const ctx = wx.createCanvasContext('posterCanvas', this)
     const W = 750
-    const H = 1334
     const safeX = 40
     const cardW = 670
     const leftW = 112
-    const textStartX = safeX + leftW + 28
+    const textX = safeX + leftW + 28
     const textMaxW = cardW - leftW - 52
-
-    const r = this.data.report
-    const rd = this.data.reportData
-    const getText = (i) => {
-      if (r) {
-        const keys = ['fatal_sentence', 'core_problem', 'system_trap', 'strategy_path']
-        if (i < 4) return r[keys[i]] || ''
-        return (r.advice || []).join('\n') || ''
-      }
-      const keys = ['basicInsight', 'mechanism', 'reverseReasoning', 'biasCorrection', 'actionPlan']
-      return rd?.[keys[i]] || ''
-    }
     const qrPath = this.data.qrcodePath || '/images/qrcode.png'
 
+    const sections = this.data.sections || []
+
     const cards = [
-      { no: '01', icon: '⚡', title: '致命一句话', color: '#ff3b3b', text: getText(0) },
-      { no: '02', icon: '🎯', title: '核心问题',   color: '#8b5cff', text: getText(1) },
-      { no: '03', icon: '🔍', title: '系统困局',   color: '#3b8cff', text: getText(2) },
-      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: getText(3) },
-      { no: '05', icon: '📋', title: '行动建议',   color: '#39d353', text: getText(4) }
+      { no: '01', icon: '⚡', title: '致命一句话', color: '#ff3b3b', text: sections[0]?.text || '' },
+      { no: '02', icon: '🎯', title: '核心问题',   color: '#8b5cff', text: sections[1]?.text || '' },
+      { no: '03', icon: '🔍', title: '系统困局',   color: '#3b8cff', text: sections[2]?.text || '' },
+      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: sections[3]?.text || '' },
+      { no: '05', icon: '📋', title: '行动建议',   color: '#39d353', text: sections[4]?.text || '' }
     ]
 
     function roundRect(x, y, w, h, r) {
@@ -306,15 +295,11 @@ Page({
       ctx.closePath()
     }
 
-    function drawWrappedText(text, x, y, maxWidth, lineHeight, maxLines, color, size) {
-      ctx.setTextAlign('left')
+    function splitLines(text, maxWidth, size) {
       ctx.setFontSize(size)
-      ctx.setFillStyle(color)
-
       const chars = String(text || '').replace(/\n/g, ' ').split('')
       let line = ''
       const lines = []
-
       chars.forEach(ch => {
         const test = line + ch
         if (ctx.measureText(test).width > maxWidth && line) {
@@ -325,14 +310,24 @@ Page({
         }
       })
       if (line) lines.push(line)
+      return lines
+    }
 
-      const final = lines.slice(0, maxLines)
-      if (lines.length > maxLines) {
-        final[maxLines - 1] = final[maxLines - 1].slice(0, -1) + '…'
-      }
+    function splitActionLines(text) {
+      return String(text || '')
+        .replace(/；/g, '；\n')
+        .replace(/。/g, '。\n')
+        .split('\n')
+        .map(s => s.trim())
+        .filter(Boolean)
+    }
 
-      final.forEach((l, i) => {
-        ctx.fillText(l, x, y + i * lineHeight)
+    function drawWrappedLines(lines, x, y, lineHeight, color, size) {
+      ctx.setTextAlign('left')
+      ctx.setFontSize(size)
+      ctx.setFillStyle(color)
+      lines.forEach((line, i) => {
+        ctx.fillText(line, x, y + i * lineHeight)
       })
     }
 
@@ -346,12 +341,37 @@ Page({
       ctx.setGlobalAlpha(1)
     }
 
+    // 预计算每张卡片真实高度
+    cards.forEach((item, index) => {
+      if (index === 4) {
+        const points = splitActionLines(item.text)
+        let totalLines = 0
+        item._points = points.map(p => {
+          const lines = splitLines(p, textMaxW - 30, 22)
+          totalLines += lines.length
+          return lines
+        })
+        item._height = Math.max(220, 90 + totalLines * 28 + points.length * 8 + 30)
+      } else {
+        item._lines = splitLines(item.text, textMaxW, 26)
+        item._height = Math.max(145, 95 + item._lines.length * 34 + 28)
+      }
+    })
+
+    const headerH = 180
+    const gap = 14
+    const cardsH = cards.reduce((sum, item) => sum + item._height, 0) + gap * (cards.length - 1)
+    const ctaH = 150
+    const footerH = 80
+    const H = headerH + cardsH + 60 + ctaH + footerH
+
     // 背景
     ctx.setFillStyle('#050914')
     ctx.fillRect(0, 0, W, H)
+
     drawGlow(160, 120, 220, '#7b3cff', 0.26)
     drawGlow(620, 120, 240, '#ff2d75', 0.18)
-    drawGlow(375, 1120, 300, '#2d6bff', 0.18)
+    drawGlow(375, H - 220, 300, '#2d6bff', 0.18)
 
     // 标题
     ctx.setTextAlign('center')
@@ -370,14 +390,12 @@ Page({
     ctx.lineTo(680, 145)
     ctx.stroke()
 
-    // 内容卡片
+    // 卡片
     let y = 180
 
     cards.forEach((item, index) => {
-      const isLast = index === 4
-      const h = isLast ? 220 : 145
+      const h = item._height
 
-      // 卡片背景
       roundRect(safeX, y, cardW, h, 16)
       ctx.setFillStyle('rgba(8,14,32,0.88)')
       ctx.fill()
@@ -385,7 +403,6 @@ Page({
       ctx.setLineWidth(1.5)
       ctx.stroke()
 
-      // 左侧编号区
       ctx.setGlobalAlpha(0.16)
       ctx.setFillStyle(item.color)
       ctx.fillRect(safeX, y, leftW, h)
@@ -399,38 +416,29 @@ Page({
       ctx.setFontSize(40)
       ctx.fillText(item.icon, safeX + leftW / 2, y + 112)
 
-      // 标题
       ctx.setTextAlign('left')
       ctx.setFontSize(30)
       ctx.setFillStyle(item.color)
-      ctx.fillText(item.icon + ' ' + item.title, textStartX, y + 46)
+      ctx.fillText(item.icon + ' ' + item.title, textX, y + 46)
 
-      // 正文
-      if (isLast) {
-        const points = String(item.text || '')
-          .replace(/。/g, '。\n')
-          .split('\n')
-          .map(s => s.trim())
-          .filter(Boolean)
-          .slice(0, 5)
-
-        points.forEach((p, i) => {
-          const py = y + 82 + i * 27
+      if (index === 4) {
+        let py = y + 86
+        item._points.forEach(lines => {
           ctx.setFontSize(22)
           ctx.setFillStyle('#39d353')
-          ctx.fillText('•', textStartX, py)
-          drawWrappedText(p, textStartX + 22, py, textMaxW - 22, 26, 1, '#eaf0ff', 22)
+          ctx.fillText('•', textX, py)
+          drawWrappedLines(lines, textX + 24, py, 28, '#eaf0ff', 22)
+          py += lines.length * 28 + 8
         })
       } else {
-        drawWrappedText(item.text, textStartX, y + 84, textMaxW, 32, 2, '#eaf0ff', 26)
+        drawWrappedLines(item._lines, textX, y + 86, 34, '#eaf0ff', 26)
       }
 
-      y += h + 14
+      y += h + gap
     })
 
-    // 底部 CTA 区
-    const ctaY = 1120
-    const ctaH = 150
+    // CTA
+    const ctaY = y + 48
 
     roundRect(safeX, ctaY, cardW, ctaH, 24)
     ctx.setFillStyle('rgba(10,12,40,0.94)')
@@ -439,13 +447,11 @@ Page({
     ctx.setLineWidth(2)
     ctx.stroke()
 
-    // 二维码底座
     roundRect(safeX + 20, ctaY + 20, 110, 110, 18)
     ctx.setFillStyle('#ffffff')
     ctx.fill()
     ctx.drawImage(qrPath, safeX + 28, ctaY + 28, 94, 94)
 
-    // CTA 文字
     ctx.setTextAlign('left')
     ctx.setFontSize(34)
     ctx.setFillStyle('#ff45c8')
@@ -474,16 +480,18 @@ Page({
     ctx.setTextAlign('center')
     ctx.setFontSize(22)
     ctx.setFillStyle('#7b6dff')
-    ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, 1310)
+    ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, H - 30)
 
     const self = this
     ctx.draw(false, () => {
       wx.canvasToTempFilePath({
         canvasId: 'posterCanvas',
-        width: 750,
-        height: 1334,
-        destWidth: 1500,
-        destHeight: 2668,
+        x: 0,
+        y: 0,
+        width: W,
+        height: H,
+        destWidth: W * 2,
+        destHeight: H * 2,
         success: res => {
           self.setData({
             posterPath: res.tempFilePath,
