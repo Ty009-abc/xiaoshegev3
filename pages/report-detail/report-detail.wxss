@@ -1,9 +1,9 @@
-/* report-detail — Progressive Reveal 暗黑质感 */
+/* report-detail — Progressive Reveal + Poster Share 暗黑质感 */
 
 .page {
   background: #121620;
   min-height: 100vh;
-  padding: 0 0 60rpx;
+  padding-bottom: 60rpx;
 }
 
 /* ═══ 报告板块容器 ═══ */
@@ -50,9 +50,7 @@
 .text-red { color: #FF453A !important; }
 
 /* ═══ 正文 ═══ */
-.section-body {
-  min-height: 60rpx;
-}
+.section-body { min-height: 60rpx; }
 
 .real-text {
   font-size: 26rpx;
@@ -73,19 +71,10 @@
   gap: 8rpx;
   padding: 8rpx 0;
 }
-.typing-text {
-  font-size: 26rpx;
-  color: #6E758A;
-}
-.typing-dots {
-  display: flex;
-  gap: 6rpx;
-  align-items: center;
-}
+.typing-text { font-size: 26rpx; color: #6E758A; }
+.typing-dots { display: flex; gap: 6rpx; align-items: center; }
 .td-dot {
-  width: 8rpx;
-  height: 8rpx;
-  border-radius: 50%;
+  width: 8rpx; height: 8rpx; border-radius: 50%;
   background: #A78BFA;
   animation: dotBounce 1.2s infinite;
 }
@@ -106,20 +95,70 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ═══ 合规 ═══ */
+/* ═══ 底部操作区 ═══ */
+.bottom-bar {
+  padding: 0 32rpx 48rpx;
+}
+
 .compliance-tips {
   font-size: 22rpx;
   color: #6E758A;
   text-align: center;
-  padding: 40rpx 32rpx 20rpx;
+  padding: 40rpx 0 32rpx;
 }
 
-/* ═══ 底部按钮 ═══ */
-.action-row {
+/* ── 双按钮行 ── */
+.action-buttons {
   display: flex;
-  justify-content: center;
-  padding: 16rpx 32rpx 48rpx;
+  flex-direction: column;
+  gap: 20rpx;
+  padding: 0 16rpx 32rpx;
 }
+
+/* 紫蓝渐变发光：保存海报 */
+.btn-save-poster {
+  width: 100%;
+  height: 96rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #7B57FF 0%, #5E45E0 50%, #3B82F6 100%);
+  box-shadow: 0 8rpx 32rpx rgba(123, 87, 255, 0.35), 0 0 60rpx rgba(59, 130, 246, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 2rpx;
+}
+.btn-save-poster::after { border: none; }
+.btn-save-poster:active {
+  opacity: 0.85;
+  transform: scale(0.97);
+}
+
+/* 透明玻璃描边：分享好友 */
+.btn-share {
+  width: 100%;
+  height: 88rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #A78BFA;
+  background: rgba(123, 87, 255, 0.08);
+  border: 2rpx solid rgba(123, 87, 255, 0.25);
+  backdrop-filter: blur(12rpx);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 2rpx;
+}
+.btn-share::after { border: none; }
+.btn-share:active {
+  background: rgba(123, 87, 255, 0.15);
+  border-color: rgba(123, 87, 255, 0.4);
+}
+
+/* ── 重做诊断 ── */
 .btn-retry {
   width: 320rpx;
   height: 80rpx;
@@ -131,5 +170,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0 auto;
 }
 .btn-retry::after { border: none; }

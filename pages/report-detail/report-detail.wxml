@@ -1,4 +1,4 @@
-<!-- report-detail — Progressive Reveal Mode v3.17 -->
+<!-- report-detail — Progressive Reveal + Poster Share Mode v3.18 -->
 <view class="page">
   <xsg-navbar title="认知翻身报告" showBack light />
 
@@ -11,7 +11,6 @@
           <text class="section-title {{item.key === 'fatal' ? 'text-red' : ''}}">{{item.label}}</text>
         </view>
 
-        <!-- 正文区：loading 动画 or 已揭晓内容 -->
         <view class="section-body">
           <block wx:if="{{loading}}">
             <view class="loading-typing">
@@ -39,12 +38,23 @@
     </block>
   </view>
 
-  <!-- ═══ 底部 ═══ -->
-  <view class="compliance-tips" wx:if="{{!loading}}">
-    系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出！
-  </view>
+  <!-- ═══ 底部操作区 ═══ -->
+  <view class="bottom-bar" wx:if="{{!loading}}">
+    <view class="compliance-tips">
+      系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出！
+    </view>
 
-  <view class="action-row" wx:if="{{!loading}}">
+    <!-- 操作按钮 -->
+    <view class="action-buttons">
+      <button class="btn-save-poster" bindtap="generatePoster" loading="{{posterGenerating}}">
+        {{posterGenerating ? '淬炼中...' : '保存海报'}}
+      </button>
+      <button class="btn-share" open-type="share">分享好友</button>
+    </view>
+
     <button class="btn-retry" bindtap="onRetry">重做诊断</button>
   </view>
+
+  <!-- ═══ Canvas 海报（隐藏） ═══ -->
+  <canvas type="2d" id="posterCanvas" style="position:fixed;left:-9999px;top:-9999px;width:750px;height:2000px;"></canvas>
 </view>
