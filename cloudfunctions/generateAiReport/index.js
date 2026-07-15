@@ -272,9 +272,10 @@ exports.main = async (event, context) => {
     if (isVip) {
       return ok({
         reportId,
+        reportType: 'challenge_final',
         isPaid: true,
         locked: false,
-        ...parsedReport,
+        content: parsedReport,
       })
     }
 

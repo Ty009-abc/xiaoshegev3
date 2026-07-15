@@ -61,9 +61,73 @@ Page({
   },
 
   /* 从 report 对象同步到 reportData（WXML 统一绑定） */
+
+  /* ═══ challenge_final 专用适配器 ═══ */
+  normalizeChallengeFinalReport(raw) {
+    const c = raw.content || raw;
+    const missing = [];
+    const pick = (key) => {
+      if (c[key] !== undefined && c[key] !== null) return c[key];
+      missing.push(key); return '';
+    };
+    const thirtyDay = c.thirtyDayActions;
+    let actionAdvice = '';
+    if (Array.isArray(thirtyDay)) {
+      actionAdvice = thirtyDay.map(function(a) {
+        return typeof a === 'object' ? (a.text || a.action || JSON.stringify(a)) : String(a);
+      }).join('\n');
+    } else if (typeof thirtyDay === 'string') {
+      actionAdvice = thirtyDay;
+    }
+    const result = {
+      basicInsight:     pick('oneSentence'),
+      systemTrap:       pick('whyNotRich'),
+      coreProblem:      pick('biggestCognitiveGap'),
+      turnaroundPath:   pick('bestPath'),
+      actionAdvice:     actionAdvice || pick('thirtyDayActions'),
+      fatalSentence:    pick('finalStrike'),
+      worldModelType:   pick('worldModelType'),
+      turnaroundProbability: c.turnaroundProbability !== undefined ? c.turnaroundProbability : 0,
+      threeYearRisk:    pick('threeYearRisk'),
+      _missingFields: missing,
+      _reportType: 'challenge_final',
+    };
+    if (missing.length) {
+      console.error('[CONTRACT_MISSING_FIELDS] challenge_final:', missing);
+    }
+    return result;
+  },
+
+  /* 从 report 对象同步到 reportData（WXML 统一绑定） */
   _syncReportToReportData() {
-    const r = this.data.report
-    if (!r) return
+    const r = this.data.report;
+    if (!r) return;
+    const rt = r.reportType || r.type || '';
+
+    if (rt === 'challenge_final') {
+      const n = this.normalizeChallengeFinalReport(r);
+      this.setData({
+        reportData: {
+          basicInsight: n.basicInsight,
+          mechanism: n.systemTrap,
+          reverseReasoning: n.coreProblem,
+          biasCorrection: n.turnaroundPath,
+          actionPlan: n.actionAdvice,
+        },
+        _cfMeta: {
+          worldModelType: n.worldModelType,
+          turnaroundProbability: n.turnaroundProbability,
+          threeYearRisk: n.threeYearRisk,
+        },
+      });
+      if (n._missingFields && n._missingFields.length) {
+        console.error('[CONTRACT_MISSING_FIELDS] challenge_final:', n._missingFields);
+        wx.showToast({ title: '报告数据解析异常，请重新生成', icon: 'none', duration: 3000 });
+      }
+      return;
+    }
+
+    // diagnostic / legacy
     this.setData({
       reportData: {
         basicInsight: r.position || r.fatal_sentence || r.trapped_by || '',
@@ -73,7 +137,7 @@ Page({
         actionPlan: (Array.isArray(r.next90days) ? r.next90days :
                       Array.isArray(r.advice) ? r.advice : []).join('\n') || '',
       }
-    })
+    });
   },
 
   /* 四重保险：全局变量 / URL传参 / localStorage / 扩展兼容字段 */
@@ -255,7 +319,8 @@ Page({
         const r = await aiReportService.generateAiReport('challenge_final', this.data.recordId)
         if (resolved) return
         if (r.code === 0) {
-          this.setData({ report: r.data, locked: r.data.locked !== undefined ? r.data.locked : false })
+          this.setData({ report: r.data, locked: r.data.locked !== undefined ? r.data.locked : false });
+          this._syncReportToReportData()
         } else {
           console.error('[report-preview] 生成报告失败:', r.message)
           this.setData({ report: null })
