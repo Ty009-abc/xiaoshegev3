@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "xsg-empty": "/components/xsg-empty/xsg-empty",
+    "xsg-loading": "/components/xsg-loading/xsg-loading"
+  }
+}

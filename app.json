@@ -98,5 +98,14 @@
     "ai-thinking": "/components/ai-thinking/ai-thinking",
     "ai-generating": "/components/ai-generating/ai-generating",
     "level-up-modal": "/components/level-up-modal/level-up-modal"
-  }
+  },
+  "subPackages": [
+    {
+      "root": "subpkg-ai",
+      "name": "ai",
+      "pages": [
+        "cognitive-shock-detail/cognitive-shock-detail"
+      ]
+    }
+  ]
 }

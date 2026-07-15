@@ -175,42 +175,5 @@
     <view class="version" bindtap="onTapVersion">v3.7 · 认知操作系统</view>
   </view>
 
-  <!-- ═══════════════════════════════════════
-     认知暴击 Modal
-     ═══════════════════════════════════════ -->
-  <view class="strike-overlay" wx:if="{{strikeModalVisible}}" bindtap="onStrikeClose"></view>
-  <view class="strike-modal {{strikeModalVisible ? 'strike-enter' : ''}}" wx:if="{{strikeModalVisible}}">
-    <view class="strike-header">
-      <text class="strike-date-tag">🔖 #{{strikeData.id}}</text>
-      <text class="strike-title-text">{{strikeData.title}}</text>
-    </view>
-    <text class="strike-subtitle-text">{{strikeData.subtitle}}</text>
-    <view class="slayer layer-visible">
-      <view class="slayer-badge slayer-badge-1">第一层 · 认知暴击</view>
-      <text class="slayer-content slayer-strike">{{strikeData.core_strike}}</text>
-    </view>
-    <view class="slayer {{strikeLayer >= 2 ? 'layer-visible' : ''}}">
-      <view class="slayer-badge slayer-badge-2">第二层 · 底层逻辑拆解</view>
-      <text class="slayer-content">{{strikeData.logic_dissection}}</text>
-    </view>
-    <view class="slayer {{strikeLayer >= 3 ? 'layer-visible' : ''}}">
-      <view class="slayer-badge slayer-badge-3">第三层 · 反方向推理</view>
-      <text class="slayer-content">{{strikeData.reverse_inference}}</text>
-    </view>
-    <view class="slayer {{strikeLayer >= 4 ? 'layer-visible' : ''}}">
-      <view class="slayer-badge slayer-badge-4">第四层 · 翻身行动建议</view>
-      <text class="slayer-content">{{strikeData.action_advice}}</text>
-    </view>
-    <view class="unfold-btn-row" wx:if="{{strikeLayer < 4}}">
-      <view class="unfold-btn" bindtap="onUnfoldNext">
-        <text class="unfold-text">{{unfoldBtnText}}</text>
-      </view>
-    </view>
-    <view class="strike-actions" wx:if="{{strikeLayer >= 4}}">
-      <view class="sa-btn sa-btn-close" bindtap="onStrikeClose">✕ 认命闭眼</view>
-      <view class="sa-btn sa-btn-collect" bindtap="onStrikeCollect">⭐ 收藏/分享</view>
-      <view class="sa-btn sa-btn-go" bindtap="onStrikeGo">⚡ 开启我的破局推演</view>
-    </view>
-  </view>
-
+</view>
 </view>

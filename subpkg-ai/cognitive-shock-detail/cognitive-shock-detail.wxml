@@ -1,0 +1,85 @@
+<!-- cognitive-shock-detail v1.0 — 独立详情页 -->
+<view class="page">
+  <!-- 自定义导航栏 — 浅色极简 -->
+  <view class="custom-navbar" style="height:{{totalNavHeight}}px;">
+    <view class="navbar-inner" style="padding-top:{{statusBarHeight}}px;">
+      <view class="nav-left" bindtap="onBack">
+        <text class="back-icon">←</text>
+      </view>
+      <text class="nav-title">今日认知暴击</text>
+      <view class="nav-placeholder"></view>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <xsg-loading text="正在加载..." wx:if="{{loading}}" />
+
+  <block wx:elif="{{strike}}">
+    <!-- ═══ 头部 ═══ -->
+    <view class="detail-header">
+      <view class="dh-top">
+        <text class="dh-date">#{{displayDate}}</text>
+        <text class="dh-badge">💥 今日认知暴击</text>
+      </view>
+      <text class="dh-subtitle">{{strike.subtitle}}</text>
+    </view>
+
+    <!-- ═══ 第一层：核心暴击 ═══ -->
+    <view class="shock-card shock-card--core">
+      <view class="sc-label">💥 认知暴击</view>
+      <view class="sc-content sc-content--core">{{strike.core_strike}}</view>
+    </view>
+
+    <!-- ═══ 第二层：底层逻辑 ═══ -->
+    <view class="shock-card shock-card--logic" wx:if="{{strike.logic_dissection}}">
+      <view class="sc-label">🔍 底层逻辑拆解</view>
+      <view class="sc-content">{{strike.logic_dissection}}</view>
+    </view>
+
+    <!-- ═══ 第三层：反方向推理 ═══ -->
+    <view class="shock-card shock-card--reverse" wx:if="{{strike.reverse_inference}}">
+      <view class="sc-label">↔ 反方向推理</view>
+      <view class="sc-content">{{strike.reverse_inference}}</view>
+    </view>
+
+    <!-- ═══ 第四层：翻身行动建议 ═══ -->
+    <view class="shock-card shock-card--action" wx:if="{{strike.action_advice}}">
+      <view class="sc-label">🎯 翻身行动建议</view>
+      <view class="sc-content">{{strike.action_advice}}</view>
+    </view>
+
+    <!-- ═══ 维度标签 ═══ -->
+    <view class="dimensions" wx:if="{{strike.dimensions && strike.dimensions.length}}">
+      <view class="dim-tag" wx:for="{{strike.dimensions}}" wx:key="*this" wx:for-item="dim">{{dim}}</view>
+    </view>
+
+    <!-- ═══ 底部操作栏 ═══ -->
+    <view class="action-bar">
+      <button class="ab-btn ab-btn--collect" bindtap="onCollect">
+        <text>{{isCollected ? '⭐ 已收藏' : '☆ 收藏/分享'}}</text>
+      </button>
+      <button class="ab-btn ab-btn--poster" bindtap="onSaveShockPoster" loading="{{posterGenerating}}" disabled="{{posterGenerating}}">
+        <text>{{posterGenerating ? '生成中' : '💾 保存海报'}}</text>
+      </button>
+      <button class="ab-btn ab-btn--go" bindtap="onGo">
+        <text>⚡ 开启破局推演</text>
+      </button>
+    </view>
+  </block>
+
+  <!-- 空状态 -->
+  <xsg-empty wx:elif="{{!loading}}" icon="💥" title="今日暴击未生成" desc="请稍后再试" />
+</view>
+
+<!-- ═══ 海报遮罩 — 页面根级，z-index 2000 ═══ -->
+<view class="poster-backdrop {{showPoster ? 'show' : ''}}" catchtap="onClosePoster" catchtouchmove="preventMove">
+  <image src="{{posterPath}}" mode="widthFix" class="poster-image" show-menu-by-longpress wx:if="{{posterPath}}" />
+  <view class="poster-actions-fab" wx:if="{{posterPath}}">
+    <button class="pa-btn pa-close" catchtap="onClosePoster">← 返回</button>
+    <button class="pa-btn pa-save" catchtap="onSaveToAlbum">保存到相册</button>
+    <button class="pa-btn pa-share" open-type="share">转发给朋友</button>
+  </view>
+</view>
+
+<!-- 隐藏 Canvas -->
+<canvas canvas-id="posterCanvas" style="width:750px;height:{{posterHeight}}px;position:fixed;left:-9999px;top:-9999px;" />

@@ -12,12 +12,6 @@ Page({
     cvPercent: 0, streak: 0, streakLost: false, adminTapCount: 0, adminTimer: null,
     daysSinceLastVisit: 0, showReturnNudge: false,
     showFreeValue: false,
-
-    // ═══ 暴击 Modal ═══
-    strikeModalVisible: false,
-    strikeData: {},
-    strikeLayer: 0,
-    unfoldBtnText: '↓ 剥开底层逻辑',
   },
   onShow() {
     this.loadAll()
@@ -83,62 +77,16 @@ Page({
   },
 
   // ════════════════════════════════════════
-  //  每日认知暴击 — 日期锚定 + 4层递进展开
+  //  每日认知暴击 — navigateTo 独立详情页
   // ════════════════════════════════════════
 
   onStrikeTap() {
     analytics.track('strike_tap')
     const strike = getTodayStrike()
-    this.setData({
-      strikeData: strike,
-      strikeLayer: 1,
-      unfoldBtnText: '↓ 剥开底层逻辑',
-      strikeModalVisible: true,
+    const id = strike.id || ''
+    wx.navigateTo({
+      url: `/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail?id=${id}`
     })
-  },
-
-  onUnfoldNext() {
-    const current = this.data.strikeLayer
-    if (current >= 4) return
-    const next = current + 1
-    const btnMap = { 2: '↓ 启动逆向推演', 3: '↓ 提取翻身建议' }
-    this.setData({ strikeLayer: next, unfoldBtnText: btnMap[next] || '' })
-  },
-
-  onStrikeClose() {
-    this.setData({ strikeModalVisible: false, strikeLayer: 0 })
-  },
-
-  onStrikeCollect() {
-    const s = this.data.strikeData
-    wx.showActionSheet({
-      itemList: ['收藏到本地', '分享给朋友'],
-      success(res) {
-        if (res.tapIndex === 0) {
-          try {
-            const saved = wx.getStorageSync('strike_collection') || []
-            if (!saved.find(item => item.id === s.id)) {
-              saved.unshift({ id: s.id, title: s.core_strike, time: new Date().toISOString() })
-              wx.setStorageSync('strike_collection', saved.slice(0, 50))
-            }
-            wx.showToast({ title: '已收藏 ⭐', icon: 'success' })
-          } catch (e) { wx.showToast({ title: '收藏失败', icon: 'none' }) }
-        } else {
-          wx.showToast({ title: '请点击右上角分享', icon: 'none', duration: 2000 })
-        }
-      },
-    })
-  },
-
-  onStrikeGo() {
-    const strike = this.data.strikeData
-    const personality = getRandomPersonality()
-    analytics.track('strike_go', { id: strike.id, personality: personality.name })
-    this.setData({ strikeModalVisible: false, strikeLayer: 0 })
-    // 注入暴击内容 + 人格 → AI 对话
-    app.globalData._quickAskTopic = strike.core_strike
-    app.globalData._quickAskPersonality = personality
-    wx.switchTab({ url: '/pages/ai-chat/ai-chat' })
   },
 
   // ═══ 其他 ═══
@@ -159,8 +107,8 @@ Page({
   },
 
   onShareAppMessage() {
-    const s = this.data.strikeData
-    const tip = s.core_strike ? `💥 ${s.core_strike.substring(0, 30)}...` : '用底层逻辑探索你的认知密码'
+    const strike = getTodayStrike()
+    const tip = strike.core_strike ? `💥 ${strike.core_strike.substring(0, 30)}...` : '用底层逻辑探索你的认知密码'
     return { title: tip, path: '/pages/splash/splash' }
   },
 })

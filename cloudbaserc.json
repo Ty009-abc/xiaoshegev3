@@ -399,6 +399,20 @@
         "EMBEDDING_MODEL": "deepseek-embedding",
         "EMBEDDING_API_BASE": "https://api.deepseek.com/v1"
       }
+    },
+    {
+      "name": "restoreWorldRules",
+      "runtime": "Nodejs18.15",
+      "timeout": 60,
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "getUnlimitedQR",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false
     }
   ]
 }
