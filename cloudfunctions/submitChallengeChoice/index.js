@@ -150,6 +150,9 @@ exports.main = async (event, context) => {
       currentEventIndex: newIndex,
       isLast,
       status: isLast ? 'finished' : 'processing',
+      scoringVersion: SCORING_VERSION,
+      rawScores,
+      scores,
       ...(isLast ? { finalType: updateData.finalType } : {}),
       progress: { current: isLast ? totalEvents : newIndex, total: totalEvents },
     })

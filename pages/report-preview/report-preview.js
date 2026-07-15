@@ -106,6 +106,11 @@ Page({
 
     if (rt === 'challenge_final') {
       const n = this.normalizeChallengeFinalReport(r);
+      console.log('[ChallengeReportPreviewSync]', {
+        reportType: rt,
+        normalizedKeys: Object.keys(n),
+        missingFields: n._missingFields || [],
+      })
       this.setData({
         reportData: {
           basicInsight: n.basicInsight,
@@ -319,7 +324,15 @@ Page({
         const r = await aiReportService.generateAiReport('challenge_final', this.data.recordId)
         if (resolved) return
         if (r.code === 0) {
-          this.setData({ report: r.data, locked: r.data.locked !== undefined ? r.data.locked : false });
+          const report = r.data || {}
+          console.log('[ChallengeReportPreview]', {
+            reportType: report.reportType || 'n/a',
+            rawKeys: Object.keys(report),
+            contentKeys: report.content ? Object.keys(report.content) : 'n/a',
+            hasReportType: !!report.reportType,
+            hasContent: !!report.content,
+          })
+          this.setData({ report: report, locked: report.locked !== undefined ? report.locked : false });
           this._syncReportToReportData()
         } else {
           console.error('[report-preview] 生成报告失败:', r.message)

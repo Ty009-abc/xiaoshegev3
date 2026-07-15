@@ -27,7 +27,7 @@
 
   <!-- 互动面板 -->
   <view class="action-panel">
-    <button class="btn-lock-in" bindtap="startChallenge" loading="{{loading}}">立即解锁今日挑战</button>
+    <button class="btn-lock-in" bindtap="onStartChallenge" loading="{{loading}}">立即解锁今日挑战</button>
     <view class="action-tips">已有 12,450 人通过此项挑战</view>
     <view class="action-sub">全程约5-10分钟 · 建议认真作答</view>
   </view>

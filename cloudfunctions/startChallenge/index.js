@@ -90,6 +90,8 @@ exports.main = async (event, context) => {
       currentEventIndex: 0,
       trialMode,
       mode: isDiagnostic ? 'diagnostic' : 'challenge',
+      scoringVersion: 'normalized_v2',
+      rawScores: { ...DEFAULT_INIT },
       ...(trialMode ? { trialLimit: 3 } : {}),
     })
   } catch (err) {

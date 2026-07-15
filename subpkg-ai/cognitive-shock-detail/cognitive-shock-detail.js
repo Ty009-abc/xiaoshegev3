@@ -84,10 +84,12 @@ const pageConfig = {
         page: 'subpkg-ai/cognitive-shock-detail/cognitive-shock-detail',
       },
       success: (res) => {
-        console.log('[ShockQR] cloud:success resultKeys=' + (res.result ? Object.keys(res.result).join(',') : 'none'))
         const result = res.result || {}
-        // 正确路径：result.code===0 → result.data.fileID
+        console.log('[ShockQR] cloud:result code=' + result.code)
+        console.log('[ShockQR] stage=' + (result.stage || 'N/A'))
+        console.log('[ShockQR] errCode=' + (result.errCode || 'N/A'))
         const fileID = (result.data && result.data.fileID) || result.fileID || ''
+        console.log('[ShockQR] fileID=' + (fileID || '(empty)'))
         if (fileID) {
           console.log('[ShockQR] fileID:' + fileID)
           wx.cloud.downloadFile({
@@ -196,6 +198,7 @@ const pageConfig = {
 
   _doGeneratePoster() {
     console.log('[ShockPoster] qrPath:' + (this.data.qrPath ? this.data.qrPath.substring(0, 40) : '(empty)'))
+    console.log('[ShockPoster] qrStatus:' + this.data.qrStatus)
     this.setData({ strikeData: this.data.strike })
     this._neonShockPoster.call(this)
   },

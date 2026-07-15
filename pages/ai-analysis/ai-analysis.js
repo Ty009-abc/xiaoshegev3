@@ -67,20 +67,20 @@ Page({
 
   // ═══ 生命周期 ═══
   onLoad: function (options) {
-    const source = options.source || 'challenge';
+    const source = options.source || '';
 
-    // 从全局状态读取九维思维埋点数据
-    const scores = app.globalData._challengeScores || null;
-    const userLevel = app.globalData._userLevel || 'Lv.1 困局打工人';
-    const cvTotal = app.globalData._cvTotal || 100;
-
-    this.setData({ scores, userLevel, cvTotal });
-
-    if (!scores) {
-      // 无数据：展示空态
-      this.setData({ status: 'empty' });
-      return;
+    // LEGACY_RETIRED — challenge_final 报告统一由 report-preview 处理
+    if (source === 'challenge' || options.reportType === 'challenge_final') {
+      wx.redirectTo({
+        url: '/pages/report-preview/report-preview?reportType=challenge_final'
+      })
+      return
     }
+
+    // LEGACY_RETIRED — _challengeScores 已退役，报告由 report-preview 处理
+    // 此页面不再有 challenge_final 报告入口
+    this.setData({ status: 'empty' });
+    return;
 
     // ★ 骨架已通过 data.sections 在页面中默认渲染（全部 loading:true）
     // 此时 WXML 中 5 大标题卡片已经可见，正文为骨架屏

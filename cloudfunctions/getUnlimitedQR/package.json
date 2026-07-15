@@ -1,8 +1,8 @@
 {
   "name": "getUnlimitedQR",
-  "description": "生成认知暴击小程序码（WXA Code Unlimited）",
-  "runtime": "Nodejs18.15",
-  "timeout": 15,
-  "handler": "index.main",
-  "installDependency": false
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
 }

@@ -80,6 +80,14 @@ Page({
     try {
       const r = await challengeService.submitChallengeChoice(this.data.recordId, this.data.event.eventId, this.data.selectedKey)
       if (r.code === 0) {
+        console.log('[ChallengeV2Choice]', {
+          day: this.data.event.day,
+          eventId: this.data.event.eventId,
+          choiceKey: this.data.selectedKey,
+          scoringVersion: r.data.scoringVersion || 'n/a',
+          rawScores: r.data.rawScores || 'n/a',
+          scores: r.data.scores || 'n/a',
+        })
         if (r.data.isLast) {
           setTimeout(() => {
             if (this.data.mode === 'diagnostic') {

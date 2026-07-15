@@ -7,8 +7,8 @@ function call(name, data) {
   return wx.cloud.callFunction({ name, data }).then(r => r.result)
 }
 
-function startChallenge() {
-  return call('startChallenge', {})
+function startChallenge(data) {
+  return call('startChallenge', data || {})
 }
 
 function getChallengeEvent(recordId) {

@@ -412,7 +412,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 15,
       "handler": "index.main",
-      "installDependency": false
+      "installDependency": true
     }
   ]
 }
