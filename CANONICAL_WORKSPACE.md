@@ -64,6 +64,10 @@ CHANGE_SCOPE
 DIRECT_FILES / DIRECT_FUNCTIONS / CALLERS / CALLEES / ROUTES / CLOUD_FUNCTIONS / DATABASE_COLLECTIONS / SHARED_COMPONENTS / POSSIBLE_REGRESSIONS
 ```
 
+## Daily Baselines
+
+- [DAILY_BASELINE_20260716.md](./DAILY_BASELINE_20260716.md) — TAG: v3-20260716-daily-baseline, HEAD: 14b8a32
+
 ## 核心回归矩阵
 
 每次 P0 修改后至少验证受影响模块：
@@ -77,7 +81,12 @@ DIRECT_FILES / DIRECT_FUNCTIONS / CALLERS / CALLEES / ROUTES / CLOUD_FUNCTIONS /
 
 ## 数据库保护
 
-永久保护集合：world_rules / challenge_events / users / memberships / ai_reports / challenge_records
+永久保护集合：world_rules (280) / challenge_events (30) / users / memberships / ai_reports / challenge_records
+
+CURRENT STATUS:
+- world_rules: 280 ✅
+- challenge_events: 30 ✅
+- challenge_records: created, count=0 (空集合，待首次写入)
 
 任何涉及这些集合的修改必须：dryRun → backup → count before → 执行 → count after
 

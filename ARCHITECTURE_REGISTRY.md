@@ -67,6 +67,17 @@ DATA:            memberships / users
 PERMISSION:      cloudfunctions/checkPermission
 ```
 
+## CLOUD FUNCTION BASELINE (2026-07-16)
+
+| Function | Deploy Status | installDependency | package.json |
+|---|---|---|---|
+| startChallenge | ✅ deployed | true | wx-server-sdk: latest |
+| getChallengeEvent | ✅ deployed | true | wx-server-sdk: latest |
+| submitChallengeChoice | ✅ deployed | true | wx-server-sdk: latest |
+| getChallengeRecord | ✅ deployed | true | wx-server-sdk: latest |
+| generateAiReport | ✅ deployed | true | wx-server-sdk: ~2.6.3 |
+| ensureChallengeCollections | ✅ deployed | true | wx-server-sdk: latest |
+
 ## CLOUD FUNCTIONS REGISTRY
 
 | Function | Status | Depends On |
@@ -75,6 +86,7 @@ PERMISSION:      cloudfunctions/checkPermission
 | getChallengeEvent | ACTIVE | challenge_records, challenge_events |
 | submitChallengeChoice | ACTIVE | challenge_records, challenge_events, lib/scoring.js |
 | generateAiReport | ACTIVE | challenge_records, ai_reports, lib/ai.js, lib/turnaroundEngine.js, lib/scoring.js |
+| ensureChallengeCollections | ACTIVE | (collection admin) |
 | getWorldRules | ACTIVE | world_rules |
 | getWorldRuleDetail | ACTIVE | world_rules |
 | getUnlimitedQR | ACTIVE | wxacode.getUnlimited, cloud.uploadFile |
