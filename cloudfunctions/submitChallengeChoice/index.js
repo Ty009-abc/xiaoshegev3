@@ -4,12 +4,13 @@
  *
  * 核心:
  *   1. 查询 record + event + choice
- *   2. effects 增量合并到 scores（钳位 0-100）
- *   3. tags 合并去重
- *   4. choices 追加记录
- *   5. currentEventIndex + 1
- *   6. 最后一道 → status=finished → 计算 finalType
- *   7. 同步更新 user_profiles
+ *   2. rawScores 不钳位累加（保留原始增量信息）
+ *   3. normalized scores 基于理论区间映射 0-100
+ *   4. tags 合并去重
+ *   5. choices 追加记录
+ *   6. currentEventIndex + 1
+ *   7. 最后一道 → status=finished → 计算 finalType
+ *   8. 同步更新 user_profiles
  */
 
 const cloud = require('wx-server-sdk')
@@ -17,33 +18,12 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
+const {
+  DIMS, SCORING_VERSION,
+  normalizeScores, initRawScores, accumulateRawScores,
+  detectScoringVersion, calcFinalType, calcWealthPotential,
+} = require('./lib/scoring.js')
 const now = () => Date.now()
-
-const DIMS = [
-  'laborMindset', 'probabilityMindset', 'systemThinking',
-  'leverageThinking', 'capitalThinking', 'riskAwareness',
-  'informationSensitivity', 'longTermism', 'decisionStability',
-]
-
-function clampScore(v) {
-  return Math.max(0, Math.min(100, v))
-}
-
-function calcFinalType(scores) {
-  if ((scores.leverageThinking || 50) > 75 && (scores.probabilityMindset || 50) > 70) return 'strategic'
-  if ((scores.laborMindset || 50) > 75 && (scores.leverageThinking || 50) < 40) return 'effort_trap'
-  if ((scores.riskAwareness || 50) < 35) return 'high_risk'
-  if ((scores.informationSensitivity || 50) > 75) return 'opportunity_hunter'
-  if ((scores.systemThinking || 50) > 75) return 'system_thinker'
-  return 'normal_awakened'
-}
-
-function calcWealthPotential(scores) {
-  const w = { capitalThinking: 0.2, leverageThinking: 0.18, systemThinking: 0.16, informationSensitivity: 0.12, probabilityMindset: 0.1, riskAwareness: 0.08, longTermism: 0.08, decisionStability: 0.05, laborMindset: 0.03 }
-  let t = 0
-  for (const [k, v] of Object.entries(w)) t += (scores[k] || 50) * v
-  return Math.min(100, Math.max(0, Math.round(t)))
-}
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -74,18 +54,28 @@ exports.main = async (event, context) => {
     const choice = (ce.choices || []).find(c => c.key === choiceKey)
     if (!choice) return fail(CODES.PARAM_ERROR, '选项不存在')
 
-    // 4. 合并 scores
-    const newScores = { ...record.scores }
-    if (choice.effects) {
-      for (const dim of DIMS) {
-        if (choice.effects[dim] !== undefined) {
-          newScores[dim] = clampScore((newScores[dim] || 50) + (choice.effects[dim] || 0))
-        }
-      }
-      if (choice.effects.cv !== undefined) {
-        newScores.cv = (newScores.cv || 0) + (choice.effects.cv || 0)
-      }
+    // 4. 计分引擎：rawScores 不钳位
+    const scoringVer = detectScoringVersion(record)
+    let rawScores, scores;
+
+    if (scoringVer === SCORING_VERSION) {
+      // v2: 已有 rawScores，继续累加
+      rawScores = accumulateRawScores(record.rawScores, choice.effects || {})
+      scores = normalizeScores(rawScores)
+    } else {
+      // legacy_v1: 旧记录首次使用新引擎
+      // 旧 scores 可能从 50 开始已被 clamp → 从 effects 重新构建 rawScores
+      // 但我们不知道旧记录的完整答题历史，从 0 开始用当前题的效果初始化
+      rawScores = accumulateRawScores(null, choice.effects || {})
+      scores = normalizeScores(rawScores)
+      // 保留旧 scores 在 compatLegacyScores 供 AI 报告参考
     }
+
+    // CV 保持累加逻辑
+    const currentCV = scoringVer === SCORING_VERSION ? (record.rawScores?.cv || 0) : 0
+    const newCV = (choice.effects?.cv !== undefined) ? currentCV + (choice.effects.cv || 0) : currentCV
+    rawScores.cv = newCV
+    scores.cv = Math.max(0, Math.min(100, newCV)) // CV 显示层归一化，简单钳位
 
     // 5. tags 合并去重
     const currentTags = record.tags || []
@@ -111,9 +101,11 @@ exports.main = async (event, context) => {
     const totalEvents = totalRes.total
     const isLast = isDiagnostic ? newIndex >= diagLimit : newIndex >= totalEvents
 
-    // 8. 更新 record
+    // 8. 更新 record — 兼容旧字段
     const updateData = {
-      scores: newScores,
+      scores,
+      rawScores,
+      scoringVersion: SCORING_VERSION,
       tags: mergedTags,
       choices: newChoices,
       currentEventIndex: newIndex,
@@ -124,22 +116,21 @@ exports.main = async (event, context) => {
     if (isLast) {
       updateData.status = 'finished'
       updateData.finishedAt = ts
-      updateData.finalType = calcFinalType(newScores)
+      updateData.finalType = calcFinalType(scores)
     } else {
       updateData.status = 'processing'
     }
 
     await db.collection('challenge_records').doc(record._id).update({ data: updateData })
 
-    // 9. 同步更新 user_profiles
+    // 9. 同步更新 user_profiles（使用 normalized scores）
     try {
       const profRes = await db.collection('user_profiles').where({ openid }).limit(1).get()
       if (profRes.data[0]) {
         const profileUpdate = { updatedAt: ts }
         for (const dim of DIMS) {
           if (choice.effects && choice.effects[dim] !== undefined && choice.effects[dim] !== 0) {
-            const newVal = clampScore((profRes.data[0][dim] || 50) + (choice.effects[dim] || 0))
-            profileUpdate[dim] = newVal
+            profileUpdate[dim] = scores[dim] !== undefined ? scores[dim] : 50
           }
         }
         profileUpdate.wealthPotentialScore = calcWealthPotential({

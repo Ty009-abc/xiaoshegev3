@@ -24,16 +24,10 @@ function genRecordId() {
   return `CR${ts}${rnd}`
 }
 
-const DEFAULT_SCORES = {
-  laborMindset: 50,
-  probabilityMindset: 50,
-  systemThinking: 50,
-  leverageThinking: 50,
-  capitalThinking: 50,
-  riskAwareness: 50,
-  informationSensitivity: 50,
-  longTermism: 50,
-  decisionStability: 50,
+const DEFAULT_INIT = {
+  laborMindset: 0, probabilityMindset: 0, systemThinking: 0,
+  leverageThinking: 0, capitalThinking: 0, riskAwareness: 0,
+  informationSensitivity: 0, longTermism: 0, decisionStability: 0,
   cv: 0,
 }
 
@@ -76,7 +70,7 @@ exports.main = async (event, context) => {
       currentDay: 1,
       currentEventIndex: 0,
       status: 'processing',
-      scores: { ...DEFAULT_SCORES },
+      rawScores: { ...DEFAULT_INIT }, scoringVersion: 'normalized_v2',
       choices: [],
       tags: [],
       finalType: '',

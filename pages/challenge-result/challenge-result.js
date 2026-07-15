@@ -7,19 +7,22 @@ const DIM_LABELS = {
   informationSensitivity: '信息', longTermism: '长期', decisionStability: '决策',
 }
 
-// 归一化 scores → profile（修正 scores/field 映射，确保九维真实数据绑定）
+// 归一化 scores → profile（v2 normalized + legacy 兼容）
 function normalizeResult(raw) {
   if (!raw) return null
   const scores = raw.scores || {}
-  // 构建 profile 用于 WXML 渲染，绑定真实 score 值
   const profile = {}
   const dimKeys = Object.keys(DIM_LABELS)
   for (const key of dimKeys) {
     const v = scores[key]
     profile[key] = (v !== undefined && v !== null) ? v : 50
   }
-  // 映射 finalType → mainType
-  return { ...raw, profile, mainType: raw.finalType || '认知探索者' }
+  return {
+    ...raw,
+    profile,
+    mainType: raw.finalType || '认知探索者',
+    scoringVersion: raw.scoringVersion || 'legacy_v1',
+  }
 }
 
 Page({ data:{ recordId:'', result:null, loading:true },

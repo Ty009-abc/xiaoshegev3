@@ -180,14 +180,25 @@ exports.main = async (event, context) => {
     let tags = []
     let choicesSummary = ''
 
+    let rawScoresRef = null;
+    let scoringVer = 'legacy_v1';
     if (type === 'challenge_final' && recordId) {
       const recRes = await db.collection('challenge_records').where({ recordId, openid }).limit(1).get()
       const record = recRes.data[0]
       if (record) {
         scores = record.scores || {}
+        rawScoresRef = record.rawScores || null;
+        scoringVer = record.scoringVersion || 'legacy_v1';
         tags = record.tags || []
         if (record.choices && record.choices.length) {
           choicesSummary = record.choices.map((c, i) => `${i + 1}. [${c.choice}] ${c.choiceText || ''}`).join('\n')
+        }
+        // 如有 rawScores，重新计算 normalized scores
+        if (rawScoresRef) {
+          try {
+            const { normalizeScores } = require('./lib/scoring.js')
+            scores = normalizeScores(rawScoresRef)
+          } catch (_) { /* fallback to record.scores */ }
         }
       }
     }
@@ -244,6 +255,8 @@ exports.main = async (event, context) => {
         tags,
         content: parsedReport,
         rawPrompt: { systemPrompt, userMessage },
+        rawScores: rawScoresRef,
+        scoringVersion: scoringVer,
         aiModel: reportModel,
         aiTokens: aiResult.tokens || 0,
         isPaid: isVip, // VIP 自动解锁
