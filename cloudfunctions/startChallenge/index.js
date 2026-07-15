@@ -17,9 +17,8 @@ const now = () => Date.now()
 
 const VIP_LEVELS = ['vip_month', 'vip_quarter', 'vip_year', 'svip', 'lifetime']
 
-// 生成 recordId
-function genRecordId() {
-  const ts = now()
+// 生成 recordId（接收请求级 ts，确保 recordId 时间戳与记录时间一致）
+function genRecordId(ts) {
   const rnd = Math.random().toString(36).slice(2, 8)
   return `CR${ts}${rnd}`
 }
@@ -35,6 +34,9 @@ exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
   if (!openid) return fail(CODES.AUTH_FAILED)
+
+  // 请求级时间戳 —— 同一个请求内所有时间字段使用同一个 ts
+  const ts = now()
 
   const { mode = 'default' } = event
   const isDiagnostic = mode === 'diagnostic'
@@ -63,7 +65,7 @@ exports.main = async (event, context) => {
     const trialMode = isDiagnostic ? false : !hasAccess
 
     // 创建记录
-    const recordId = genRecordId()
+    const recordId = genRecordId(ts)
     const record = {
       recordId,
       openid,
