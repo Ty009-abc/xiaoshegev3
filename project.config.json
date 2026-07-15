@@ -1,6 +1,38 @@
 {
   "description": "珠澳小事哥 · 认知操作系统 v3.0",
-  "packOptions": { "ignore": [{"type":"glob","value":"cloudfunctions/**/node_modules/**"},{"type":"glob","value":"cloudfunctions/**/package-lock.json"},{"type":"glob","value":"node_modules/**"},{"type":"glob","value":"*.md"},{"type":"glob","value":"upload-ci.js"},{"type":"glob","value":"private.key"}], "include": [] },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "glob",
+        "value": "cloudfunctions/**/node_modules/**"
+      },
+      {
+        "type": "glob",
+        "value": "cloudfunctions/**/package-lock.json"
+      },
+      {
+        "type": "glob",
+        "value": "node_modules/**"
+      },
+      {
+        "type": "glob",
+        "value": "*.md"
+      },
+      {
+        "type": "glob",
+        "value": "upload-ci.js"
+      },
+      {
+        "type": "glob",
+        "value": "private.key"
+      },
+      {
+        "type": "glob",
+        "value": "cloudfunctions/**/*.js"
+      }
+    ],
+    "include": []
+  },
   "cloudfunctionRoot": "cloudfunctions/",
   "cloudEnvironmentId": "fanshex-d2g0adgv7dfbc9bdc",
   "setting": {
