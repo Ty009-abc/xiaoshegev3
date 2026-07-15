@@ -18,11 +18,11 @@ Page({
     titlesReady: false,
     contentVisible: true,
     reportData: {
-      basicInsight: '',     // 对应 1: 致命一句话
-      mechanism: '',        // 对应 2: 核心问题
-      reverseReasoning: '', // 对应 3: 系统困局
-      biasCorrection: '',   // 对应 4: 翻身路径
-      actionPlan: ''        // 对应 5: 行动建议
+      basicInsight: '',     // 1: 位置定位
+      mechanism: '',        // 2: 困住因素
+      reverseReasoning: '', // 3: 不建议（🚫）
+      biasCorrection: '',   // 4: 翻身路径
+      actionPlan: ''        // 5: 90天行动
     },
   },
 
@@ -41,11 +41,11 @@ Page({
       app.globalData._diagnosticPersonality = null
       this.setData({
         report: {
-          system_trap: r.system_trap || '',
-          core_problem: r.core_problem || '',
-          fatal_sentence: r.fatal_sentence || '',
-          strategy_path: r.strategy_path || '',
-          advice: Array.isArray(r.advice) ? r.advice : [],
+          system_trap: r.trapped_by || r.system_trap || '',
+          core_problem: r.position || r.core_problem || '',
+          fatal_sentence: Array.isArray(r.forbidden) ? r.forbidden.join('\n') : (r.fatal_sentence || ''),
+          strategy_path: r.path || r.strategy_path || '',
+          advice: Array.isArray(r.next90days) ? r.next90days : (Array.isArray(r.advice) ? r.advice : []),
           personality: p || null,
         },
         locked: false,
@@ -66,11 +66,12 @@ Page({
     if (!r) return
     this.setData({
       reportData: {
-        basicInsight: r.fatal_sentence || '',
-        mechanism: r.core_problem || '',
-        reverseReasoning: r.system_trap || '',
-        biasCorrection: r.strategy_path || '',
-        actionPlan: (Array.isArray(r.advice) ? r.advice : []).join('\n') || '',
+        basicInsight: r.position || r.fatal_sentence || r.trapped_by || '',
+        mechanism: r.trapped_by || r.core_problem || '',
+        reverseReasoning: r.forbidden || r.system_trap || '',
+        biasCorrection: r.path || r.strategy_path || '',
+        actionPlan: (Array.isArray(r.next90days) ? r.next90days :
+                      Array.isArray(r.advice) ? r.advice : []).join('\n') || '',
       }
     })
   },
@@ -182,11 +183,18 @@ Page({
       if (r.code === 0 && r.data) {
         this.setData({
           report: {
-            system_trap: r.data.system_trap || '',
-            core_problem: r.data.core_problem || '',
+            position: r.data.position || r.data.core_problem || '',
+            trapped_by: r.data.trapped_by || r.data.system_trap || '',
+            forbidden: Array.isArray(r.data.forbidden) ? r.data.forbidden.join('\n') : '',
+            path: r.data.path || r.data.strategy_path || '',
+            next90days: Array.isArray(r.data.next90days) ? r.data.next90days :
+                        Array.isArray(r.data.advice) ? r.data.advice : [],
+            system_trap: r.data.trapped_by || r.data.system_trap || '',
+            core_problem: r.data.position || r.data.core_problem || '',
             fatal_sentence: r.data.fatal_sentence || '',
-            strategy_path: r.data.strategy_path || '',
-            advice: Array.isArray(r.data.advice) ? r.data.advice : [],
+            strategy_path: r.data.path || r.data.strategy_path || '',
+            advice: Array.isArray(r.data.next90days) ? r.data.next90days :
+                    Array.isArray(r.data.advice) ? r.data.advice : [],
             personality: p || null,
           },
           locked: false,

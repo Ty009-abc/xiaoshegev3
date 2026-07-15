@@ -289,9 +289,9 @@ ${pMeta.inject}
 }
 
 /**
- * 构造 5 字段诊断报告 prompt（v2 作风，v3 引擎）
- * 输入：用户 6 题答案 + 人格
- * 输出：strict JSON {system_trap, core_problem, fatal_sentence, strategy_path, advice}
+ * 构造 5 字段诊断报告 prompt（v3 决策引擎驱动）
+ * 输入：用户 10 题答案 + 约束分析结果 + 人格
+ * 输出：strict JSON {position, trapped_by, forbidden, path, next90days}
  */
 function buildDiagnosticPrompt(answers, personalityName, personalityStyle) {
   let pMeta
@@ -301,14 +301,12 @@ function buildDiagnosticPrompt(answers, personalityName, personalityStyle) {
     pMeta = getRandomPersonality()
   }
 
-  const age = answers.age || ''
-  const job = answers.job || ''
-  const education = answers.education || ''
-  const income = answers.income || ''
-  const anxiety = answers.anxiety || ''
-  const rootCause = answers.rootCause || ''
+  // 引入规则引擎
+  const { analyzeProfile } = require('./turnaroundEngine.js')
+  const engineResult = analyzeProfile(answers)
+  const { normalizedProfile, constraintAnalysis, allowedPaths, restrictedPaths, forbiddenPaths } = engineResult
 
-  const systemPrompt = `你不是传统成功学导师。你是一个看透现实系统的人。
+  const systemPrompt = `你不是传统成功学导师。你是一个看透现实系统的决策教练。
 
 你的风格：冷静、犀利、现实主义、底层逻辑感、系统拆解感。
 禁止：空话、鸡汤、无意义安慰、废话文学。
@@ -319,45 +317,85 @@ function buildDiagnosticPrompt(answers, personalityName, personalityStyle) {
 ${pMeta.inject}
 
 ========================================
+⚠️ 核心规则（不可违反）
+========================================
+你收到的不只是用户原始答案，还有规则引擎计算的约束分析结果。
+你的职责：用犀利的语言解释这些结果，给出个性化表达。
+
+规则引擎已经固化了：
+- 现金流健康度、负债压力、技能杠杆、时间容量
+- 创业准备度、风险容量、目标可行性
+- allowedPaths（允许的路径）
+- restrictedPaths（需要条件的路径）
+- forbiddenPaths（禁止的路径）
+
+你必须严格遵守这些边界。不得推荐 forbiddenPaths 中的任何路径。
+
+========================================
 输出铁律（违反则整个响应作废）
 ========================================
 你的整个回复必须以 { 开头，以 } 结尾。
 第一个字符必须是 {。最后一个字符必须是 }。
 除了这个 JSON 对象之外，一个字都不准多，一个字都不准少。
 
-禁止：
-- 前缀文字（如 "好的" "以下是分析"）
-- 后缀文字（如 "希望以上对你有帮助"）
-- markdown 代码块（禁止 \`\`\`）
-- 感叹词、问候语、解释说明
+禁止：前缀文字、后缀文字、markdown 代码块、感叹词、问候语
 
 ========================================
 输出格式（一字不差）
 ========================================
-{"system_trap":"","core_problem":"","fatal_sentence":"","strategy_path":"","advice":[]}
+{"position":"","trapped_by":"","forbidden":[],"path":"","next90days":[]}
 
 字段含义：
-system_trap:    用户被什么系统困住，一句话。必须结合年龄/职业/收入/学历指出他所在的系统性困境。
-core_problem:   真正的核心问题，一句话。不要重复用户说的"焦虑"，要看到焦虑背后真正的认知漏洞。
-fatal_sentence: 致命一句话。必须是一句最扎心、狠狠打碎用户幻想的清醒警示。绝对不能顺着用户的错误认知去安慰他。犀利到让人想截图发朋友圈。以 ☠️ 开头。
-strategy_path:  可执行的翻身路径，一句话。基于用户实际条件（年龄/职业/收入），给出具体可操作的杠杆策略。
-advice:         具体行动建议，3-5条，字符串数组。每条 15-30 字。可执行、可量化。
+position:      「你现在真正处于什么位置？」一句话定位。结合年龄/职业/收入/负债，不回避真相。
+trapped_by:    「什么正在困住你？」一句话。不重复用户自述，指出系统引擎分析出的真正限制。
+forbidden:     「【🚫 当前不建议你做的事】」字符串数组，3-5条。每条都必须能追溯到用户的真实数据（如"月结余≤0"→"不建议任何需要前期投入的创业"）。绝对不能推荐 forbiddenPaths 中的路径。
+path:          「你最现实的翻身路径是什么？」一句话。结合用户实际资源（技能/时间/储蓄）给出可执行的杠杆策略。
+next90days:    「接下来90天具体做什么？」字符串数组，3-5条。可执行、可量化。
 
-⚠️ 总字数严格控制在 500 字以内，确保快速输出 JSON。`
+⚠️ 总字数严格控制在 600 字以内，确保快速输出 JSON。`
 
-  const userMessage = `用户画像：
-年龄：${age}
-职业：${job}
-学历：${education}
-月收入：${income}元
-最焦虑：${anxiety}
-为什么翻不了身：${rootCause}
+  // 组装用户消息：包含原始答案 + 约束分析结果
+  const userMessage = `=== 用户原始数据 ===
+年龄：${normalizedProfile.ageGroup}（${answers.age || ''}岁）
+职业分类：${normalizedProfile.occupationCategory}
+具体职业：${normalizedProfile.occupation}
+月收入区间：${answers.monthlyIncome || ''}
+存款区间：${normalizedProfile.savingsRange}（约${normalizedProfile.savingsRaw}元）
+负债：${normalizedProfile.debtLevel}
+月固定支出：${normalizedProfile.monthlyExpense}元
+每天自由支配时间：${normalizedProfile.freeTimeHours}小时
+最强可变现能力：${normalizedProfile.bestSkill}
+核心目标：${normalizedProfile.goal}
+最大可承受失败成本：${normalizedProfile.maxLoss}
+
+=== 规则引擎约束分析 ===
+现金流健康度：${constraintAnalysis.cashFlowHealth}
+应急缓冲（储蓄可撑月数）：${constraintAnalysis.monthlyBuffer}个月
+负债压力：${constraintAnalysis.debtPressure}
+技能杠杆：${constraintAnalysis.skillLeverage}
+时间容量：${constraintAnalysis.timeCapacity}
+创业准备度：${constraintAnalysis.entrepreneurshipReadiness}
+风险容量：${constraintAnalysis.riskCapacity}（0-3）
+目标可行性：${constraintAnalysis.goalFeasibility}
+月度结余：${constraintAnalysis.monthlySurplus}元
+
+=== 路径约束（必须遵守） ===
+✅ 允许路径：
+${allowedPaths.map(p => '  - ' + p).join('\n') || '  无特殊允许'}
+
+⚠️ 受限路径：
+${restrictedPaths.map(p => '  - ' + p).join('\n') || '  无特殊限制'}
+
+🚫 禁止路径（绝对不能推荐）：
+${forbiddenPaths.map(p => '  - ' + p).join('\n') || '  无特殊禁止'}
 
 视角：${pMeta.emoji} ${pMeta.name}
 
-请基于以上 6 维画像，用最犀利的语言生成 JSON 格式的翻身策略诊断报告。`
+请基于以上参数，用最犀利的语言生成 JSON 格式的翻身策略诊断报告。
+必须输出 5 个字段：position, trapped_by, forbidden, path, next90days。
+forbidden 字段中的每一条都必须能追溯到用户的真实数据。`
 
-  return { systemPrompt, userMessage, personality: pMeta }
+  return { systemPrompt, userMessage, personality: pMeta, engineResult }
 }
 
 module.exports = {

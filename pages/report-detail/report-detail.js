@@ -17,11 +17,11 @@ Page({
     showPoster: false,       // 海报预览模态
     qrPath: '/images/qrcode.png',
     sections: [
-      { key: 'fatal',      label: '⚡ 致命一句话', revealed: false, text: '' },
-      { key: 'core',       label: '🎯 核心问题',   revealed: false, text: '' },
-      { key: 'trap',       label: '🔍 系统困局',   revealed: false, text: '' },
-      { key: 'turnaround', label: '🚀 翻身路径',   revealed: false, text: '' },
-      { key: 'advice',     label: '📋 行动建议',   revealed: false, text: '' },
+      { key: 'position',   label: '📍 你现在的位置',     revealed: false, text: '' },
+      { key: 'trapped',    label: '🔗 什么在困住你',       revealed: false, text: '' },
+      { key: 'forbidden',  label: '🚫 当前不建议做的事',   revealed: false, text: '' },
+      { key: 'path',       label: '🚀 最现实的翻身路径',   revealed: false, text: '' },
+      { key: 'next90days', label: '📅 接下来90天具体做什么', revealed: false, text: '' },
     ],
   },
 
@@ -69,13 +69,18 @@ Page({
      ═══════════════════════════════════ */
   _progressiveReveal(data) {
     const self = this
-    const fields = [
-      data.fatal_sentence || data.fatalSentence || '',
-      data.core_problem || data.coreProblem || '',
-      data.system_trap || data.systemTrap || '',
-      data.turnaround_path || data.turnaroundPath || data.strategy_path || '',
-      data.action_advice || data.actionAdvice || (Array.isArray(data.advice) ? data.advice.join('\n') : ''),
-    ]
+    // 兼容 v2 旧字段 / v3 新字段
+    const position = data.position || data.core_problem || data.coreProblem || ''
+    const trapped = data.trapped_by || data.system_trap || data.systemTrap || ''
+    const forbidden = Array.isArray(data.forbidden)
+      ? data.forbidden.map(f => '🚫 ' + f).join('\n')
+      : (data.fatal_sentence || data.fatalSentence || '')
+    const path = data.path || data.strategy_path || data.turnaroundPath || data.turnaround_path || ''
+    const next90 = Array.isArray(data.next90days)
+      ? data.next90days.map((a,i) => `${i+1}. ${a}`).join('\n')
+      : (Array.isArray(data.advice) ? data.advice.map((a,i) => `${i+1}. ${a}`).join('\n') : '')
+
+    const fields = [position, trapped, forbidden, path, next90]
 
     this.setData({ loading: false })
 
@@ -126,11 +131,11 @@ Page({
     const sections = this.data.sections || []
 
     const cards = [
-      { no: '01', icon: '⚡', title: '致命一句话', color: '#ff3b3b', text: sections[0]?.text || '' },
-      { no: '02', icon: '🎯', title: '核心问题',   color: '#8b5cff', text: sections[1]?.text || '' },
-      { no: '03', icon: '🔍', title: '系统困局',   color: '#3b8cff', text: sections[2]?.text || '' },
-      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: sections[3]?.text || '' },
-      { no: '05', icon: '📋', title: '行动建议',   color: '#39d353', text: sections[4]?.text || '' }
+      { no: '01', icon: '📍', title: '你现在的位置',      color: '#3b8cff', text: sections[0]?.text || '' },
+      { no: '02', icon: '🔗', title: '什么在困住你',        color: '#ff3b3b', text: sections[1]?.text || '' },
+      { no: '03', icon: '🚫', title: '不建议做的事',        color: '#ff6b6b', text: sections[2]?.text || '' },
+      { no: '04', icon: '🚀', title: '翻身路径',            color: '#ff9f1a', text: sections[3]?.text || '' },
+      { no: '05', icon: '📅', title: '接下来90天做什么',     color: '#39d353', text: sections[4]?.text || '' }
     ]
 
     function roundRect(x, y, w, h, r) {

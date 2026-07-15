@@ -8,14 +8,19 @@ const aiReportService = require('../../services/aiReportService.js')
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
 const app = getApp()
 
-/** v2 6 题问卷 — 固定数据源 */
+/** v3 10 题问卷 — 决策引擎驱动 */
 const DIAGNOSTIC_QUESTIONS = [
-  { id:'age',      title:'你今年几岁？',          subtitle:'年龄决定你的牌桌大小',              type:'input',    inputType:'number', placeholder:'请输入数字', maxlength:3 },
-  { id:'job',      title:'你现在做什么工作？',     subtitle:'职业是你当前的筹码形式',              type:'input',    inputType:'text',   placeholder:'例如：厨师 / 销售 / 程序员' },
-  { id:'education',title:'你的学历？',             subtitle:'学历在这张牌桌上并不决定一切',        type:'input',    inputType:'text',   placeholder:'例如：高中 / 大专 / 本科' },
-  { id:'income',   title:'你现在月收入多少？',     subtitle:'收入 = 认知在这个世界的兑现速度',    type:'input',    inputType:'number', placeholder:'请输入数字' },
-  { id:'anxiety',  title:'你现在最焦虑什么？',     subtitle:'焦虑是你看懂规则的第一步',             type:'textarea', placeholder:'认真说一次真话…',                     maxlength:300 },
-  { id:'rootCause',title:'你觉得自己为什么翻不了身？',subtitle:'⚠️ 这里决定 AI 分析深度，请认真作答',type:'textarea', placeholder:'坦诚面对自己，这是最关键的一问…', maxlength:500 },
+  { id:'age',              title:'你今年几岁？',                subtitle:'年龄决定你的牌桌大小和时间窗口',                  type:'input',    inputType:'number', placeholder:'请输入数字', maxlength:3 },
+  { id:'occupation',       title:'你现在的职业是？',            subtitle:'职业是你在牌桌上的筹码形式',                      type:'picker',   options:['','上班族','个体经营','企业主','自由职业','专业技能职业','学生','待业','其他'] },
+  { id:'occupationDetail', title:'具体是什么职业？',            subtitle:'例如：厨师、销售、程序员、律师、外卖骑手',        type:'input',    inputType:'text',   placeholder:'请输入具体职业' },
+  { id:'monthlyIncome',    title:'你的月收入是多少？',          subtitle:'收入 = 认知在这个世界的兑现速度',                 type:'picker',   options:['','3000以下','3000–6000','6000–1万','1万–2万','2万–5万','5万以上'] },
+  { id:'savings',          title:'你目前的可支配存款？',        subtitle:'这决定了你的安全垫厚度',                          type:'picker',   options:['','1万元以下','1–5万元','5–10万元','10–30万元','30–100万元','100万元以上'] },
+  { id:'debt',             title:'你目前的负债情况？',          subtitle:'负债决定了你翻身的紧迫度',                        type:'picker',   options:['','无负债','轻度负债（<月收入3倍）','中度负债（月收入3-12倍）','重度负债（>月收入12倍）'] },
+  { id:'monthlyExpense',   title:'你每月固定支出大约多少？',     subtitle:'用于计算真实的月度现金流',                        type:'input',    inputType:'number', placeholder:'请输入数字（元）' },
+  { id:'freeTimeHours',    title:'你每天有多少小时可自由支配？',  subtitle:'决定你能分配多少时间给第二曲线',                  type:'picker',   options:['','几乎为0','1小时以内','1–2小时','2–4小时','4小时以上'] },
+  { id:'bestSkill',        title:'你最可能变现的能力是什么？',   subtitle:'这是你翻身的核心武器',                            type:'picker',   options:['','专业技术（编程/设计/技术类）','销售/市场/带货','内容创作（写/拍/剪/播）','管理/运营','人脉资源','资金','暂无明确能力'] },
+  { id:'goal',             title:'你当前最核心的目标是？',      subtitle:'目标不同，策略完全不同',                          type:'picker',   options:['','增加副业收入','尝试转行','创业/开店','清理负债','积累第一桶金','建立个人事业','提升认知'] },
+  { id:'maxLoss',          title:'你能承受的最大失败成本？',     subtitle:'建立你的风险边界',                                type:'picker',   options:['','不能接受任何损失','小额（几千元）','中等（几万元）','较大（几十万以上）'] },
 ]
 
 Page({
@@ -26,7 +31,7 @@ Page({
     nextEvent:null, progress:{current:0,total:30,day:1},
     loading:true, end:false, animOut:false, animIn:false,
     // diagnostic 模式
-    dQ:{idx:0,total:6,percent:16,label:'',answers:[],submitting:false,personality:null,canNext:false},
+    dQ:{idx:0,total:11,percent:9,label:'',answers:[],submitting:false,personality:null,canNext:false},
   },
 
   onLoad(opt) {
@@ -102,6 +107,9 @@ Page({
     try { wx.setStorageSync('last_personality', p.name) } catch (_) {}
     this.setData({
       loading: false,
+      'dQ.idx': 0,
+      'dQ.total': DIAGNOSTIC_QUESTIONS.length,
+      'dQ.percent': Math.round((1 / DIAGNOSTIC_QUESTIONS.length) * 100),
       'dQ.personality': p,
       'dQ.answers': new Array(DIAGNOSTIC_QUESTIONS.length).fill(''),
       'dQ.label': DIAGNOSTIC_QUESTIONS[0].subtitle,
@@ -113,9 +121,17 @@ Page({
     const a = [...this.data.dQ.answers]
     const raw = e.detail.value
     a[this.data.dQ.idx] = raw
-    // 实时计算按钮激活状态（模板 .trim 在小程序中不可靠）
     const valid = typeof raw === 'string' ? raw.trim().length > 0 : String(raw || '').trim().length > 0
     this.setData({ 'dQ.answers': a, 'dQ.canNext': valid })
+  },
+
+  onDPickerChange(e) {
+    const a = [...this.data.dQ.answers]
+    const idx = e.detail.value
+    const q = DIAGNOSTIC_QUESTIONS[this.data.dQ.idx]
+    const selected = (q.options || [])[idx] || ''
+    a[this.data.dQ.idx] = selected
+    this.setData({ 'dQ.answers': a, 'dQ.canNext': selected.length > 0 })
   },
 
   onDNext() {
@@ -171,11 +187,16 @@ Page({
 
     const a = this.data.dQ.answers
     const questions = DIAGNOSTIC_QUESTIONS
-    const answers = {
-      [questions[0].id]: a[0], [questions[1].id]: a[1],
-      [questions[2].id]: a[2], [questions[3].id]: a[3],
-      [questions[4].id]: a[4], [questions[5].id]: a[5],
-    }
+    // 构建 10 题答案映射（兼容旧字段名）
+    const answers = {}
+    questions.forEach((q, i) => { answers[q.id] = a[i] || '' })
+    // 向后兼容：旧的 key 映射
+    if (!answers.job) answers.job = answers.occupationDetail || answers.occupation || ''
+    if (!answers.income) answers.income = answers.monthlyIncome || ''
+    if (!answers.education) answers.education = 'N/A'
+    if (!answers.anxiety) answers.anxiety = ''
+    if (!answers.rootCause) answers.rootCause = ''
+
     const p = this.data.dQ.personality
 
     // v3.17 Progressive Reveal: 先跳 report-detail（立即显示骨架），页内自调 AI

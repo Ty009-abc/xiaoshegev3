@@ -60,35 +60,45 @@ exports.main = async (event, context) => {
       })
     }
 
-    // ═══ diagnostic 分支：v2 6题问卷 → 5字段诊断报告（全免费，无DB写入） ═══
+    // ═══ diagnostic 分支：v3 10题 → 决策引擎 → 5字段诊断报告（全免费，无DB写入） ═══
     if (type === 'diagnostic') {
       const { answers = {}, personality: dPersonality, personalityEmoji, personalityStyle: dStyle } = event
       const { buildDiagnosticPrompt } = require('./lib/ai.js')
 
-      const { systemPrompt, userMessage, personality: usedPersonality } = buildDiagnosticPrompt(answers, dPersonality, dStyle)
+      const { systemPrompt, userMessage, personality: usedPersonality, engineResult } = buildDiagnosticPrompt(answers, dPersonality, dStyle)
       const diagModel = process.env.AI_MODEL_PRO || 'v4-pro'
       const diagResult = await callAI({ systemPrompt, userMessage, forceModel: diagModel, maxTokens: 2048, temperature: 0.65 })
 
-      if (!diagResult.success) return fail(CODES.AI_ERROR, diagResult.error || '诊断分析失败')
+      if (!diagResult.success) {
+        // AI 失败时返回规则引擎的冷数据
+        return ok({
+          position: `${normalizedProfile?.occupation || '未知职业'}·${normalizedProfile?.ageGroup || '未知年龄段'}`,
+          trapped_by: constraintAnalysis?.cashFlowHealth === 'critical' ? '现金流断裂风险' : '系统分析中断',
+          forbidden: forbiddenPaths?.length ? forbiddenPaths : ['系统暂时无法分析，请重试'],
+          path: allowedPaths?.[0] || '请重新测试',
+          next90days: ['重新测试获取完整报告'],
+          personality: usedPersonality ? { name: usedPersonality.name, emoji: usedPersonality.emoji } : undefined,
+          engineResult,
+        })
+      }
 
       // 解析 5 字段 JSON — 强容错清洗
       const rawContent = diagResult.content || ''
       let parsed = null
+      const { constraintAnalysis, allowedPaths, forbiddenPaths } = engineResult || {}
       const fallbackDiagnostic = {
-        system_trap: '系统信号中断，请稍后再试',
-        core_problem: '暂时无法分析，点击重试',
-        fatal_sentence: '☠️ 你还没有被系统审判，再试一次',
-        strategy_path: '重新测试以获取精准策略',
-        advice: ['点击重试按钮重新测试', '或联系客服反馈问题'],
+        position: '系统信号中断，请稍后再试',
+        trapped_by: '暂时无法分析，点击重试',
+        forbidden: forbiddenPaths?.length ? forbiddenPaths.slice(0,3) : ['不建议任何高风险行为'],
+        path: allowedPaths?.[0] || '重新测试以获取精准策略',
+        next90days: ['点击重试按钮重新测试', '或联系客服反馈问题'],
       }
       try {
-        // 第1步：粗暴去 Markdown 标记
         let jsonStr = rawContent
           .replace(/```json\s*/gi, '')
           .replace(/```\s*/g, '')
           .trim()
 
-        // 第2步：正则贪婪匹配最外层 {}（处理前缀/后缀）
         const bracketMatch = jsonStr.match(/\{[\s\S]*\}/)
         if (bracketMatch) {
           jsonStr = bracketMatch[0]
@@ -96,35 +106,34 @@ exports.main = async (event, context) => {
           throw new Error('NO_BRACKET_FOUND')
         }
 
-        // 第3步：通用 JSON 修复 — 修复常见的大模型吐脏
         jsonStr = jsonStr
-          // 处理行内注释 // xxx (去除)
           .replace(/\/\/.*$/gm, '')
-          // 处理尾部逗号 {"a":1,}
           .replace(/,(\s*[}\]])/g, '$1')
-          // 处理转义问题：双反斜杠 \" → "
-          // 处理未转义的控制字符
 
-        // 第4步：JSON.parse
         parsed = JSON.parse(jsonStr)
 
-        // 第5步：字段完整性兜底
-        parsed.system_trap = parsed.system_trap || parsed['system_trap'] || fallbackDiagnostic.system_trap
-        parsed.core_problem = parsed.core_problem || parsed['core_problem'] || fallbackDiagnostic.core_problem
-        parsed.fatal_sentence = parsed.fatal_sentence || parsed['fatal_sentence'] || fallbackDiagnostic.fatal_sentence
-        parsed.strategy_path = parsed.strategy_path || parsed['strategy_path'] || fallbackDiagnostic.strategy_path
-        parsed.advice = Array.isArray(parsed.advice) ? parsed.advice : fallbackDiagnostic.advice
+        // 字段完整性兜底
+        parsed.position = parsed.position || fallbackDiagnostic.position
+        parsed.trapped_by = parsed.trapped_by || fallbackDiagnostic.trapped_by
+        parsed.forbidden = Array.isArray(parsed.forbidden) ? parsed.forbidden : fallbackDiagnostic.forbidden
+        parsed.path = parsed.path || fallbackDiagnostic.path
+        parsed.next90days = Array.isArray(parsed.next90days) ? parsed.next90days :
+                            (Array.isArray(parsed.advice) ? parsed.advice : fallbackDiagnostic.next90days)
+
+        // 如果 AI 返回了禁止路径但规则引擎有更严格的禁止项，以规则引擎为准
+        if (forbiddenPaths?.length && (!parsed.forbidden || parsed.forbidden.length < forbiddenPaths.length)) {
+          parsed.forbidden = [...new Set([...parsed.forbidden, ...forbiddenPaths.slice(0, 5)])]
+        }
       } catch (parseErr) {
         console.error('【diagnostic JSON清洗失败】错误:', parseErr.message)
         console.error('【diagnostic 原始AI返回】:', rawContent.substring(0, 800))
-        // 补枪：降级解析 — 尝试从原始文本中提取字段
         try {
           parsed = {
-            system_trap: (rawContent.match(/system_trap["']?\s*[:：]\s*["']([^"']+)["']/) || [])[1] || fallbackDiagnostic.system_trap,
-            core_problem: (rawContent.match(/core_problem["']?\s*[:：]\s*["']([^"']+)["']/) || [])[1] || fallbackDiagnostic.core_problem,
-            fatal_sentence: (rawContent.match(/fatal_sentence["']?\s*[:：]\s*["']([^"']+)["']/) || [])[1] || fallbackDiagnostic.fatal_sentence,
-            strategy_path: (rawContent.match(/strategy_path["']?\s*[:：]\s*["']([^"']+)["']/) || [])[1] || fallbackDiagnostic.strategy_path,
-            advice: fallbackDiagnostic.advice,
+            position: (rawContent.match(/position["']?\s*[:：]\s*["']([^"']+)["']/) || [])[1] || fallbackDiagnostic.position,
+            trapped_by: (rawContent.match(/trapped_by["']?\s*[:：]\s*["']([^"']+)["']/) || [])[1] || fallbackDiagnostic.trapped_by,
+            forbidden: fallbackDiagnostic.forbidden,
+            path: (rawContent.match(/path["']?\s*[:：]\s*["']([^"']+)["']/) || [])[1] || fallbackDiagnostic.path,
+            next90days: fallbackDiagnostic.next90days,
           }
         } catch (_) {
           parsed = fallbackDiagnostic
@@ -140,12 +149,21 @@ exports.main = async (event, context) => {
       }}).catch(() => {})
 
       return ok({
-        system_trap: parsed.system_trap || '',
-        core_problem: parsed.core_problem || '',
-        fatal_sentence: parsed.fatal_sentence || '',
-        strategy_path: parsed.strategy_path || '',
-        advice: Array.isArray(parsed.advice) ? parsed.advice : [],
+        // v3 新字段
+        position: parsed.position || '',
+        trapped_by: parsed.trapped_by || '',
+        forbidden: Array.isArray(parsed.forbidden) ? parsed.forbidden : [],
+        path: parsed.path || '',
+        next90days: Array.isArray(parsed.next90days) ? parsed.next90days : [],
+        // v2 兼容字段
+        system_trap: parsed.trapped_by || parsed.system_trap || '',
+        core_problem: parsed.position || parsed.core_problem || '',
+        fatal_sentence: parsed.forbidden?.[0] || parsed.fatal_sentence || '',
+        strategy_path: parsed.path || parsed.strategy_path || '',
+        advice: Array.isArray(parsed.next90days) ? parsed.next90days :
+                (Array.isArray(parsed.advice) ? parsed.advice : []),
         personality: usedPersonality ? { name: usedPersonality.name, emoji: usedPersonality.emoji } : undefined,
+        engineResult,
       })
     }
 
