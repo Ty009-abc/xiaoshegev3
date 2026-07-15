@@ -3,6 +3,14 @@
 <view class="page">
 
   <!-- ═══════════════════════════════════════════ -->
+  <!-- 超时态：报告生成超时                          -->
+  <view class="empty-state" wx:if="{{status === 'timeout'}}">
+    <view class="empty-icon">⏰</view>
+    <view class="empty-title">报告生成超时</view>
+    <view class="empty-desc">你的30天挑战数据已经保存，不会丢失。已启用本地引擎生成简版分析。</view>
+    <button class="cta-btn" bindtap="handleRetry">重新生成</button>
+  </view>
+
   <!-- 空态：未完成挑战                          -->
   <!-- ═══════════════════════════════════════════ -->
   <view class="empty-state" wx:if="{{status === 'empty'}}">
@@ -23,13 +31,14 @@
       <view class="report-title">{{reportTitle || '军师正在为你深度诊断...'}}</view>
       <view class="report-meta">
         <text wx:if="{{reportMeta}}">{{reportMeta}}</text>
-        <text wx:else>基于 30 天博弈行为数据 · DeepSeek 正在剖析</text>
+        <text wx:if="{{reportMeta}}">{{reportMeta}}</text>
+        <text wx:else>基于 30 天真实选择 · 正在还原你的认知操作系统</text>
       </view>
 
       <!-- AI 状态指示条（仅在 loading 态显示） -->
       <view class="ai-status-bar" wx:if="{{status === 'loading'}}">
         <view class="ai-pulse"></view>
-        <text class="ai-status-text">军师正在彻夜解构你的九维数据...</text>
+        <text class="ai-status-text">认知引擎正在深度剖析你的30天行为数据...</text>
       </view>
     </view>
 
@@ -59,7 +68,7 @@
           <!-- 骨架屏 -->
           <view class="section-skeleton" wx:else>
             <view class="skeleton-shimmer"></view>
-            <text class="skeleton-text">{{sec.loadingText || '军师正在分析中...'}}</text>
+            <text class="skeleton-text">{{sec.loadingText || '认知引擎正在深度分析...'}}</text>
             <view class="skeleton-dots">
               <view class="sk-dot"></view>
               <view class="sk-dot"></view>

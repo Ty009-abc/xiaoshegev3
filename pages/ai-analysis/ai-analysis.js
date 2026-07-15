@@ -8,31 +8,31 @@ const SECTIONS = [
     key: 'trap',
     icon: '🔒',
     title: '你被什么系统困住',
-    skeleton: '军师正在破译困住你的那张无形的网...'
+    skeleton: '正在识别你反复掉入的结构性陷阱...'
   },
   {
     key: 'core',
     icon: '🎯',
     title: '真正的核心问题',
-    skeleton: '正在从九维数据中提取你的核心矛盾...'
+    skeleton: '正在从30天选择中提取核心矛盾...'
   },
   {
     key: 'path',
     icon: '🗺️',
     title: '翻身路径',
-    skeleton: '正在为你绘制专属的上升通道地图...'
+    skeleton: '正在计算最适合你的突破顺序...'
   },
   {
     key: 'action',
     icon: '⚡',
     title: '行动建议',
-    skeleton: '正在生成可执行的拆解动作...'
+    skeleton: '正在生成可以立即执行的第一步...'
   },
   {
     key: 'punch',
     icon: '💀',
     title: '致命一句',
-    skeleton: '军师正在酝酿那句刺穿你认知防线的真话...'
+    skeleton: '正在压缩你30天暴露出的最大认知盲区...'
   }
 ];
 
@@ -94,12 +94,34 @@ Page({
     this.startReportGeneration();
   },
 
-  // ═══ 异步触发云函数 ═══
+  onUnload: function () {
+    if (this._timeoutTimer) { clearTimeout(this._timeoutTimer); this._timeoutTimer = null }
+  },
+
+  // ═══ 异步触发云函数（v3.7.5 状态机 + 硬超时） ═══
   startReportGeneration: function () {
     const { scores, userLevel } = this.data;
 
     // 状态切 loading（骨架屏保持，额外指示器显示"分析中"）
     this.setData({ status: 'loading' });
+
+    // 硬超时守卫（90 秒）
+    let resolved = false
+    const onResolve = (status, fn) => {
+      if (resolved) return
+      resolved = true
+      if (this._timeoutTimer) { clearTimeout(this._timeoutTimer); this._timeoutTimer = null }
+      fn()
+      this.setData({ status })
+    }
+
+    this._timeoutTimer = setTimeout(() => {
+      onResolve('timeout', () => {
+        console.warn('[ai-analysis] ⏰ 报告生成超时 (90s) — 启用本地兜底')
+        this.generateFallbackReport()
+        wx.showToast({ title: '报告生成超时，已启用本地分析', icon: 'none', duration: 3000 })
+      })
+    }, 90000)
 
     wx.cloud.callFunction({
       name: 'generateAiReport',
@@ -110,26 +132,27 @@ Page({
         userLevel: userLevel
       },
       success: (res) => {
-        const report = res.result && res.result.report ? res.result.report : res.result;
-        let reportData = report;
+        const report = res.result && res.result.report ? res.result.report : res.result
+        let reportData = report
 
         // 清洗：如果是 JSON 字符串则解析
         if (typeof report === 'string') {
-          try { reportData = JSON.parse(report); } catch (e) { /* keep raw */ }
+          try { reportData = JSON.parse(report) } catch (e) { /* keep raw */ }
         }
 
-        // 将 AI 报告的段落映射到 5 大板块
-        this.applyReportData(reportData);
-        this.setData({ status: 'done' });
+        onResolve('done', () => {
+          this.applyReportData(reportData)
+        })
       },
       fail: (err) => {
-        console.error('[ai-analysis] generateAiReport failed:', err);
+        console.error('[ai-analysis] generateAiReport failed:', err)
 
-        // 兜底：本地生成基础报告
-        this.generateFallbackReport();
-        this.setData({ status: 'done' });
+        onResolve('done', () => {
+          this.generateFallbackReport()
+          wx.showToast({ title: 'AI 分析暂不可用，已启用本地引擎', icon: 'none', duration: 3000 })
+        })
       }
-    });
+    })
   },
 
   // ═══ AI 正文映射到骨架板块（核心：正文丝滑地"长"出来） ═══
@@ -186,7 +209,7 @@ Page({
     this.setData({
       sections,
       reportTitle: structured.title || '九维认知诊断报告',
-      reportMeta: '基于 30 天博弈行为数据 · DeepSeek 深度分析',
+      reportMeta: '基于 30 天真实选择 · 认知引擎正在重构你的世界模型',
       persona: structured.persona || '',
       avgScore: structured.avgScore || this.calcAvgScore(),
       dims: structured.dims || this.buildDimsArray()
@@ -259,7 +282,7 @@ Page({
     this.setData({
       sections: fallbackSections,
       reportTitle: '🛡️ 九维认知诊断报告（本地款）',
-      reportMeta: '基于 30 天博弈行为数据 · AI 分析暂不可用，已启用本地引擎',
+      reportMeta: '基于 30 天真实选择 · AI 分析暂不可用，已启用本地引擎',
       persona,
       avgScore,
       dims: ranked

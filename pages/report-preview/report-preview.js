@@ -219,14 +219,50 @@ Page({
     analytics.track('report_view')
     this.setData({ showGenerating:true })
     this.selectComponent('#aiGen').start()
-    setTimeout(async () => {
-      try{ const r=await aiReportService.generateAiReport('challenge_final', this.data.recordId)
-        if(r.code===0){ this.setData({ report:r.data, locked:false }) }
-        else throw new Error(r.message)
-      }catch(e){ wx.showToast({ title:'小事哥刚刚断片了，请重新生成一次', icon:'none' }) }
+
+    // ⏰ v3.17.1 超时守卫 (90s)
+    let resolved = false
+    const GENERATE_TIMEOUT = 90000
+    const timeoutTimer = setTimeout(() => {
+      if (resolved) return
+      resolved = true
       this.selectComponent('#aiGen').finish()
-      setTimeout(()=>this.setData({ showGenerating:false }),500)
-    },2000)
+      this.setData({ showGenerating:false })
+      wx.showModal({
+        title: '报告生成超时',
+        content: '你的30天挑战数据已保存，不会丢失。请稍后重试。',
+        confirmText: '重新生成',
+        cancelText: '返回诊断结果',
+        success: (res) => {
+          if (res.confirm) this.onGenerate()
+          else wx.navigateBack()
+        }
+      })
+      console.error('[report-preview] ⏰ 报告生成超时 (90s)')
+    }, GENERATE_TIMEOUT)
+
+    setTimeout(async () => {
+      if (resolved) return
+      try {
+        const r = await aiReportService.generateAiReport('challenge_final', this.data.recordId)
+        if (resolved) return
+        if (r.code === 0) {
+          this.setData({ report: r.data, locked: r.data.locked !== undefined ? r.data.locked : false })
+        } else {
+          console.error('[report-preview] 生成报告失败:', r.message)
+          this.setData({ report: null })
+          wx.showToast({ title: '报告生成失败，请检查网络后重试', icon: 'none' })
+        }
+      } catch (e) {
+        if (resolved) return
+        console.error('[report-preview] 报告生成异常:', e.message)
+        this.setData({ report: null })
+        wx.showToast({ title: '系统暂时看不清这个世界，请稍后再试', icon: 'none' })
+      }
+      clearTimeout(timeoutTimer)
+      this.selectComponent('#aiGen').finish()
+      setTimeout(() => this.setData({ showGenerating:false }), 500)
+    }, 2000)
   },
 
   onUnlock(){ wx.navigateTo({ url:'/pages/membership/membership' }) },

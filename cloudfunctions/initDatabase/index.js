@@ -150,9 +150,22 @@ async function initOne({ name, data }, force) {
     const existing = countResult.total
     log.existing = existing
 
-    // 非强制 且 已有数据 → 跳过
+    // 非强制 且 已有数据 → 检查是否需要更新种子数据
     if (existing > 0 && !force) {
-      return { ...log, action: 'skip', reason: `已有 ${existing} 条数据` }
+      // 有种子数据且数量不匹配 → 更新种子数据（仅对有种子数据的集合）
+      if (Array.isArray(data) && data.length > 0 && data.length !== existing) {
+        console.log(`  [${name}] 🔄 种子数据已更新 (${existing}→${data.length})，正在同步...`)
+        // 清空旧数据
+        const allDocs = await db.collection(name).limit(1000).get()
+        for (const doc of allDocs.data) {
+          await db.collection(name).doc(doc._id).remove()
+        }
+        console.log(`  [${name}] 🗑 已清空 ${existing} 条旧数据`)
+        log.cleared = existing
+        // 继续写入新的种子数据（fall through to Step 3）
+      } else {
+        return { ...log, action: 'skip', reason: `已有 ${existing} 条数据` }
+      }
     }
 
     // 强制模式: 清空
