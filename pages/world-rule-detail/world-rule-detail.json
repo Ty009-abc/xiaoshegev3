@@ -1,6 +1,6 @@
 {
   "navigationBarTitleText": "世界规则",
-  "backgroundColor": "#0f0f1a",
-  "navigationBarBackgroundColor": "#0f0f1a",
-  "navigationBarTextStyle": "white"
+  "backgroundColor": "#F5F7FB",
+  "navigationBarBackgroundColor": "#F5F7FB",
+  "navigationBarTextStyle": "black"
 }
