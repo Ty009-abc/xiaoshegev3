@@ -36,17 +36,27 @@ exports.main = async (event, context) => {
     const rule = res.data[0]
     if (!rule) return fail(CODES.NOT_FOUND, '规则不存在')
 
-    // free 内容，直接返回
+    // free 内容，直接返回（兼容 Season 1-4 和 Season 5+ schema）
     if (rule.unlockLevel === 'free') {
       return ok({
         ruleId: rule.ruleId,
         title: rule.title,
-        rule: rule.rule,
-        reverseLogic: rule.reverseLogic,
-        example: rule.example,
-        action: rule.action,
         category: rule.category,
         tags: rule.tags,
+        // Season 1-4 字段
+        rule: rule.rule || '',
+        reverseLogic: rule.reverseLogic || '',
+        example: rule.example || '',
+        action: rule.action || '',
+        // Season 5+ 字段
+        worldRule: rule.worldRule || '',
+        mechanism: rule.mechanism || '',
+        boundary: rule.boundary || '',
+        commonMistake: rule.commonMistake || '',
+        realityCheck: rule.realityCheck || '',
+        caseStudy: rule.caseStudy || '',
+        todayAction: rule.todayAction || '',
+        highLevelThinking: rule.highLevelThinking || '',
         locked: false,
       })
     }
@@ -82,12 +92,22 @@ exports.main = async (event, context) => {
     return ok({
       ruleId: rule.ruleId,
       title: rule.title,
-      rule: rule.rule,
-      reverseLogic: rule.reverseLogic,
-      example: rule.example,
-      action: rule.action,
       category: rule.category,
       tags: rule.tags,
+      // Season 1-4 字段
+      rule: rule.rule || '',
+      reverseLogic: rule.reverseLogic || '',
+      example: rule.example || '',
+      action: rule.action || '',
+      // Season 5+ 字段
+      worldRule: rule.worldRule || '',
+      mechanism: rule.mechanism || '',
+      boundary: rule.boundary || '',
+      commonMistake: rule.commonMistake || '',
+      realityCheck: rule.realityCheck || '',
+      caseStudy: rule.caseStudy || '',
+      todayAction: rule.todayAction || '',
+      highLevelThinking: rule.highLevelThinking || '',
       locked: false,
     })
   } catch (err) {
