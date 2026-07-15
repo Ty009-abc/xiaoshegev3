@@ -33,6 +33,21 @@ const { DEFAULT_CHALLENGE_EVENTS } = require('./data/challenge_events.js')
 const { DEFAULT_CONFIGS } = require('./data/system_configs.js')
 const { DEFAULT_COGNITION_TAGS, DEFAULT_BADGES } = require('./data/cognition_badges.js')
 
+// ── 受保护集合：永不清空，除非传入 confirm 双重确认 ──
+const PROTECTED_COLLECTIONS = new Set([
+  'world_rules',
+  'orders',
+  'payments',
+  'memberships',
+  'entitlements',
+  'user_memory',
+  'growth_memory',
+  'ai_reports',
+  'challenge_records',
+  'users',
+  'user_profiles',
+])
+
 // ── 全部 49 个 Collection 声明 ──
 const ALL_COLLECTIONS = [
   { name: 'products',          data: DEFAULT_PRODUCTS },
@@ -150,6 +165,21 @@ async function initOne({ name, data }, force) {
     const existing = countResult.total
     log.existing = existing
 
+    // 受保护集合：已有数据时，默认 skip，不自动清空
+    if (existing > 0 && PROTECTED_COLLECTIONS.has(name) && !force) {
+      console.log(`  [${name}] 🛡️ 受保护集合，已有 ${existing} 条数据 → 跳过`)
+      return { ...log, action: 'skip', reason: `受保护集合，已有 ${existing} 条数据` }
+    }
+
+    // 受保护集合 + force=true：仍需 confirm 双重确认
+    if (existing > 0 && PROTECTED_COLLECTIONS.has(name) && force) {
+      if (force !== 'DELETE_ALL_PROTECTED') {
+        console.log(`  [${name}] 🛡️ 受保护集合，force=true 但缺少 confirm → 跳过`)
+        return { ...log, action: 'skip', reason: `受保护集合，force=true 但需 confirm="DELETE_ALL_PROTECTED"` }
+      }
+      console.log(`  [${name}] ⚠️ 受保护集合，双重确认通过 → 允许清空`)
+    }
+
     // 非强制 且 已有数据 → 检查是否需要更新种子数据
     if (existing > 0 && !force) {
       // 有种子数据且数量不匹配 → 更新种子数据（仅对有种子数据的集合）
@@ -168,13 +198,23 @@ async function initOne({ name, data }, force) {
       }
     }
 
-    // 强制模式: 清空
-    if (existing > 0 && force) {
+    // 强制模式: 清空（非受保护集合）
+    if (existing > 0 && force && !PROTECTED_COLLECTIONS.has(name)) {
       const allDocs = await db.collection(name).limit(1000).get()
       for (const doc of allDocs.data) {
         await db.collection(name).doc(doc._id).remove()
       }
       console.log(`  [${name}] 🗑 已清空 ${existing} 条旧数据 (force)`)
+      log.cleared = existing
+    }
+
+    // 受保护集合 + 双重确认通过：允许清空
+    if (existing > 0 && force === 'DELETE_ALL_PROTECTED' && PROTECTED_COLLECTIONS.has(name)) {
+      const allDocs = await db.collection(name).limit(1000).get()
+      for (const doc of allDocs.data) {
+        await db.collection(name).doc(doc._id).remove()
+      }
+      console.log(`  [${name}] 🗑 已清空 ${existing} 条旧数据 (force=DELETE_ALL_PROTECTED)`)
       log.cleared = existing
     }
   } catch (err) {

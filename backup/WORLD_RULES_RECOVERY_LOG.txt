@@ -1,0 +1,4 @@
+280 rules restored at 20260715-084027
+Source: backup/world_rules_280_final.json (280 rules, WR001-WR015 + WR101-WR365)
+Restore method: restoreWorldRules cloud function (upsert, dryRun then execute)
+initDatabase fix: PROTECTED_COLLECTIONS guard added
