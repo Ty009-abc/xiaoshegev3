@@ -1,10 +1,10 @@
 <!-- challenge-play — v3.13 双模式
      mode=challenge: 原有 30 天挑战 (DB 驱动)
-     mode=diagnostic: v2 6 题问卷 (纯前端 + AI 直连) -->
+     mode=diagnostic: v3 10 题问卷 (Data Contract Engine) -->
 <view class="page">
   <xsg-navbar title="{{mode==='diagnostic' ? '翻身策略诊断' : '认知挑战'}}" light />
 
-  <!-- ═════ диагностический 模式 ═════ -->
+  <!-- ═════ diagnostic 模式 ═════ -->
   <block wx:if="{{mode==='diagnostic'}}">
     <!-- 人格指示条 -->
     <view class="d-personality-bar" wx:if="{{dQ.personality}}">
@@ -28,40 +28,40 @@
 
       <view class="d-q-header">
         <text class="d-q-num">{{dQ.idx+1}}</text>
-        <text class="d-q-title">{{['你今年几岁？','你现在的职业是？','你的月收入是多少？','你目前的可支配存款？','你目前的负债情况？','你每月固定支出大约多少？','你每天有多少小时可自由支配？','你最可能变现的能力是什么？','你当前最核心的目标是？','你能承受的最大失败成本？'][dQ.idx]}}</text>
+        <text class="d-q-title">{{currentQuestion.title}}</text>
       </view>
 
-      <text class="d-q-subtitle">{{dQ.label || ['年龄决定你的牌桌大小和时间窗口','职业是你在牌桌上的筹码形式','收入=认知在这个世界的兑现速度','这决定了你的安全垫厚度','负债决定了你翻身的紧迫度','用于计算真实的月度现金流','决定你能分配多少时间给第二曲线','这是你翻身的核心武器','目标不同，策略完全不同','建立你的风险边界'][dQ.idx]}}</text>
+      <text class="d-q-subtitle">{{dQ.label || currentQuestion.subtitle}}</text>
 
       <view class="d-input-area">
-        <!-- Q2: occupation (picker+input combined) -->
-        <block wx:if="{{dQ.idx===1}}">
+        <!-- picker+input combined (occupation) -->
+        <block wx:if="{{currentQuestion.type==='picker+input'}}">
           <view class="d-picker-wrap">
-            <text class="d-picker-display" wx:if="{{dQ.answers[dQ.idx]}}">{{dQ.answers[dQ.idx]}}</text>
-            <text class="d-picker-display d-picker-placeholder" wx:else>请选择职业类型</text>
+            <text class="d-picker-display" wx:if="{{dQ.selectedPick}}">{{dQ.selectedPick}}</text>
+            <text class="d-picker-display d-picker-placeholder" wx:else>{{currentQuestion.options[0] || '请选择职业类型'}}</text>
           </view>
-          <picker mode="selector" range="{{['请选择','上班族','个体经营','企业主','自由职业','专业技能职业','学生','待业','其他']}}" bindchange="onDPickerChange" value="{{dQ.answers[dQ.idx]}}">
+          <picker mode="selector" range="{{currentQuestion.options}}" bindchange="onDPickerChange">
             <button class="d-picker-btn">选择类型</button>
           </picker>
-          <input wx:if="{{dQ.answers[dQ.idx]}}" type="text" placeholder="请输入具体职业，例如：厨师、销售、程序员" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.answers._occDetail || ''}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="50" />
+          <input wx:if="{{dQ.selectedPick}}" type="text" placeholder="{{currentQuestion.detailPlaceholder || '请输入具体职业'}}" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.detailText}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="50" />
         </block>
-        <!-- picker type questions (Q3-8, Q10) -->
-        <block wx:elif="{{dQ.idx===2||dQ.idx===3||dQ.idx===4||dQ.idx===6||dQ.idx===7||dQ.idx===8||dQ.idx===9}}">
+        <!-- picker type questions -->
+        <block wx:elif="{{currentQuestion.type==='picker'}}">
           <view class="d-picker-wrap">
-            <text class="d-picker-display" wx:if="{{dQ.answers[dQ.idx]}}">{{dQ.answers[dQ.idx]}}</text>
+            <text class="d-picker-display" wx:if="{{dQ.selectedPick}}">{{dQ.selectedPick}}</text>
             <text class="d-picker-display d-picker-placeholder" wx:else>请选择</text>
           </view>
-          <picker mode="selector" range="{{['请选择','3000以下','3000–6000','6000–1万','1万–2万','2万–5万','5万以上','','1万元以下','1–5万元','5–10万元','10–30万元','30–100万元','100万元以上','','无负债','轻度负债（<月收入3倍）','中度负债（月收入3-12倍）','重度负债（>月收入12倍）','','几乎为0','1小时以内','1–2小时','2–4小时','4小时以上','','专业技术（编程/设计/技术类）','销售/市场/带货','内容创作（写/拍/剪/播）','管理/运营','人脉资源','资金','暂无明确能力','','增加副业收入','尝试转行','创业/开店','清理负债','积累第一桶金','建立个人事业','提升认知','','不能接受任何损失','小额（几千元）','中等（几万元）','较大（几十万以上）']}}" bindchange="onDPickerChange">
+          <picker mode="selector" range="{{currentQuestion.options}}" bindchange="onDPickerChange">
             <button class="d-picker-btn">选择</button>
           </picker>
         </block>
-        <!-- age: number input (Q1) -->
-        <block wx:elif="{{dQ.idx===0}}">
-          <input type="number" placeholder="请输入数字" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.answers[dQ.idx]}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="3" />
+        <!-- number input (age) -->
+        <block wx:elif="{{currentQuestion.inputType==='number'}}">
+          <input type="number" placeholder="{{currentQuestion.placeholder || '请输入'}}" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.answers[currentQuestion.key] || ''}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="{{currentQuestion.maxlength || 10}}" />
         </block>
-        <!-- monthly expense: number input (Q6) -->
-        <block wx:elif="{{dQ.idx===5}}">
-          <input type="number" placeholder="请输入数字（元）" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.answers[dQ.idx]}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="10" />
+        <!-- text input fallback -->
+        <block wx:else>
+          <input type="text" placeholder="{{currentQuestion.placeholder || '请输入'}}" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.answers[currentQuestion.key] || ''}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="{{currentQuestion.maxlength || 50}}" />
         </block>
       </view>
     </view>
@@ -72,7 +72,7 @@
         disabled="{{!dQ.canNext}}" loading="{{dQ.submitting}}">
         {{dQ.idx===dQ.total-1?'生成翻身策略 ⚡':'下一题 →'}}
       </button>
-      <text class="d-kb-hint" wx:if="{{dQ.idx===0||dQ.idx===5}}" style="{{dQ.canNext?'opacity:1':'opacity:0'}}">按键盘「完成」键继续</text>
+      <text class="d-kb-hint" wx:if="{{currentQuestion.type==='input'}}" style="{{dQ.canNext?'opacity:1':'opacity:0'}}">按键盘「完成」键继续</text>
     </view>
   </block>
 

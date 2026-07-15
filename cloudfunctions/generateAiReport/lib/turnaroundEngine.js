@@ -115,7 +115,7 @@ function parseTimeRange(val) {
 function normalizeAnswers(raw) {
   const incomeAmt = normalizeAmount(raw.monthlyIncome || raw.income || 0)
   const savingsAmt = normalizeAmount(raw.savings || 0)
-  const expenseAmt = normalizeAmount(raw.monthlyExpense || 0)
+  const expenseAmt = normalizeAmount(raw.monthlyExpense || raw.expense || 0)
   const maxLossAmt = normalizeAmount(raw.maxLoss || raw.riskCapacity || '0')
 
   return {
@@ -230,7 +230,7 @@ function computeConstraints(a) {
   s.monthlySurplus = monthlySurplus
   s.monthlyBuffer = monthlyBuffer
   s.categorizedOccupation = a.occupationCategory
-  s.savingsRange = a.savings
+  s.savingsRange = a.savingsRange
 
   return s
 }

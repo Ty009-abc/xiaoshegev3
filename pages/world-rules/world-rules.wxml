@@ -1,66 +1,56 @@
-<!-- world-rules — v4 全面视觉重构 -->
+<!-- world-rules — v5 沉浸式规则探索（单卡导航） -->
 <view class="page page-enter">
-  <xsg-navbar title="世界规则库" showBack />
-  <xsg-loading text="正在加载世界规则..." wx:if="{{loading}}" />
-  <block wx:else>
-    <!-- 🎯 胶囊导航栏 -->
-    <scroll-view scroll-x class="cat-scroll" enhanced show-scrollbar="{{false}}">
-      <view class="cat-bar">
-        <view
-          class="cat-tag {{activeCat===c ? 'active' : ''}}"
-          wx:for="{{categories}}"
-          wx:key="*this"
-          data-cat="{{item}}"
-          bindtap="filterCat"
-        >{{item}}</view>
+  <!-- 规则探索卡片 -->
+  <block wx:if="{{currentRule}}">
+    <view class="wr-navbar">
+      <view class="wr-nav-left" bindtap="onPrev">
+        <text class="wr-nav-icon">←</text>
       </view>
-    </scroll-view>
-
-    <!-- 🎯 规则卡片列表 -->
-    <view class="rules-list">
-      <block wx:for="{{rules}}" wx:for-item="r" wx:key="_id">
-        <view wx:if="{{!activeCat || r.category===activeCat}}">
-          <!-- rule-card — 独立卡片容器 -->
-          <view class="rule-card" data-id="{{r._id}}" bindtap="goDetail" data-id="{{r._id}}">
-            <!-- 顶部：编号 + 分类标签 -->
-            <view class="rule-card-top">
-              <text class="rule-card-num">{{r.num}}</text>
-              <text class="rule-card-cat">{{r.category}}</text>
-            </view>
-
-            <!-- 核心标题 -->
-            <view class="rule-card-title">{{r.title}}</view>
-
-            <!-- 正文内容 — 底层逻辑拆解，完全展开 -->
-            <view class="rule-card-summary">{{r.summary}}</view>
-
-            <!-- 反方向推理 -->
-            <view class="rule-card-reverse" wx:if="{{r.detail}}">
-              <text class="rule-card-reverse-label">🔄 反方向推理</text>
-              <text class="rule-card-reverse-text">{{r.detail}}</text>
-            </view>
-
-            <!-- 行动建议 -->
-            <view class="rule-card-action" wx:if="{{r.action}}">
-              <text class="rule-card-action-label">🎯 行动建议</text>
-              <text class="rule-card-action-text">{{r.action}}</text>
-            </view>
-
-            <!-- 维度标签 -->
-            <view class="rule-card-dims" wx:if="{{r.dimension}}">
-              <block wx:for="{{r.dimension.split(' × ')}}" wx:for-item="dim" wx:key="*this">
-                <text class="rule-card-dim">{{dim}}</text>
-              </block>
-            </view>
-
-            <!-- 分割线（每张卡片底部） -->
-            <view class="rule-card-divider"></view>
-          </view>
-        </view>
-      </block>
+      <text class="wr-nav-title">规则探索</text>
+      <view class="wr-nav-right">
+        <text class="wr-nav-share" bindtap="onSharePoster">📤</text>
+      </view>
     </view>
 
-    <!-- 空态 -->
-    <xsg-empty icon="📜" title="暂无规则" desc="世界规则正在收集中..." btnText="查看每日暴击" wx:if="{{!rules.length}}" />
+    <!-- 编号 + 分类标签 -->
+    <view class="wr-meta-row">
+      <view class="wr-num-badge">第{{currentIndex+1}}条</view>
+      <view class="wr-cat-tag">{{currentRule.category || '世界运行规则'}}</view>
+    </view>
+
+    <!-- 主卡：大标题 -->
+    <view class="wr-card wr-card-hero {{animating}}">
+      <text class="wr-hero-title">{{currentRule.title || currentRule.core_strike || ''}}</text>
+      <view class="wr-divider"></view>
+
+      <!-- 🎯 规则解读卡 -->
+      <view class="wr-section">
+        <view class="wr-section-head">🎯 规则解读</view>
+        <text class="wr-section-body">{{currentRule.summary || currentRule.logic_dissection || '暂未加载'}}</text>
+      </view>
+
+      <!-- 🔄 反方向推理卡 -->
+      <view class="wr-section wr-reverse" wx:if="{{currentRule.detail || currentRule.reverse_inference}}">
+        <view class="wr-section-head">🔄 反方向推理</view>
+        <text class="wr-section-body">{{currentRule.detail || currentRule.reverse_inference}}</text>
+      </view>
+
+      <!-- 🎬 行动建议卡 -->
+      <view class="wr-section wr-action" wx:if="{{currentRule.action || currentRule.action_advice}}">
+        <view class="wr-section-head">🎬 行动建议</view>
+        <text class="wr-section-body">{{currentRule.action || currentRule.action_advice}}</text>
+      </view>
+    </view>
+
+    <!-- 底部导航 -->
+    <view class="wr-footer">
+      <text class="wr-counter">{{currentIndex+1}} / {{total}}</text>
+      <button class="wr-btn-next" hover-class="wr-btn-hover" bindtap="onNext"
+        disabled="{{currentIndex >= total - 1}}">下一条 →</button>
+    </view>
   </block>
+
+  <!-- 加载/空状态 -->
+  <xsg-loading text="正在加载世界规则..." wx:if="{{loading}}" />
+  <xsg-empty wx:elif="{{!currentRule}}" icon="📜" title="暂无规则" desc="请检查网络后重试" />
 </view>

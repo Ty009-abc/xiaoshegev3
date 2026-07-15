@@ -7,8 +7,13 @@ function call(name, data) {
   return wx.cloud.callFunction({ name, data }).then(r => r.result)
 }
 
-function getWorldRules(category, page, pageSize) {
-  return call('getWorldRules', { category, page, pageSize })
+function getWorldRules(options) {
+  if (typeof options === 'string') {
+    // 旧版兼容：getWorldRules(category, page, pageSize)
+    const [category, page, pageSize] = arguments
+    return call('getWorldRules', { category, page, pageSize })
+  }
+  return call('getWorldRules', options || {})
 }
 
 function getWorldRuleDetail(ruleId) {

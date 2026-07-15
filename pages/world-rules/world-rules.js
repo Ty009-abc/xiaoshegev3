@@ -1,124 +1,130 @@
 /**
- * world-rules — 世界规则库（v3 本地数据驱动）
- * 
- * 15 条底层逻辑从 strikeData.js 50 条认知暴击中精选
- * 涵盖：系统漏洞 × 归因陷阱 × 赌场世界观 × 认知套利
+ * world-rules — v5 沉浸式规则探索（单卡导航）
+ * 从云端 getWorldRules 读取 280 条，逐条沉浸式浏览
  */
-const { STRIKE_POOL } = require('../../utils/strikeData.js')
-
-/**
- * 精选 15 条世界运行规则
- * 选取标准：涉及系统设计、底层逻辑、庄家视角、认知差套利的条目
- * 对应索引（1-based）：001-005 财富认知 + 021-025 赌场世界观 + 041-042 庄家哲学 + 046-048 规则层级
- */
-const WORLD_RULE_INDICES = [0, 1, 2, 3, 4, 20, 21, 22, 23, 24, 40, 41, 43, 45, 46]
-
-/**
- * 为每条规则生成专属分类
- */
-const RULE_CATEGORY_MAP = {
-  0: { category: '财富底层逻辑', order: 1 },
-  1: { category: '财富底层逻辑', order: 2 },
-  2: { category: '认知套利',      order: 1 },
-  3: { category: '财富底层逻辑', order: 3 },
-  4: { category: '归因陷阱',      order: 1 },
-  20: { category: '赌场世界观',    order: 1 },
-  21: { category: '赌场世界观',    order: 2 },
-  22: { category: '赌场世界观',    order: 3 },
-  23: { category: '赌场世界观',    order: 4 },
-  24: { category: '赌场世界观',    order: 5 },
-  40: { category: '庄家哲学',      order: 1 },
-  41: { category: '庄家哲学',      order: 2 },
-  43: { category: '规则层级',      order: 1 },
-  45: { category: '规则层级',      order: 2 },
-  46: { category: '认知套利',      order: 2 },
-}
-
-/**
- * 将原始 strike 条目转换为世界规则卡片格式
- */
-function transformToRule(strikeItem, index) {
-  const meta = RULE_CATEGORY_MAP[index] || { category: '认知法则', order: 99 }
-  return {
-    _id: `rule_${index + 1}`,
-    index: index + 1,
-    num: `${index + 1}`.padStart(2, '0'),
-    title: strikeItem.core_strike,
-    category: meta.category,
-    order: meta.order,
-    oneLiner: strikeItem.logic_dissection || '',
-    summary: strikeItem.logic_dissection,
-    detail: strikeItem.reverse_inference || '',
-    action: strikeItem.action_advice || '',
-    dimension: (strikeItem.dimensions || []).join(' × '),
-    locked: false,
-  }
-}
+const worldRuleService = require('../../services/worldRuleService.js')
 
 Page({
   data: {
-    rules: [],
-    categories: [],
-    activeCat: '',
     loading: true,
+    rules: [],           // 全量规则列表（缓存）
+    currentIndex: 0,     // 当前浏览位置
+    currentRule: null,   // 当前展示的规则
+    total: 280,
+    animating: 'none',   // none | slide-left | slide-right
+    showShare: false,    // 海报分享状态
+    posterUrl: '',       // 海报图片临时路径
   },
 
   onLoad() {
-    this.loadRules()
+    this._loadAllRules()
   },
 
-  loadRules() {
+  async _loadAllRules() {
     try {
-      const worldRules = WORLD_RULE_INDICES.map((poolIdx, i) => {
-        const strikeItem = STRIKE_POOL[poolIdx]
-        if (!strikeItem) return null
-        return transformToRule(strikeItem, poolIdx)
-      }).filter(Boolean)
-
-      // 按 category order 排序
-      worldRules.sort((a, b) => {
-        if (a.category !== b.category) return a.order - b.order
-        return a.index - b.index
-      })
-
-      // 提取分类列表（按 order 排序的去重分类）
-      const catSet = new Set()
-      const categories = []
-      for (const rule of worldRules) {
-        if (!catSet.has(rule.category)) {
-          catSet.add(rule.category)
-          categories.push(rule.category)
+      // 分批获取全量规则（每批100条）
+      let allRules = []
+      let page = 1
+      let hasMore = true
+      while (hasMore) {
+        const r = await worldRuleService.getWorldRules({ page, pageSize: 100, full: true })
+        if (r.code === 0 && r.data) {
+          allRules = allRules.concat(r.data.list || [])
+          hasMore = !!r.data.hasMore && (r.data.list || []).length > 0
+          page++
+        } else {
+          hasMore = false
         }
       }
-
       this.setData({
-        rules: worldRules,
-        categories,
-        activeCat: categories[0] || '',
+        rules: allRules,
+        total: allRules.length,
+        currentIndex: 0,
+        currentRule: allRules[0] || null,
         loading: false,
       })
-    } catch (err) {
-      console.error('[world-rules] 加载失败:', err)
+    } catch (e) {
       this.setData({ loading: false })
+      wx.showToast({ title: '加载失败，请重试', icon: 'none' })
     }
   },
 
-  filterCat(e) {
-    this.setData({ activeCat: e.currentTarget.dataset.cat })
+  /** 下一条 */
+  onNext() {
+    if (this.data.currentIndex >= this.data.rules.length - 1) {
+      wx.showToast({ title: '已是最后一条', icon: 'none' })
+      return
+    }
+    const next = this.data.currentIndex + 1
+    this.setData({ animating: 'slide-left' })
+    setTimeout(() => {
+      this.setData({
+        currentIndex: next,
+        currentRule: this.data.rules[next],
+        animating: 'none',
+      })
+    }, 250)
   },
 
-  goDetail(e) {
-    const id = e.currentTarget.dataset.id
-    const rule = this.data.rules.find(r => r._id === id)
-    if (!rule) return
+  /** 上一条 */
+  onPrev() {
+    if (this.data.currentIndex <= 0) {
+      wx.showToast({ title: '已是第一条', icon: 'none' })
+      return
+    }
+    const prev = this.data.currentIndex - 1
+    this.setData({ animating: 'slide-right' })
+    setTimeout(() => {
+      this.setData({
+        currentIndex: prev,
+        currentRule: this.data.rules[prev],
+        animating: 'none',
+      })
+    }, 250)
+  },
 
-    // 将规则详情写入全局数据，detail 页面直接读取
-    const app = getApp()
-    app.globalData = app.globalData || {}
-    app.globalData.currentRule = rule
+  /** 生成海报 */
+  async onSharePoster() {
+    // 使用现有的 generatePoster 工具
+    try {
+      const { generatePoster } = require('../../utils/generatePoster.js')
+      const rule = this.data.currentRule
+      const posterUrl = await generatePoster({
+        type: 'world_rule',
+        title: rule.title || rule.core_strike || '',
+        content: rule.summary || rule.logic_dissection || '',
+        reverse: rule.detail || rule.reverse_inference || '',
+        action: rule.action || rule.action_advice || '',
+        index: this.data.currentIndex + 1,
+        total: this.data.total,
+      })
+      this.setData({ posterUrl, showShare: true })
+    } catch (e) {
+      wx.showToast({ title: '海报生成失败', icon: 'none' })
+    }
+  },
 
-    wx.navigateTo({
-      url: '/pages/world-rule-detail/world-rule-detail?id=' + id + '&fromLocal=1',
-    })
+  /** 分享 */
+  onShareAppMessage() {
+    const rule = this.data.currentRule
+    return {
+      title: rule ? `世界观分享：${rule.title || rule.core_strike || ''}` : '世界规则探索',
+      path: `/pages/world-rules/world-rules?idx=${this.data.currentIndex}`,
+    }
+  },
+
+  onHidePoster() {
+    this.setData({ showShare: false })
+  },
+
+  /** 扫码后通过 ?idx= 参数定位 */
+  _jumpTo(idx) {
+    const i = parseInt(idx)
+    if (!isNaN(i) && i >= 0 && i < this.data.rules.length) {
+      this.setData({
+        currentIndex: i,
+        currentRule: this.data.rules[i],
+      })
+    }
   },
 })

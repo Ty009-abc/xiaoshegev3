@@ -18,7 +18,7 @@ exports.main = async (event, context) => {
   const openid = wxContext.OPENID
   if (!openid) return fail(CODES.AUTH_FAILED)
 
-  const { category = '', page = 1, pageSize = 20 } = event
+  const { category = '', page = 1, pageSize = 20, full = false } = event
   const skip = (Math.max(1, page) - 1) * Math.min(50, Math.max(1, pageSize))
   console.log(`[getWorldRules] openid=${openid} category=${category} page=${page}`)
 
@@ -35,7 +35,17 @@ exports.main = async (event, context) => {
 
     const totalRes = await db.collection('world_rules').where(where).count()
 
-    const list = res.data.map(item => ({
+    const list = res.data.map(item => (full ? {
+      ruleId: item.ruleId,
+      title: item.title,
+      category: item.category,
+      tags: item.tags,
+      unlockLevel: item.unlockLevel,
+      summary: item.summary || item.content || '',
+      detail: item.detail || '',
+      action: item.action || item.action_advice || '',
+      sort: item.sort,
+    } : {
       ruleId: item.ruleId,
       title: item.title,
       category: item.category,
