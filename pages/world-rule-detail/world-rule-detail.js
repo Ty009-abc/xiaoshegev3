@@ -1,69 +1,88 @@
 /**
- * world-rule-detail — v3 本地数据优先 + 云函数兜底
+ * world-rule-detail v3.1 — 280条世界规则字段契约修复
+ *
+ * 云函数返回: { ruleId, title, rule, reverseLogic, example, action, category, tags }
+ * WXML 合约:   normalized.{ id, title, categoryDisplay, worldRule, reverseInference, example, actionAdvice, tags, hasReverse, hasExample, hasAction }
  */
+
 const worldRuleService = require('../../services/worldRuleService.js')
 
+/** 归一化：云函数返回 → 统一 UI 契约 */
+function normalizeWorldRule(raw) {
+  if (!raw) return null
+  return {
+    id:           raw.ruleId || '',
+    category:     raw.category || '',
+    categoryDisplay: getCategoryDisplay(raw.category),
+    title:        raw.title || '',
+    // 正文：rule 字段（云函数真实字段名）
+    worldRule:    raw.rule || '',
+    // 反向逻辑：reverseLogic 字段
+    reverseInference: raw.reverseLogic || '',
+    // 现实案例：example 字段
+    example:      raw.example || '',
+    // 行动建议：action 字段
+    actionAdvice: raw.action || '',
+    // 标签
+    tags:         raw.tags || [],
+    // 锁定
+    locked:       raw.locked === true,
+    preview:      raw.preview || '',
+    // 降级布尔
+    hasRule:      !!(raw.rule),
+    hasReverse:   !!(raw.reverseLogic),
+    hasExample:   !!(raw.example),
+    hasAction:    !!(raw.action),
+  }
+}
+
+function getCategoryDisplay(cat) {
+  const map = {
+    wealth: '💰 财富模型',
+    mindset: '🧠 认知升级',
+    probability: '🎲 概率决策',
+    system: '⚙️ 系统模型',
+    info: '📡 信息网络',
+    cognition: '🧠 认知升级',
+    capital: '💰 财富模型',
+    risk: '🎲 概率决策',
+    business: '🤖 商业与AI',
+    longterm: '🌍 长期文明',
+    ethics: '⚖️ 伦理意义',
+    human: '🧠 认知升级',
+    leverage: '💰 财富模型',
+    decision: '🎲 概率决策',
+    ai: '🤖 商业与AI',
+    network: '📡 信息网络',
+  }
+  return map[cat] || ('📌 ' + (cat || ''))
+}
+
 Page({
-  data: { rule: null, loading: true },
-
-  onLoad(opt) {
-    if (opt.id) {
-      // 优先从 globalData 读取（world-rules 传递的本地数据）
-      if (opt.fromLocal === '1') {
-        this.loadFromLocal(opt.id)
-      } else {
-        this.load(opt.id)
-      }
-    }
+  data: {
+    rule: null,
+    loading: true,
   },
 
-  loadFromLocal(id) {
-    const app = getApp()
-    const rule = (app.globalData || {}).currentRule
-    if (rule && rule._id === id) {
-      this.setData({ rule: this.adaptRule(rule), loading: false })
-    } else {
-      // 兜底：尝试从 strikeData 重新匹配
-      const { STRIKE_POOL } = require('../../utils/strikeData.js')
-      const idx = parseInt(id.replace('rule_', ''), 10) - 1
-      if (STRIKE_POOL && STRIKE_POOL[idx] >= 0 && STRIKE_POOL[idx]) {
-        const strike = STRIKE_POOL[idx]
-        const adapted = {
-          category: '世界运行规则',
-          title: strike.core_strike,
-          oneLiner: strike.title,
-          content: strike.logic_dissection,
-          reverse: strike.reverse_inference,
-          case: strike.action_advice,
-          dimension: (strike.dimensions || []).join(' × '),
-        }
-        this.setData({ rule: adapted, loading: false })
-      } else {
-        // 最后兜底：走云函数
-        this.load(id)
-      }
+  async onLoad(opt) {
+    const id = opt.id
+    if (!id) {
+      this.setData({ loading: false })
+      return
     }
-  },
 
-  adaptRule(localRule) {
-    return {
-      category: localRule.category || '世界运行规则',
-      title: localRule.title || localRule.core_strike || '',
-      oneLiner: localRule.summary ? localRule.summary.substring(0, 50) + '...' : '每日认知暴击精选',
-      content: localRule.summary || localRule.logic_dissection || '',
-      reverse: localRule.detail || localRule.reverse_inference || '',
-      case: localRule.action || localRule.action_advice || '',
-      dimension: localRule.dimension || '',
-    }
-  },
-
-  async load(id) {
     try {
       const r = await worldRuleService.getWorldRuleDetail(id)
-      if (r.code === 0) this.setData({ rule: r.data })
-    } catch (_) {
-      // silent fail — empty state 会展示
-    } finally {
+      if (r && r.code === 0 && r.data) {
+        const normalized = normalizeWorldRule(r.data)
+        console.log('[WorldRuleDetail] normalized keys:', Object.keys(normalized).join(', '))
+        console.log('[WorldRuleDetail] hasRule:', normalized.hasRule, 'hasReverse:', normalized.hasReverse, 'hasExample:', normalized.hasExample, 'hasAction:', normalized.hasAction)
+        this.setData({ rule: normalized, loading: false })
+      } else {
+        this.setData({ loading: false })
+      }
+    } catch (err) {
+      console.error('[WorldRuleDetail] load fail:', err)
       this.setData({ loading: false })
     }
   },

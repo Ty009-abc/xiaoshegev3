@@ -1,8 +1,9 @@
 /**
- * cognitive-shock-detail v1.0 — 独立详情页
+ * cognitive-shock-detail v1.1 — 独立详情页
  * 数据源: utils/cognitionStrike.js getTodayStrike()
  * 海报引擎: share/posters/index.js _neonShockPoster (Canvas+权限+预览)
  * 二维码: 懒加载 wx.cloud.callFunction getUnlimitedQR
+ *   qrStatus: idle → loading → ready | error
  */
 
 const { getTodayStrike } = require('../../utils/cognitionStrike.js')
@@ -25,7 +26,10 @@ const pageConfig = {
     posterGenerating: false,
     posterPath: '',
     posterHeight: 0,
+
+    // 二维码
     qrPath: '',
+    qrStatus: 'idle',  // idle | loading | ready | error
 
     // 收藏
     isCollected: false,
@@ -68,47 +72,50 @@ const pageConfig = {
 
   /* ═══════════ 小程序码懒加载 ═══════════ */
   _ensureQrCode() {
-    if (this._qrFetching || this.data.qrPath) return
+    if (this._qrFetching || this.data.qrStatus === 'ready' || this.data.qrStatus === 'loading') return
     this._qrFetching = true
-    console.log('[ShockDetail] QR fetch start')
-    try {
-      wx.cloud.callFunction({
-        name: 'getUnlimitedQR',
-        data: {
-          scene: this.data.dateId || 'shock',
-          page: 'subpkg-ai/cognitive-shock-detail/cognitive-shock-detail',
-        },
-        success: (res) => {
-          console.log('[ShockDetail] QR cloud response:', JSON.stringify(res.result))
-          const fileID = (res.result && res.result.fileID) || res.result?.data?.fileID || ''
-          if (fileID) {
-            wx.cloud.downloadFile({
-              fileID,
-              success: (dfRes) => {
-                console.log('[ShockDetail] QR local path:', dfRes.tempFilePath)
-                this.setData({ qrPath: dfRes.tempFilePath })
-              },
-              fail: (err) => {
-                console.error('[ShockDetail] QR downloadFile fail:', err)
-                this._qrFetching = false
-              }
-            })
-          } else {
-            console.log('[ShockDetail] QR: no fileID, using fallback')
-            this.setData({ qrPath: '/images/miniprogram-code.jpg' })
-          }
-        },
-        fail: (err) => {
-          console.error('[ShockDetail] QR cloudFunc fail:', err)
-          this.setData({ qrPath: '/images/miniprogram-code.jpg' })
+    this.setData({ qrStatus: 'loading' })
+    console.log('[ShockQR] call:start scene=' + (this.data.dateId || 'shock'))
+
+    wx.cloud.callFunction({
+      name: 'getUnlimitedQR',
+      data: {
+        scene: this.data.dateId || 'shock',
+        page: 'subpkg-ai/cognitive-shock-detail/cognitive-shock-detail',
+      },
+      success: (res) => {
+        console.log('[ShockQR] cloud:success resultKeys=' + (res.result ? Object.keys(res.result).join(',') : 'none'))
+        const result = res.result || {}
+        // 正确路径：result.code===0 → result.data.fileID
+        const fileID = (result.data && result.data.fileID) || result.fileID || ''
+        if (fileID) {
+          console.log('[ShockQR] fileID:' + fileID)
+          wx.cloud.downloadFile({
+            fileID,
+            success: (dfRes) => {
+              console.log('[ShockQR] download:success')
+              console.log('[ShockQR] tempPath:' + dfRes.tempFilePath)
+              this.setData({ qrPath: dfRes.tempFilePath, qrStatus: 'ready' })
+              this._qrFetching = false
+            },
+            fail: (err) => {
+              console.error('[ShockQR] download:fail errMsg=' + (err.errMsg || JSON.stringify(err)))
+              this.setData({ qrPath: '', qrStatus: 'error' })
+              this._qrFetching = false
+            }
+          })
+        } else {
+          console.error('[ShockQR] cloud:noFileID code=' + result.code + ' message=' + (result.message || ''))
+          this.setData({ qrPath: '', qrStatus: 'error' })
           this._qrFetching = false
         }
-      })
-    } catch (e) {
-      console.error('[ShockDetail] QR exception:', e)
-      this.setData({ qrPath: '/images/miniprogram-code.jpg' })
-      this._qrFetching = false
-    }
+      },
+      fail: (err) => {
+        console.error('[ShockQR] cloud:fail errMsg=' + (err.errMsg || JSON.stringify(err)))
+        this.setData({ qrPath: '', qrStatus: 'error' })
+        this._qrFetching = false
+      }
+    })
   },
 
   /* ═══════════ 导航 ═══════ */
@@ -149,12 +156,63 @@ const pageConfig = {
     wx.switchTab({ url: '/pages/ai-chat/ai-chat' })
   },
 
-  /* ═══════════ 海报 ═══════ */
+  /* ═══════════ 海报 — 二维码状态守卫 ═══════ */
   onSaveShockPoster() {
     if (this.data.posterGenerating) return
-    // 传递当前 strike 数据给海报引擎
-    this.setData({ strikeData: this.data.strike, qrPath: this.data.qrPath || '' })
+
+    const qrStatus = this.data.qrStatus
+
+    // qr 还在加载中 → 等待
+    if (qrStatus === 'loading') {
+      wx.showLoading({ title: '正在生成小程序码...', mask: true })
+      const start = Date.now()
+      const check = () => {
+        if (this.data.qrStatus === 'ready') {
+          wx.hideLoading()
+          this._doGeneratePoster()
+        } else if (this.data.qrStatus === 'error') {
+          wx.hideLoading()
+          this._handleQrErrorPoster()
+        } else if (Date.now() - start > 15000) {
+          wx.hideLoading()
+          this._handleQrErrorPoster()
+        } else {
+          setTimeout(check, 300)
+        }
+      }
+      check()
+      return
+    }
+
+    // qr 已就绪 → 生成完整海报
+    if (qrStatus === 'ready') {
+      this._doGeneratePoster()
+      return
+    }
+
+    // qr 错误/空闲 → 明确提示
+    this._handleQrErrorPoster()
+  },
+
+  _doGeneratePoster() {
+    console.log('[ShockPoster] qrPath:' + (this.data.qrPath ? this.data.qrPath.substring(0, 40) : '(empty)'))
+    this.setData({ strikeData: this.data.strike })
     this._neonShockPoster.call(this)
+  },
+
+  _handleQrErrorPoster() {
+    wx.showModal({
+      title: '小程序码加载失败',
+      content: '小程序码生成失败，请稍后重试。\n\n是否仍要生成不含二维码的海报？',
+      confirmText: '继续生成',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          this.setData({ qrPath: '' })
+          this._doGeneratePoster()
+        }
+      }
+    })
   },
 
   onClosePoster() {

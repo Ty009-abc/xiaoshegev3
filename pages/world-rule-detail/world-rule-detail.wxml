@@ -1,16 +1,48 @@
-<!-- world-rule-detail -->
+<!-- world-rule-detail v3.1 — 280条字段契约修复 -->
 <view class="page">
   <xsg-navbar title="规则详情" showBack />
   <xsg-loading text="正在加载..." wx:if="{{loading}}" />
+
   <block wx:elif="{{rule}}">
+    <!-- 标题卡 -->
     <xsg-card type="premium">
-      <xsg-tag text="{{rule.category||'规则'}}" type="gold" />
+      <xsg-tag text="{{rule.categoryDisplay||'规则'}}" type="gold" />
       <view class="title mt-16">{{rule.title}}</view>
-      <view class="oneliner mt-8">{{rule.oneLiner}}</view>
+      <view class="tags-row mt-8" wx:if="{{rule.tags && rule.tags.length}}">
+        <text class="tag-chip" wx:for="{{rule.tags}}" wx:key="*this" wx:for-item="t">#{{t}}</text>
+      </view>
+      <!-- 锁定提示 -->
+      <view class="locked-notice" wx:if="{{rule.locked}}">
+        <text class="locked-text">🔒 {{rule.preview}}</text>
+      </view>
     </xsg-card>
-    <xsg-card><view class="section-title">世界规则</view><view class="body">{{rule.content}}</view></xsg-card>
-    <xsg-card wx:if="{{rule.reverse}}"><view class="section-title">反向逻辑</view><view class="body">{{rule.reverse}}</view></xsg-card>
-    <xsg-card wx:if="{{rule.case}}"><view class="section-title">现实案例</view><view class="body">{{rule.case}}</view></xsg-card>
+
+    <!-- 世界规则正文 — 核心字段 -->
+    <xsg-card wx:if="{{rule.hasRule}}">
+      <view class="section-title">世界规则</view>
+      <view class="body">{{rule.worldRule}}</view>
+    </xsg-card>
+
+    <!-- 反向逻辑 — 有则显示 -->
+    <xsg-card wx:if="{{rule.hasReverse}}">
+      <view class="section-title">↔ 反向逻辑</view>
+      <view class="body">{{rule.reverseInference}}</view>
+    </xsg-card>
+
+    <!-- 现实案例 — 有则显示 -->
+    <xsg-card wx:if="{{rule.hasExample}}">
+      <view class="section-title">💼 现实案例</view>
+      <view class="body">{{rule.example}}</view>
+    </xsg-card>
+
+    <!-- 行动建议 — 有则显示 -->
+    <xsg-card wx:if="{{rule.hasAction}}">
+      <view class="section-title">🎯 行动建议</view>
+      <view class="body">{{rule.actionAdvice}}</view>
+    </xsg-card>
+
+    <!-- 空字段降级：什么都不显示，页面自然收缩 -->
   </block>
+
   <xsg-empty wx:elif="{{!loading}}" icon="📜" title="规则未找到" desc="该规则可能已被移除" btnText="返回规则列表" />
 </view>
