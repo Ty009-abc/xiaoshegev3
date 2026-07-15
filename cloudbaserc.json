@@ -413,6 +413,13 @@
       "timeout": 15,
       "handler": "index.main",
       "installDependency": true
+    },
+    {
+      "name": "ensureChallengeCollections",
+      "runtime": "Nodejs18.15",
+      "timeout": 30,
+      "handler": "index.main",
+      "installDependency": true
     }
   ]
 }
