@@ -8,11 +8,10 @@ const aiReportService = require('../../services/aiReportService.js')
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
 const app = getApp()
 
-/** v3 10 题问卷 — 决策引擎驱动 */
+/** v3 10 题问卷 — 决策引擎驱动（Q2 职业类型+职业详情合并为一步） */
 const DIAGNOSTIC_QUESTIONS = [
   { id:'age',              title:'你今年几岁？',                subtitle:'年龄决定你的牌桌大小和时间窗口',                  type:'input',    inputType:'number', placeholder:'请输入数字', maxlength:3 },
-  { id:'occupation',       title:'你现在的职业是？',            subtitle:'职业是你在牌桌上的筹码形式',                      type:'picker',   options:['','上班族','个体经营','企业主','自由职业','专业技能职业','学生','待业','其他'] },
-  { id:'occupationDetail', title:'具体是什么职业？',            subtitle:'例如：厨师、销售、程序员、律师、外卖骑手',        type:'input',    inputType:'text',   placeholder:'请输入具体职业' },
+  { id:'occupation',       title:'你现在的职业是？',            subtitle:'职业是你在牌桌上的筹码形式',                      type:'picker+input', options:['','上班族','个体经营','企业主','自由职业','专业技能职业','学生','待业','其他'], detailPlaceholder:'请输入具体职业，例如：厨师、销售、程序员' },
   { id:'monthlyIncome',    title:'你的月收入是多少？',          subtitle:'收入 = 认知在这个世界的兑现速度',                 type:'picker',   options:['','3000以下','3000–6000','6000–1万','1万–2万','2万–5万','5万以上'] },
   { id:'savings',          title:'你目前的可支配存款？',        subtitle:'这决定了你的安全垫厚度',                          type:'picker',   options:['','1万元以下','1–5万元','5–10万元','10–30万元','30–100万元','100万元以上'] },
   { id:'debt',             title:'你目前的负债情况？',          subtitle:'负债决定了你翻身的紧迫度',                        type:'picker',   options:['','无负债','轻度负债（<月收入3倍）','中度负债（月收入3-12倍）','重度负债（>月收入12倍）'] },
@@ -120,7 +119,13 @@ Page({
   onDInput(e) {
     const a = [...this.data.dQ.answers]
     const raw = e.detail.value
-    a[this.data.dQ.idx] = raw
+    const q = DIAGNOSTIC_QUESTIONS[this.data.dQ.idx]
+    if (q.type === 'picker+input') {
+      // Q2: occupationDetail 存入 _occDetail 临时字段
+      a._occDetail = raw
+    } else {
+      a[this.data.dQ.idx] = raw
+    }
     const valid = typeof raw === 'string' ? raw.trim().length > 0 : String(raw || '').trim().length > 0
     this.setData({ 'dQ.answers': a, 'dQ.canNext': valid })
   },
@@ -131,14 +136,32 @@ Page({
     const q = DIAGNOSTIC_QUESTIONS[this.data.dQ.idx]
     const selected = (q.options || [])[idx] || ''
     a[this.data.dQ.idx] = selected
-    this.setData({ 'dQ.answers': a, 'dQ.canNext': selected.length > 0 })
+    // picker+input 类型：occupation 选中后还需填写详情
+    const valid = q.type === 'picker+input'
+      ? selected.length > 0 && String(a._occDetail || '').trim().length > 0
+      : selected.length > 0
+    this.setData({ 'dQ.answers': a, 'dQ.canNext': valid })
   },
 
   onDNext() {
     const { idx, answers } = this.data.dQ
-    if (!answers[idx] || !String(answers[idx]).trim()) {
-      wx.showToast({ title:'说真话，别跳过 🙏', icon:'none' })
-      return
+    const q = DIAGNOSTIC_QUESTIONS[idx]
+    // picker+input: 合并 occupation + occupationDetail
+    if (q.type === 'picker+input') {
+      const occ = answers[idx] || ''
+      const detail = (answers._occDetail || '').trim()
+      if (!occ) { wx.showToast({ title:'请先选择职业类型', icon:'none' }); return }
+      if (!detail) { wx.showToast({ title:'请输入具体职业', icon:'none' }); return }
+      // 规范答案: 职业类型 + 具体职业一起存
+      // occupation 保持 picker value；occupationDetail 存入指定字段
+      if (!answers.occupationDetail) answers.occupationDetail = detail
+      answers[idx] = occ  // occupation 字段
+      this.setData({ 'dQ.answers': answers, 'dQ.canNext': true })
+    } else {
+      if (!answers[idx] || !String(answers[idx]).trim()) {
+        wx.showToast({ title:'说真话，别跳过 🙏', icon:'none' })
+        return
+      }
     }
     // 最后一题 → 提交 AI 诊断
     if (idx === DIAGNOSTIC_QUESTIONS.length - 1) {
@@ -190,6 +213,8 @@ Page({
     // 构建 10 题答案映射（兼容旧字段名）
     const answers = {}
     questions.forEach((q, i) => { answers[q.id] = a[i] || '' })
+    // occupationDetail: 来自合并步骤中的 _occDetail
+    answers.occupationDetail = a._occDetail || answers.occupationDetail || answers.occupation || ''
     // 向后兼容：旧的 key 映射
     if (!answers.job) answers.job = answers.occupationDetail || answers.occupation || ''
     if (!answers.income) answers.income = answers.monthlyIncome || ''

@@ -71,11 +71,18 @@ exports.main = async (event, context) => {
 
       if (!diagResult.success) {
         // AI 失败时返回规则引擎的冷数据
+        const np = engineResult?.normalizedProfile
+        const fpForDisplay = (forbiddenPaths?.length)
+          ? forbiddenPaths.map(f => typeof f === 'object' ? f.path : f)
+          : ['系统暂时无法分析，请重试']
+        const apFirst = allowedPaths?.[0]
+          ? (typeof allowedPaths[0] === 'object' ? allowedPaths[0].path : allowedPaths[0])
+          : '请重新测试'
         return ok({
-          position: `${normalizedProfile?.occupation || '未知职业'}·${normalizedProfile?.ageGroup || '未知年龄段'}`,
+          position: `${np?.occupation || '未知职业'}·${np?.ageGroup || '未知年龄段'}`,
           trapped_by: constraintAnalysis?.cashFlowHealth === 'critical' ? '现金流断裂风险' : '系统分析中断',
-          forbidden: forbiddenPaths?.length ? forbiddenPaths : ['系统暂时无法分析，请重试'],
-          path: allowedPaths?.[0] || '请重新测试',
+          forbidden: fpForDisplay,
+          path: apFirst,
           next90days: ['重新测试获取完整报告'],
           personality: usedPersonality ? { name: usedPersonality.name, emoji: usedPersonality.emoji } : undefined,
           engineResult,
@@ -89,8 +96,8 @@ exports.main = async (event, context) => {
       const fallbackDiagnostic = {
         position: '系统信号中断，请稍后再试',
         trapped_by: '暂时无法分析，点击重试',
-        forbidden: forbiddenPaths?.length ? forbiddenPaths.slice(0,3) : ['不建议任何高风险行为'],
-        path: allowedPaths?.[0] || '重新测试以获取精准策略',
+        forbidden: forbiddenPaths?.length ? forbiddenPaths.map(f => typeof f === 'object' ? f.path : f).slice(0,3) : ['不建议任何高风险行为'],
+        path: allowedPaths?.[0] ? (typeof allowedPaths[0] === 'object' ? allowedPaths[0].path : allowedPaths[0]) : '重新测试以获取精准策略',
         next90days: ['点击重试按钮重新测试', '或联系客服反馈问题'],
       }
       try {
@@ -122,7 +129,8 @@ exports.main = async (event, context) => {
 
         // 如果 AI 返回了禁止路径但规则引擎有更严格的禁止项，以规则引擎为准
         if (forbiddenPaths?.length && (!parsed.forbidden || parsed.forbidden.length < forbiddenPaths.length)) {
-          parsed.forbidden = [...new Set([...parsed.forbidden, ...forbiddenPaths.slice(0, 5)])]
+          const engineForbidden = forbiddenPaths.map(f => typeof f === 'object' ? f.path : f)
+          parsed.forbidden = [...new Set([...parsed.forbidden, ...engineForbidden.slice(0, 5)])]
         }
       } catch (parseErr) {
         console.error('【diagnostic JSON清洗失败】错误:', parseErr.message)

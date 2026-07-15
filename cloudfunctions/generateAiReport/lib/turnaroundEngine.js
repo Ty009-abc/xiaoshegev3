@@ -1,5 +1,5 @@
 /**
- * turnaroundEngine.js — TURNAROUND_DIAGNOSIS_10Q_DECISION_ENGINE_V1
+ * turnaroundEngine.js — TURNAROUND_DIAGNOSIS_10Q_DECISION_ENGINE_V2
  *
  * 现实约束引擎 + 交叉规则引擎
  * 禁止 AI 根据 10 题答案自由发挥
@@ -7,50 +7,99 @@
  *   创业准备度、风险容量、目标可行性 → 允许/限制/禁止路径
  */
 
-// ═══════════════════════════ 阶段1: 标准化 & 归一化 ═══════════════════════════
+// ═══════════════════════════ 阶段1a: 金额归一化结构 ═══════════════════════════
 
-function normalizeAnswers(raw) {
-  return {
-    age: parseInt(raw.age) || 0,
-    occupation: raw.occupationDetail || raw.occupation || raw.job || '',
-    occupationCategory: categorizeOccupation(raw.occupationDetail || raw.occupation || raw.job || ''),
-    monthlyIncome: parseIncomeRange(raw.monthlyIncome || raw.income || 0),
-    savings: parseSavingsRange(raw.savings || 0),
-    savingsRaw: parseSavingsValue(raw.savings || 0),
-    debt: parseDebtLevel(raw.debt || 'none'),
-    monthlyExpense: parseInt(raw.monthlyExpense) || 0,
-    freeTimeHours: parseTimeRange(raw.freeTimeHours || 0),
-    bestSkill: raw.bestSkill || '',
-    goal: raw.goal || '',
-    maxLoss: parseMaxLoss(raw.maxLoss || raw.riskCapacity || 'low'),
+/**
+ * 金额归一化 → { raw, min, max, representativeValue }
+ * 所有区间字符串和数值输入统一转换为结构化对象
+ */
+function normalizeAmount(raw) {
+  const v = String(raw ?? '').trim()
+  // 先尝试已有结构化
+  if (typeof raw === 'object' && raw !== null && typeof raw.representativeValue === 'number') {
+    return { raw: raw.raw || String(raw.representativeValue), min: raw.min ?? raw.representativeValue, max: raw.max ?? raw.representativeValue, representativeValue: raw.representativeValue }
   }
+  // 数值输入
+  const numeric = parseFloat(v)
+  if (!isNaN(numeric) && v !== '' && !/[^\d.]/.test(v)) {
+    return { raw: v, min: numeric, max: numeric, representativeValue: numeric }
+  }
+  // 区间字符串匹配
+  // 策略：先按已知的区间格式精确匹配，再回退到正则
+  
+  // ── 精确区间模式 ──
+  // X以下 / X万元以下
+  const rBelow = v.match(/^([\d]+(?:\.[\d]+)?)\s*(?:万(?:元)?)?\s*以下$/)
+  if (rBelow) { const n = parseFloat(rBelow[1]) * (v.includes('万') ? 10000 : 1); return { raw: v, min: 0, max: n, representativeValue: Math.round(n * 0.5) } }
+  // X以上 / X万元以上
+  const rAbove = v.match(/^([\d]+(?:\.[\d]+)?)\s*(?:万(?:元)?)?\s*以上$/)
+  if (rAbove) { const n = parseFloat(rAbove[1]) * (v.includes('万') ? 10000 : 1); return { raw: v, min: n, max: n * 3, representativeValue: Math.round(n * 1.5) } }
+  // 混合区间：X–Y万（例如 6000–1万）— 第一个是千元，第二个是万元
+  const rMixed = v.match(/^([\d]+)\s*[–\-]\s*([\d]+)\s*万(?:元)?$/)
+  if (rMixed) {
+    const lo = parseInt(rMixed[1])
+    const hi = parseInt(rMixed[2]) * 10000
+    // 如果 lo 在千元范围（3000-8000），lo 不乘 10000
+    // 否则（如 1–5万），lo 也乘 10000
+    if (lo >= 1000) return { raw: v, min: lo, max: hi, representativeValue: Math.round((lo + hi) / 2) }
+    return { raw: v, min: lo * 10000, max: hi, representativeValue: Math.round((lo * 10000 + hi) / 2) }
+  }
+  // X–Y万（含万的区间）如 1–5万元（两端都是万）
+  const rRangeWan = v.match(/^([\d]+(?:\.[\d]+)?)\s*[–\-]\s*([\d]+(?:\.[\d]+)?)\s*万(?:元)?$/)
+  if (rRangeWan) { const lo = parseFloat(rRangeWan[1]) * 10000, hi = parseFloat(rRangeWan[2]) * 10000; return { raw: v, min: lo, max: hi, representativeValue: Math.round((lo + hi) / 2) } }
+  // X–Y（纯数字千元区间）如 3000–6000
+  const rRange1 = v.match(/^([\d]+)\s*[–\-]\s*([\d]+)\s*$/)
+  if (rRange1) { const lo = parseInt(rRange1[1]), hi = parseInt(rRange1[2]); return { raw: v, min: lo, max: hi, representativeValue: Math.round((lo + hi) / 2) } }
+
+  // ── 回退：通用正则 ──
+  const match = v.match(/[\d]+[.\d]*/g)
+  if (match && match.length >= 1) {
+    const nums = match.map(Number).filter(n => !isNaN(n))
+    if (nums.length === 1) {
+      // 单值 "5万以上" → 50000; "1万元以下" → 10000
+      if (v.includes('以上') || v.includes('高于') || v.includes('超过')) {
+        const val = nums[0] * (v.includes('万') ? 10000 : 1)
+        return { raw: v, min: val, max: val * 3, representativeValue: val * 1.5 }
+      }
+      if (v.includes('以下') || v.includes('低于') || v.includes('不到')) {
+        const val = nums[0] * (v.includes('万') ? 10000 : 1)
+        return { raw: v, min: 0, max: val, representativeValue: val * 0.5 }
+      }
+      // 孤数值 → 按中值处理
+      const val = nums[0] * (v.includes('万') ? 10000 : 1)
+      return { raw: v, min: val * 0.5, max: val * 1.5, representativeValue: val }
+    }
+    if (nums.length >= 2) {
+      const mult = v.includes('万') ? 10000 : 1
+      // 取第一个和最后一个数值作为[min, max]
+      const lo = nums[0] * mult
+      const hi = nums[nums.length - 1] * mult
+      // 修复：如果两个数字相差超过1000倍（如 6000×1 vs 10000×1）→ 说明不同单位
+      // 检查：如果第一个数字在 3000-8000 范围（表示千元区间），而第二个在 1-5 范围（万元）
+      let adjustedHi = hi
+      if (!v.includes('万') && hi >= 10000 && lo < 10000) {
+        // '6000–1万' 格式：lo=6000 hi=10000，正确只需确保 hi 已经用 ×1
+        adjustedHi = hi
+      }
+      // 但如果是 '6000–10000万' 之类的异常格式
+      return { raw: v, min: lo, max: adjustedHi, representativeValue: Math.round((lo + adjustedHi) / 2) }
+    }
+  }
+  // 兜底
+  return { raw: v, min: 0, max: 0, representativeValue: 0 }
 }
 
-// 区间字符串 → 中位数值
+// 区间字符串 → 中位数值（保留向后兼容）
 function parseIncomeRange(val) {
-  const v = String(val || '')
-  if (v.includes('3000以下')) return 2000
-  if (v.includes('3000–') || v.includes('3000-')) return 4500
-  if (v.includes('6000–') || v.includes('6000-')) return 8000
-  if (v.includes('1万–') || v.includes('1万-') || v.includes('10000–') || v.includes('10000-')) return 15000
-  if (v.includes('2万–') || v.includes('2万-')) return 35000
-  if (v.includes('5万以上')) return 70000
-  return parseInt(v) || 0
+  return normalizeAmount(val).representativeValue
 }
 
-// 储蓄区间 → 实际中位数值
+// 储蓄区间 → 实际中位数值（保留向后兼容）
 function parseSavingsValue(val) {
-  const v = String(val || '')
-  if (v.includes('1万元以下')) return 5000
-  if (v.includes('1–5') || v.includes('1-5')) return 30000
-  if (v.includes('5–10') || v.includes('5-10')) return 75000
-  if (v.includes('10–30') || v.includes('10-30')) return 200000
-  if (v.includes('30–100') || v.includes('30-100')) return 650000
-  if (v.includes('100万')) return 1500000
-  return parseInt(v) || 0
+  return normalizeAmount(val).representativeValue
 }
 
-// 时间区间 → 中位数
+// 时间区间 → 小数值
 function parseTimeRange(val) {
   const v = String(val || '')
   if (v.includes('几乎为0')) return 0.3
@@ -59,6 +108,38 @@ function parseTimeRange(val) {
   if (v.includes('2–4') || v.includes('2-4')) return 3
   if (v.includes('4小时以上')) return 6
   return parseFloat(v) || 0
+}
+
+// ═══════════════════════════ 阶段1b: 标准化 & 归一化 ═══════════════════════════
+
+function normalizeAnswers(raw) {
+  const incomeAmt = normalizeAmount(raw.monthlyIncome || raw.income || 0)
+  const savingsAmt = normalizeAmount(raw.savings || 0)
+  const expenseAmt = normalizeAmount(raw.monthlyExpense || 0)
+  const maxLossAmt = normalizeAmount(raw.maxLoss || raw.riskCapacity || '0')
+
+  return {
+    age: parseInt(raw.age) || 0,
+    occupation: raw.occupationDetail || raw.occupation || raw.job || '',
+    occupationCategory: categorizeOccupation(raw.occupationDetail || raw.occupation || raw.job || ''),
+    // 金额归一化结构
+    monthlyIncome: { raw: incomeAmt.raw, min: incomeAmt.min, max: incomeAmt.max, representativeValue: incomeAmt.representativeValue },
+    savings: { raw: savingsAmt.raw, min: savingsAmt.min, max: savingsAmt.max, representativeValue: savingsAmt.representativeValue },
+    monthlyExpense: { raw: expenseAmt.raw, min: expenseAmt.min, max: expenseAmt.max, representativeValue: expenseAmt.representativeValue },
+    maxLoss: { raw: maxLossAmt.raw, min: maxLossAmt.min, max: maxLossAmt.max, representativeValue: maxLossAmt.representativeValue },
+    // 向后兼容的数值字段
+    incomeValue: incomeAmt.representativeValue,
+    savingsValue: savingsAmt.representativeValue,
+    expenseValue: expenseAmt.representativeValue,
+    maxLossValue: maxLossAmt.representativeValue,
+    // 分类字段
+    savingsRange: parseSavingsRange(raw.savings || 0),
+    savingsRaw: parseSavingsValue(raw.savings || 0),
+    debt: parseDebtLevel(raw.debt || 'none'),
+    freeTimeHours: parseTimeRange(raw.freeTimeHours || 0),
+    bestSkill: raw.bestSkill || '',
+    goal: raw.goal || '',
+  }
 }
 
 function categorizeOccupation(occ) {
@@ -105,15 +186,19 @@ function parseMaxLoss(val) {
 function computeConstraints(a) {
   const s = {}
 
+  const income = a.incomeValue ?? (a.monthlyIncome?.representativeValue ?? 0)
+  const expense = a.expenseValue ?? (a.monthlyExpense?.representativeValue ?? 0)
+  const savingsVal = a.savingsValue ?? (a.savings?.representativeValue ?? 0)
+
   // 1. 现金流健康度
-  const monthlySurplus = a.monthlyIncome - a.monthlyExpense
+  const monthlySurplus = income - expense
   if (monthlySurplus <= 0) s.cashFlowHealth = 'critical'
   else if (monthlySurplus < 3000) s.cashFlowHealth = 'fragile'
   else if (monthlySurplus < 10000) s.cashFlowHealth = 'moderate'
   else s.cashFlowHealth = 'healthy'
 
   // 2. 应急缓冲（储蓄能撑几个月）
-  const monthlyBuffer = a.monthlyExpense > 0 ? Math.round(a.savingsRaw / a.monthlyExpense) : 999
+  const monthlyBuffer = expense > 0 ? Math.round(savingsVal / expense) : 999
   if (monthlyBuffer < 1) s.emergencyBuffer = 'critical'
   else if (monthlyBuffer < 3) s.emergencyBuffer = 'dangerous'
   else if (monthlyBuffer < 6) s.emergencyBuffer = 'fragile'
@@ -196,10 +281,18 @@ function computeEntrepreneurshipReadiness(a, s) {
 }
 
 function computeRiskCapacity(a, s) {
-  const loss = a.maxLoss
-  if (loss === 'high') return 3
-  if (loss === 'medium') return 2
-  if (loss === 'low') return 1
+  const maxLossVal = a.maxLossValue ?? (a.maxLoss?.representativeValue ?? 0)
+  const rawStr = String(a.maxLoss?.raw ?? a.maxLoss ?? '').toLowerCase()
+  if (rawStr.includes('几十万') || rawStr.includes('较大') || maxLossVal >= 500000) return 3
+  if (rawStr.includes('几万') || maxLossVal >= 30000) return 2
+  if (rawStr.includes('小额') || rawStr.includes('几千') || maxLossVal > 0) return 1
+  // 'none' / '不能接受'
+  if (rawStr.includes('不能接受') || rawStr.includes('没有任何') || rawStr === 'none' || rawStr === 'zero' || rawStr === '0') return 0
+  // 向后兼容旧的 parseMaxLoss 映射
+  const oldLoss = parseMaxLoss(a.maxLoss?.raw ?? a.maxLoss ?? 0)
+  if (oldLoss === 'high') return 3
+  if (oldLoss === 'medium') return 2
+  if (oldLoss === 'low') return 1
   return 0
 }
 
@@ -232,6 +325,11 @@ function computeGoalFeasibility(a, s) {
 
 // ═══════════════════════════ 阶段3: 交叉规则引擎 ═══════════════════════════
 
+/** 路径对象构建器 */
+function pathObj(path, status, reason, triggeredRules) {
+  return { path, status, reason, triggeredRules: Array.isArray(triggeredRules) ? triggeredRules : [triggeredRules] }
+}
+
 function applyCrossRules(a, s) {
   const allowed = []
   const restricted = []
@@ -239,95 +337,248 @@ function applyCrossRules(a, s) {
 
   const g = String(a.goal || '').toLowerCase()
   const occ = String(a.occupation || '').toLowerCase()
+  const incomeVal = a.incomeValue ?? 0
+  const expenseVal = a.expenseValue ?? 0
+  const savingsVal = a.savingsValue ?? 0
 
-  // ── 规则1: 低储蓄 + 低现金流 + 实体创业 → 禁止 ──
+  // ── 规则R01: 低储蓄 + 低现金流 + 实体创业 → 禁止 ──
   if ((s.savingsRange === 'under_10k' || s.savingsRange === '10k_50k') &&
       (s.cashFlowHealth === 'fragile' || s.cashFlowHealth === 'critical') &&
       (g.includes('创业') || g.includes('开店') || g.includes('生意') || g.includes('实体'))) {
-    forbidden.push('重资产实体创业（门店/装修/囤货）——当前储蓄过低且现金流脆弱')
-    restricted.push('轻资产服务型创业（私厨/上门/咨询）——但必须先验证最小可行产品')
+    forbidden.push(pathObj(
+      '重资产实体创业（门店/装修/囤货）', 'forbidden',
+      `当前储蓄不足（约${savingsVal}元）且现金流${s.cashFlowHealth === 'critical' ? '已断裂' : '脆弱'}，实体创业固定成本过高`,
+      ['R01']))
+    restricted.push(pathObj(
+      '轻资产服务型创业（私厨/上门/咨询）', 'restricted',
+      '可以先以最小成本验证市场需求，但必须不增加固定负债',
+      ['R01']))
   }
 
-  // ── 规则2: 厨师 + 低储蓄 + 创业 → 优先技能路径 ──
+  // ── 规则R02: 厨师 + 低储蓄 + 创业 → 优先技能路径 ──
   if ((occ.includes('厨师') || occ.includes('厨') || occ.includes('cook') || occ.includes('chef')) &&
       (s.savingsRange === 'under_10k' || s.savingsRange === '10k_50k') &&
       g.includes('创业')) {
-    allowed.push('技能变现：私厨服务 / 上门做菜 / 小型定制餐饮')
-    allowed.push('内容IP：短视频/直播展示厨艺 → 积累粉丝 → 课程/带货')
-    allowed.push('低成本MVP：家庭厨房/共享厨房 → 验证市场后再考虑实体店')
-    forbidden.push('租大型门店 / 重装修 / 高固定成本创业')
-    restricted.push('实体餐饮店——建议先在线上/私域验证6个月现金流')
+    allowed.push(pathObj(
+      '技能变现：私厨服务 / 上门做菜 / 小型定制餐饮', 'allowed',
+      `利用现有厨艺技能，零固定成本启动，储蓄${savingsVal}元足够覆盖食材和基本设备`,
+      ['R02']))
+    allowed.push(pathObj(
+      '内容IP：短视频/直播展示厨艺 → 积累粉丝 → 课程/带货', 'allowed',
+      '技能可转化为内容资产，边际成本趋零',
+      ['R02']))
+    allowed.push(pathObj(
+      '低成本MVP：家庭厨房/共享厨房 → 验证市场后再考虑实体店', 'allowed',
+      '用最小可行产品验证市场需求，避免过早承担固定成本',
+      ['R02']))
+    forbidden.push(pathObj(
+      '租大型门店 / 重装修 / 高固定成本创业', 'forbidden',
+      `储蓄${savingsVal}元不足以支撑商业租约+装修+3个月运营成本`,
+      ['R02']))
+    restricted.push(pathObj(
+      '实体餐饮店', 'restricted',
+      '建议先在线上/私域验证6个月现金流再考虑实体化',
+      ['R02']))
   }
 
-  // ── 规则3: 高负债 → 第一优先级现金流修复 ──
+  // ── 规则R03: 高负债 → 第一优先级现金流修复 ──
   if (s.debtPressure === 'high') {
-    allowed.push('现金流修复：降低支出/协商还款计划/增加稳定收入来源')
-    allowed.push('副业增收（低风险低投入）：技能外包/线上兼职/零工平台')
-    forbidden.push('辞职创业 / 借钱投资 / 高风险投机')
-    forbidden.push('扩大消费 / 增加负债 / 以贷养贷')
+    allowed.push(pathObj(
+      '现金流修复：降低支出/协商还款计划/增加稳定收入来源', 'allowed',
+      `月入${incomeVal}支出${expenseVal}，负债压力高，必须首先修复现金流`,
+      ['R03']))
+    allowed.push(pathObj(
+      '副业增收（低风险低投入）：技能外包/线上兼职/零工平台', 'allowed',
+      '用额外收入还清/降低负债，不可借新债还旧债',
+      ['R03']))
+    forbidden.push(pathObj(
+      '辞职创业 / 借钱投资 / 高风险投机', 'forbidden',
+      '当前负债压力高，辞职/借新钱将在30-60天内导致现金流断裂',
+      ['R03']))
+    forbidden.push(pathObj(
+      '扩大消费 / 增加负债 / 以贷养贷', 'forbidden',
+      '以贷养贷是最高杠杆的破产路径',
+      ['R03']))
   }
 
-  // ── 规则4: 月度赤字 → 第一阶段必须修复现金流 ──
+  // ── 规则R04: 月度赤字 → 第一阶段必须修复现金流 ──
   if (s.cashFlowHealth === 'critical') {
-    // 如果还没在允许路径中
-    if (!allowed.some(p => p.includes('现金流修复'))) {
-      allowed.push('现金流修复：立刻削减非必要支出/寻找增收渠道')
+    if (!allowed.some(p => p.path.includes('现金流修复'))) {
+      allowed.push(pathObj(
+        '现金流修复：立刻削减非必要支出/寻找增收渠道', 'allowed',
+        `月入${incomeVal}支出${expenseVal}，当前每月赤字${Math.abs(s.monthlySurplus)}元，储蓄只能撑${s.monthlyBuffer}个月`,
+        ['R04']))
     }
-    forbidden.push('投资、创业、扩大消费——现金流断裂是最快的破产路径')
-    restricted.push('任何需要前期投入的事业——先解决生存再谈发展')
+    forbidden.push(pathObj(
+      '投资、创业、扩大消费', 'forbidden',
+      `现金流已断裂（月结余${s.monthlySurplus}元），如不修复，${s.monthlyBuffer < 3 ? '3个月内面临严重危机' : '储蓄很快耗尽'}`,
+      ['R04']))
+    restricted.push(pathObj(
+      '任何需要前期投入的事业', 'restricted',
+      '先解决生存再谈发展',
+      ['R04']))
   }
 
-  // ── 规则5: 低技能杠杆 + 低储蓄 → 先建能力 ──
+  // ── 规则R05: 低技能杠杆 + 低储蓄 → 先建能力 ──
   if (s.skillLeverage === 'very_low' || s.skillLeverage === 'low') {
     if (s.savingsRange === 'under_10k' || s.savingsRange === '10k_50k') {
-      allowed.push('技能建设优先：选择一个可线上交付的技能（剪辑/文案/客服/运营），3个月集中训练')
-      forbidden.push('在没有可售卖技能前直接创业')
-      restricted.push('创业——验证技能市场价值后再考虑')
+      allowed.push(pathObj(
+        '技能建设优先：选择一个可线上交付的技能（剪辑/文案/客服/运营），3个月集中训练', 'allowed',
+        '没有可市场化的技能是一切限制的根源；先用3个月搭一个技能基底',
+        ['R05']))
+      forbidden.push(pathObj(
+        '在没有可售卖技能前直接创业', 'forbidden',
+        '创业=用技能或资本换取溢价。目前两者都不具备',
+        ['R05']))
+      restricted.push(pathObj(
+        '创业', 'restricted',
+        '先验证技能市场价值后再考虑',
+        ['R05']))
     }
   }
 
-  // ── 规则6: 时间不足 + 副业目标 → 限制 ──
+  // ── 规则R06: 时间不足 + 副业目标 → 限制 ──
   if (s.timeCapacity === 'insufficient' && g.includes('副业')) {
-    restricted.push('当前每天可自由支配时间不足1小时——副业收入增速有限')
-    allowed.push('零碎时间变现：内容分发/自动化小店/投资学习')
-    allowed.push('效率优化优先：先用1个月优化时间结构')
+    restricted.push(pathObj(
+      '投入大量时间的副业', 'restricted',
+      `每天可自由支配时间仅${a.freeTimeHours}小时，传统副业时间投入产出比有限`,
+      ['R06']))
+    allowed.push(pathObj(
+      '零碎时间变现：内容分发/自动化小店/投资学习', 'allowed',
+      '选择不需要长块时间的变现方式才是正确思路',
+      ['R06']))
+    allowed.push(pathObj(
+      '效率优化优先：先用1个月优化时间结构', 'allowed',
+      '外包/自动化/简化低价值任务以释放时间',
+      ['R06']))
   }
 
-  // ── 规则7: 负债用户 × 投资翻身 → 危险路径 ──
+  // ── 规则R07: 负债用户 × 投资翻身 → 危险路径 ──
   if ((s.debtPressure === 'medium' || s.debtPressure === 'high') &&
       (g.includes('投资') || g.includes('理财') || g.includes('炒股') || g.includes('基金') || g.includes('币'))) {
-    forbidden.push('借钱投资/杠杆投资——负债投资是通往破产的高速公路')
-    restricted.push('投资——仅在债务负担可控且使用闲钱的前提下可小额定投')
+    forbidden.push(pathObj(
+      '借钱投资/杠杆投资', 'forbidden',
+      '负债+投资=双重风险乘数，是通往破产的高速公路',
+      ['R07']))
+    restricted.push(pathObj(
+      '投资', 'restricted',
+      '仅在债务可控且使用闲钱的前提下可小额定投指数基金',
+      ['R07']))
   }
 
-  // ── 规则8: 高收入但无时间 → 尊重核心收入 ──
+  // ── 规则R08: 高收入但无时间 → 尊重核心收入 ──
   if (s.cashFlowHealth === 'healthy' && s.timeCapacity === 'insufficient') {
-    restricted.push('需要大量时间投入的副业/创业——当前主业已是核心资产')
-    allowed.push('资本配置优化：提升储蓄率/投资/被动收入构建')
-    allowed.push('效率优化：外包低价值任务/释放可支配时间')
+    restricted.push(pathObj(
+      '需要大量时间投入的副业/创业', 'restricted',
+      `当前主业是核心资产（月${incomeVal}），大量时间的副业机会成本过高`,
+      ['R08']))
+    allowed.push(pathObj(
+      '资本配置优化：提升储蓄率/投资/被动收入构建', 'allowed',
+      '用钱换时间——不需要额外时间投入的资产增值',
+      ['R08']))
+    allowed.push(pathObj(
+      '效率优化：外包低价值任务/释放可支配时间', 'allowed',
+      `月${incomeVal}的主业值得花月${expenseVal}中的一部分外包低效任务`,
+      ['R08']))
   }
 
-  // ── 规则9: 低负债 + 技能高杠杆 + 时间充裕 + 目标创业 → 绿灯 ──
+  // ── 规则R09: 低负债 + 技能高杠杆 + 时间充裕 + 目标创业 → 绿灯 ──
   if ((s.debtPressure === 'none' || s.debtPressure === 'low') &&
       s.skillLeverage === 'high' &&
       (s.timeCapacity === 'deep_side_hustle' || s.timeCapacity === 'full_time_entrepreneur') &&
       g.includes('创业')) {
-    allowed.push('低风险验证创业：用现有技能最小化MVBP → 验证→放大')
-    allowed.push('注册个体户/公司，建立正规收款渠道和财务体系')
+    allowed.push(pathObj(
+      '低风险验证创业：用现有技能最小化MVBP → 验证→放大', 'allowed',
+      '负债低、技能强、时间充裕——这是三种最稀缺创业条件的交集',
+      ['R09']))
+    allowed.push(pathObj(
+      '注册个体户/公司，建立正规收款渠道和财务体系', 'allowed',
+      '合规是规避创业最大非市场风险的基础',
+      ['R09']))
   }
 
-  // ── 规则10: 月盈余充裕 + 有大储蓄 → 可考虑被动投资 ──
+  // ── 规则R10: 月盈余充裕 + 有大储蓄 → 可考虑被动投资 ──
   if (s.cashFlowHealth === 'healthy' && s.emergencyBuffer === 'strong') {
-    allowed.push('资产配置优化：闲置资金按比例配置（稳健/成长/高风险）')
-    allowed.push('寻找可产生复利效应的投资机会——钱生钱是最高杠杆')
+    allowed.push(pathObj(
+      '资产配置优化：闲置资金按比例配置（稳健/成长/高风险）', 'allowed',
+      `储蓄${savingsVal}元，月结余${s.monthlySurplus}元——有足够的闲钱进行梯度配置`,
+      ['R10']))
+    allowed.push(pathObj(
+      '寻找可产生复利效应的投资机会', 'allowed',
+      '钱生钱是最高杠杆——前提是现金流健康且储蓄充足',
+      ['R10']))
   }
 
-  // ── 去重 + 排序 ──
-  return {
-    allowedPaths: [...new Set(allowed)],
-    restrictedPaths: [...new Set(restricted)],
-    forbiddenPaths: [...new Set(forbidden)],
+  // ── 规则R00: 中间层默认路径（任何合法画像至少一条 allowedPath）──
+  if (allowed.length === 0) {
+    // 根据目标类型给一条现实路径
+    if (g.includes('建立') || g.includes('个人事业') || g.includes('品牌')) {
+      allowed.push(pathObj(
+        '低成本个人品牌：选择一个细分领域，用90天完成30篇内容+30次互动', 'allowed',
+        '你的现金流尚未达到可以承受重大试错的程度，但具备小规模验证条件。先内容+互动，再变现',
+        ['R00_DEFAULT_MODERATE']))
+    } else if (g.includes('副业') || g.includes('增收')) {
+      allowed.push(pathObj(
+        '保持主业现金流 + 小规模副业验证：用业余时间完成3次最小成交测试', 'allowed',
+        `月结余${s.monthlySurplus}元不足以支撑裸辞，但足够支撑每月小规模尝试`,
+        ['R00_DEFAULT_MODERATE']))
+    } else if (g.includes('创业') || g.includes('开店') || g.includes('生意')) {
+      allowed.push(pathObj(
+        '低风险创业验证：选择一个几乎零固定成本的商业模式，先成交一次再扩大', 'allowed',
+        `储蓄${savingsVal}元可支撑数月的低投入验证，但不足以支撑重资产模式`,
+        ['R00_DEFAULT_MODERATE']))
+    } else {
+      allowed.push(pathObj(
+        '保持主业现金流，在不增加重大固定成本的前提下，用90天完成一次低成本验证', 'allowed',
+        `现金流${s.cashFlowHealth}，储蓄${savingsVal}元——不急于做大，先验证一个关键假设`,
+        ['R00_DEFAULT_MODERATE']))
+    }
   }
+
+  // ── 阶段4: 冲突消解 ──
+  // 优先级: forbidden > restricted > allowed
+  // 同一条 path 只能出现在最高优先级集合
+  const forbiddenPaths = resolveConflicts(forbidden, restricted, allowed)
+  const restrictedPaths = resolveConflictsRestricted(restricted, forbidden, allowed)
+  const allowedPaths = resolveConflictsAllowed(allowed, forbidden, restricted)
+
+  return { allowedPaths, restrictedPaths, forbiddenPaths }
+}
+
+function resolveConflicts(forbidden, restricted, allowed) {
+  // forbidden 优先：任何出现在其他集合中的同名路径，移除
+  const fPaths = new Set(forbidden.map(f => f.path))
+  return Object.values(
+    forbidden.reduce((acc, f) => {
+      if (!acc[f.path]) acc[f.path] = f
+      return acc
+    }, {})
+  )
+}
+
+function resolveConflictsRestricted(restricted, forbidden, allowed) {
+  const fPaths = new Set(forbidden.map(f => f.path))
+  return Object.values(
+    restricted
+      .filter(r => !fPaths.has(r.path))
+      .reduce((acc, r) => {
+        if (!acc[r.path]) acc[r.path] = r
+        return acc
+      }, {})
+  )
+}
+
+function resolveConflictsAllowed(allowed, forbidden, restricted) {
+  const fPaths = new Set(forbidden.map(f => f.path))
+  const rPaths = new Set(restricted.map(r => r.path))
+  return Object.values(
+    allowed
+      .filter(a => !fPaths.has(a.path) && !rPaths.has(a.path))
+      .reduce((acc, a) => {
+        if (!acc[a.path]) acc[a.path] = a
+        return acc
+      }, {})
+  )
 }
 
 // ═══════════════════════════ 主入口 ═══════════════════════════
@@ -343,19 +594,26 @@ function analyzeProfile(rawAnswers) {
       ageGroup: a.age < 25 ? 'young' : a.age < 35 ? 'early_career' : a.age < 50 ? 'mid_career' : 'senior',
       occupationCategory: a.occupationCategory,
       occupation: a.occupation,
+      // 金额归一化结构
       monthlyIncome: a.monthlyIncome,
-      savingsRange: a.savings,
-      savingsRaw: a.savingsRaw,
-      debtLevel: a.debt,
+      savings: a.savings,
       monthlyExpense: a.monthlyExpense,
+      maxLoss: a.maxLoss,
+      // 数值兼容字段
+      monthlyIncomeValue: a.incomeValue,
+      savingsValue: a.savingsValue,
+      monthlyExpenseValue: a.expenseValue,
+      maxLossValue: a.maxLossValue,
+      // 分类字段
+      savingsRange: a.savingsRange,
+      debtLevel: a.debt,
       freeTimeHours: a.freeTimeHours,
       bestSkill: a.bestSkill,
       goal: a.goal,
-      maxLoss: a.maxLoss,
     },
     constraintAnalysis: constraints,
     ...paths,
   }
 }
 
-module.exports = { analyzeProfile, normalizeAnswers, computeConstraints, applyCrossRules }
+module.exports = { analyzeProfile, normalizeAnswers, computeConstraints, applyCrossRules, normalizeAmount }

@@ -381,13 +381,13 @@ next90days:    「接下来90天具体做什么？」字符串数组，3-5条。
 
 === 路径约束（必须遵守） ===
 ✅ 允许路径：
-${allowedPaths.map(p => '  - ' + p).join('\n') || '  无特殊允许'}
+${allowedPaths.map(p => '  - ' + (typeof p === 'object' ? p.path : p)).join('\n') || '  无特殊允许'}
 
 ⚠️ 受限路径：
-${restrictedPaths.map(p => '  - ' + p).join('\n') || '  无特殊限制'}
+${restrictedPaths.map(p => '  - ' + (typeof p === 'object' ? p.path : p) + (typeof p === 'object' && p.reason ? '（原因：' + p.reason + '）' : '')).join('\n') || '  无特殊限制'}
 
 🚫 禁止路径（绝对不能推荐）：
-${forbiddenPaths.map(p => '  - ' + p).join('\n') || '  无特殊禁止'}
+${forbiddenPaths.map(p => '  - ' + (typeof p === 'object' ? p.path : p) + (typeof p === 'object' && p.reason ? '（原因：' + p.reason + '）' : '')).join('\n') || '  无特殊禁止'}
 
 视角：${pMeta.emoji} ${pMeta.name}
 
