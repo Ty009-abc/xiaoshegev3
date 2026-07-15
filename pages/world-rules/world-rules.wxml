@@ -1,56 +1,121 @@
-<!-- world-rules — v5 沉浸式规则探索（单卡导航） -->
-<view class="page page-enter">
-  <!-- 规则探索卡片 -->
-  <block wx:if="{{currentRule}}">
-    <view class="wr-navbar">
-      <view class="wr-nav-left" bindtap="onPrev">
-        <text class="wr-nav-icon">←</text>
+<!-- world-rules v6.2 — 世界规则探索系统 · Taxonomy Fix -->
+<view class="page">
+  <!-- 自定义导航栏 — 浅色极简 -->
+  <view class="custom-navbar" style="height:{{totalNavHeight}}px;">
+    <view class="navbar-inner" style="padding-top:{{statusBarHeight}}px;">
+      <view class="nav-left" bindtap="onBack">
+        <text class="back-icon">←</text>
       </view>
-      <text class="wr-nav-title">规则探索</text>
-      <view class="wr-nav-right">
-        <text class="wr-nav-share" bindtap="onSharePoster">📤</text>
+      <view class="nav-center">
+        <text class="nav-title">世界规则探索</text>
+        <text class="nav-subtitle">{{total}} 条底层规则，重新理解世界如何运行</text>
+      </view>
+      <view class="nav-placeholder"></view>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <xsg-loading text="正在加载世界规则..." wx:if="{{loading && !rules.length}}" />
+
+  <block wx:else>
+    <!-- ═══ Hero 探索总览 ═══ -->
+    <view class="hero-section">
+      <view class="hero-main">
+        <view class="hero-left">
+          <text class="hero-title">你的世界模型</text>
+          <text class="hero-progress">{{exploredCount}} / {{total}} 已探索</text>
+          <view class="hero-bar-wrap">
+            <view class="hero-bar" style="width:{{explorePercent}}%"></view>
+          </view>
+          <text class="hero-percent">{{explorePercent}}%</text>
+        </view>
+        <view class="hero-right">
+          <view class="hero-action" wx:if="{{lastReadRule}}" catchtap="onContinueExplore">
+            <text class="hero-action-icon">▶</text>
+            <text class="hero-action-label">继续探索</text>
+            <text class="hero-action-hint" wx:if="{{lastReadRule.ruleId}}">{{lastReadRule.ruleId}} · {{lastReadRule.title}}</text>
+          </view>
+          <view class="hero-action" wx:else catchtap="onStartExplore">
+            <text class="hero-action-icon">▶</text>
+            <text class="hero-action-label">开始探索</text>
+            <text class="hero-action-hint">从第一条世界规则开始</text>
+          </view>
+        </view>
       </view>
     </view>
 
-    <!-- 编号 + 分类标签 -->
-    <view class="wr-meta-row">
-      <view class="wr-num-badge">第{{currentIndex+1}}条</view>
-      <view class="wr-cat-tag">{{currentRule.category || '世界运行规则'}}</view>
-    </view>
-
-    <!-- 主卡：大标题 -->
-    <view class="wr-card wr-card-hero {{animating}}">
-      <text class="wr-hero-title">{{currentRule.title || currentRule.core_strike || ''}}</text>
-      <view class="wr-divider"></view>
-
-      <!-- 🎯 规则解读卡 -->
-      <view class="wr-section">
-        <view class="wr-section-head">🎯 规则解读</view>
-        <text class="wr-section-body">{{currentRule.summary || currentRule.logic_dissection || '暂未加载'}}</text>
-      </view>
-
-      <!-- 🔄 反方向推理卡 -->
-      <view class="wr-section wr-reverse" wx:if="{{currentRule.detail || currentRule.reverse_inference}}">
-        <view class="wr-section-head">🔄 反方向推理</view>
-        <text class="wr-section-body">{{currentRule.detail || currentRule.reverse_inference}}</text>
-      </view>
-
-      <!-- 🎬 行动建议卡 -->
-      <view class="wr-section wr-action" wx:if="{{currentRule.action || currentRule.action_advice}}">
-        <view class="wr-section-head">🎬 行动建议</view>
-        <text class="wr-section-body">{{currentRule.action || currentRule.action_advice}}</text>
+    <!-- ═══ 世界模型地图 — 8 张核心模型卡 ═══ -->
+    <view class="model-map">
+      <view class="model-title">我的世界模型</view>
+      <view class="model-grid">
+        <block wx:for="{{coreModelProgress}}" wx:key="id">
+          <view class="model-cell" style="border-left-color:{{item.color}}" bindtap="onModelTap" data-cat="{{item.id}}">
+            <view class="model-cell-top">
+              <text class="model-cell-icon">{{item.icon}}</text>
+              <text class="model-cell-name">{{item.label}}</text>
+            </view>
+            <view class="model-cell-count">{{item.read}} / {{item.total}}</view>
+            <view class="model-cell-bar-wrap">
+              <view class="model-cell-bar" style="width:{{item.percent}}%; background:{{item.color}}"></view>
+            </view>
+          </view>
+        </block>
       </view>
     </view>
 
-    <!-- 底部导航 -->
-    <view class="wr-footer">
-      <text class="wr-counter">{{currentIndex+1}} / {{total}}</text>
-      <button class="wr-btn-next" hover-class="wr-btn-hover" bindtap="onNext"
-        disabled="{{currentIndex >= total - 1}}">下一条 →</button>
+    <!-- ═══ 横向滚动分类胶囊 — 8 核心模型 ═══ -->
+    <scroll-view
+      scroll-x
+      class="cat-bar-wrap"
+      enhanced
+      show-scrollbar="{{false}}"
+      style="position:sticky; top:{{totalNavHeight}}px; z-index:10;"
+    >
+      <view class="cat-bar">
+        <view
+          class="cat-capsule {{activeCoreModel===item.key || (item.key==='__all__' && !activeCoreModel) ? 'active' : ''}}"
+          wx:for="{{displayCategories}}"
+          wx:key="key"
+          data-cat="{{item.key}}"
+          bindtap="filterCat"
+        >{{item.label}}</view>
+      </view>
+    </scroll-view>
+
+    <!-- ═══ 规则卡片 ═══ -->
+    <view class="rule-list">
+      <view
+        class="rule-card category-{{item.category}}"
+        wx:for="{{rules}}"
+        wx:key="ruleId"
+        data-id="{{item.ruleId}}"
+        bindtap="goDetail"
+      >
+        <view class="card-header">
+          <text class="card-num">{{item.displayId}}</text>
+          <text class="card-cat-tag cat-tag-{{item.category}}">{{item.displayCategory}}</text>
+          <view class="card-status" wx:if="{{item.isRead}}">
+            <text>✓ 已读</text>
+          </view>
+        </view>
+        <view class="card-title">{{item.title}}</view>
+        <view class="card-tags" wx:if="{{item.displayTags && item.displayTags.length}}">
+          <block wx:for="{{item.displayTags}}" wx:key="*this" wx:for-item="t">
+            <text class="rule-tag">{{t}}</text>
+            <text class="tag-dot" wx:if="{{index < item.displayTags.length - 1}}">·</text>
+          </block>
+          <text class="tag-arrow">›</text>
+        </view>
+        <view class="card-tags card-tags-empty" wx:else>
+          <text class="tag-arrow">›</text>
+        </view>
+      </view>
     </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{loadingMore}}"><text>加载中...</text></view>
+    <view class="load-more" wx:elif="{{!hasMore && rules.length > 0}}"><text class="no-more">— 已加载全部 —</text></view>
+
+    <xsg-empty icon="📜" title="暂无规则" desc="尝试切换到「全部」" wx:if="{{!loading && !rules.length}}" />
   </block>
-
-  <!-- 加载/空状态 -->
-  <xsg-loading text="正在加载世界规则..." wx:if="{{loading}}" />
-  <xsg-empty wx:elif="{{!currentRule}}" icon="📜" title="暂无规则" desc="请检查网络后重试" />
 </view>

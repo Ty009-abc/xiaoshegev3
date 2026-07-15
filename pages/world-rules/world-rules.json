@@ -1,6 +1,9 @@
 {
-  "navigationBarTitleText": "世界规则",
-  "backgroundColor": "#0f0f1a",
-  "navigationBarBackgroundColor": "#0f0f1a",
-  "navigationBarTextStyle": "white"
+  "navigationStyle": "custom",
+  "backgroundColor": "#F7F8FC",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "xsg-loading": "/components/xsg-loading/xsg-loading",
+    "xsg-empty": "/components/xsg-empty/xsg-empty"
+  }
 }
