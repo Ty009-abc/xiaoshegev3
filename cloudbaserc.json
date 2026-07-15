@@ -43,7 +43,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 15,
       "handler": "index.main",
-      "installDependency": false,
+      "installDependency": true,
       "envVariables": {
         "AI_API_KEY": "<YOUR_AI_API_KEY>",
         "AI_API_URL": "<YOUR_AI_API_URL>",
@@ -55,7 +55,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 30,
       "handler": "index.main",
-      "installDependency": false,
+      "installDependency": true,
       "envVariables": {
         "AI_API_KEY": "<YOUR_AI_API_KEY>",
         "AI_API_URL": "<YOUR_AI_API_URL>",
@@ -67,14 +67,14 @@
       "runtime": "Nodejs18.15",
       "timeout": 10,
       "handler": "index.main",
-      "installDependency": false
+      "installDependency": true
     },
     {
       "name": "getChallengeRecord",
       "runtime": "Nodejs18.15",
       "timeout": 10,
       "handler": "index.main",
-      "installDependency": false
+      "installDependency": true
     },
     {
       "name": "getDailyInsight",
@@ -114,7 +114,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 60,
       "handler": "index.main",
-      "installDependency": false,
+      "installDependency": true,
       "envVariables": {
         "AI_API_KEY": "sk-1e22630f6ba74bc58b27232da7ea05d4",
         "AI_API_BASE_URL": "https://api.deepseek.com/v1",
