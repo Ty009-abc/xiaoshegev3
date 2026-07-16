@@ -1,42 +1,59 @@
-<!-- membership — 会员页 -->
-<view class="page page-enter">
-  <xsg-navbar title="认知操作系统" />
-  <xsg-loading text="加载会员方案..." wx:if="{{loading}}" />
+<!-- membership — 挑战解锁专用页 -->
+<view class="page">
+  <xsg-navbar title="解锁完整挑战" light />
+
+  <xsg-loading text="加载方案..." wx:if="{{loading}}" />
+
+  <block wx:elif="{{loadError}}">
+    <view class="error-card">
+      <text class="error-text">{{loadError}}</text>
+      <xsg-button type="primary" text="重试" bind:tapbutton="onRetry" />
+    </view>
+  </block>
+
   <block wx:else>
     <!-- 头部 -->
-    <view class="hero anim-fade-in">
-      <text class="hero-icon">⭐</text>
-      <text class="hero-title">认知操作系统·会员</text>
-      <text class="hero-desc">你不是在买会员，你是在给自己的世界模型升级</text>
+    <view class="hero">
+      <text class="hero-icon">🧠</text>
+      <text class="hero-title">认知操作系统 · 完整挑战</text>
+      <text class="hero-desc">解锁30天认知决策，建立你的九维能力模型</text>
     </view>
 
-    <!-- 权益 -->
-    <xsg-card type="premium" class="anim-fade-in">
-      <text class="perks-title">解锁后的世界：</text>
+    <!-- 权益说明 -->
+    <view class="perks-card">
+      <text class="perks-title">解锁后将获得：</text>
       <view class="perk-list">
-        <view class="perk"><text>🧠</text><text>无限AI认知分析</text></view>
-        <view class="perk"><text>📄</text><text>完整AI诊断报告</text></view>
-        <view class="perk"><text>🎯</text><text>30天认知挑战</text></view>
-        <view class="perk"><text>📅</text><text>认知暴击历史库</text></view>
-        <view class="perk"><text>📜</text><text>世界规则库全解锁</text></view>
-        <view class="perk"><text>📊</text><text>成长复盘</text></view>
+        <view class="perk"><text>🎯</text><text>完整30道认知决策题</text></view>
+        <view class="perk"><text>📊</text><text>九维能力模型</text></view>
+        <view class="perk"><text>🤖</text><text>AI翻身策略报告</text></view>
+        <view class="perk"><text>📅</text><text>历史记录与复盘</text></view>
       </view>
-    </xsg-card>
+    </view>
 
     <!-- 商品卡片 -->
-    <view class="product-list anim-fade-in">
-      <membership-card
-        wx:for="{{products}}" wx:key="productId"
-        product="{{item}}"
-        recommended="{{item.durationDays>=365}}"
-        selected="{{selectedProduct.productId===item.productId}}"
-        data-pid="{{item.productId}}"
-        bind:select="onSelect" />
+    <view class="product-card" wx:if="{{product}}">
+      <view class="product-badge" wx:if="{{product.originalPrice}}">限时优惠</view>
+
+      <text class="product-name">{{product.name || '解锁完整30天挑战'}}</text>
+      <text class="product-desc">{{product.description || '一次购买，本次挑战永久解锁'}}</text>
+
+      <view class="product-price-row">
+        <text class="product-price">¥{{product.price ? (product.price/100).toFixed(2) : '39.90'}}</text>
+        <text class="product-original" wx:if="{{product.originalPrice}}">¥{{(product.originalPrice/100).toFixed(2)}}</text>
+      </view>
+
+      <text class="product-tag">一次购买 · 永久解锁</text>
     </view>
 
-    <!-- CTA -->
-    <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : (selectedProduct ? '立即开通 · ¥'+selectedProduct.priceDisplay : '请选择方案')}}" loading="{{paying}}" disabled="{{!selectedProduct||paying}}" bind:tapbutton="onPay" class="anim-fade-in" />
-    <view class="safe-hint mt-16">🔒 微信支付 · 即时开通 · 可随时取消</view>
+    <!-- 支付按钮 -->
+    <view class="pay-section">
+      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (product ? (product.price/100).toFixed(2) : '39.90')}}" loading="{{paying}}" disabled="{{paying||!product}}" bind:tapbutton="onPay" />
+
+      <xsg-button type="plain" text="暂不解锁" bind:tapbutton="onBack" />
+
+      <text class="safe-hint">🔒 支付由微信安全保障</text>
+    </view>
+
     <view style="height:80rpx;"></view>
   </block>
 </view>

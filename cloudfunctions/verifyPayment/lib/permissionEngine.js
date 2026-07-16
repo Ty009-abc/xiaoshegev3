@@ -85,6 +85,18 @@ const PRODUCT_PERMISSIONS = {
     'priority_reply',
     'full_report',
   ],
+
+  challenge_39_9: [
+    'challenge_full',
+    'full_report',
+    'report_history',
+    'growth_review',
+  ],
+
+  report_9_9: [
+    'full_report',
+    'report_history',
+  ],
 }
 
 // ═══════════════════════════

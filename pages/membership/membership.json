@@ -1,6 +1,9 @@
 {
-  "navigationBarTitleText": "开通会员",
-  "backgroundColor": "#0f0f1a",
-  "navigationBarBackgroundColor": "#0f0f1a",
-  "navigationBarTextStyle": "white"
+  "navigationStyle": "custom",
+  "backgroundColor": "#F5F7FB",
+  "usingComponents": {
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar",
+    "xsg-loading": "/components/xsg-loading/xsg-loading",
+    "xsg-button": "/components/xsg-button/xsg-button"
+  }
 }

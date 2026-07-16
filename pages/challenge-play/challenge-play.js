@@ -208,10 +208,30 @@ Page({
     this.nextEvent()
   },
   onUnlock() {
-    wx.navigateTo({ url:'/pages/membership/membership' })
+    const recordId = this.data.recordId
+    const productId = 'challenge_39_9'
+    wx.navigateTo({
+      url: '/pages/membership/membership?source=challenge&recordId='
+        + encodeURIComponent(recordId)
+        + '&productId=' + encodeURIComponent(productId),
+    })
   },
   onGoHome() {
     wx.switchTab({ url:'/pages/index/index' })
+  },
+  async onShow() {
+    if (!this.data.challengeLocked || !this.data.recordId) return
+    try {
+      const r = await challengeService.getChallengeRecord(this.data.recordId)
+      if (r.code === 0 && r.data) {
+        const rec = r.data
+        if (rec.trialMode === false || rec.unlocked === true) {
+          console.log('[ChallengeUnlock] record unlocked, resuming', rec)
+          this.setData({ challengeLocked: false, lockReason: '' })
+          this.nextEvent()
+        }
+      }
+    } catch (_) {}
   },
   goResult() {
     wx.redirectTo({ url:'/pages/challenge-result/challenge-result?recordId=' + this.data.recordId })
