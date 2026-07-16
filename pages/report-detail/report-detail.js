@@ -1,28 +1,33 @@
 /**
- * pages/report-detail — v3.18 Report Poster Share Mode
- *   Progressive Reveal + Canvas海报 + 分享好友
+ * pages/report-detail — v4 Cognitive Judgment Report + Poster Share
+ *   Progressive Reveal → 8-layer V4 report / 5-layer V3 legacy
  */
 const aiReportService = require('../../services/aiReportService.js')
+const n4 = require('../../utils/reportNormalizerV4.js')
 const app = getApp()
-const REVEAL_DELAYS = [300, 700, 1100, 1500, 1900]
+const REVEAL_DELAYS = [200, 500, 900, 1300, 1700, 2100, 2500, 2900]
 
 Page({
   data: {
     reportId: '',
     mode: 'diagnostic',
+    reportVersion: 'v4', // 'v4' | 'v3'
     loading: true,
+    error: '',
+    renderSource: '',
     cancelled: false,
+
+    // V4 ViewModel
+    viewModel: null,
+
+    // V3 sections (legacy)
+    sections: [],
+
+    // Poster
     posterGenerating: false,
-    posterPath: '',          // 海报临时路径（用于分享图）
-    showPoster: false,       // 海报预览模态
+    posterPath: '',
+    showPoster: false,
     qrPath: '/images/qrcode.png',
-    sections: [
-      { key: 'position',   label: '📍 你现在的位置',     revealed: false, text: '' },
-      { key: 'trapped',    label: '🔗 什么在困住你',       revealed: false, text: '' },
-      { key: 'forbidden',  label: '🚫 当前不建议做的事',   revealed: false, text: '' },
-      { key: 'path',       label: '🚀 最现实的翻身路径',   revealed: false, text: '' },
-      { key: 'next90days', label: '📅 接下来90天具体做什么', revealed: false, text: '' },
-    ],
   },
 
   onLoad(opt) {
@@ -40,30 +45,24 @@ Page({
     app.globalData._diagnosticPersonality = null
 
     if (!answers) {
-      this.setData({ loading: false })
-      wx.showToast({ title: '诊断数据丢失，请重新开始', icon: 'none' })
+      this.setData({ loading: false, error: '诊断数据丢失，请重新开始' })
       setTimeout(() => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }), 1500)
       return
     }
 
-    // ═══ V4 半成品保护：阻止 V4 答案进入 V3 引擎 ═══
+    // ═══ V4 Engine Gate: 未部署时阻止 ═══
     if (answers.diagnosticVersion === 'v4') {
-      // V3 引擎需要的金额/数值字段在 V4 合同中不存在
       const v3NumericKeys = ['age','income','monthlyIncome','savings','expense','monthlyExpense','freeTime','freeTimeHours']
       const hasAnyV3Numeric = v3NumericKeys.some(k => answers[k])
       if (!hasAnyV3Numeric) {
-        this.setData({ loading: false })
+        this.setData({ loading: false, error: 'V4 诊断引擎尚未部署，请稍后重试' })
         wx.showModal({
           title: '诊断引擎升级中',
           content: 'V4 诊断引擎尚未部署，请稍后重试。',
           showCancel: false,
           success: () => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }),
         })
-        console.warn('[V4_ENGINE_NOT_READY] V4 answers detected, V3 engine cannot process numeric fields:', {
-          diagnosticVersion: answers.diagnosticVersion,
-          v4KeyCount: answers.answers ? Object.keys(answers.answers).length : 0,
-          missingNumericKeys: v3NumericKeys.filter(k => !answers[k]),
-        })
+        console.warn('[V4_ENGINE_NOT_READY] V4 answers detected, gate active')
         return
       }
     }
@@ -75,10 +74,31 @@ Page({
         personalityEmoji: p?.emoji || '',
         personalityStyle: p?.style || '',
       })
-      if (r.code === 0 && r.data) {
-        this._progressiveReveal(r.data)
+
+      // 解包 V4 响应
+      const normed = n4.normalizeDiagnosticV4Response(r)
+
+      console.log('[DiagnosticV4ReportUI]', {
+        reportId: normed.data?.reportId || '',
+        reportType: normed.data?.reportType || '',
+        renderSource: normed.data?.renderSource || '',
+        ok: normed.ok,
+        error: normed.error,
+        reportKeys: normed.data?.report ? Object.keys(normed.data.report) : [],
+      })
+
+      if (normed.ok) {
+        this.setData({ reportVersion: 'v4', renderSource: normed.data.renderSource })
+        this._renderV4(normed.data)
+      } else if (normed.error === 'V3_RESPONSE') {
+        // V3 格式响应
+        this.setData({ reportVersion: 'v3' })
+        this._renderV3(normed.data.data || r.data || r)
       } else {
-        this._showError(r.message || '分析失败')
+        // 尝试 V3 fallback
+        const data = r && r.data ? r.data : r
+        this.setData({ reportVersion: 'v3' })
+        this._renderV3(data)
       }
     } catch (e) {
       console.error('[report-detail] AI 生成失败:', e)
@@ -87,40 +107,67 @@ Page({
   },
 
   /* ═══════════════════════════════════
-     Step 2: 分段揭晓
+     V4: 8-layer cognitive report
      ═══════════════════════════════════ */
-  _progressiveReveal(data) {
+  _renderV4(raw) {
+    const vm = n4.buildDiagnosticV4ViewModel(raw.report)
+    vm.reflect = raw // 保留原始引用供 poster 使用
+
+    this.setData({ loading: false, viewModel: vm })
+  },
+
+  /* ═══════════════════════════════════
+     V3: legacy 5-layer reveal
+     ═══════════════════════════════════ */
+  _renderV3(data) {
     const self = this
-    // 兼容 v2 旧字段 / v3 新字段
     const position = data.position || data.core_problem || data.coreProblem || ''
     const trapped = data.trapped_by || data.system_trap || data.systemTrap || ''
     const forbidden = Array.isArray(data.forbidden)
-      ? data.forbidden.map(f => '🚫 ' + f).join('\n')
+      ? data.forbidden
       : (data.fatal_sentence || data.fatalSentence || '')
-    const path = data.path || data.strategy_path || data.turnaroundPath || data.turnaround_path || ''
-    const next90 = Array.isArray(data.next90days)
-      ? data.next90days.map((a,i) => `${i+1}. ${a}`).join('\n')
-      : (Array.isArray(data.advice) ? data.advice.map((a,i) => `${i+1}. ${a}`).join('\n') : '')
+    const path = data.path || data.strategy_path || data.turnaroundPath || ''
+    const next90days = Array.isArray(data.next90days)
+      ? data.next90days
+      : (Array.isArray(data.advice) ? data.advice : [])
 
-    const fields = [position, trapped, forbidden, path, next90]
+    const fields = [position, trapped, forbidden, path, next90days]
 
-    this.setData({ loading: false })
+    const sections = [
+      { key: 'position',   label: '📍 你现在的位置',     revealed: false, text: '' },
+      { key: 'trapped',    label: '🔗 什么在困住你',       revealed: false, text: '' },
+      { key: 'forbidden',  label: '🚫 当前不建议做的事',   revealed: false, text: '' },
+      { key: 'path',       label: '🚀 最现实的翻身路径',   revealed: false, text: '' },
+      { key: 'next90days', label: '📅 接下来90天具体做什么', revealed: false, text: '' },
+    ]
 
-    REVEAL_DELAYS.forEach((delay, i) => {
+    // 格式化 forbidden 文本
+    const forbiddenText = Array.isArray(forbidden)
+      ? forbidden.map(f => '🚫 ' + f).join('\n')
+      : String(forbidden)
+
+    const next90Text = Array.isArray(next90days)
+      ? next90days.map((a,i) => `${i+1}. ${a}`).join('\n')
+      : String(next90days)
+
+    const fieldsText = [position, trapped, forbiddenText, path, next90Text]
+
+    this.setData({ loading: false, sections: sections.map(s => ({ ...s })) })
+
+    REVEAL_DELAYS.slice(0, 5).forEach((delay, i) => {
       setTimeout(() => {
-        const sections = [...this.data.sections]
-        sections[i].revealed = true
-        sections[i].text = fields[i] || '分析未命中此维度'
-        self.setData({ sections })
+        const newSections = [...this.data.sections]
+        if (newSections[i]) {
+          newSections[i].revealed = true
+          newSections[i].text = fieldsText[i] || '分析未命中此维度'
+          self.setData({ sections: newSections })
+        }
       }, delay)
     })
   },
 
-  /* ═══════════════════════════════════
-     Step 3: 错误处理
-     ═══════════════════════════════════ */
   _showError(msg) {
-    this.setData({ loading: false })
+    this.setData({ loading: false, error: msg })
     wx.showToast({ title: msg, icon: 'none', duration: 3000 })
     setTimeout(() => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }), 3000)
   },
@@ -134,13 +181,38 @@ Page({
   },
 
   /* ═══════════════════════════════════
-     海报生成引擎
+     海报生成 (V4 poster data + V3 canvas)
      ═══════════════════════════════════ */
   generatePoster() {
     if (this.data.posterGenerating) return
     this.setData({ posterGenerating: true })
     wx.showLoading({ title: '正在生成海报...', mask: true })
 
+    // Build poster data from current viewModel or V3 sections
+    let posterData
+    if (this.data.reportVersion === 'v4' && this.data.viewModel) {
+      posterData = n4.mapDiagnosticV4ToPoster(this.data.viewModel)
+    } else {
+      const secs = this.data.sections || []
+      posterData = {
+        fatalSentence: secs[0]?.text || '',
+        coreProblem: secs[1]?.text || '',
+        systemTrap: secs[2]?.text || '',
+        strategyPath: secs[3]?.text || '',
+        advice: secs[4]?.text || '',
+      }
+    }
+
+    this._drawPoster(
+      posterData.fatalSentence,
+      posterData.coreProblem,
+      posterData.systemTrap,
+      posterData.strategyPath,
+      posterData.advice,
+    )
+  },
+
+  _drawPoster(fatalSentence, coreProblem, systemTrap, strategyPath, advice) {
     const ctx = wx.createCanvasContext('posterCanvas', this)
     const W = 750
     const safeX = 40
@@ -150,14 +222,12 @@ Page({
     const textMaxW = cardW - leftW - 52
     const qrPath = this.data.qrPath || '/images/qrcode.png'
 
-    const sections = this.data.sections || []
-
     const cards = [
-      { no: '01', icon: '📍', title: '你现在的位置',      color: '#3b8cff', text: sections[0]?.text || '' },
-      { no: '02', icon: '🔗', title: '什么在困住你',        color: '#ff3b3b', text: sections[1]?.text || '' },
-      { no: '03', icon: '🚫', title: '不建议做的事',        color: '#ff6b6b', text: sections[2]?.text || '' },
-      { no: '04', icon: '🚀', title: '翻身路径',            color: '#ff9f1a', text: sections[3]?.text || '' },
-      { no: '05', icon: '📅', title: '接下来90天做什么',     color: '#39d353', text: sections[4]?.text || '' }
+      { no: '01', icon: '📍', title: '致命一句话',        color: '#ff2d55', text: fatalSentence || '' },
+      { no: '02', icon: '🔍', title: '核心问题',          color: '#ff3b3b', text: coreProblem || '' },
+      { no: '03', icon: '🚫', title: '系统困局',          color: '#ff6b6b', text: systemTrap || '' },
+      { no: '04', icon: '🚀', title: '翻身路径',          color: '#ff9f1a', text: strategyPath || '' },
+      { no: '05', icon: '📅', title: '行动建议',          color: '#39d353', text: advice || '' },
     ]
 
     function roundRect(x, y, w, h, r) {
@@ -340,7 +410,6 @@ Page({
     ctx.setFillStyle('#ffffff')
     ctx.fillText('看看你的认知在什么段位', safeX + 150, ctaY + 96)
 
-    // 三标签
     const tags = ['🧠 认知诊断', '📈 策略分析', '🎯 破局建议']
     tags.forEach((tag, i) => {
       const tx = safeX + 150 + i * 142
@@ -355,7 +424,6 @@ Page({
       ctx.fillText(tag, tx + 62, ctaY + 129)
     })
 
-    // 底部提示
     ctx.setTextAlign('center')
     ctx.setFontSize(22)
     ctx.setFillStyle('#7b6dff')
@@ -365,12 +433,8 @@ Page({
     ctx.draw(false, () => {
       wx.canvasToTempFilePath({
         canvasId: 'posterCanvas',
-        x: 0,
-        y: 0,
-        width: W,
-        height: H,
-        destWidth: W * 2,
-        destHeight: H * 2,
+        x: 0, y: 0, width: W, height: H,
+        destWidth: W * 2, destHeight: H * 2,
         success: res => {
           self.setData({
             posterPath: res.tempFilePath,
@@ -391,25 +455,16 @@ Page({
   },
 
   _saveToAlbum(filePath) {
-    const self = this
     wx.saveImageToPhotosAlbum({
       filePath,
       success: () => {
-        self.setData({ posterGenerating: false })
-        wx.showModal({
-          title: '保存成功',
-          content: '海报已保存，可发朋友圈裂变',
-          showCancel: false,
-        })
+        this.setData({ posterGenerating: false })
+        wx.showModal({ title: '保存成功', content: '海报已保存，可发朋友圈裂变', showCancel: false })
       },
       fail: (err) => {
-        self.setData({ posterGenerating: false })
+        this.setData({ posterGenerating: false })
         if (err.errMsg.includes('auth deny')) {
-          wx.showModal({
-            title: '授权提示',
-            content: '请允许开启相册写入权限',
-            success: (res) => { if (res.confirm) wx.openSetting() },
-          })
+          wx.showModal({ title: '授权提示', content: '请允许开启相册写入权限', success: (res) => { if (res.confirm) wx.openSetting() } })
         } else {
           wx.showToast({ title: '保存失败', icon: 'none' })
         }
@@ -417,9 +472,6 @@ Page({
     })
   },
 
-  /* ═══════════════════════════════════
-     分享好友
-     ═══════════════════════════════════ */
   onShareAppMessage() {
     return {
       title: '我刚生成了一份认知翻身报告，你也测测',
