@@ -104,37 +104,110 @@
   40% { transform: translateY(-12rpx); opacity: 1; }
 }
 
-/* ── 快捷提问 ── */
-.quick-bar {
-  display: flex;
-  flex-direction: column;
-  padding: 16rpx 24rpx 0;
+/* ── 推荐问题区域 ── */
+.quick-section {
+  padding: 0 24rpx 0;
   background: #f4f5f7;
   width: 100%;
   box-sizing: border-box;
-  overflow-x: hidden;
 }
-.quick-item {
-  color: #344054 !important;
-  font-size: 28rpx !important;
-  height: 88rpx;
+
+.quick-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  padding: 8rpx 0 16rpx;
+}
+
+.quick-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #101828;
+}
+
+.quick-subtitle {
+  font-size: 24rpx;
+  color: #8890A8;
+  flex: 1;
+  min-width: 0;
+}
+
+.quick-refresh-btn {
+  font-size: 24rpx;
+  color: #7F56D9;
+  background: transparent;
+  border: none;
+  padding: 0 8rpx;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.quick-refresh-btn::after { border: none; }
+
+.quick-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.quick-card {
   display: flex;
   align-items: center;
-  padding: 0 32rpx;
+  padding: 22rpx 24rpx;
   background: #FFFFFF;
-  border-radius: 44rpx;
+  border-radius: 20rpx;
   border: 1rpx solid #eaecf0;
-  margin-bottom: 16rpx;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.01);
-  transition: all 160ms;
+  margin-bottom: 14rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.02);
+  transition: all .16s;
   box-sizing: border-box;
+}
+
+.quick-card:active {
+  background: #F4F3FF;
+  border-color: #C6B1FF;
+}
+
+.qc-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  min-width: 0;
+}
+
+.qc-icon {
+  font-size: 32rpx;
+  flex-shrink: 0;
+}
+
+.qc-text {
+  font-size: 28rpx;
+  color: #344054;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.quick-item:active {
-  background: #F4F3FF;
-  border-color: #C6B1FF;
+
+.qc-arrow {
+  font-size: 24rpx;
+  color: #B8BEC9;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+}
+
+.quick-error {
+  text-align: center;
+  padding: 24rpx;
+  color: #EF4444;
+  font-size: 26rpx;
+}
+
+.quick-error .quick-refresh-btn {
+  display: inline-block;
+  margin-top: 12rpx;
 }
 
 /* ── 输入栏 ── */
