@@ -34,12 +34,34 @@
         <block wx:if="{{currentQuestion.type==='picker+input'}}">
           <view class="d-picker-wrap">
             <text class="d-picker-display" wx:if="{{dQ.selectedPick}}">{{dQ.selectedPick}}</text>
-            <text class="d-picker-display d-picker-placeholder" wx:else>{{currentQuestion.options[0] || '请选择职业类型'}}</text>
+            <text class="d-picker-display d-picker-placeholder" wx:else>{{currentQuestion.options[0] || '请选择'}}</text>
           </view>
           <picker mode="selector" range="{{currentQuestion.options}}" bindchange="onDPickerChange">
-            <button class="d-picker-btn">选择类型</button>
+            <button class="d-picker-btn">选择</button>
           </picker>
           <input wx:if="{{dQ.selectedPick}}" type="text" placeholder="{{currentQuestion.detailPlaceholder || '请输入具体职业'}}" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.detailText}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="50" />
+        </block>
+        <block wx:elif="{{currentQuestion.type==='picker+multi'}}">
+          <view class="d-multi-row">
+            <view class="d-picker-wrap">
+              <text class="d-picker-display" wx:if="{{dQ.selectedPick}}">{{dQ.selectedPick}}</text>
+              <text class="d-picker-display d-picker-placeholder" wx:else>{{currentQuestion.options[0] || '请选择'}}</text>
+            </view>
+            <picker mode="selector" range="{{currentQuestion.options}}" bindchange="onDPickerChange">
+              <button class="d-picker-btn">选择</button>
+            </picker>
+          </view>
+          <view class="d-multi-divider"></view>
+          <text class="d-multi-label">{{currentQuestion.extraLabel || '额外选择'}}</text>
+          <view class="d-multi-row">
+            <view class="d-picker-wrap">
+              <text class="d-picker-display" wx:if="{{dQ.extraPick}}">{{dQ.extraPick}}</text>
+              <text class="d-picker-display d-picker-placeholder" wx:else>{{currentQuestion.extraOptions[0] || '请选择'}}</text>
+            </view>
+            <picker mode="selector" range="{{currentQuestion.extraOptions}}" bindchange="onDExtraPickerChange">
+              <button class="d-picker-btn">选择</button>
+            </picker>
+          </view>
         </block>
         <block wx:elif="{{currentQuestion.type==='picker'}}">
           <view class="d-picker-wrap">

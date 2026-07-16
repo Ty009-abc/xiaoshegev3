@@ -8,18 +8,28 @@ const aiReportService = require('../../services/aiReportService.js')
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
 const app = getApp()
 
-/** v3 10 题问卷 — 每道题自携 options，通过 key 唯一标识 */
+/** V4 10 题认知审判问卷 — 每道题自携 options，通过 key 唯一标识 */
 const DIAGNOSTIC_QUESTIONS = [
-  { id:'age',              key:'age',              title:'你今年几岁？',                subtitle:'年龄决定你的牌桌大小和时间窗口',                  type:'input',    inputType:'number', placeholder:'请输入数字', maxlength:3 },
-  { id:'occupation',       key:'occupation',       title:'你现在的职业是？',            subtitle:'职业是你在牌桌上的筹码形式',                      type:'picker+input', options:['请选择职业类型','上班族','个体经营','企业主','自由职业','专业技能职业','学生','待业','其他'], detailPlaceholder:'请输入具体职业，例如：厨师、销售、程序员' },
-  { id:'monthlyIncome',    key:'income',           title:'你的月收入是多少？',          subtitle:'收入 = 认知在这个世界的兑现速度',                 type:'picker',   options:['请选择','3000以下','3000–6000','6000–1万','1万–2万','2万–5万','5万以上'] },
-  { id:'savings',          key:'savings',          title:'你目前的可支配存款？',        subtitle:'这决定了你的安全垫厚度',                          type:'picker',   options:['请选择','1万元以下','1–5万元','5–10万元','10–30万元','30–100万元','100万元以上'] },
-  { id:'debt',             key:'debt',             title:'你目前的负债情况？',          subtitle:'负债决定了你翻身的紧迫度',                        type:'picker',   options:['请选择','无负债','轻度负债（<月收入3倍）','中度负债（月收入3-12倍）','重度负债（>月收入12倍）'] },
-  { id:'monthlyExpense',   key:'expense',          title:'你每月固定支出大约多少？',     subtitle:'用于计算真实的月度现金流',                        type:'input',    inputType:'number', placeholder:'请输入数字（元）' },
-  { id:'freeTimeHours',    key:'freeTime',         title:'你每天有多少小时可自由支配？',  subtitle:'决定你能分配多少时间给第二曲线',                  type:'picker',   options:['请选择','几乎为0','1小时以内','1–2小时','2–4小时','4小时以上'] },
-  { id:'bestSkill',        key:'bestSkill',        title:'你最可能变现的能力是什么？',   subtitle:'这是你翻身的核心武器',                            type:'picker',   options:['请选择','专业技术（编程/设计/技术类）','销售/市场/带货','内容创作（写/拍/剪/播）','管理/运营','人脉资源','资金','暂无明确能力'] },
-  { id:'goal',             key:'goal',             title:'你当前最核心的目标是？',      subtitle:'目标不同，策略完全不同',                          type:'picker',   options:['请选择','增加副业收入','尝试转行','创业/开店','清理负债','积累第一桶金','建立个人事业','提升认知'] },
-  { id:'maxLoss',          key:'maxLoss',          title:'你能承受的最大失败成本？',     subtitle:'建立你的风险边界',                                type:'picker',   options:['请选择','不能接受任何损失','小额（几千元）','中等（几万元）','较大（几十万以上）'] },
+  // Q1 人生阶段
+  { id:'lifeStage',     key:'lifeStage',     title:'你目前处于什么人生阶段？',     subtitle:'阶段不同，牌桌规则完全不同',                  type:'picker', options:['请选择','18-24岁','25-30岁','31-40岁','41-50岁','50岁以上'] },
+  // Q2 收入结构 + 具体职业（同屏）
+  { id:'income+occ',    key:'incomeStructure', title:'你的主要收入结构是？',       subtitle:'收入结构决定了你的底层经济模型',              type:'picker+input', options:['请选择','工资/固定薪资','技能服务（按次/项目收费）','销售/佣金/提成','实体生意/经营收入','线上内容/流量变现','资产/投资/租金收入','收入不稳定'], detailPlaceholder:'请输入具体职业，例如：厨师、销售、程序员' },
+  // Q3 月结余
+  { id:'monthlySurplus',key:'monthlySurplus', title:'你每个月扣除所有支出后，还剩多少？', subtitle:'月结余是你的行动燃料',                   type:'picker', options:['请选择','负数（入不敷出）','基本为零','1000元以下','1000-5000元','5000-10000元','10000元以上'] },
+  // Q4 安全垫 + 负债（同屏）
+  { id:'safety+debt',   key:'safetyMonths',   title:'如果明天开始你没有任何收入，存款能撑多久？', subtitle:'这是你最重要的安全垫',              type:'picker+multi', options:['请选择','不到1个月','1-3个月','3-6个月','6-12个月','12-24个月','24个月以上'], extraField:'debtPressure', extraOptions:['请选择负债情况','无负债','房贷为主（低月供）','消费贷/信用卡压力较大','债务压力高/以贷养贷'], extraLabel:'负债情况', extraKey:'debtPressure' },
+  // Q5 技能验证 + 最可能变现能力（同屏）
+  { id:'skill+monetize',key:'skillValidation', title:'你的能力被市场验证到什么程度了？', subtitle:'没被市场验证的能力，只是爱好',           type:'picker+multi', options:['请选择','从未变现过','免费帮人做过','免费被感谢过','赚到过一次钱','偶尔有付费需求','有稳定客户/收入'], extraField:'monetizableSkill', extraOptions:['请选择最可能变现的能力','技术类（编程/设计/工程）','销售/商务谈单','运营/管理/统筹','内容创作（写/拍/剪/直播）','人脉/资源对接','手艺人（厨师/维修/美业）','暂时不清楚'], extraLabel:'最可能变现的能力', extraKey:'monetizableSkill' },
+  // Q6 时间 + 执行稳定性（同屏）
+  { id:'time+exec',     key:'weeklyTime',     title:'你每周能挤出多少可自由支配的时间？', subtitle:'时间是第二曲线的关键生产资料',           type:'picker+multi', options:['请选择','不到2小时','2-5小时','5-10小时','10-20小时','20小时以上'], extraField:'executionStability', extraOptions:['请选择执行状态','很容易三分钟热度，计划经常中断','偶尔能坚持，但不稳定','有固定计划，基本能执行','非常稳定，不需要外部督促'], extraLabel:'你的执行力如何？', extraKey:'executionStability' },
+  // Q7 过去一年赚钱尝试
+  { id:'pastAttempt',   key:'pastAttemptStage', title:'过去一年，你最接近赚钱的一次尝试是？', subtitle:'行动记录是最诚实的认知画像',              type:'picker', options:['请选择','还没开始过任何尝试','只买过课/看过教程，没真正做过','坚持不到30天就停了','做了一个产品/服务但没卖出去','卖出过几个，有少量收入','已有稳定的副业/兼职收入'] },
+  // Q8 不确定机会决策
+  { id:'decision',      key:'decisionStyle',  title:'当一个机会看起来不错但不确定时，你一般怎么做？', subtitle:'决策风格决定了你错过机会还是踩坑', type:'picker', options:['请选择','直接辞职/全职All-in','边上班边小规模测试','先学一阵子再判断','等别人先做了我再跟上','能不动就不动'] },
+  // Q9 未来12个月核心目标
+  { id:'primaryGoal',   key:'primaryGoal',    title:'未来12个月，你最想做成的事是什么？',  subtitle:'目标决定路径，路径决定结果',                 type:'picker', options:['请选择','搞一份副业收入','把技能变现/做咨询','建立个人IP/品牌','转行进入新领域','从副业变主业/独立','还清债务/修复现金流','先找到方向再说'] },
+  // Q10 最大试错成本 + 失败反应（同屏）
+  { id:'risk+fail',     key:'maxTrialCost',   title:'你能承受的最大试错成本是多少？',     subtitle:'风险边界决定了你的策略选项',                type:'picker+multi', options:['请选择','几乎为零（赔不起）','1000元以内','1000-5000元','5000-20000元','20000元以上'], extraField:'failureResponse', extraOptions:['请选择失败后你会怎么做','直接放弃，不再尝试','换个方向继续试','复盘优化后继续','追加投入再试一次','不确定'], extraLabel:'如果试错失败了，你会？', extraKey:'failureResponse' },
 ]
 
 Page({
@@ -32,7 +42,7 @@ Page({
     challengeLocked: false, lockReason: '',
     // diagnostic 模式 — Data Contract Engine
     currentQuestion: null,
-    dQ:{idx:0,total:10,percent:10,label:'',answers:{},selectedPick:'',detailText:'',submitting:false,personality:null,canNext:false},
+    dQ:{idx:0,total:10,percent:10,label:'',answers:{},selectedPick:'',detailText:'',extraPick:'',submitting:false,personality:null,canNext:false},
   },
 
   onLoad(opt) {
@@ -272,7 +282,7 @@ Page({
     this._typewriterHint(q0.subtitle)
   },
 
-  /** 同步 currentQuestion，同时恢复 selectedPick/detailText */
+  /** 同步 currentQuestion，同时恢复 selectedPick/detailText/extraPick */
   _syncQuestion(idx) {
     const q = DIAGNOSTIC_QUESTIONS[idx]
     const answers = this.data.dQ.answers
@@ -281,29 +291,31 @@ Page({
       'dQ.idx': idx,
       'dQ.percent': Math.round(((idx + 1) / DIAGNOSTIC_QUESTIONS.length) * 100),
       'dQ.label': '',
+      'dQ.selectedPick': '',
+      'dQ.detailText': '',
+      'dQ.extraPick': '',
     }
-    // 恢复 picker 选中值
     const saved = answers[q.key]
-    if (q.type === 'picker' || q.type === 'picker+input') {
+
+    if (q.type === 'picker') {
       if (saved) {
-        const pickIdx = q.options.indexOf(saved)
         patch['dQ.selectedPick'] = saved
-        patch['dQ.canNext'] = q.type === 'picker+input'
-          ? saved.length > 0 && String(answers.occupationDetail || '').trim().length > 0
-          : true
+        patch['dQ.canNext'] = true
       } else {
-        patch['dQ.selectedPick'] = ''
         patch['dQ.canNext'] = false
       }
+    } else if (q.type === 'picker+input') {
+      patch['dQ.detailText'] = answers.occupationDetail || ''
+      const detailOk = String(answers.occupationDetail || '').trim().length > 0
+      patch['dQ.canNext'] = saved ? detailOk : false
+      if (saved) patch['dQ.selectedPick'] = saved
+    } else if (q.type === 'picker+multi') {
+      const extra = answers[q.extraKey] || ''
+      patch['dQ.extraPick'] = extra
+      patch['dQ.canNext'] = !!(saved && extra)
+      if (saved) patch['dQ.selectedPick'] = saved
     } else if (q.type === 'input') {
       patch['dQ.canNext'] = String(saved || '').trim().length > 0
-      patch['dQ.selectedPick'] = ''
-    }
-    // 恢复 picker+input 的 detailText
-    if (q.type === 'picker+input') {
-      patch['dQ.detailText'] = answers.occupationDetail || ''
-    } else {
-      patch['dQ.detailText'] = ''
     }
     this.setData(patch)
     this._typewriterHint(q.subtitle)
@@ -322,11 +334,12 @@ Page({
         'dQ.detailText': raw,
         'dQ.canNext': occ ? raw.trim().length > 0 : false,
       })
-    } else {
+    } else if (q.type === 'input') {
       answers[q.key] = raw
       const valid = String(raw || '').trim().length > 0
       this.setData({ 'dQ.answers': answers, 'dQ.canNext': valid })
     }
+    // picker+multi: no text input, handled by picker change
   },
 
   onDPickerChange(e) {
@@ -345,6 +358,13 @@ Page({
         'dQ.selectedPick': selected,
         'dQ.canNext': selected.length > 0 && detail.length > 0,
       })
+    } else if (q.type === 'picker+multi') {
+      const extra = (answers[q.extraKey] || '').trim()
+      this.setData({
+        'dQ.answers': answers,
+        'dQ.selectedPick': selected,
+        'dQ.canNext': selected.length > 0 && extra.length > 0,
+      })
     } else {
       this.setData({
         'dQ.answers': answers,
@@ -354,29 +374,48 @@ Page({
     }
   },
 
+  /** picker+multi 第二个 picker 变化 */
+  onDExtraPickerChange(e) {
+    const idx = parseInt(e.detail.value)
+    const q = this.data.currentQuestion
+    const options = q.extraOptions || []
+    const selected = options[idx] || ''
+
+    const answers = { ...this.data.dQ.answers }
+    answers[q.extraKey] = selected
+
+    const main = (answers[q.key] || '').trim()
+    this.setData({
+      'dQ.answers': answers,
+      'dQ.extraPick': selected,
+      'dQ.canNext': selected.length > 0 && main.length > 0,
+    })
+  },
+
   onDNext() {
     const { idx, answers } = this.data.dQ
     const q = this.data.currentQuestion
 
-    // picker+input: 验证 occupation + occupationDetail
     if (q.type === 'picker+input') {
-      const occ = answers.occupation || ''
+      const occ = answers[q.key] || ''
       const detail = (answers.occupationDetail || '').trim()
-      if (!occ) { wx.showToast({ title:'请先选择职业类型', icon:'none' }); return }
+      if (!occ) { wx.showToast({ title:'请先选择收入结构', icon:'none' }); return }
       if (!detail) { wx.showToast({ title:'请输入具体职业', icon:'none' }); return }
-      // 清除 selectedPick 避免下一题污染
-      this.setData({ 'dQ.answers': answers, 'dQ.selectedPick': '', 'dQ.detailText': '' })
+    } else if (q.type === 'picker+multi') {
+      const main = answers[q.key] || ''
+      const extra = (answers[q.extraKey] || '').trim()
+      if (!main) { wx.showToast({ title:'请先完成选择', icon:'none' }); return }
+      if (!extra) { wx.showToast({ title:'请完成下方选项', icon:'none' }); return }
     } else {
-      // 所有其他题：验证当前 key 有值
       const val = answers[q.key]
       if (!val || !String(val).trim()) {
         wx.showToast({ title:'说真话，别跳过 🙏', icon:'none' })
         return
       }
-      this.setData({ 'dQ.answers': answers, 'dQ.selectedPick': '', 'dQ.detailText': '' })
     }
+    // 清除临时选择状态
+    this.setData({ 'dQ.selectedPick': '', 'dQ.detailText': '', 'dQ.extraPick': '' })
 
-    // 最后一步 → 提交
     if (idx === DIAGNOSTIC_QUESTIONS.length - 1) {
       this._submitDiagnostic()
       return
@@ -386,7 +425,7 @@ Page({
 
   onDPrev() {
     if (this.data.dQ.idx <= 0) return
-    this.setData({ 'dQ.selectedPick': '', 'dQ.detailText': '' })
+    this.setData({ 'dQ.selectedPick': '', 'dQ.detailText': '', 'dQ.extraPick': '' })
     this._syncQuestion(this.data.dQ.idx - 1)
   },
 
@@ -407,33 +446,65 @@ Page({
     this.setData({ 'dQ.submitting': true })
 
     const a = this.data.dQ.answers
-    // 10题 answers 只使用 key 字段。补全向后兼容映射
+    // V4 10题 answers — 所有 key 直接可追溯
     const answers = {
-      age: a.age || '',
-      occupation: a.occupation || '',
-      occupationDetail: a.occupationDetail || '',
-      // normalizeAnswers 接受 monthlyIncome || income
-      income: a.income || '',
-      monthlyIncome: a.income || '',
-      savings: a.savings || '',
-      debt: a.debt || '',
-      // normalizeAnswers 接受 monthlyExpense
-      expense: a.expense || '',
-      monthlyExpense: a.expense || '',
-      // normalizeAnswers 接受 freeTimeHours
-      freeTime: a.freeTime || '',
-      freeTimeHours: a.freeTime || '',
-      bestSkill: a.bestSkill || '',
-      goal: a.goal || '',
-      maxLoss: a.maxLoss || '',
-      // 旧版兼容
-      job: a.occupationDetail || a.occupation || '',
+      lifeStage:            a.lifeStage || '',
+      incomeStructure:      a.incomeStructure || '',
+      occupationDetail:     a.occupationDetail || '',
+      monthlySurplus:       a.monthlySurplus || '',
+      safetyMonths:         a.safetyMonths || '',
+      debtPressure:         a.debtPressure || '',
+      skillValidation:      a.skillValidation || '',
+      monetizableSkill:     a.monetizableSkill || '',
+      weeklyTime:           a.weeklyTime || '',
+      executionStability:   a.executionStability || '',
+      pastAttemptStage:     a.pastAttemptStage || '',
+      decisionStyle:        a.decisionStyle || '',
+      primaryGoal:          a.primaryGoal || '',
+      maxTrialCost:         a.maxTrialCost || '',
+      failureResponse:      a.failureResponse || '',
+      // 旧版向后兼容（让旧 normalizeAnswers 不崩溃）
+      age: a.lifeStage || '',
+      occupation: a.occupationDetail || a.incomeStructure || '',
+      income: a.incomeStructure || '',
+      monthlyIncome: a.incomeStructure || '',
+      savings: a.safetyMonths || '',
+      debt: a.debtPressure || '',
+      expense: a.monthlySurplus || '',
+      monthlyExpense: a.monthlySurplus || '',
+      freeTime: a.weeklyTime || '',
+      freeTimeHours: a.weeklyTime || '',
+      bestSkill: a.monetizableSkill || '',
+      goal: a.primaryGoal || '',
+      maxLoss: a.maxTrialCost || '',
+      job: a.occupationDetail || '',
       education: 'N/A',
       anxiety: '',
       rootCause: '',
     }
 
     const p = this.data.dQ.personality
+
+    // V4 前端合同日志
+    console.log('[DiagnosticV4Answers]', {
+      questionSteps: DIAGNOSTIC_QUESTIONS.length,
+      answerKeys: Object.keys(answers).filter(k => answers[k]),
+      lifeStage: answers.lifeStage,
+      incomeStructure: answers.incomeStructure,
+      occupationDetail: answers.occupationDetail,
+      monthlySurplus: answers.monthlySurplus,
+      safetyMonths: answers.safetyMonths,
+      debtPressure: answers.debtPressure,
+      skillValidation: answers.skillValidation,
+      monetizableSkill: answers.monetizableSkill,
+      weeklyTime: answers.weeklyTime,
+      executionStability: answers.executionStability,
+      pastAttemptStage: answers.pastAttemptStage,
+      decisionStyle: answers.decisionStyle,
+      primaryGoal: answers.primaryGoal,
+      maxTrialCost: answers.maxTrialCost,
+      failureResponse: answers.failureResponse,
+    })
 
     app.globalData._diagnosticAnswers = answers
     app.globalData._diagnosticPersonality = p
