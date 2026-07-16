@@ -32,14 +32,14 @@
 
     <!-- 商品卡片 -->
     <view class="product-card" wx:if="{{product}}">
-      <view class="product-badge" wx:if="{{product.originalPrice}}">限时优惠</view>
+      <view class="product-badge" wx:if="{{hasOriginalPrice}}">限时优惠</view>
 
       <text class="product-name">{{product.name || '解锁完整30天挑战'}}</text>
       <text class="product-desc">{{product.description || '一次购买，本次挑战永久解锁'}}</text>
 
       <view class="product-price-row">
-        <text class="product-price">¥{{product.price ? (product.price/100).toFixed(2) : '39.90'}}</text>
-        <text class="product-original" wx:if="{{product.originalPrice}}">¥{{(product.originalPrice/100).toFixed(2)}}</text>
+        <text class="product-price">¥{{priceDisplay || '39.90'}}</text>
+        <text class="product-original" wx:if="{{hasOriginalPrice}}">¥{{originalPriceDisplay}}</text>
       </view>
 
       <text class="product-tag">一次购买 · 永久解锁</text>
@@ -47,7 +47,7 @@
 
     <!-- 支付按钮 -->
     <view class="pay-section">
-      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (product ? (product.price/100).toFixed(2) : '39.90')}}" loading="{{paying}}" disabled="{{paying||!product}}" bind:tapbutton="onPay" />
+      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (priceDisplay || '39.90')}}" loading="{{paying}}" disabled="{{paying||!product}}" bind:tapbutton="onPay" />
 
       <xsg-button type="plain" text="暂不解锁" bind:tapbutton="onBack" />
 

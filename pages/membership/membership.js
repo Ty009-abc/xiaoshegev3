@@ -29,7 +29,12 @@ Page({
         const products = r.data.products || r.data || []
         const product = products.find(p => p.productId === productId)
         if (product) {
-          this.setData({ product })
+          this.setData({
+            product,
+            priceDisplay: (product.price / 100).toFixed(2),
+            originalPriceDisplay: product.originalPrice ? (product.originalPrice / 100).toFixed(2) : '',
+            hasOriginalPrice: !!product.originalPrice,
+          })
         } else {
           console.warn('[ChallengeUnlock] product not found, using fallback')
           this.setData({
@@ -41,6 +46,9 @@ Page({
               originalPrice: 5990,
               type: 'single',
             },
+            priceDisplay: '39.90',
+            originalPriceDisplay: '59.90',
+            hasOriginalPrice: true,
           })
         }
       } else {
