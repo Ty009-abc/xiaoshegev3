@@ -60,9 +60,17 @@ exports.main = async (event, context) => {
       })
     }
 
-    // ═══ diagnostic 分支：v3 10题 → 决策引擎 → 5字段诊断报告（全免费，无DB写入） ═══
+    // ═══ diagnostic 分支 ═══
     if (type === 'diagnostic') {
       const { answers = {}, personality: dPersonality, personalityEmoji, personalityStyle: dStyle } = event
+
+      // ═══ V4 分流 ═══
+      const diagnosticVersion = event.diagnosticVersion || (event.answers && event.answers.diagnosticVersion)
+      if (diagnosticVersion === 'v4') {
+        return await runDiagnosticV4Branch({ event, openid, ts, db })
+      }
+
+      // ═══ V3 原有链路（不变）═══
       const { buildDiagnosticPrompt } = require('./lib/ai.js')
 
       const { systemPrompt, userMessage, personality: usedPersonality, engineResult } = buildDiagnosticPrompt(answers, dPersonality, dStyle)
@@ -307,4 +315,155 @@ exports.main = async (event, context) => {
     console.error('[generateAiReport] 异常:', err)
     return fail(CODES.AI_ERROR, err.message)
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// V4 诊断分支
+// ═══════════════════════════════════════════════════════════════
+
+async function runDiagnosticV4Branch({ event, openid, ts, db }) {
+  const { runDiagnosticV4, normalizeV4Input } = require('./lib/v4/diagnosticPipelineV4')
+  const { callAI } = require('./lib/ai.js')
+
+  // 归一化输入
+  const answers = normalizeV4Input(event)
+  if (!answers) {
+    return fail(CODES.PARAM_ERROR, 'V4_DIAGNOSTIC_INPUT_INVALID: answers 缺失或 diagnosticVersion !== v4')
+  }
+
+  // 幂等检查
+  const recordId = event.recordId || ''
+  const forceRegenerate = event.forceRegenerate === true
+  let cacheStatus = 'GENERATED_NEW'
+
+  if (recordId && !forceRegenerate) {
+    try {
+      const existing = await db.collection('ai_reports')
+        .where({ recordId, openid, type: 'diagnostic_v4' })
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get()
+      if (existing.data.length > 0) {
+        console.log('[V4Diagnostic] CACHE_HIT for recordId=' + recordId)
+        cacheStatus = 'CACHE_HIT'
+        return ok({
+          ...existing.data[0].content,
+          _cache: cacheStatus,
+        })
+      }
+    } catch (e) {
+      console.log('[V4Diagnostic] 缓存查询失败，继续生成:', e.message)
+    }
+  }
+
+  if (forceRegenerate) {
+    cacheStatus = 'FORCE_REGENERATED'
+  }
+
+  // 运行 V4 管线
+  const pipelineResult = await runDiagnosticV4({
+    answers,
+    userContext: { openid, recordId },
+    callAI: async (opts) => {
+      return await callAI({
+        systemPrompt: opts.systemPrompt,
+        userMessage: opts.userMessage,
+        maxTokens: 2048,
+        temperature: 0.65,
+      })
+    },
+  })
+
+  const { code, message, data, stages } = pipelineResult
+
+  // 记录管线日志（非敏感）
+  console.log('[V4DiagnosticPipeline] stages:', JSON.stringify(stages.map(s => ({
+    stage: s.stage,
+    ok: s.ok,
+    error: s.error,
+    fatalCount: s.fatalCount,
+    matchedCount: s.matchedCount,
+    ruleCount: s.ruleCount,
+    tokens: s.tokens,
+    renderSource: s.renderSource,
+    code: s.code,
+  }))))
+
+  // 输入验证失败
+  if (code === 4004) {
+    return fail(CODES.PARAM_ERROR, message)
+  }
+
+  // Engine/Contract 错误
+  if (code >= 5000) {
+    return fail(CODES.AI_ERROR, message)
+  }
+
+  // 构建答案快照（只存 15 枚举 + 职业文本）
+  const answersSnapshot = {}
+  const { REQUIRED_V4_KEYS } = require('./lib/v4/diagnosticPipelineV4')
+  for (const key of REQUIRED_V4_KEYS) {
+    answersSnapshot[key] = answers[key] || ''
+  }
+
+  // 存储报告
+  const reportData = {
+    reportId: data.reportId,
+    openid,
+    type: 'diagnostic_v4',
+    recordId,
+    reportVersion: 'v4',
+    diagnosticVersion: 'v4',
+    engineVersion: data.engineVersion,
+    renderSource: data.renderSource,
+    content: {
+      report: data.report,
+      legacy: data.legacy,
+    },
+    answersSnapshot,
+    pipelineStages: stages.map(s => ({
+      stage: s.stage,
+      ok: s.ok,
+      error: s.error,
+      fatalCount: s.fatalCount,
+      matchedCount: s.matchedCount,
+      ruleCount: s.ruleCount,
+    })),
+    createdAt: ts,
+    updatedAt: ts,
+  }
+
+  try {
+    await db.collection('ai_reports').add({ data: reportData })
+  } catch (e) {
+    console.error('[V4Diagnostic] 存储失败:', e.message)
+    // 不阻塞返回
+  }
+
+  // 写入 ai_logs
+  try {
+    await db.collection('ai_logs').add({
+      data: {
+        openid,
+        action: 'diagnostic_v4',
+        type: 'diagnostic_v4',
+        reportId: data.reportId,
+        recordId,
+        renderSource: data.renderSource,
+        success: true,
+        createdAt: ts,
+      },
+    })
+  } catch (_) { /* ignore */ }
+
+  return ok({
+    reportId: data.reportId,
+    reportType: 'diagnostic_v4',
+    diagnosticVersion: 'v4',
+    engineVersion: data.engineVersion,
+    renderSource: data.renderSource,
+    report: data.report,
+    legacy: data.legacy,
+    _cache: cacheStatus,
+  })
 }
