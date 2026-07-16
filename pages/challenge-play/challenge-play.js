@@ -61,13 +61,31 @@ Page({
           return
         }
         const choices = (ev.choices || []).map(c => ({ key:c.key, text:c.text }))
-        this.setData({ event:{ ...ev, choices }, progress: ev.progress || {current:0,total:30,day:1}, animIn:true })
+        this.setData({
+          event: { ...ev, choices },
+          progress: {
+            current: (ev.progress && ev.progress.current) || 1,
+            total: (ev.progress && ev.progress.total) || 30,
+            day: ev.day || (ev.progress && ev.progress.day) || 1,
+          },
+          animIn: true,
+        })
         setTimeout(() => this.setData({ animIn:false }), 300)
       } else if (r.code === 1008) {
         this.setData({ end:true })
       } else throw new Error(r.message || '加载失败')
     } catch (e) {
-      wx.showToast({ title:'系统暂时看不清这个世界，请稍后再试', icon:'none' })
+      this.setData({ loadFailed: true })
+      wx.showModal({
+        title: '加载失败',
+        content: '下一题加载失败，请重试',
+        cancelText: '返回',
+        confirmText: '重试',
+        success: (res) => {
+          if (res.confirm) { this.setData({ loadFailed: false }); this.nextEvent() }
+          else { wx.navigateBack() }
+        },
+      })
     }
     this.setData({ loading:false })
   },
@@ -102,6 +120,10 @@ Page({
       wx.showToast({ title:'小事哥刚刚断片了，请重新生成一次', icon:'none' })
       this.setData({ submitted:false, animOut:false })
     }
+  },
+  onRetry() {
+    this.setData({ loadFailed: false })
+    this.nextEvent()
   },
   goResult() {
     wx.redirectTo({ url:'/pages/challenge-result/challenge-result?recordId=' + this.data.recordId })

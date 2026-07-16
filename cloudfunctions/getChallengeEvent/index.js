@@ -66,10 +66,10 @@ exports.main = async (event, context) => {
       })
     }
 
-    // 读取题目库（按 sort 排序取第 currentEventIndex 条）
+    // 读取题目库（按 day 排序取第 currentEventIndex 条）
     const eventsRes = await db.collection('challenge_events')
       .where({ status: 'active' })
-      .orderBy('createdAt', 'asc')
+      .orderBy('day', 'asc')
       .skip(record.currentEventIndex)
       .limit(1)
       .get()
@@ -99,6 +99,7 @@ exports.main = async (event, context) => {
       progress: {
         current: record.currentEventIndex + 1,
         total: totalEventsRes.total,
+        day: ce.day,
       },
       trialMode: record.trialMode || false,
       ...(record.trialMode ? { trialRemaining: Math.max(0, 3 - record.currentEventIndex) } : {}),

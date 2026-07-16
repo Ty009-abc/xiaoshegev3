@@ -99,6 +99,13 @@
 
       <xsg-button type="primary" text="{{submitted?'你的选择已记录 ✓':'确认选择'}}" disabled="{{!selectedKey||submitted}}" bind:tapbutton="onSubmit" />
 
+      <view class="event-area" wx:if="{{loadFailed && !event && !end}}">
+        <xsg-card>
+          <view class="event-title mt-16" style="text-align:center;color:#c0392b;">下一题加载失败，请重试</view>
+        </xsg-card>
+      </view>
+      <xsg-button type="primary" text="重试加载" wx:if="{{loadFailed && !event && !end}}" bind:tapbutton="onRetry" />
+
       <xsg-empty icon="🏁" title="诊断完成" desc="10题诊断已结束，查看你的翻身策略报告" btnText="查看报告" wx:if="{{end}}" bind:tap="goResult" />
     </block>
   </block>
