@@ -50,22 +50,33 @@ Page({
      ═══════════════════════════════════ */
   async nextEvent() {
     if (this.data.end) return
+    let keepLoading = true
     this.setData({ loading:true, selectedKey:'', submitted:false })
     try {
       const r = await challengeService.getChallengeEvent(this.data.recordId)
       if (r.code === 0) {
         const ev = r.data
         if (ev.finished) {
+          keepLoading = false
           if (this.data.mode === 'diagnostic') {
             wx.redirectTo({ url:'/pages/report-preview/report-preview?recordId=' + this.data.recordId })
           } else { this.goResult() }
           return
         }
         // 付费门槛：trialMode 第4题触发
-        if (ev.locked || ev.needPayment) {
+        const isLocked = ev.locked === true || ev.needPayment === true || ev.needPay === true
+        if (isLocked) {
+          keepLoading = false
           this.setData({
+            loading: false,
+            loadFailed: false,
             challengeLocked: true,
             lockReason: ev.message || '免费体验已完成',
+          })
+          console.log('[ChallengeTrialGateRuntime] locked', {
+            loading: false,
+            challengeLocked: true,
+            currentEventIndex: ev.currentEventIndex,
           })
           return
         }
@@ -81,9 +92,11 @@ Page({
         })
         setTimeout(() => this.setData({ animIn:false }), 300)
       } else if (r.code === 1008) {
+        keepLoading = false
         this.setData({ end:true })
       } else throw new Error(r.message || '加载失败')
     } catch (e) {
+      keepLoading = false
       this.setData({ loadFailed: true })
       wx.showModal({
         title: '加载失败',
@@ -95,8 +108,11 @@ Page({
           else { wx.navigateBack() }
         },
       })
+    } finally {
+      if (!keepLoading) {
+        this.setData({ loading: false })
+      }
     }
-    this.setData({ loading:false })
   },
   onSelect(e) {
     if (!this.data.submitted) this.setData({ selectedKey:e.detail.key })

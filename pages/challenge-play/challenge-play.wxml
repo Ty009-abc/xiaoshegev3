@@ -78,19 +78,46 @@
 
   <!-- ═════ challenge 模式 (原有) ═════ -->
   <block wx:else>
-    <xsg-loading text="加载下一题..." wx:if="{{loading}}" />
-    <block wx:else>
+    <!-- 优先级1: 付费锁定卡 -->
+    <block wx:if="{{challengeLocked}}">
+      <xsg-card theme="light" class="lock-card">
+        <view class="lock-card-icon">🔒</view>
+        <view class="lock-card-title">免费体验已完成</view>
+        <view class="lock-card-desc">你已完成3道认知挑战
+解锁完整30天挑战，继续建立九维认知模型</view>
+      </xsg-card>
+      <view class="lock-actions">
+        <xsg-button type="primary" text="解锁完整挑战" bind:tapbutton="onUnlock" />
+        <xsg-button type="plain" text="返回首页" bind:tapbutton="onGoHome" />
+      </view>
+    </block>
+
+    <!-- 优先级2: 加载失败 (loading已结束但无event) -->
+    <block wx:elif="{{loadFailed && !event && !end}}">
+      <view class="event-area">
+        <xsg-card theme="light">
+          <view class="event-title mt-16" style="text-align:center;color:#c0392b;">下一题加载失败，请重试</view>
+        </xsg-card>
+      </view>
+      <xsg-button type="primary" text="重试加载" bind:tapbutton="onRetry" />
+    </block>
+
+    <!-- 优先级3: 加载中 -->
+    <xsg-loading text="加载下一题..." wx:elif="{{loading}}" />
+
+    <!-- 优先级4: 正常题目 -->
+    <block wx:elif="{{event}}">
       <challenge-progress current="{{progress.current}}" total="{{progress.total}}" day="{{progress.day}}" class="anim-fade-in" />
 
-      <view class="event-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}" wx:if="{{event}}">
-        <xsg-card>
+      <view class="event-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}">
+        <xsg-card theme="light">
           <xsg-tag text="{{event.category||'决策题'}}" type="ai" />
           <view class="event-title mt-16">{{event.title}}</view>
           <view class="event-desc mt-12">{{event.description}}</view>
         </xsg-card>
       </view>
 
-      <view class="choices-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}" wx:if="{{event}}">
+      <view class="choices-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}">
         <challenge-choice wx:for="{{event.choices}}" wx:key="key"
           choiceKey="{{item.key}}" text="{{item.text}}"
           selected="{{selectedKey===item.key}}" submitted="{{submitted}}"
@@ -98,28 +125,8 @@
       </view>
 
       <xsg-button type="primary" text="{{submitted?'你的选择已记录 ✓':'确认选择'}}" disabled="{{!selectedKey||submitted}}" bind:tapbutton="onSubmit" />
-
-      <view class="event-area" wx:if="{{loadFailed && !event && !end}}">
-        <xsg-card>
-          <view class="event-title mt-16" style="text-align:center;color:#c0392b;">下一题加载失败，请重试</view>
-        </xsg-card>
-      </view>
-      <xsg-button type="primary" text="重试加载" wx:if="{{loadFailed && !event && !end}}" bind:tapbutton="onRetry" />
-
-      <!-- 付费锁定卡 — trialMode 第4题触发 -->
-      <block wx:if="{{challengeLocked}}">
-        <xsg-card class="lock-card">
-          <view class="lock-card-icon">🔒</view>
-          <view class="lock-card-title">免费体验已完成</view>
-          <view class="lock-card-desc">你已完成3道认知挑战\n解锁完整30天挑战，继续建立九维认知模型</view>
-        </xsg-card>
-        <view class="lock-actions">
-          <xsg-button type="primary" text="解锁完整挑战" bind:tapbutton="onUnlock" />
-          <xsg-button type="plain" text="返回首页" bind:tapbutton="onGoHome" />
-        </view>
-      </block>
-
-      <xsg-empty icon="🏁" title="诊断完成" desc="10题诊断已结束，查看你的翻身策略报告" btnText="查看报告" wx:if="{{end}}" bind:tap="goResult" />
     </block>
+
+    <xsg-empty icon="🏁" title="诊断完成" desc="10题诊断已结束，查看你的翻身策略报告" btnText="查看报告" wx:if="{{end}}" bind:tap="goResult" />
   </block>
 </view>

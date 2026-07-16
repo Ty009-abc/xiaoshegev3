@@ -1,98 +1,84 @@
-@import '../../styles/tokens.wxss';
 /* ══════════════════════════════════════
-   pages/challenge-play — 灰白质感
+   pages/challenge-play — 浅色主题
    ══════════════════════════════════════ */
 
-.container {
+page {
+  background: #F5F7FB;
+}
+
+.challenge-page {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #f8f9fa;
-  box-sizing: border-box;
+  background: #F5F7FB;
+  color: #111827;
 }
 
 .page {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #F5F7FB;
 }
 
-.progress-bar {
-  padding: 16rpx 32rpx;
-  padding-top: calc(16rpx + env(safe-area-inset-top));
-  background: #f8f9fa;
+/* ═══════════ 动画 ═══════════ */
+.anim-fade-in { animation: fadeIn 0.35s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(12rpx); } to { opacity: 1; transform: translateY(0); } }
+.slide-out-left { animation: slideOutLeft 0.3s ease forwards; }
+.slide-in-right { animation: slideInRight 0.3s ease forwards; }
+@keyframes slideOutLeft { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-40rpx); } }
+@keyframes slideInRight { from { opacity: 0; transform: translateX(40rpx); } to { opacity: 1; transform: translateX(0); } }
+
+/* ═══════════ 内容区域 ═══════════ */
+.event-area {
+  padding: 24rpx 32rpx 0;
+}
+.choices-area {
+  padding: 8rpx 32rpx 0;
+}
+.mt-16 { margin-top: 16rpx; }
+.mt-12 { margin-top: 12rpx; }
+
+/* ═══════════ 题目卡片文本 ═══════════ */
+.event-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.5;
+}
+.event-desc {
+  font-size: 28rpx;
+  font-weight: 400;
+  color: #4B5563;
+  line-height: 1.75;
 }
 
-.content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 32rpx;
+/* ═══════════ 锁定卡 ═══════════ */
+.lock-card {
+  margin: 32rpx 32rpx 16rpx;
 }
-
-.card {
-  background: #FFFFFF;
-  border: 1rpx solid #eaecf0;
-  border-radius: 32rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03);
+.lock-card-icon {
+  text-align: center;
+  font-size: 80rpx;
+  padding: 32rpx 0 16rpx;
 }
-
-.q-title {
+.lock-card-title {
+  text-align: center;
   font-size: 34rpx;
   font-weight: 700;
-  color: #101828;
+  color: #111827;
   margin-bottom: 16rpx;
-  display: block;
 }
-
-.choices {
+.lock-card-desc {
+  text-align: center;
+  font-size: 28rpx;
+  color: #6B7280;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+.lock-actions {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
-}
-
-.choice-btn {
-  padding: 20rpx 24rpx;
-  border-radius: 32rpx;
-  font-size: 30rpx;
-  color: #344054;
-  background: #F9FAFB;
-  border: 1rpx solid #E5E7EB;
-  text-align: left;
-  transition: all 160ms;
-}
-.choice-btn::after { border: none; }
-.choice-btn:active,
-.choice-btn.selected {
-  background: #F4F3FF;
-  border-color: #C6B1FF;
-  color: #7F56D9;
-}
-.choice-btn.submitted {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.key-tag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  background: #F4F3FF;
-  color: #7F56D9;
-  font-weight: 700;
-  font-size: 24rpx;
-  margin-right: 12rpx;
-  vertical-align: middle;
-}
-
-.footer {
-  padding: 24rpx 32rpx;
-  border-top: 1rpx solid #E5E7EB;
-  background: #FFFFFF;
+  gap: 16rpx;
+  padding: 0 32rpx;
 }
 
 /* ═══════════ diagnostic 6题问卷 ═══════════ */
@@ -145,6 +131,19 @@
 }
 .d-placeholder { color:#D0D5DD; }
 .d-input-hint { padding:8rpx 0 0; text-align:right; font-size:22rpx; color:#A0A0B0; }
+
+.d-picker-wrap {
+  background:#FFF; border:1rpx solid #E5E7EB; border-radius:16rpx;
+  padding:20rpx; margin-bottom:16rpx;
+}
+.d-picker-display { font-size:30rpx; color:#111827; }
+.d-picker-placeholder { color:#D0D5DD; }
+.d-picker-btn {
+  display:inline-block; padding:12rpx 24rpx; background:#F5F3FF;
+  color:#7F56D9; border-radius:999rpx; font-size:26rpx; font-weight:600;
+  border:none;
+}
+.d-picker-btn::after { border:none; }
 
 .d-action { padding:0 32rpx; display:flex; flex-direction:column; align-items:center; gap:8rpx; }
 .d-btn-next {
