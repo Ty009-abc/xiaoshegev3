@@ -1,25 +1,50 @@
-<!-- growth-ranking -->
-<view class="page page-enter">
-  <xsg-navbar title="认知成长榜" showBack />
+<!-- growth-ranking — v3.14 产品化UI -->
+<view class="page">
+  <xsg-navbar title="认知成长榜" showBack light />
+
+  <!-- Tab 导航 -->
   <view class="tabs anim-fade-in">
     <view class="tab {{tab==='cv'?'active':''}}" data-tab="cv" bindtap="onSwitchTab">CV榜</view>
     <view class="tab {{tab==='level'?'active':''}}" data-tab="level" bindtap="onSwitchTab">等级榜</view>
     <view class="tab {{tab==='streak'?'active':''}}" data-tab="streak" bindtap="onSwitchTab">连续榜</view>
   </view>
 
+  <!-- 加载中 -->
   <xsg-loading text="加载排行榜..." wx:if="{{loading}}" />
+
+  <!-- 错误态 -->
+  <block wx:elif="{{loadFailed}}">
+    <view class="error-card anim-fade-in">
+      <text class="error-title">{{loadError || '榜单加载失败'}}</text>
+      <button class="error-btn" bindtap="onRetry">重新加载</button>
+    </view>
+  </block>
+
+  <!-- 正常数据 / 空状态 -->
   <block wx:else>
     <!-- 我的排名 -->
-    <xsg-card type="premium" wx:if="{{myRank}}" class="anim-fade-in">
-      <view class="my-rank"><text class="mr-icon">🏆</text><text class="mr-rank">#{{myRank.rank}}</text><text class="mr-name">{{myRank.nickname||'我'}}</text><text class="mr-val">{{tab==='cv'?myRank.cvDisplay+'CV':tab==='level'?myRank.levelDisplay:myRank.streakDisplay+'天'}}</text></view>
-    </xsg-card>
+    <view class="my-rank-card anim-fade-in" wx:if="{{myRank}}">
+      <text class="mr-icon">🏆</text>
+      <text class="mr-rank">#{{myRank.rank}}</text>
+      <text class="mr-name">{{myRank.nickname||'认知挑战者'}}</text>
+      <text class="mr-val">{{tab==='cv'?myRank.cv+'CV':tab==='level'?'Lv.'+myRank.level:myRank.streak+'天'}}</text>
+    </view>
 
-    <view class="rank-list anim-fade-in">
+    <!-- 榜单 -->
+    <view class="rank-list anim-fade-in" wx:if="{{list.length>0}}">
       <view class="rank-item" wx:for="{{list}}" wx:key="_id">
         <text class="ri-rank {{index<3?'top'+index:''}}">{{item.rank}}</text>
-        <text class="ri-name">{{item.nickname||'觉醒者'}}</text>
-        <text class="ri-val">{{tab==='cv'?item.cvDisplay+'CV':tab==='level'?item.levelDisplay:item.streakDisplay+'天'}}</text>
+        <image class="ri-avatar" src="{{item.avatarUrl || '/static/default-avatar.png'}}" mode="aspectFill" />
+        <text class="ri-name">{{item.nickname||'认知挑战者'}}</text>
+        <text class="ri-val">{{tab==='cv'?item.cv+'CV':tab==='level'?'Lv.'+item.level:item.streak+'天'}}</text>
       </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-card anim-fade-in" wx:if="{{!loading && !loadFailed && list.length===0}}">
+      <text class="empty-icon">📊</text>
+      <text class="empty-title">暂无上榜数据</text>
+      <text class="empty-desc">完成认知挑战后，你的成长值将出现在这里</text>
     </view>
   </block>
 </view>
