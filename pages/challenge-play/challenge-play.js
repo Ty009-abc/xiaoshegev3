@@ -116,6 +116,8 @@ Page({
         loading: false,
         loadFailed: false,
         challengeLocked: false,
+        selectedKey: '',
+        submitted: false,
         event: { ...ev, choices },
         progress: {
           current: (ev.progress && ev.progress.current) || (ev.day || 1),
@@ -153,32 +155,52 @@ Page({
     if (!this.data.submitted) this.setData({ selectedKey:e.detail.key })
   },
   async onSubmit() {
+    if (this._submitting) return
     if (!this.data.selectedKey || this.data.submitted || this.data.loading) return
-    this.setData({ submitted:true, animOut:true })
+    this._submitting = true
+
+    this.setData({ submitted: true, animOut: true })
+
     try {
-      const r = await challengeService.submitChallengeChoice(this.data.recordId, this.data.event.eventId, this.data.selectedKey)
-      if (r.code === 0) {
-        console.log('[ChallengeV2Choice]', {
-          day: this.data.event.day,
-          eventId: this.data.event.eventId,
-          choiceKey: this.data.selectedKey,
-          scoringVersion: r.data.scoringVersion || 'n/a',
-          rawScores: r.data.rawScores || 'n/a',
-          scores: r.data.scores || 'n/a',
-        })
-        if (r.data.isLast) {
-          setTimeout(() => {
-            if (this.data.mode === 'diagnostic') {
-              wx.redirectTo({ url:'/pages/report-preview/report-preview?recordId=' + this.data.recordId })
-            } else { this.goResult() }
-          }, 500)
-          return
-        }
-        setTimeout(() => { this.setData({ animOut:false }); this.nextEvent() }, 500)
-      } else throw new Error(r.message)
-    } catch (e) {
-      wx.showToast({ title:'小事哥刚刚断片了，请重新生成一次', icon:'none' })
-      this.setData({ submitted:false, animOut:false })
+      const r = await challengeService.submitChallengeChoice(
+        this.data.recordId,
+        this.data.event.eventId,
+        this.data.selectedKey
+      )
+
+      if (!r || r.code !== 0) {
+        throw new Error(r?.message || '提交失败')
+      }
+
+      console.log('[ChallengeChoiceAdvance]', {
+        recordId: this.data.recordId,
+        eventId: this.data.event.eventId,
+        choiceKey: this.data.selectedKey,
+        submitCode: r.code,
+        choicesLength: r.data.choicesLength,
+        currentEventIndex: r.data.currentEventIndex,
+        isLast: r.data.isLast,
+        completed: r.data.completed,
+        scoringVersion: r.data.scoringVersion,
+      })
+
+      if (r.data.isLast || r.data.completed) {
+        await new Promise(resolve => setTimeout(resolve, 400))
+        this.goResult()
+        return
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 400))
+
+      this.setData({ animOut: false })
+      await this.nextEvent()
+
+    } catch (err) {
+      console.error('[ChallengeChoiceAdvance] fail', err)
+      wx.showToast({ title: '小事哥刚刚断片了，请重新生成一次', icon: 'none' })
+      this.setData({ submitted: false, animOut: false })
+    } finally {
+      this._submitting = false
     }
   },
   onRetry() {
