@@ -59,6 +59,7 @@ exports.main = async (event, context) => {
     if (!isDiagnostic && record.trialMode && record.currentEventIndex >= 3) {
       return ok({
         recordId,
+        locked: true,
         trialMode: true,
         needPayment: true,
         currentEventIndex: record.currentEventIndex,

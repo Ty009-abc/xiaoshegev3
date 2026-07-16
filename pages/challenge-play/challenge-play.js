@@ -29,6 +29,7 @@ Page({
     event:null, selectedKey:'', submitted:false,
     nextEvent:null, progress:{current:0,total:30,day:1},
     loading:true, end:false, animOut:false, animIn:false,
+    challengeLocked: false, lockReason: '',
     // diagnostic 模式 — Data Contract Engine
     currentQuestion: null,
     dQ:{idx:0,total:10,percent:10,label:'',answers:{},selectedPick:'',detailText:'',submitting:false,personality:null,canNext:false},
@@ -58,6 +59,14 @@ Page({
           if (this.data.mode === 'diagnostic') {
             wx.redirectTo({ url:'/pages/report-preview/report-preview?recordId=' + this.data.recordId })
           } else { this.goResult() }
+          return
+        }
+        // 付费门槛：trialMode 第4题触发
+        if (ev.locked || ev.needPayment) {
+          this.setData({
+            challengeLocked: true,
+            lockReason: ev.message || '免费体验已完成',
+          })
           return
         }
         const choices = (ev.choices || []).map(c => ({ key:c.key, text:c.text }))
@@ -124,6 +133,12 @@ Page({
   onRetry() {
     this.setData({ loadFailed: false })
     this.nextEvent()
+  },
+  onUnlock() {
+    wx.navigateTo({ url:'/pages/membership/membership' })
+  },
+  onGoHome() {
+    wx.switchTab({ url:'/pages/index/index' })
   },
   goResult() {
     wx.redirectTo({ url:'/pages/challenge-result/challenge-result?recordId=' + this.data.recordId })

@@ -106,6 +106,19 @@
       </view>
       <xsg-button type="primary" text="重试加载" wx:if="{{loadFailed && !event && !end}}" bind:tapbutton="onRetry" />
 
+      <!-- 付费锁定卡 — trialMode 第4题触发 -->
+      <block wx:if="{{challengeLocked}}">
+        <xsg-card class="lock-card">
+          <view class="lock-card-icon">🔒</view>
+          <view class="lock-card-title">免费体验已完成</view>
+          <view class="lock-card-desc">你已完成3道认知挑战\n解锁完整30天挑战，继续建立九维认知模型</view>
+        </xsg-card>
+        <view class="lock-actions">
+          <xsg-button type="primary" text="解锁完整挑战" bind:tapbutton="onUnlock" />
+          <xsg-button type="plain" text="返回首页" bind:tapbutton="onGoHome" />
+        </view>
+      </block>
+
       <xsg-empty icon="🏁" title="诊断完成" desc="10题诊断已结束，查看你的翻身策略报告" btnText="查看报告" wx:if="{{end}}" bind:tap="goResult" />
     </block>
   </block>
