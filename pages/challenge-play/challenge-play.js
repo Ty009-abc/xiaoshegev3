@@ -50,54 +50,91 @@ Page({
      ═══════════════════════════════════ */
   async nextEvent() {
     if (this.data.end) return
-    let keepLoading = true
-    this.setData({ loading:true, selectedKey:'', submitted:false })
+    if (this._loadingEvent) return
+    this._loadingEvent = true
+
+    this.setData({
+      loading: true,
+      loadFailed: false,
+    })
+
     try {
       const r = await challengeService.getChallengeEvent(this.data.recordId)
-      if (r.code === 0) {
-        const ev = r.data
-        if (ev.finished) {
-          keepLoading = false
-          if (this.data.mode === 'diagnostic') {
-            wx.redirectTo({ url:'/pages/report-preview/report-preview?recordId=' + this.data.recordId })
-          } else { this.goResult() }
-          return
-        }
-        // 付费门槛：trialMode 第4题触发
-        const isLocked = ev.locked === true || ev.needPayment === true || ev.needPay === true
-        if (isLocked) {
-          keepLoading = false
-          this.setData({
-            loading: false,
-            loadFailed: false,
-            challengeLocked: true,
-            lockReason: ev.message || '免费体验已完成',
-          })
-          console.log('[ChallengeTrialGateRuntime] locked', {
-            loading: false,
-            challengeLocked: true,
-            currentEventIndex: ev.currentEventIndex,
-          })
-          return
-        }
-        const choices = (ev.choices || []).map(c => ({ key:c.key, text:c.text }))
+
+      if (!r || r.code !== 0 || !r.data) {
+        throw new Error(r?.message || '题目加载失败')
+      }
+
+      const ev = r.data
+
+      console.log('[ChallengeFirstEventLoad]', {
+        mode: this.data.mode,
+        recordId: this.data.recordId,
+        code: r.code,
+        dataKeys: ev ? Object.keys(ev) : [],
+        locked: ev.locked,
+        needPayment: ev.needPayment,
+        finished: ev.finished,
+        eventId: ev.eventId,
+        day: ev.day,
+        hasTitle: !!ev.title,
+        choicesLength: ev.choices ? ev.choices.length : 0,
+      })
+
+      const isLocked =
+        ev.locked === true ||
+        ev.needPayment === true ||
+        ev.needPay === true
+
+      if (isLocked) {
         this.setData({
-          event: { ...ev, choices },
-          progress: {
-            current: (ev.progress && ev.progress.current) || 1,
-            total: (ev.progress && ev.progress.total) || 30,
-            day: ev.day || (ev.progress && ev.progress.day) || 1,
-          },
-          animIn: true,
+          loading: false,
+          loadFailed: false,
+          challengeLocked: true,
+          lockReason: ev.message || '免费体验已完成',
         })
-        setTimeout(() => this.setData({ animIn:false }), 300)
-      } else if (r.code === 1008) {
-        keepLoading = false
-        this.setData({ end:true })
-      } else throw new Error(r.message || '加载失败')
-    } catch (e) {
-      keepLoading = false
-      this.setData({ loadFailed: true })
+        return
+      }
+
+      if (ev.finished === true) {
+        this.setData({ loading: false })
+        if (this.data.mode === 'diagnostic') {
+          wx.redirectTo({ url:'/pages/report-preview/report-preview?recordId=' + this.data.recordId })
+        } else {
+          this.goResult()
+        }
+        return
+      }
+
+      if (!ev.eventId || !ev.title || !Array.isArray(ev.choices)) {
+        throw new Error('题目数据不完整')
+      }
+
+      const choices = ev.choices.map(c => ({ key: c.key, text: c.text }))
+
+      this.setData({
+        loading: false,
+        loadFailed: false,
+        challengeLocked: false,
+        event: { ...ev, choices },
+        progress: {
+          current: (ev.progress && ev.progress.current) || (ev.day || 1),
+          total: (ev.progress && ev.progress.total) || 30,
+          day: ev.day || (ev.progress && ev.progress.day) || 1,
+        },
+        animIn: true,
+      })
+      setTimeout(() => this.setData({ animIn: false }), 300)
+
+    } catch (err) {
+      console.error('[ChallengeFirstEventLoad] fail', err)
+
+      this.setData({
+        loading: false,
+        loadFailed: true,
+        loadError: err.message || '题目加载失败',
+      })
+
       wx.showModal({
         title: '加载失败',
         content: '下一题加载失败，请重试',
@@ -109,9 +146,7 @@ Page({
         },
       })
     } finally {
-      if (!keepLoading) {
-        this.setData({ loading: false })
-      }
+      this._loadingEvent = false
     }
   },
   onSelect(e) {
