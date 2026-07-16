@@ -14,10 +14,12 @@ function getAiReport(reportId) {
   return call('getAiReport', { reportId })
 }
 
-/** 诊断模式：传入 6 题答案 + 人格，返回 5 字段报告 */
+/** 诊断模式：传入答案 + 人格，返回诊断报告（V4/V3 兼容） */
 function generateDiagnosticReport({ answers, personality, personalityEmoji, personalityStyle }) {
+  const diagnosticVersion = answers.diagnosticVersion || 'v3'
   return call('generateAiReport', {
     type: 'diagnostic',
+    diagnosticVersion,
     answers,
     personality,
     personalityEmoji,

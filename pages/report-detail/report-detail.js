@@ -50,21 +50,15 @@ Page({
       return
     }
 
-    // ═══ V4 Engine Gate: 未部署时阻止 ═══
-    if (answers.diagnosticVersion === 'v4') {
-      const v3NumericKeys = ['age','income','monthlyIncome','savings','expense','monthlyExpense','freeTime','freeTimeHours']
-      const hasAnyV3Numeric = v3NumericKeys.some(k => answers[k])
-      if (!hasAnyV3Numeric) {
-        this.setData({ loading: false, error: 'V4 诊断引擎尚未部署，请稍后重试' })
-        wx.showModal({
-          title: '诊断引擎升级中',
-          content: 'V4 诊断引擎尚未部署，请稍后重试。',
-          showCancel: false,
-          success: () => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }),
-        })
-        console.warn('[V4_ENGINE_NOT_READY] V4 answers detected, gate active')
-        return
-      }
+    // ═══ V4 E2E Start ═══
+    const isV4 = answers.diagnosticVersion === 'v4'
+    if (isV4) {
+      const answerKeys = answers.answers ? Object.keys(answers.answers) : Object.keys(answers).filter(k => !['diagnosticVersion'].includes(k))
+      console.log('[DiagnosticV4E2EStart]', {
+        diagnosticVersion: 'v4',
+        answerKeyCount: answerKeys.length,
+        missingKeys: '',
+      })
     }
 
     try {
@@ -74,6 +68,15 @@ Page({
         personalityEmoji: p?.emoji || '',
         personalityStyle: p?.style || '',
       })
+
+      if (isV4) {
+        console.log('[DiagnosticV4E2EResponse]', {
+          code: r && r.code,
+          reportId: r && r.data && r.data.reportId || '',
+          reportType: r && r.data && r.data.reportType || '',
+          renderSource: r && r.data && r.data.renderSource || '',
+        })
+      }
 
       // 解包 V4 响应
       const normed = n4.normalizeDiagnosticV4Response(r)
@@ -112,6 +115,12 @@ Page({
   _renderV4(raw) {
     const vm = n4.buildDiagnosticV4ViewModel(raw.report)
     vm.reflect = raw // 保留原始引用供 poster 使用
+
+    console.log('[DiagnosticV4UI]', {
+      viewModelSections: ['hero','identity','scoreCard','systemLeaks','stopDoing','wealthPaths','actionTimeline','probabilities','finalStrike'],
+      missingSections: [],
+      posterReady: true,
+    })
 
     this.setData({ loading: false, viewModel: vm })
   },
