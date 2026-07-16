@@ -446,68 +446,57 @@ Page({
     this.setData({ 'dQ.submitting': true })
 
     const a = this.data.dQ.answers
-    // V4 10题 answers — 所有 key 直接可追溯
-    const answers = {
-      lifeStage:            a.lifeStage || '',
-      incomeStructure:      a.incomeStructure || '',
-      occupationDetail:     a.occupationDetail || '',
-      monthlySurplus:       a.monthlySurplus || '',
-      safetyMonths:         a.safetyMonths || '',
-      debtPressure:         a.debtPressure || '',
-      skillValidation:      a.skillValidation || '',
-      monetizableSkill:     a.monetizableSkill || '',
-      weeklyTime:           a.weeklyTime || '',
-      executionStability:   a.executionStability || '',
-      pastAttemptStage:     a.pastAttemptStage || '',
-      decisionStyle:        a.decisionStyle || '',
-      primaryGoal:          a.primaryGoal || '',
-      maxTrialCost:         a.maxTrialCost || '',
-      failureResponse:      a.failureResponse || '',
-      // 旧版向后兼容（让旧 normalizeAnswers 不崩溃）
-      age: a.lifeStage || '',
-      occupation: a.occupationDetail || a.incomeStructure || '',
-      income: a.incomeStructure || '',
-      monthlyIncome: a.incomeStructure || '',
-      savings: a.safetyMonths || '',
-      debt: a.debtPressure || '',
-      expense: a.monthlySurplus || '',
-      monthlyExpense: a.monthlySurplus || '',
-      freeTime: a.weeklyTime || '',
-      freeTimeHours: a.weeklyTime || '',
-      bestSkill: a.monetizableSkill || '',
-      goal: a.primaryGoal || '',
-      maxLoss: a.maxTrialCost || '',
-      job: a.occupationDetail || '',
-      education: 'N/A',
-      anxiety: '',
-      rootCause: '',
+
+    // ═══ V4 权威合同 ═══
+    // 15 个核心字段，禁止混入旧语义字段
+    const v4Answers = {
+      lifeStage:          a.lifeStage || '',
+      incomeStructure:    a.incomeStructure || '',
+      occupationDetail:   a.occupationDetail || '',
+      monthlySurplus:     a.monthlySurplus || '',
+      safetyMonths:       a.safetyMonths || '',
+      debtPressure:       a.debtPressure || '',
+      skillValidation:    a.skillValidation || '',
+      monetizableSkill:   a.monetizableSkill || '',
+      weeklyTime:         a.weeklyTime || '',
+      executionStability: a.executionStability || '',
+      pastAttemptStage:   a.pastAttemptStage || '',
+      decisionStyle:      a.decisionStyle || '',
+      primaryGoal:        a.primaryGoal || '',
+      maxTrialCost:       a.maxTrialCost || '',
+      failureResponse:    a.failureResponse || '',
     }
 
-    const p = this.data.dQ.personality
+    // 仅安全兼容字段（语义等效）
+    const compatAnswers = {
+      occupation: a.occupationDetail || '',
+      job:        a.occupationDetail || '',
+      debt:       a.debtPressure || '',
+      bestSkill:  a.monetizableSkill || '',
+      goal:       a.primaryGoal || '',
+      maxLoss:    a.maxTrialCost || '',
+    }
+
+    // 打包：V4 权威合同优先，兼容字段在顶层向后兼容
+    const answers = {
+      diagnosticVersion: 'v4',
+      answers: v4Answers,
+      ...v4Answers,
+      ...compatAnswers,
+    }
 
     // V4 前端合同日志
+    const v4Keys = Object.keys(v4Answers)
     console.log('[DiagnosticV4Answers]', {
+      diagnosticVersion: 'v4',
       questionSteps: DIAGNOSTIC_QUESTIONS.length,
-      answerKeys: Object.keys(answers).filter(k => answers[k]),
-      lifeStage: answers.lifeStage,
-      incomeStructure: answers.incomeStructure,
-      occupationDetail: answers.occupationDetail,
-      monthlySurplus: answers.monthlySurplus,
-      safetyMonths: answers.safetyMonths,
-      debtPressure: answers.debtPressure,
-      skillValidation: answers.skillValidation,
-      monetizableSkill: answers.monetizableSkill,
-      weeklyTime: answers.weeklyTime,
-      executionStability: answers.executionStability,
-      pastAttemptStage: answers.pastAttemptStage,
-      decisionStyle: answers.decisionStyle,
-      primaryGoal: answers.primaryGoal,
-      maxTrialCost: answers.maxTrialCost,
-      failureResponse: answers.failureResponse,
+      keyCount: v4Keys.length,
+      keys: v4Keys,
+      ...v4Answers,
     })
 
     app.globalData._diagnosticAnswers = answers
-    app.globalData._diagnosticPersonality = p
+    app.globalData._diagnosticPersonality = this.data.dQ.personality
     wx.redirectTo({ url:'/pages/report-detail/report-detail?mode=diagnostic' })
   },
 

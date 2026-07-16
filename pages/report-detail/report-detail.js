@@ -46,6 +46,28 @@ Page({
       return
     }
 
+    // ═══ V4 半成品保护：阻止 V4 答案进入 V3 引擎 ═══
+    if (answers.diagnosticVersion === 'v4') {
+      // V3 引擎需要的金额/数值字段在 V4 合同中不存在
+      const v3NumericKeys = ['age','income','monthlyIncome','savings','expense','monthlyExpense','freeTime','freeTimeHours']
+      const hasAnyV3Numeric = v3NumericKeys.some(k => answers[k])
+      if (!hasAnyV3Numeric) {
+        this.setData({ loading: false })
+        wx.showModal({
+          title: '诊断引擎升级中',
+          content: 'V4 诊断引擎尚未部署，请稍后重试。',
+          showCancel: false,
+          success: () => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }),
+        })
+        console.warn('[V4_ENGINE_NOT_READY] V4 answers detected, V3 engine cannot process numeric fields:', {
+          diagnosticVersion: answers.diagnosticVersion,
+          v4KeyCount: answers.answers ? Object.keys(answers.answers).length : 0,
+          missingNumericKeys: v3NumericKeys.filter(k => !answers[k]),
+        })
+        return
+      }
+    }
+
     try {
       const r = await aiReportService.generateDiagnosticReport({
         answers,
