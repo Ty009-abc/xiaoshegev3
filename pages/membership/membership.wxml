@@ -49,7 +49,7 @@
     <view class="pay-section">
       <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (priceDisplay || '39.90')}}" loading="{{paying}}" disabled="{{paying||!product}}" bind:tapbutton="onPay" />
 
-      <xsg-button type="plain" text="暂不解锁" bind:tapbutton="onBack" />
+      <button class="cancel-unlock-btn" bindtap="onCancelUnlock" disabled="{{paying}}" hover-class="cancel-press">暂不解锁</button>
 
       <text class="safe-hint">🔒 支付由微信安全保障</text>
     </view>

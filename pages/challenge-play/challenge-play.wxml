@@ -1,18 +1,16 @@
-<!-- challenge-play — v3.13 双模式
-     mode=challenge: 原有 30 天挑战 (DB 驱动)
-     mode=diagnostic: v3 10 题问卷 (Data Contract Engine) -->
+<!-- challenge-play — v3.14 产品化UI
+     mode=challenge: 30天挑战 (DB驱动)
+     mode=diagnostic: 10题问卷 -->
 <view class="page">
   <xsg-navbar title="{{mode==='diagnostic' ? '翻身策略诊断' : '认知挑战'}}" light />
 
   <!-- ═════ diagnostic 模式 ═════ -->
   <block wx:if="{{mode==='diagnostic'}}">
-    <!-- 人格指示条 -->
     <view class="d-personality-bar" wx:if="{{dQ.personality}}">
       <text class="dp-emoji">{{dQ.personality.emoji}}</text>
       <text class="dp-name">{{dQ.personality.name}}视角已激活</text>
     </view>
 
-    <!-- 进度条 -->
     <view class="d-progress-section">
       <view class="d-progress-track">
         <view class="d-progress-fill" style="width:{{dQ.percent}}%"></view>
@@ -20,7 +18,6 @@
       <text class="d-progress-text">问题 {{dQ.idx+1}} / {{dQ.total}}</text>
     </view>
 
-    <!-- 题目卡片 -->
     <view class="d-card">
       <view class="d-back-row" wx:if="{{dQ.idx>0}}">
         <text class="d-back-btn" bindtap="onDPrev">← 上一题</text>
@@ -34,7 +31,6 @@
       <text class="d-q-subtitle">{{dQ.label || currentQuestion.subtitle}}</text>
 
       <view class="d-input-area">
-        <!-- picker+input combined (occupation) -->
         <block wx:if="{{currentQuestion.type==='picker+input'}}">
           <view class="d-picker-wrap">
             <text class="d-picker-display" wx:if="{{dQ.selectedPick}}">{{dQ.selectedPick}}</text>
@@ -45,7 +41,6 @@
           </picker>
           <input wx:if="{{dQ.selectedPick}}" type="text" placeholder="{{currentQuestion.detailPlaceholder || '请输入具体职业'}}" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.detailText}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="50" />
         </block>
-        <!-- picker type questions -->
         <block wx:elif="{{currentQuestion.type==='picker'}}">
           <view class="d-picker-wrap">
             <text class="d-picker-display" wx:if="{{dQ.selectedPick}}">{{dQ.selectedPick}}</text>
@@ -55,76 +50,107 @@
             <button class="d-picker-btn">选择</button>
           </picker>
         </block>
-        <!-- number input (age) -->
         <block wx:elif="{{currentQuestion.inputType==='number'}}">
           <input type="number" placeholder="{{currentQuestion.placeholder || '请输入'}}" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.answers[currentQuestion.key] || ''}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="{{currentQuestion.maxlength || 10}}" />
         </block>
-        <!-- text input fallback -->
         <block wx:else>
           <input type="text" placeholder="{{currentQuestion.placeholder || '请输入'}}" placeholder-class="d-placeholder" bindinput="onDInput" value="{{dQ.answers[currentQuestion.key] || ''}}" focus="{{true}}" confirm-type="next" bindconfirm="onDNext" maxlength="{{currentQuestion.maxlength || 50}}" />
         </block>
       </view>
     </view>
 
-    <!-- 提交按钮 -->
     <view class="d-action">
-      <button class="d-btn-next" hover-class="d-btn-hover" bindtap="onDNext"
-        disabled="{{!dQ.canNext}}" loading="{{dQ.submitting}}">
+      <button class="d-btn-next" hover-class="d-btn-hover" bindtap="onDNext" disabled="{{!dQ.canNext}}" loading="{{dQ.submitting}}">
         {{dQ.idx===dQ.total-1?'生成翻身策略 ⚡':'下一题 →'}}
       </button>
       <text class="d-kb-hint" wx:if="{{currentQuestion.type==='input'}}" style="{{dQ.canNext?'opacity:1':'opacity:0'}}">按键盘「完成」键继续</text>
     </view>
   </block>
 
-  <!-- ═════ challenge 模式 (原有) ═════ -->
+  <!-- ═════ challenge 模式 ═════ -->
   <block wx:else>
-    <!-- 优先级1: 付费锁定卡 -->
+
+    <!-- 锁定卡 -->
     <block wx:if="{{challengeLocked}}">
-      <xsg-card theme="light" class="lock-card">
-        <view class="lock-card-icon">🔒</view>
-        <view class="lock-card-title">免费体验已完成</view>
-        <view class="lock-card-desc">你已完成3道认知挑战
-解锁完整30天挑战，继续建立九维认知模型</view>
-      </xsg-card>
-      <view class="lock-actions">
-        <xsg-button type="primary" text="解锁完整挑战" bind:tapbutton="onUnlock" />
-        <xsg-button type="plain" text="返回首页" bind:tapbutton="onGoHome" />
+      <view class="lock-wrapper">
+        <view class="lock-icon-wrap">
+          <text class="lock-icon-text">🔒</text>
+        </view>
+        <text class="lock-title">免费体验已完成</text>
+        <text class="lock-desc">你已完成3道认知挑战\n解锁完整30天挑战，继续建立九维认知模型</text>
+
+        <button class="btn-primary-action" bindtap="onUnlock" hover-class="btn-press">解锁完整挑战</button>
+        <button class="btn-secondary-action" bindtap="onGoHome" hover-class="btn-press">返回首页</button>
       </view>
     </block>
 
-    <!-- 优先级2: 加载失败 (loading已结束但无event) -->
+    <!-- 加载失败 -->
     <block wx:elif="{{loadFailed && !event && !end}}">
-      <view class="event-area">
-        <xsg-card theme="light">
-          <view class="event-title mt-16" style="text-align:center;color:#c0392b;">下一题加载失败，请重试</view>
-        </xsg-card>
+      <view class="lock-wrapper">
+        <view class="lock-icon-wrap" style="background:#FEF2F2;">
+          <text class="lock-icon-text">⚠️</text>
+        </view>
+        <text class="lock-title" style="color:#c0392b;">下一题加载失败</text>
+        <text class="lock-desc" style="color:#667085;">请检查网络后重试</text>
+        <button class="btn-primary-action" bindtap="onRetry" hover-class="btn-press">重试加载</button>
       </view>
-      <xsg-button type="primary" text="重试加载" bind:tapbutton="onRetry" />
     </block>
 
-    <!-- 优先级3: 加载中 -->
+    <!-- 加载中 -->
     <xsg-loading text="加载下一题..." wx:elif="{{loading}}" />
 
-    <!-- 优先级4: 正常题目 -->
+    <!-- 正常答题 -->
     <block wx:elif="{{event}}">
-      <challenge-progress current="{{progress.current}}" total="{{progress.total}}" day="{{progress.day}}" class="anim-fade-in" />
-
-      <view class="event-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}">
-        <xsg-card theme="light">
-          <xsg-tag text="{{event.category||'决策题'}}" type="ai" />
-          <view class="event-title mt-16">{{event.title}}</view>
-          <view class="event-desc mt-12">{{event.description}}</view>
-        </xsg-card>
+      <!-- 进度条 -->
+      <view class="progress-card anim-fade-in">
+        <view class="progress-top">
+          <view class="progress-left">
+            <text class="progress-day-label">Day {{progress.day}}</text>
+            <text class="progress-sub-label">今日认知决策</text>
+          </view>
+          <view class="progress-right">
+            <text class="progress-count">{{progress.current}}</text>
+            <text class="progress-divider">/</text>
+            <text class="progress-total">{{progress.total}}</text>
+          </view>
+        </view>
+        <view class="progress-bar">
+          <view class="progress-fill" style="width:{{progress.current/progress.total*100}}%"></view>
+        </view>
       </view>
 
-      <view class="choices-area {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}">
-        <challenge-choice wx:for="{{event.choices}}" wx:key="key"
-          choiceKey="{{item.key}}" text="{{item.text}}"
-          selected="{{selectedKey===item.key}}" submitted="{{submitted}}"
-          bind:select="onSelect" />
+      <!-- 题目卡 -->
+      <view class="question-card {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}">
+        <text class="q-tag">{{event.category||'决策题'}}</text>
+        <text class="q-title">{{event.title}}</text>
+        <text class="q-desc">{{event.description}}</text>
       </view>
 
-      <xsg-button type="primary" text="{{submitted?'你的选择已记录 ✓':'确认选择'}}" disabled="{{!selectedKey||submitted}}" bind:tapbutton="onSubmit" />
+      <!-- 选项列表 -->
+      <view class="choice-list {{animOut?'slide-out-left':''}} {{animIn?'slide-in-right':''}}">
+        <view
+          class="choice-item {{item.key===selectedKey?'selected':''}} {{submitted&&item.key!==selectedKey?'dimmed':''}}"
+          wx:for="{{event.choices}}"
+          wx:key="key"
+          data-key="{{item.key}}"
+          bindtap="onChoiceTap"
+        >
+          <view class="choice-key {{item.key===selectedKey?'selected':''}}">{{item.key}}</view>
+          <text class="choice-text">{{item.text}}</text>
+        </view>
+      </view>
+
+      <!-- 确认按钮 -->
+      <view class="confirm-section anim-fade-in">
+        <button
+          class="confirm-btn {{(!selectedKey||submitted)?'disabled':''}}"
+          hover-class="confirm-btn-hover"
+          bindtap="onSubmit"
+          disabled="{{!selectedKey||submitted}}"
+        >
+          {{submitted?'✓ 你的选择已记录':'确认选择'}}
+        </button>
+      </view>
     </block>
 
     <xsg-empty icon="🏁" title="诊断完成" desc="10题诊断已结束，查看你的翻身策略报告" btnText="查看报告" wx:if="{{end}}" bind:tap="goResult" />

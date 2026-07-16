@@ -120,4 +120,17 @@ Page({
   onBack() {
     wx.navigateBack()
   },
+  onCancelUnlock() {
+    if (this.data.paying) return
+    console.log('[MembershipCancelUnlock]', {
+      paying: this.data.paying,
+      pageCount: getCurrentPages().length,
+      action: getCurrentPages().length > 1 ? 'navigateBack' : 'reLaunch',
+    })
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack()
+    } else {
+      wx.reLaunch({ url: '/pages/home/home' })
+    }
+  },
 })

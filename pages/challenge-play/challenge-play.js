@@ -154,6 +154,11 @@ Page({
   onSelect(e) {
     if (!this.data.submitted) this.setData({ selectedKey:e.detail.key })
   },
+  onChoiceTap(e) {
+    if (this.data.submitted) return
+    const key = e.currentTarget.dataset.key
+    if (key) this.setData({ selectedKey: key })
+  },
   async onSubmit() {
     if (this._submitting) return
     if (!this.data.selectedKey || this.data.submitted || this.data.loading) return
@@ -217,7 +222,13 @@ Page({
     })
   },
   onGoHome() {
-    wx.switchTab({ url:'/pages/index/index' })
+    wx.switchTab({
+      url: '/pages/home/home',
+      fail: (err) => {
+        console.error('[ChallengeLocked] go home fail', err)
+        wx.reLaunch({ url: '/pages/home/home' })
+      },
+    })
   },
   async onShow() {
     if (!this.data.challengeLocked || !this.data.recordId) return
