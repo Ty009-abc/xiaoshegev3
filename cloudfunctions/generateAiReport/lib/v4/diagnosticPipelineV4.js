@@ -212,7 +212,7 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
   try {
     payload = buildPromptPayload(baseContract, engineResult)
     systemPrompt = buildSystemPrompt()
-    userMessage = buildUserPrompt(payload)
+    userMessage = buildUserPrompt(payload, engineResult)
     log('STEP_5_BUILD_PROMPT', true)
   } catch (e) {
     log('STEP_5_BUILD_PROMPT', false, { error: e.message })
