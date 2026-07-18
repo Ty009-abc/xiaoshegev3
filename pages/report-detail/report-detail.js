@@ -81,6 +81,14 @@ Page({
       // 解包 V4 响应
       const normed = n4.normalizeDiagnosticV4Response(r)
 
+      console.log('🚨 [FATAL CHECK] 完整报告数据:', JSON.stringify({
+        renderSource: (normed.data && normed.data.renderSource) || '',
+        fallbackReason: (normed.data && normed.data.report && normed.data.report._fallbackReason) || '',
+        reportKeys: (normed.data && normed.data.report) ? Object.keys(normed.data.report).filter(function(k) { return !k.startsWith('_') }) : [],
+        ok: normed.ok,
+        error: normed.error,
+      }))
+
       console.log('[DiagnosticV4ReportUI]', {
         reportId: (normed.data && normed.data.reportId) || '',
         reportType: (normed.data && normed.data.reportType) || '',

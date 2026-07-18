@@ -325,6 +325,13 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   const { runDiagnosticV4, normalizeV4Input } = require('./lib/v4/diagnosticPipelineV4')
   const { callAI } = require('./lib/ai.js')
 
+  // 🔖 版本标记：每次部署必须递增
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('[V4Diagnostic] CLOUD FUNCTION VERSION: v3.2-fallback-reason-fix')
+  console.log('[V4Diagnostic] Deploy time check: 2026-07-18 19:00 CST')
+  console.log('[V4Diagnostic] Changes: parser relax, fallback reason injection')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
   // 归一化输入
   const answers = normalizeV4Input(event)
   if (!answers) {
