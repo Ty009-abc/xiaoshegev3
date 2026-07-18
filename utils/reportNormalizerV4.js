@@ -158,14 +158,17 @@ function buildDiagnosticV4ViewModel(report) {
       description: r.description || '',
     })),
 
-    wealthPaths: wps.map(p => ({
-      key: p.key || '',
-      name: translateWealthPath(p.key),
-      recommend: p.recommend || 'not_evaluated',
-      recommendLabel: recommendLabel(p.recommend),
-      score: p.score || 0,
-      reason: p.reason || '',
-    })),
+    wealthPaths: wps.map(p => {
+      const pathKey = p.name || p.key || ''
+      return {
+        key: pathKey,
+        name: translateWealthPath(pathKey),
+        recommend: p.recommend || 'not_evaluated',
+        recommendLabel: recommendLabel(p.recommend),
+        score: p.score || 0,
+        reason: p.reason || '',
+      }
+    }),
 
     stopDoing: (sd.items || []).slice(0, 5),
 
