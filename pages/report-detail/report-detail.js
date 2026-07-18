@@ -64,9 +64,9 @@ Page({
     try {
       const r = await aiReportService.generateDiagnosticReport({
         answers,
-        personality: p?.name || '',
-        personalityEmoji: p?.emoji || '',
-        personalityStyle: p?.style || '',
+        personality: (p && p.name) || '',
+        personalityEmoji: (p && p.emoji) || '',
+        personalityStyle: (p && p.style) || '',
       })
 
       if (isV4) {
@@ -82,12 +82,12 @@ Page({
       const normed = n4.normalizeDiagnosticV4Response(r)
 
       console.log('[DiagnosticV4ReportUI]', {
-        reportId: normed.data?.reportId || '',
-        reportType: normed.data?.reportType || '',
-        renderSource: normed.data?.renderSource || '',
+        reportId: (normed.data && normed.data.reportId) || '',
+        reportType: (normed.data && normed.data.reportType) || '',
+        renderSource: (normed.data && normed.data.renderSource) || '',
         ok: normed.ok,
         error: normed.error,
-        reportKeys: normed.data?.report ? Object.keys(normed.data.report) : [],
+        reportKeys: (normed.data && normed.data.report) ? Object.keys(normed.data.report) : [],
       })
 
       if (normed.ok) {
@@ -204,11 +204,11 @@ Page({
     } else {
       const secs = this.data.sections || []
       posterData = {
-        fatalSentence: secs[0]?.text || '',
-        coreProblem: secs[1]?.text || '',
-        systemTrap: secs[2]?.text || '',
-        strategyPath: secs[3]?.text || '',
-        advice: secs[4]?.text || '',
+        fatalSentence: (secs[0] && secs[0].text) || '',
+        coreProblem: (secs[1] && secs[1].text) || '',
+        systemTrap: (secs[2] && secs[2].text) || '',
+        strategyPath: (secs[3] && secs[3].text) || '',
+        advice: (secs[4] && secs[4].text) || '',
       }
     }
 
