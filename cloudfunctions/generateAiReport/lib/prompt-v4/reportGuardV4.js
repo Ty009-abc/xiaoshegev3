@@ -168,19 +168,32 @@ function checkNoUnknownFields(merged, violations) {
 }
 
 function checkForbiddenPaths(merged, violations) {
-  // 检查 wealthPath 中被标记为 not_recommended 的路径，AI 是否推荐了
+  // 检查 wealthPath 中被标记为 not_recommended 的路径，AI 是否改变了推荐状态或写了推荐性文案
   for (const path of (merged.report.wealthPath || [])) {
-    if (path.recommend === 'not_recommended') {
-      // 检查 reason 是否包含推荐性语言
-      const reason = path.reason || ''
-      if (/推荐|建议|适合|可行|搞|做|试试/.test(reason)) {
-        violations.push(`NO_FORBIDDEN_PATH_RECOMMENDATION: path "${path.name}" is not_recommended but reason contains recommendation: "${reason}"`)
-      }
+    if (path.recommend !== 'not_recommended') continue
+
+    const reason = path.reason || ''
+    if (!reason) continue
+
+    // v3.2: 核心校验 — recommend 状态不能被 AI 改为 positive（Merge 层已守卫）
+    // 这里只检查 reason 里是否包含「明确的鼓励性推荐措辞」
+    // 注意：反面警示（"这叫赌博""等于找死"等）是合法劝退文案，必须放行
+    const RECOMMEND_PATTERNS = [
+      /强烈推荐/,
+      /建议你做/,
+      /建议搞/,
+      /可以试试/,
+      /值得一试/,
+      /推荐你/,
+      /这是个好/,
+      /不错/,
+      /很适合/,
+    ]
+    const hasRecommendation = RECOMMEND_PATTERNS.some(p => p.test(reason))
+    if (hasRecommendation) {
+      violations.push(`NO_FORBIDDEN_PATH_RECOMMENDATION: path "${path.name}" is not_recommended but reason contains recommendation: "${reason}"`)
     }
   }
-
-  // 检查 stopDoing items 与 actionPlan 的矛盾
-  // (简化检查：不做深度语义分析)
 }
 
 function checkEmptyFatalSentence(merged, violations) {
@@ -209,18 +222,17 @@ function checkEmptyActionPlan(merged, violations) {
     return
   }
   const days = ['day1', 'day3', 'day7', 'day15', 'day30']
+  let filledDays = 0
   for (const day of days) {
     const d = plan[day]
-    if (!d) {
-      violations.push(`NO_EMPTY_ACTION_PLAN: ${day} is missing`)
-      continue
-    }
-    if (!d.goal || d.goal.trim() === '') {
-      violations.push(`NO_EMPTY_ACTION_PLAN: ${day}.goal is empty`)
-    }
-    if (!Array.isArray(d.tasks) || d.tasks.length === 0) {
-      violations.push(`NO_EMPTY_ACTION_PLAN: ${day}.tasks is empty`)
-    }
+    if (!d) continue
+    const hasGoal = d.goal && d.goal.trim() !== ''
+    const hasTasks = Array.isArray(d.tasks) && d.tasks.length > 0
+    if (hasGoal && hasTasks) filledDays++
+  }
+  // v3.2: 从全空报错改为至少1天有内容即可 — AI 可能聚焦核心几天
+  if (filledDays === 0) {
+    violations.push('NO_EMPTY_ACTION_PLAN: all 5 days have empty goal or tasks')
   }
 }
 
