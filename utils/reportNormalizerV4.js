@@ -40,7 +40,7 @@ function getRecommendStatus(rc) {
 
 const WEALTH_PATH_LABELS = {
   working: '继续打工',
-  sideBusiness: '副业',
+  sidebusiness: '副业',
   freelance: '自由职业',
   investment: '投资',
   content: '内容/IP',
