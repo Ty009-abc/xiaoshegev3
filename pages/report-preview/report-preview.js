@@ -393,14 +393,14 @@ Page({
     const textMaxW = cardW - leftW - 52
     const qrPath = this.data.qrcodePath || '/images/qrcode.png'
 
-    const sections = this.data.sections || []
-
+    // v3.16.1 fix: 用 reportData 替代从未赋值的 sections
+    const rd = this.data.reportData || {}
     const cards = [
-      { no: '01', icon: '⚡', title: '致命一句话', color: '#ff3b3b', text: sections[0]?.text || '' },
-      { no: '02', icon: '🎯', title: '核心问题',   color: '#8b5cff', text: sections[1]?.text || '' },
-      { no: '03', icon: '🔍', title: '系统困局',   color: '#3b8cff', text: sections[2]?.text || '' },
-      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: sections[3]?.text || '' },
-      { no: '05', icon: '📋', title: '行动建议',   color: '#39d353', text: sections[4]?.text || '' }
+      { no: '01', icon: '⚡', title: '致命一句话', color: '#ff3b3b', text: rd.basicInsight || '' },
+      { no: '02', icon: '🎯', title: '核心问题',   color: '#8b5cff', text: rd.mechanism || '' },
+      { no: '03', icon: '🔍', title: '系统困局',   color: '#3b8cff', text: rd.reverseReasoning || '' },
+      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: rd.biasCorrection || '' },
+      { no: '05', icon: '📋', title: '行动建议',   color: '#39d353', text: rd.actionPlan || '' }
     ]
 
     function roundRect(x, y, w, h, r) {

@@ -1,5 +1,5 @@
 /**
- * prompt-v4/reportMergeV4.js
+ * prompt-v4/reportMergeV4.js (v3.2)
  *
  * 合并引擎 Base Contract + AI 输出 → Final Report。
  *
@@ -8,6 +8,8 @@
  * - AI Output = 仅表达补丁
  * - 数字、score、概率、recommend 全部取 Base
  * - AI 的 ruleId 必须匹配 Base 已有 ruleId
+ *
+ * v3.2: wealthPath 合并增加大小写容忍 + 严格校验，彻底防止 undefined
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -71,7 +73,51 @@ function deepClone(obj) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 合并逻辑
+// wealthPath key 标准化 — 容忍大小写差异
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 构建一个大小写不敏感的 mapping：{ lowercaseName: originalName }
+ * 用于 AI 输出 wealthPathReasons 的 key 可能与 Base Contract name 大小写不一致时做容错匹配
+ */
+function buildPathNameMap(baseWealthPaths) {
+  const map = {}
+  for (const p of (baseWealthPaths || [])) {
+    if (p.name) {
+      map[p.name.toLowerCase()] = p.name
+    }
+  }
+  return map
+}
+
+/**
+ * 从 wealthPathReasons（AI 输出）中查出 Base Contract 对应的 path 条目
+ * 返回 { basePath, reason } 或 null
+ */
+function resolveWealthPathReason(baseWealthPaths, aiReasons, pathName) {
+  if (!aiReasons || typeof aiReasons !== 'object') return null
+
+  const nameMap = buildPathNameMap(baseWealthPaths)
+
+  // 精确匹配
+  if (aiReasons[pathName] !== undefined) {
+    return aiReasons[pathName]
+  }
+
+  // 大小写容错匹配
+  const lowerName = pathName.toLowerCase()
+  if (nameMap[lowerName]) {
+    const exactKey = Object.keys(aiReasons).find(
+      k => k.toLowerCase() === lowerName && aiReasons[k] !== undefined
+    )
+    if (exactKey) return aiReasons[exactKey]
+  }
+
+  return null
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 合并逻辑 (v3.2)
 // ═══════════════════════════════════════════════════════════════
 
 /**
@@ -128,7 +174,6 @@ function mergeReportV4(baseContract, aiOutput) {
       if (aiRule.why) baseRule.why = aiRule.why
       // weight 不可改
     }
-    // AI 不得新增/删除 rule
     if (aiOutput.fatalRules.length > report.fatalRules.length) {
       violations.push('AI attempted to add new fatal rules')
     }
@@ -168,14 +213,30 @@ function mergeReportV4(baseContract, aiOutput) {
     }
   }
 
-  // ── 6. wealthPath — 只改 reason ──
+  // ── 6. wealthPath — 只改 reason（v3.2 大小写容错 + 强校验） ──
   if (aiOutput.wealthPathReasons && report.wealthPath) {
-    const reasonMap = aiOutput.wealthPathReasons
+    let reasonApplied = 0
     for (const path of report.wealthPath) {
-      if (reasonMap[path.name] && typeof reasonMap[path.name] === 'string') {
-        path.reason = reasonMap[path.name]
+      if (!path.name) {
+        violations.push(`Base wealthPath entry has no name — this is a data integrity issue`)
+        continue
+      }
+      const matchedReason = resolveWealthPathReason(report.wealthPath, aiOutput.wealthPathReasons, path.name)
+      if (matchedReason && typeof matchedReason === 'string') {
+        path.reason = matchedReason
+        reasonApplied++
       }
       // recommend + score 不可改 — 保持 base
+    }
+
+    // v3.2: 如果 AI 返回了 wealthPathReasons 但没有一个匹配上，报 violation
+    if (reasonApplied === 0 && Object.keys(aiOutput.wealthPathReasons).length > 0) {
+      const aiKeys = Object.keys(aiOutput.wealthPathReasons).join(', ')
+      const baseKeys = report.wealthPath.map(p => p.name).join(', ')
+      violations.push(
+        `WEALTH_PATH_KEY_MISMATCH: AI keys [${aiKeys}] none matched base keys [${baseKeys}]. ` +
+        `Check case-sensitivity or naming. Expected keys: ${baseKeys}`
+      )
     }
   }
 
@@ -195,8 +256,6 @@ function mergeReportV4(baseContract, aiOutput) {
 
   // ── 8. stopDoing ──
   if (aiOutput.stopDoingItems) {
-    // AI 提供 stopDoing items → 替换 items 数组
-    // priority 不可改
     if (Array.isArray(aiOutput.stopDoingItems) && aiOutput.stopDoingItems.length > 0) {
       report.stopDoing.items = aiOutput.stopDoingItems.filter(item => typeof item === 'string')
     }
@@ -216,11 +275,7 @@ function mergeReportV4(baseContract, aiOutput) {
   if (aiOutput.finalStrike && report.finalStrike) {
     if (aiOutput.finalStrike.sentence) report.finalStrike.sentence = aiOutput.finalStrike.sentence
     if (aiOutput.finalStrike.shareTitle) report.finalStrike.shareTitle = aiOutput.finalStrike.shareTitle
-    // emotion 不可改
   }
-
-  // ── 11. 检查 AI 是否输出非 writable 字段（已在 parser 层过滤，这里做二次验证）──
-  checkWritableOnly(aiOutput, '', violations)
 
   return {
     ok: violations.length === 0,
@@ -229,42 +284,14 @@ function mergeReportV4(baseContract, aiOutput) {
   }
 }
 
-/**
- * 递归检查 aiOutput 中是否有非 writable 路径
- */
-function checkWritableOnly(obj, prefix, violations) {
-  if (obj === null || obj === undefined || typeof obj !== 'object') return
-  if (Array.isArray(obj)) {
-    for (const item of obj) {
-      checkWritableOnly(item, prefix + '.*', violations)
-    }
-    return
-  }
-  for (const key of Object.keys(obj)) {
-    const path = prefix ? `${prefix}.${key}` : key
-    // 精确匹配 writable path（可能需要 * 通配符）
-    const matched = [...WRITABLE_PATHS].some(p => {
-      return matchPathWithWildcard(p, path)
-    })
-    // 不报 violations — 只在 parser 层屏蔽；这里做静默跳过
-    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-      checkWritableOnly(obj[key], path, violations)
-    }
-  }
-}
+// ═══════════════════════════════════════════════════════════════
+// 导出 (v3.2 add: resolveWealthPathReason + buildPathNameMap)
+// ═══════════════════════════════════════════════════════════════
 
-/**
- * 带通配符匹配
- */
-function matchPathWithWildcard(pattern, path) {
-  const pp = pattern.split('.')
-  const pa = path.split('.')
-  if (pp.length !== pa.length) return false
-  for (let i = 0; i < pp.length; i++) {
-    if (pp[i] === '*') continue
-    if (pp[i] !== pa[i]) return false
-  }
-  return true
+module.exports = {
+  mergeReportV4,
+  isWritable,
+  WRITABLE_PATHS,
+  resolveWealthPathReason,
+  buildPathNameMap,
 }
-
-module.exports = { mergeReportV4, isWritable, WRITABLE_PATHS }

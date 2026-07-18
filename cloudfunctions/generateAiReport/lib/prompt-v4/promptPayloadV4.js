@@ -1,8 +1,9 @@
 /**
- * prompt-v4/promptPayloadV4.js
+ * prompt-v4/promptPayloadV4.js (v3.2)
  *
  * 构造传给 AI 的 Prompt 输入 Payload。
- * 只提供必要事实，禁止泄漏私密信息。
+ * v3.2: wealthPathStatus 注入完整 path name 列表（防止AI输出key不匹配）
+ *       注入 fatal/advantage 规则原始文本（供 AI 场景像素级引用）
  */
 
 /**
@@ -67,12 +68,78 @@ function buildPromptPayload(contract, engineResult) {
       identityUpgrade: report.identityUpgrade,
     },
 
+    // ══ v3.2: wealthPathStatus — 注入完整 path name 列表 ══
+    wealthPathStatus: buildWealthPathStatus(report),
+
     // ══ 绝对不可改的锁定事实 ══
     lockedFacts: buildLockedFacts(report),
 
     // ══ 允许 AI 写入的 schema ══
     writableSchema: buildWritableSchema(),
+
+    // ══ v3.2: 注入引擎原始规则文本 — 供 AI 做场景像素级引用 ══
+    rawEngineData: buildRawEngineData(engineResult),
   }
+}
+
+/**
+ * v3.2: 构建 wealthPathStatus — 明确列出每条路径的 name
+ * 防止 AI 输出 key 时大小写或命名不匹配
+ */
+function buildWealthPathStatus(report) {
+  if (!report.wealthPath || !Array.isArray(report.wealthPath)) return []
+  return report.wealthPath.map(p => ({
+    name: p.name,           // 例如 'working', 'freelance' 等
+    recommend: p.recommend,
+    score: p.score,
+    reason: p.reason || '',
+  }))
+}
+
+/**
+ * v3.2: 从 engineResult 提取原始规则文本，让 AI 能引用规则的具体逻辑
+ */
+function buildRawEngineData(engineResult) {
+  const data = {
+    fatalRulesRaw: [],
+    advantageRulesRaw: [],
+    labelsAll: [],
+  }
+
+  // 致命规则原始文本
+  for (const r of (engineResult.fatalRules || [])) {
+    data.fatalRulesRaw.push({
+      id: r.id,
+      name: r.name,
+      title: r.output?.title || r.name,
+      description: r.output?.description || '',
+      advice: r.output?.advice || '',
+      weight: r.weight,
+    })
+  }
+
+  // 优势规则原始文本
+  for (const r of (engineResult.advantageRules || [])) {
+    data.advantageRulesRaw.push({
+      id: r.id,
+      name: r.name,
+      title: r.output?.title || r.name,
+      description: r.output?.description || '',
+      advice: r.output?.advice || '',
+      weight: r.weight,
+    })
+  }
+
+  // 全部标签
+  data.labelsAll = (engineResult.labels || []).map(l => ({
+    label: l.label,
+    severity: l.severity,
+  }))
+
+  // 分数
+  data.scores = engineResult.scores
+
+  return data
 }
 
 /**
@@ -113,7 +180,7 @@ function buildWritableSchema() {
     fatalRules: 'array of { ruleId: must match lockedFacts, title, description, why }',
     advantageRules: 'array of { ruleId: must match lockedFacts, title, description, why }',
     opportunityRules: 'array of { area: must match lockedFacts, description, why }',
-    wealthPathReasons: 'object mapping pathName → reason string',
+    wealthPathReasons: 'object — key 必须精确匹配 lockedFacts.wealthPathStatus 中的 name 字段（如 working, sideBusiness, freelance, investment, content, ai, entrepreneur），value 为 string (max 80 chars)',
     actionPlan: 'object with day1/day3/day7/day15/day30, each { goal, tasks[], checkpoint }',
     stopDoingItems: 'array of strings (stop-doing items)',
     identityUpgrade: { currentIdentity: 'string', targetIdentity: 'string', gap: 'string', upgradePath: 'string' },
