@@ -31,6 +31,13 @@ Page({
   },
 
   onLoad(opt) {
+    // 关闭 vConsole（仅 develop 环境且显式开关为 true 时允许）
+    if (typeof __wxConfig !== 'undefined') {
+      var envVersion = __wxConfig.envVersion
+      if (envVersion === 'trial' || envVersion === 'release') {
+        if (typeof wx.setEnableDebug === 'function') wx.setEnableDebug({ enableDebug: false })
+      }
+    }
     this.setData({ reportId: opt.reportId || '', mode: opt.mode || 'diagnostic' })
     this._startDiagnostic()
   },
