@@ -38,6 +38,16 @@ Page({
         if (typeof wx.setEnableDebug === 'function') wx.setEnableDebug({ enableDebug: false })
       }
     }
+
+    // 品牌标题安全区
+    try {
+      const sys = wx.getSystemInfoSync()
+      const menuRect = wx.getMenuButtonBoundingClientRect()
+      this.setData({ brandHeaderTop: (menuRect.bottom || 60) + 8 })
+    } catch (_) {
+      this.setData({ brandHeaderTop: 68 })
+    }
+
     this.setData({ reportId: opt.reportId || '', mode: opt.mode || 'diagnostic' })
     this._startDiagnostic()
   },

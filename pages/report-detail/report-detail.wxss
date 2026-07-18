@@ -8,6 +8,51 @@
   overflow-x: hidden;
 }
 
+/* ═══ 00 Brand Header ═══ */
+.report-brand-header {
+  background: linear-gradient(165deg, #19152F, #5A3EE6);
+  padding-bottom: 22rpx;
+  text-align: center;
+}
+
+.report-brand-title {
+  font-size: 38rpx;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 2rpx;
+  padding: 0 32rpx;
+}
+
+.report-brand-subtitle {
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  font-size: 26rpx;
+  line-height: 1.4;
+  color: #f05aa6;
+  font-weight: 500;
+  padding: 0 32rpx;
+}
+
+.report-brand-brain {
+  font-size: 28rpx;
+}
+
+.report-brand-line {
+  width: 78%;
+  height: 1rpx;
+  margin: 22rpx auto 0;
+  background: linear-gradient(
+    90deg,
+    rgba(215, 75, 145, 0),
+    rgba(215, 75, 145, 0.55),
+    rgba(215, 75, 145, 0)
+  );
+}
+
 /* ═══ Loading Screen ═══ */
 .loading-screen {
   display: flex;

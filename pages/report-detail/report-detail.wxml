@@ -20,6 +20,16 @@
   <block wx:elif="{{reportVersion === 'v4' && viewModel}}">
     <scroll-view class="report-scroll" scroll-y enhanced show-scrollbar="{{false}}">
 
+      <!-- 00 品牌标题区 -->
+      <view class="report-brand-header" style="padding-top: {{brandHeaderTop}}px;">
+        <view class="report-brand-title">珠澳小事哥・认知翻身策略</view>
+        <view class="report-brand-subtitle">
+          <text class="report-brand-brain">🧠</text>
+          <text>认知教练视角已激活</text>
+        </view>
+        <view class="report-brand-line"></view>
+      </view>
+
       <!-- 01 ⚡ 翻身判决 -->
       <view class="hero-card">
         <view class="hero-label-row">
