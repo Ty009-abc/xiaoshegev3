@@ -3,7 +3,18 @@
  */
 
 function call(name, data) {
-  return wx.cloud.callFunction({ name, data }).then(r => r.result)
+  console.log('🚨 [FRONT-END TRIGGER] 开始调用云函数:', name)
+  console.log('🚨 [CURRENT ENV] wx.cloud 状态:', wx.cloud ? 'available' : 'NOT initialized')
+  console.log('🚨 [CALL DATA]', JSON.stringify(data).substring(0, 500))
+  return wx.cloud.callFunction({ name, data }).then(r => {
+    console.log('🚨 [SERVER RESPONSE SUCCESS] result:', JSON.stringify(r.result).substring(0, 2000))
+    return r.result
+  }).catch(err => {
+    console.error('🚨 [SERVER RESPONSE ERROR STACK]:', err)
+    console.error('🚨 [SERVER RESPONSE ERROR MSG]:', err.message)
+    console.error('🚨 [SERVER RESPONSE ERROR FULL]:', JSON.stringify(err, Object.getOwnPropertyNames(err), 2))
+    throw err
+  })
 }
 
 function generateAiReport(type, recordId) {

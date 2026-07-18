@@ -112,8 +112,11 @@ Page({
         this._renderV3(data)
       }
     } catch (e) {
-      console.error('[report-detail] AI 生成失败:', e)
-      this._showError('AI 诊断引擎暂时离线')
+      console.error('🚨 [report-detail CATCH] AI 生成失败:', e)
+      console.error('🚨 [report-detail CATCH] 错误消息:', e.message)
+      console.error('🚨 [report-detail CATCH] 完整错误:', JSON.stringify(e, Object.getOwnPropertyNames(e), 2))
+      console.error('🚨 [report-detail CATCH] 错误堆栈:', e.stack)
+      this._showError('AI 诊断引擎暂时离线: ' + (e.message || e.errMsg || 'unknown'))
     }
   },
 
