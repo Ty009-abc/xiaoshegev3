@@ -1,10 +1,10 @@
-<!-- report-detail — V4 Cognitive Judgment Report + V3 Legacy -->
+<!-- report-detail — V5 Redesign + V3 Legacy -->
 <view class="page">
 
   <!-- ═══ Loading ═══ -->
   <view class="loading-screen" wx:if="{{loading}}">
-    <view class="loading-pulse"></view>
-    <text class="loading-text">正在推演你的认知结构</text>
+    <view class="loading-ring"><view class="ring-spin"></view></view>
+    <text class="loading-text">正在生成你的翻身策略</text>
   </view>
 
   <!-- ═══ Error ═══ -->
@@ -15,269 +15,264 @@
   </view>
 
   <!-- ═══════════════════════════════════
-       V4 认知审判报告 (8 layers)
+       V5 Redesign
        ═══════════════════════════════════ -->
   <block wx:elif="{{reportVersion === 'v4' && viewModel}}">
     <scroll-view class="report-scroll" scroll-y enhanced show-scrollbar="{{false}}">
 
-      <!-- 00 品牌标题区 -->
-      <view class="report-brand-header" style="padding-top: {{brandHeaderTop}}px;">
-        <view class="report-brand-title">珠澳小事哥・认知翻身策略</view>
-        <view class="report-brand-subtitle">
-          <text class="report-brand-brain">🧠</text>
-          <text>认知教练视角已激活</text>
+      <!-- ══════════════════ 01 品牌头部 ══════════════════ -->
+      <view class="v5-hero-top" style="padding-top: {{brandHeaderTop}}px;">
+        <view class="v5-brand-row">
+          <text class="v5-brand-title">珠澳小事哥・认知翻身策略</text>
+          <text class="v5-brand-sub">
+            <text class="v5-brand-emoji">🧠</text> 认知教练视角已激活
+          </text>
         </view>
-        <view class="report-brand-line"></view>
-      </view>
 
-      <!-- 01 ⚡ 翻身判决 -->
-      <view class="hero-card">
-        <view class="hero-label-row">
-          <text class="hero-pearl">翻身判决</text>
-          <view class="hero-stage-tag">{{viewModel.wealthStage}}</view>
-        </view>
-        <text class="hero-title">{{viewModel.hero.title}}</text>
-        <text class="hero-subtitle">{{viewModel.hero.subtitle}}</text>
-      </view>
-
-      <!-- 02 🧠 你的赚钱人格 -->
-      <view class="layer-card">
-        <view class="layer-header">
-          <text class="layer-num">02</text>
-          <text class="layer-label">🧠 你的赚钱人格</text>
-        </view>
-        <view class="identity-box">
-          <view class="identity-row" wx:if="{{viewModel.identity.hasCurrent}}">
-            <text class="identity-k">当前身份</text>
-            <text class="identity-v">{{viewModel.identity.current}}</text>
+        <!-- ══════════════════ 02 翻身判决 ══════════════════ -->
+        <view class="v5-hero-body">
+          <view class="v5-hero-toprow">
+            <text class="v5-hero-badge">翻身判决</text>
+            <text class="v5-hero-stage">{{viewModel.stageLabel}}</text>
           </view>
-          <view class="identity-row" wx:if="{{viewModel.identity.hasTarget}}">
-            <text class="identity-k">目标身份</text>
-            <text class="identity-v">{{viewModel.identity.target}}</text>
-          </view>
-          <view class="identity-row" wx:if="{{viewModel.identity.hasGap}}">
-            <text class="identity-k">认知差距</text>
-            <text class="identity-v">{{viewModel.identity.gap}}</text>
-          </view>
-          <view class="identity-row identity-path-row" wx:if="{{viewModel.identity.hasPath}}">
-            <text class="identity-k">升级路径</text>
-            <view class="identity-path-steps">
-              <block wx:for="{{viewModel.identity.upgradePath}}" wx:key="*this" wx:for-item="step">
-                <text class="identity-path-step">{{step}}</text>
-                <text class="identity-path-arrow" wx:if="{{index < viewModel.identity.upgradePath.length - 1}}">→</text>
-              </block>
-            </view>
-          </view>
+          <text class="v5-hero-title">{{viewModel.hero.title}}</text>
+          <text class="v5-hero-sub">{{viewModel.hero.subtitle}}</text>
         </view>
       </view>
 
-      <!-- 03 📊 五维现实底盘 -->
-      <view class="layer-card">
-        <view class="layer-header">
-          <text class="layer-num">03</text>
-          <text class="layer-label">📊 五维现实底盘</text>
+      <!-- ══════════════════ 03 赚钱人格 ══════════════════ -->
+      <view class="v5-card v5-card-identity">
+        <view class="v5-card-head">
+          <text class="v5-card-num">01</text>
+          <text class="v5-card-label">你的赚钱人格</text>
         </view>
-        <view class="score-bars-v5">
+
+        <view class="v5-id-arrows" wx:if="{{viewModel.identity.hasCurrent && viewModel.identity.hasTarget}}">
+          <view class="v5-id-from">
+            <text class="v5-id-tag-label">当前身份</text>
+            <text class="v5-id-tag v5-id-tag-current">{{viewModel.identity.current}}</text>
+          </view>
+          <text class="v5-id-arrow">→</text>
+          <view class="v5-id-to">
+            <text class="v5-id-tag-label">目标身份</text>
+            <text class="v5-id-tag v5-id-tag-target">{{viewModel.identity.target}}</text>
+          </view>
+        </view>
+
+        <view class="v5-id-gap" wx:if="{{viewModel.identity.hasGap}}">
+          <text class="v5-id-gap-text">{{viewModel.identity.gap}}</text>
+        </view>
+
+        <view class="v5-id-ladder" wx:if="{{viewModel.identity.hasPath}}">
+          <text class="v5-id-ladder-title">升级路径</text>
+          <view class="v5-id-rungs">
+            <block wx:for="{{viewModel.identity.upgradePath}}" wx:key="*this" wx:for-item="step">
+              <view class="v5-id-rung">
+                <view class="v5-id-rung-dot"></view>
+                <text class="v5-id-rung-text">{{step}}</text>
+              </view>
+              <view class="v5-id-rung-line" wx:if="{{index < viewModel.identity.upgradePath.length - 1}}"></view>
+            </block>
+          </view>
+        </view>
+      </view>
+
+      <!-- ══════════════════ 04 五维现实底盘 ══════════════════ -->
+      <view class="v5-card">
+        <view class="v5-card-head">
+          <text class="v5-card-num">02</text>
+          <text class="v5-card-label">五维现实底盘</text>
+        </view>
+        <view class="v5-bars">
           <block wx:for="{{viewModel.scoreDimensions}}" wx:key="key">
-            <view class="score-row-v5">
-              <view class="score-header-v5">
-                <view class="score-label-row-v5">
-                  <text class="score-label-v5">{{item.label}}</text>
-                  <view class="score-grade-badge grade-{{item.grade.level}}">
-                    <text>{{item.grade.label}}</text>
-                  </view>
-                </view>
-                <text class="score-val-v5">{{item.value}}</text>
+            <view class="v5-bar">
+              <view class="v5-bar-top">
+                <text class="v5-bar-name">{{item.label}}</text>
+                <text class="v5-bar-grade grade-{{item.grade.level}}">{{item.grade.label}}</text>
+                <text class="v5-bar-val">{{item.value}}</text>
               </view>
-              <view class="score-track-v5">
-                <view class="score-fill-v5 grade-{{item.grade.level}}" style="width:{{item.value}}%"></view>
+              <view class="v5-bar-track">
+                <view class="v5-bar-fill grade-{{item.grade.level}}" style="width:{{item.value}}%"></view>
               </view>
-              <text class="score-explanation-v5">{{item.explanation}}</text>
+              <text class="v5-bar-hint">{{item.explanation}}</text>
             </view>
           </block>
         </view>
       </view>
 
-      <!-- 04 🔍 系统漏洞 -->
-      <view class="layer-card">
-        <view class="layer-header">
-          <text class="layer-num">04</text>
-          <text class="layer-label">🔍 系统漏洞</text>
+      <!-- ══════════════════ 05 当前困局 ══════════════════ -->
+      <view class="v5-card" wx:if="{{viewModel.systemLeaks.length > 0}}">
+        <view class="v5-card-head">
+          <text class="v5-card-num">03</text>
+          <text class="v5-card-label">当前困局</text>
         </view>
-        <block wx:if="{{viewModel.systemLeaks.length > 0}}">
-          <view class="leak-card" wx:for="{{viewModel.systemLeaks}}" wx:key="ruleId">
-            <view class="leak-head">
-              <text class="leak-idx">#{{index + 1}}</text>
-              <text class="leak-conf">{{item.confidence}}</text>
+        <block wx:for="{{viewModel.systemLeaks}}" wx:key="ruleId" wx:for-item="leak">
+          <view class="v5-leak" wx:if="{{index < 3}}">
+            <view class="v5-leak-top">
+              <text class="v5-leak-idx">{{index + 1}}</text>
+              <text class="v5-leak-name">{{leak.title}}</text>
             </view>
-            <text class="leak-title">{{item.title}}</text>
-            <text class="leak-desc">{{item.description}}</text>
-            <text class="leak-why">💡 {{item.why}}</text>
+            <text class="v5-leak-reason">{{leak.description}}</text>
           </view>
         </block>
-        <text class="empty-note" wx:else>系统未检测到明显漏洞</text>
       </view>
 
-      <!-- 05 ❌ 必须停止做的事 -->
-      <view class="layer-card">
-        <view class="layer-header">
-          <text class="layer-num">05</text>
-          <text class="layer-label">❌ 必须立即停止</text>
+      <!-- ══════════════════ 06 唯一首选翻身路径 ══════════════════ -->
+      <view class="v5-card v5-path-primary" wx:if="{{viewModel.hasPrimaryPath}}">
+        <view class="v5-card-head v5-card-head-light">
+          <text class="v5-card-num">04</text>
+          <text class="v5-card-label">你的首选翻身路径</text>
         </view>
-        <block wx:if="{{viewModel.stopDoing.length > 0}}">
-          <view class="stop-item" wx:for="{{viewModel.stopDoing}}" wx:key="*this">
-            <text class="stop-icon">🚫</text>
-            <text class="stop-text">{{item}}</text>
+
+        <view class="v5-pp-hero">
+          <text class="v5-pp-name">{{viewModel.primaryWealthPath.name}}</text>
+          <view class="v5-pp-meta">
+            <view class="v5-pp-badge level-{{viewModel.primaryWealthPath.statusLevel}}">
+              <text>{{viewModel.primaryWealthPath.statusIcon}} {{viewModel.primaryWealthPath.statusLabel}}</text>
+            </view>
+            <text class="v5-pp-score">适配度 {{viewModel.primaryWealthPath.score}}</text>
           </view>
-        </block>
-        <text class="empty-note" wx:else>暂无</text>
+        </view>
+
+        <view class="v5-pp-section" wx:if="{{viewModel.primaryWealthPath.reasons.length > 0}}">
+          <text class="v5-pp-sec-label">为什么适合你</text>
+          <view class="v5-pp-sec-item" wx:for="{{viewModel.primaryWealthPath.reasons}}" wx:key="*this">
+            <text class="v5-pp-sec-icon v5-pp-check">✓</text>
+            <text class="v5-pp-sec-text">{{item}}</text>
+          </view>
+        </view>
+
+        <view class="v5-pp-section" wx:if="{{viewModel.primaryWealthPath.risks.length > 0}}">
+          <text class="v5-pp-sec-label v5-pp-label-warn">当前最大缺口</text>
+          <view class="v5-pp-sec-item" wx:for="{{viewModel.primaryWealthPath.risks}}" wx:key="*this">
+            <text class="v5-pp-sec-icon v5-pp-warn">△</text>
+            <text class="v5-pp-sec-text">{{item}}</text>
+          </view>
+        </view>
+
+        <view class="v5-pp-first-step" wx:if="{{viewModel.primaryWealthPath.description}}">
+          <text class="v5-pp-step-label">第一步</text>
+          <text class="v5-pp-step-text">{{viewModel.primaryWealthPath.description}}</text>
+        </view>
       </view>
 
-      <!-- 06 🚀 财富路径评估 -->
-      <view class="layer-card">
-        <view class="layer-header">
-          <text class="layer-num">06</text>
-          <text class="layer-label">🚀 财富路径评估</text>
+      <!-- ══════════════════ 07 其他路径评估 ══════════════════ -->
+      <view class="v5-card" wx:if="{{viewModel.otherWealthPaths.length > 0}}">
+        <view class="v5-card-head">
+          <text class="v5-card-num">05</text>
+          <text class="v5-card-label">其他路径评估</text>
         </view>
 
-        <!-- 主路径 -->
-        <block wx:if="{{viewModel.hasPrimaryPath}}">
-          <view class="path-section-label">你的首选翻身路径</view>
-          <view class="path-card path-primary">
-            <view class="path-primary-head">
-              <view class="path-primary-name-row">
-                <text class="path-primary-name">{{viewModel.primaryWealthPath.name}}</text>
-                <view class="path-badge level-{{viewModel.primaryWealthPath.statusLevel}}">
-                  <text>{{viewModel.primaryWealthPath.statusIcon}} {{viewModel.primaryWealthPath.statusLabel}}</text>
-                </view>
-              </view>
-              <view class="path-primary-score-row">
-                <text class="path-primary-score-label">适配度</text>
-                <text class="path-primary-score-num">{{viewModel.primaryWealthPath.score}}</text>
-              </view>
-            </view>
-            <text class="path-primary-reason">{{viewModel.primaryWealthPath.description}}</text>
-            <view class="path-evidence" wx:if="{{viewModel.primaryWealthPath.reasons.length > 0}}">
-              <text class="path-evidence-label">为什么适合你</text>
-              <view class="path-evidence-item" wx:for="{{viewModel.primaryWealthPath.reasons}}" wx:key="*this">
-                <text class="path-evidence-icon">✓</text>
-                <text class="path-evidence-text">{{item}}</text>
-              </view>
-            </view>
-            <view class="path-evidence path-evidence-risks" wx:if="{{viewModel.primaryWealthPath.risks.length > 0}}">
-              <text class="path-evidence-label">当前缺口</text>
-              <view class="path-evidence-item" wx:for="{{viewModel.primaryWealthPath.risks}}" wx:key="*this">
-                <text class="path-evidence-icon risk-icon">△</text>
-                <text class="path-evidence-text">{{item}}</text>
-              </view>
-            </view>
-          </view>
-        </block>
-
-        <!-- 其他路径 (用 primary 用简洁版) -->
-        <view class="path-section-label" wx:if="{{viewModel.otherWealthPaths.length > 0}}">其他路径评估</view>
         <block wx:for="{{viewModel.otherWealthPaths}}" wx:key="key">
-          <view class="path-card {{item.isBlocked ? 'path-blocked' : 'path-secondary'}}">
-            <view class="path-head">
-              <text class="path-name">{{item.name}}</text>
-              <view class="path-badge level-{{item.statusLevel}}">
-                <text>{{item.statusIcon}} {{item.shortStatusLabel}}</text>
+          <view class="v5-op {{item.isBlocked ? 'v5-op-blocked' : (item.statusLevel === 'strong' || item.statusLevel === 'recommended' ? 'v5-op-recommended' : '')}}">
+            <view class="v5-op-row">
+              <text class="v5-op-name">{{item.name}}</text>
+              <view class="v5-op-badge level-{{item.statusLevel}}">
+                <text>{{item.shortStatusLabel}}</text>
               </view>
+              <text class="v5-op-score">{{item.score}}</text>
             </view>
-            <view class="path-score-row">
-              <view class="path-score-track">
-                <view class="path-score-fill level-{{item.statusLevel}}" style="width:{{item.score}}%"></view>
-              </view>
-              <text class="path-score-num">{{item.score}}</text>
-            </view>
-            <text class="path-reason">{{item.description}}</text>
+            <text class="v5-op-desc">{{item.description}}</text>
           </view>
         </block>
-
-        <text class="empty-note" wx:if="{{!viewModel.hasPrimaryPath && viewModel.otherWealthPaths.length === 0}}">未评估</text>
       </view>
 
-      <!-- 07 📅 30天行动路线 -->
-      <view class="layer-card">
-        <view class="layer-header">
-          <text class="layer-num">07</text>
-          <text class="layer-label">📅 30天行动路线</text>
+      <!-- ══════════════════ 08 现在不要做什么 ══════════════════ -->
+      <view class="v5-card" wx:if="{{viewModel.stopDoing.length > 0}}">
+        <view class="v5-card-head">
+          <text class="v5-card-num">06</text>
+          <text class="v5-card-label">现在不要做什么</text>
         </view>
-        <view class="timeline">
+        <block wx:for="{{viewModel.stopDoing}}" wx:key="*this" wx:for-item="item">
+          <view class="v5-stop" wx:if="{{index < 4}}">
+            <text class="v5-stop-icon">⛔</text>
+            <text class="v5-stop-text">{{item}}</text>
+          </view>
+        </block>
+      </view>
+
+      <!-- ══════════════════ 09 30天行动路线 ══════════════════ -->
+      <view class="v5-card">
+        <view class="v5-card-head">
+          <text class="v5-card-num">07</text>
+          <text class="v5-card-label">30天行动路线</text>
+        </view>
+
+        <view class="v5-timeline">
           <block wx:for="{{viewModel.actionTimeline}}" wx:key="day">
-            <view class="tl-node" wx:if="{{item.goal}}">
-              <view class="tl-dot"></view>
-              <view class="tl-content">
-                <text class="tl-day">{{item.day}}</text>
-                <text class="tl-goal">{{item.goal}}</text>
-                <view class="tl-tasks" wx:if="{{item.tasks.length > 0}}">
-                  <text class="tl-task" wx:for="{{item.tasks}}" wx:key="*this" wx:for-item="task">▸ {{task}}</text>
+            <view class="v5-tl-node" wx:if="{{item.goal}}">
+              <view class="v5-tl-marker">
+                <view class="v5-tl-dot"></view>
+              </view>
+              <view class="v5-tl-body">
+                <text class="v5-tl-day">{{item.day}}</text>
+                <text class="v5-tl-goal">{{item.goal}}</text>
+                <view class="v5-tl-tasks" wx:if="{{item.tasks.length > 0}}">
+                  <text class="v5-tl-task" wx:for="{{item.tasks}}" wx:key="*this" wx:for-item="task">{{task}}</text>
                 </view>
-                <text class="tl-check" wx:if="{{item.checkpoint}}">✓ {{item.checkpoint}}</text>
+                <text class="v5-tl-check" wx:if="{{item.checkpoint}}">✓ {{item.checkpoint}}</text>
               </view>
             </view>
           </block>
         </view>
       </view>
 
-      <!-- 08 📈 四阶段情景推演 -->
-      <view class="layer-card">
-        <view class="layer-header">
-          <text class="layer-num">08</text>
-          <text class="layer-label">📈 情景改善指数</text>
+      <!-- ══════════════════ 10 情景改善 ══════════════════ -->
+      <view class="v5-card">
+        <view class="v5-card-head">
+          <text class="v5-card-num">08</text>
+          <text class="v5-card-label">情景改善指数</text>
         </view>
-        <text class="scene-disclaimer">基于当前回答和规则模型的情景推演，不构成收益承诺</text>
-        <view class="scene-grid">
-          <view class="scene-item">
-            <text class="scene-label">当前</text>
-            <text class="scene-val">{{viewModel.probabilities.today}}</text>
+        <text class="v5-scene-note">基于当前回答与规则模型的情景推演，不构成收益承诺</text>
+        <view class="v5-scene-grid">
+          <view class="v5-scene-item">
+            <text class="v5-scene-val">{{viewModel.probabilities.today}}</text>
+            <text class="v5-scene-label">当前</text>
           </view>
-          <view class="scene-item">
-            <text class="scene-label">30天</text>
-            <text class="scene-val">{{viewModel.probabilities.after30}}</text>
+          <view class="v5-scene-item">
+            <text class="v5-scene-val">{{viewModel.probabilities.after30}}</text>
+            <text class="v5-scene-label">30天</text>
           </view>
-          <view class="scene-item">
-            <text class="scene-label">90天</text>
-            <text class="scene-val">{{viewModel.probabilities.after90}}</text>
+          <view class="v5-scene-item">
+            <text class="v5-scene-val">{{viewModel.probabilities.after90}}</text>
+            <text class="v5-scene-label">90天</text>
           </view>
-          <view class="scene-item">
-            <text class="scene-label">365天</text>
-            <text class="scene-val">{{viewModel.probabilities.after365}}</text>
+          <view class="v5-scene-item">
+            <text class="v5-scene-val">{{viewModel.probabilities.after365}}</text>
+            <text class="v5-scene-label">365天</text>
           </view>
         </view>
       </view>
 
-      <!-- ☠️ 最后一击 -->
-      <view class="layer-card final-strike" wx:if="{{viewModel.finalStrike.sentence}}">
-        <text class="fs-icon">☠️</text>
-        <text class="fs-sentence">{{viewModel.finalStrike.sentence}}</text>
-        <text class="fs-share" wx:if="{{viewModel.finalStrike.shareTitle}}">{{viewModel.finalStrike.shareTitle}}</text>
+      <!-- ══════════════════ 11 最后一击 ══════════════════ -->
+      <view class="v5-final" wx:if="{{viewModel.finalStrike.sentence}}">
+        <text class="v5-final-label">最后一击</text>
+        <text class="v5-final-sentence">{{viewModel.finalStrike.sentence}}</text>
+        <text class="v5-final-motto">翻身从来不是拼命，而是看懂规则。</text>
       </view>
 
       <!-- rule_fallback 提示 -->
-      <view class="fallback-note" wx:if="{{renderSource === 'rule_fallback'}}">
+      <view class="v5-fallback" wx:if="{{renderSource === 'rule_fallback'}}">
         本报告当前使用规则引擎生成，核心判断不受影响。
       </view>
 
-      <!-- 底部操作区 -->
-      <view class="bottom-bar">
-        <view class="compliance-tips">
-          系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出
+      <!-- ══════════════════ 12 底部操作 ══════════════════ -->
+      <view class="v5-bottom">
+        <button class="v5-btn-primary" bindtap="generatePoster" loading="{{posterGenerating}}">
+          {{posterGenerating ? '正在生成...' : '生成翻身报告海报'}}
+        </button>
+        <button class="v5-btn-ghost" open-type="share">分享好友</button>
+        <view class="v5-bottom-links">
+          <text class="v5-bottom-link" bindtap="onRetry">重做诊断</text>
         </view>
-        <view class="action-buttons">
-          <button class="btn-save-poster" bindtap="generatePoster" loading="{{posterGenerating}}">
-            {{posterGenerating ? '淬炼中...' : '保存海报'}}
-          </button>
-          <button class="btn-share" open-type="share">分享好友</button>
-        </view>
-        <button class="btn-retry" bindtap="onRetry">重做诊断</button>
+        <text class="v5-disclaimer">系统提示：当前页面内容由自动化算法与人工智能推演生成</text>
       </view>
 
     </scroll-view>
   </block>
 
   <!-- ═══════════════════════════════════
-       V3 Legacy (5 modules)
+       V3 Legacy (unchanged)
        ═══════════════════════════════════ -->
   <block wx:elif="{{reportVersion === 'v3' && sections.length > 0}}">
     <view class="report-blocks">
