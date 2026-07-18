@@ -198,6 +198,9 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     log('STEP_4_VALIDATE_CONTRACT', false, { error: e.message })
     // Contract 无效 → 使用 fallback
     const fallback = generateFallbackReport(baseContract)
+    if (fallback.report) {
+      fallback.report._fallbackReason = 'STEP_4_VALIDATE_CONTRACT: ' + e.message
+    }
     const legacy = mapV4ToLegacyFields(fallback.report)
     return {
       code: 0,
@@ -216,7 +219,7 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     log('STEP_5_BUILD_PROMPT', true)
   } catch (e) {
     log('STEP_5_BUILD_PROMPT', false, { error: e.message })
-    return goFallback(baseContract, stages)
+    return goFallback(baseContract, stages, 'STEP_5_BUILD_PROMPT: ' + e.message)
   }
 
   // ── STEP 6: 调用 AI ──
@@ -229,11 +232,11 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_6_CALL_AI', false, { error: e.message })
-    return goFallback(baseContract, stages)
+    return goFallback(baseContract, stages, 'STEP_6_CALL_AI: ' + e.message)
   }
 
   if (!aiResult.success) {
-    return goFallback(baseContract, stages)
+    return goFallback(baseContract, stages, 'STEP_6_CALL_AI: ' + (aiResult.error || 'AI returned non-success'))
   }
 
   // ── STEP 7: 解析 AI 输出 ──
@@ -246,11 +249,11 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_7_PARSE_AI_OUTPUT', false, { error: e.message })
-    return goFallback(baseContract, stages)
+    return goFallback(baseContract, stages, 'STEP_7_PARSE_AI: ' + e.message)
   }
 
   if (!parsedAI.ok) {
-    return goFallback(baseContract, stages)
+    return goFallback(baseContract, stages, 'STEP_7_PARSE_AI: ' + (parsedAI.code || '') + ' — ' + (parsedAI.reason || ''))
   }
 
   // ── STEP 8: 合并报告 ──
@@ -262,11 +265,12 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_8_MERGE_REPORT', false, { error: e.message })
-    return goFallback(baseContract, stages)
+    return goFallback(baseContract, stages, 'STEP_8_MERGE: ' + e.message)
   }
 
   if (!mergedResult.ok) {
-    return goFallback(baseContract, stages)
+    const mergeViolations = (mergedResult.violations || []).join('; ')
+    return goFallback(baseContract, stages, 'STEP_8_MERGE_VIOLATIONS: ' + mergeViolations)
   }
 
   // ── STEP 9: 守卫报告 ──
@@ -278,11 +282,12 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_9_GUARD_REPORT', false, { error: e.message })
-    return goFallback(baseContract, stages)
+    return goFallback(baseContract, stages, 'STEP_9_GUARD: ' + e.message)
   }
 
   if (!guardResult.ok) {
-    return goFallback(baseContract, stages)
+    const guardViolations = (guardResult.violations || []).join('; ')
+    return goFallback(baseContract, stages, 'STEP_9_GUARD_VIOLATIONS: ' + guardViolations)
   }
 
   // ── STEP 10: 成功返回 ──
@@ -302,10 +307,14 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
 // 辅助
 // ═══════════════════════════════════════════════════════════════
 
-function goFallback(baseContract, stages) {
+function goFallback(baseContract, stages, reason = '') {
   const fallback = generateFallbackReport(baseContract)
+  // 把失败原因注入到 fallback report 的 finalStrike 里，方便调试
+  if (reason && fallback.report) {
+    fallback.report._fallbackReason = reason
+  }
   const legacy = mapV4ToLegacyFields(fallback.report)
-  stages.push({ stage: 'FALLBACK', ok: true, timestamp: Date.now(), renderSource: 'rule_fallback' })
+  stages.push({ stage: 'FALLBACK', ok: true, timestamp: Date.now(), renderSource: 'rule_fallback', reason })
   return {
     code: 0,
     message: 'success',

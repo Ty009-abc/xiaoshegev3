@@ -90,11 +90,17 @@ function validateAIOutput(parsed) {
     }
   }
 
-  // 顶层字段检查
+  // 顶层字段检查 — v3.2: 从 error 降级为 warn，只 strip 未知字段不拒绝
+  // AI 可能返回多余字段（如 LLM 自行添加的 wealthPath / summary 等），
+  // 只要核心可写字段存在就不应触发 fallback
   const allowedTopLevel = getWritableTopLevelKeys()
   const unknownTopLevel = Object.keys(parsed).filter(k => !allowedTopLevel.includes(k))
   if (unknownTopLevel.length > 0) {
-    errors.push(`Unknown top-level keys: ${unknownTopLevel.join(', ')}`)
+    // 从 parsed 中移除未知字段，但不算 error
+    for (const k of unknownTopLevel) {
+      delete parsed[k]
+    }
+    // 不 push 到 errors — 这是 warn 不是 error
   }
 
   if (errors.length > 0) {
