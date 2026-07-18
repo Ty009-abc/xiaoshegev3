@@ -17,6 +17,18 @@ Page({
     renderSource: '',
     cancelled: false,
 
+    // V5 Loading stage carousel
+    loadingSteps: [
+      { active: true },
+      { active: false },
+      { active: false },
+      { active: false },
+      { active: false },
+    ],
+    loadingStepIndex: 1,
+    loadingStepText: '正在分析你的现金流与安全边界',
+    _loadingStepTimer: null,
+
     // V4 ViewModel
     viewModel: null,
 
@@ -49,7 +61,51 @@ Page({
     }
 
     this.setData({ reportId: opt.reportId || '', mode: opt.mode || 'diagnostic' })
+    this._startLoadingCarousel()
     this._startDiagnostic()
+  },
+
+  /* ═══════════════════════════════════
+     V5 Loading: cognitive carousel
+     ═══════════════════════════════════ */
+  _startLoadingCarousel() {
+    const self = this
+    const phases = [
+      '正在分析你的现金流与安全边界',
+      '正在识别你当前玩的财富游戏',
+      '正在排除不适合你的高风险路径',
+      '正在匹配最值得下注的翻身方向',
+      '正在生成你的30天行动路线',
+    ]
+
+    let current = 0
+
+    const tick = function () {
+      if (self.data.cancelled || !self.data.loading) return
+
+      current = (current + 1) % phases.length
+      const stepIdx = current + 1
+
+      const steps = phases.map(function (_, i) { return { active: i <= current } })
+
+      self.setData({
+        loadingSteps: steps,
+        loadingStepIndex: stepIdx,
+        loadingStepText: phases[current],
+      })
+
+      self.data._loadingStepTimer = setTimeout(tick, 2600)
+    }
+
+    // Start cycle after first display
+    this.data._loadingStepTimer = setTimeout(tick, 2600)
+  },
+
+  _stopLoadingCarousel() {
+    if (this.data._loadingStepTimer) {
+      clearTimeout(this.data._loadingStepTimer)
+      this.data._loadingStepTimer = null
+    }
   },
 
   /* ═══════════════════════════════════
@@ -151,6 +207,7 @@ Page({
     })
 
     this.setData({ loading: false, viewModel: vm })
+    this._stopLoadingCarousel()
   },
 
   /* ═══════════════════════════════════
@@ -190,6 +247,7 @@ Page({
     const fieldsText = [position, trapped, forbiddenText, path, next90Text]
 
     this.setData({ loading: false, sections: sections.map(s => ({ ...s })) })
+    this._stopLoadingCarousel()
 
     REVEAL_DELAYS.slice(0, 5).forEach((delay, i) => {
       setTimeout(() => {
@@ -205,12 +263,17 @@ Page({
 
   _showError(msg) {
     this.setData({ loading: false, error: msg })
+    this._stopLoadingCarousel()
     wx.showToast({ title: msg, icon: 'none', duration: 3000 })
     setTimeout(() => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }), 3000)
   },
 
   onUnload() {
     this.setData({ cancelled: true })
+    if (this.data._loadingStepTimer) {
+      clearTimeout(this.data._loadingStepTimer)
+      this.data._loadingStepTimer = null
+    }
   },
 
   onRetry() {

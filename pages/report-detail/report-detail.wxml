@@ -1,17 +1,66 @@
 <!-- report-detail — V5 Redesign + V3 Legacy -->
 <view class="page">
 
-  <!-- ═══ Loading ═══ -->
-  <view class="loading-screen" wx:if="{{loading}}">
-    <view class="loading-ring"><view class="ring-spin"></view></view>
-    <text class="loading-text">正在生成你的翻身策略</text>
+  <!-- ═══ Loading — V5 Cognitive Orbit ═══ -->
+  <view class="v5-loading-screen" wx:if="{{loading}}">
+    <view class="v5-loading-spacer"></view>
+    <view class="v5-loading-body">
+      <!-- 认知推演轨道 -->
+      <view class="v5-orbit">
+        <view class="v5-orbit-ring v5-orbit-outer"></view>
+        <view class="v5-orbit-ring v5-orbit-inner"></view>
+        <view class="v5-orbit-core">
+          <text class="v5-orbit-core-text">翻</text>
+        </view>
+        <!-- 光点 -->
+        <view class="v5-orbit-dot v5-orbit-dot-1"></view>
+        <view class="v5-orbit-dot v5-orbit-dot-2"></view>
+        <view class="v5-orbit-dot v5-orbit-dot-3"></view>
+      </view>
+
+      <!-- 主标题 -->
+      <text class="v5-loading-title">小事哥正在推演你的翻身路径</text>
+
+      <!-- 动态副标题 -->
+      <text class="v5-loading-sub">{{loadingStepText}}</text>
+
+      <!-- 五阶段进度点 -->
+      <view class="v5-loading-steps">
+        <block wx:for="{{loadingSteps}}" wx:key="*this">
+          <view class="v5-loading-dot {{item.active ? 'v5-loading-dot-on' : ''}}"></view>
+          <view class="v5-loading-line" wx:if="{{index < loadingSteps.length - 1}}"></view>
+        </block>
+      </view>
+      <text class="v5-loading-step-text">第 {{loadingStepIndex}} / {{loadingSteps.length}} 步</text>
+
+      <!-- 可信度说明 -->
+      <text class="v5-loading-meta">本次推演将综合现金流、能力、时间、执行力与风险承受，\n排除不适合的路径，而非随机生成建议。</text>
+    </view>
+
+    <!-- 底部品牌签名 -->
+    <view class="v5-loading-footer">
+      <text class="v5-loading-brand">珠澳小事哥・认知翻身策略</text>
+      <text class="v5-loading-slogan">翻身从来不是拼命，而是看懂规则。</text>
+    </view>
   </view>
 
   <!-- ═══ Error ═══ -->
-  <view class="error-screen" wx:elif="{{error}}">
-    <text class="error-icon">⚠️</text>
-    <text class="error-text">{{error}}</text>
-    <button class="btn-retry" bindtap="onRetry">重新测试</button>
+  <view class="v5-loading-screen" wx:elif="{{error}}">
+    <view class="v5-loading-spacer"></view>
+    <view class="v5-loading-body">
+      <view class="v5-orbit" style="opacity:0.3">
+        <view class="v5-orbit-core">
+          <text class="v5-orbit-core-text" style="color:#EF4B4B">!</text>
+        </view>
+      </view>
+      <text class="v5-loading-title" style="color:#EF4B4B">推演暂时中断</text>
+      <text class="v5-loading-sub">{{error}}</text>
+      <button class="v5-loading-retry" bindtap="onRetry">重新尝试</button>
+    </view>
+    <view class="v5-loading-footer">
+      <text class="v5-loading-brand">珠澳小事哥・认知翻身策略</text>
+      <text class="v5-loading-slogan">翻身从来不是拼命，而是看懂规则。</text>
+    </view>
   </view>
 
   <!-- ═══════════════════════════════════
@@ -50,12 +99,14 @@
         <view class="v5-id-arrows" wx:if="{{viewModel.identity.hasCurrent && viewModel.identity.hasTarget}}">
           <view class="v5-id-from">
             <text class="v5-id-tag-label">当前身份</text>
-            <text class="v5-id-tag v5-id-tag-current">{{viewModel.identity.current}}</text>
+            <text class="v5-id-tag v5-id-tag-current">{{viewModel.identity.currentTitle}}</text>
+            <text class="v5-id-tag-sub" wx:if="{{viewModel.identity.currentSubtitle}}">{{viewModel.identity.currentSubtitle}}</text>
           </view>
-          <text class="v5-id-arrow">→</text>
+          <text class="v5-id-arrow">↓</text>
           <view class="v5-id-to">
             <text class="v5-id-tag-label">目标身份</text>
-            <text class="v5-id-tag v5-id-tag-target">{{viewModel.identity.target}}</text>
+            <text class="v5-id-tag v5-id-tag-target">{{viewModel.identity.targetTitle}}</text>
+            <text class="v5-id-tag-sub" wx:if="{{viewModel.identity.targetSubtitle}}">{{viewModel.identity.targetSubtitle}}</text>
           </view>
         </view>
 
@@ -66,12 +117,15 @@
         <view class="v5-id-ladder" wx:if="{{viewModel.identity.hasPath}}">
           <text class="v5-id-ladder-title">升级路径</text>
           <view class="v5-id-rungs">
-            <block wx:for="{{viewModel.identity.upgradePath}}" wx:key="*this" wx:for-item="step">
+            <block wx:for="{{viewModel.identity.upgradePathSteps}}" wx:key="title" wx:for-item="step">
               <view class="v5-id-rung">
                 <view class="v5-id-rung-dot"></view>
-                <text class="v5-id-rung-text">{{step}}</text>
+                <view class="v5-id-rung-texts">
+                  <text class="v5-id-rung-title">{{step.title}}</text>
+                  <text class="v5-id-rung-sub" wx:if="{{step.subtitle}}">{{step.subtitle}}</text>
+                </view>
               </view>
-              <view class="v5-id-rung-line" wx:if="{{index < viewModel.identity.upgradePath.length - 1}}"></view>
+              <view class="v5-id-rung-line" wx:if="{{index < viewModel.identity.upgradePathSteps.length - 1}}"></view>
             </block>
           </view>
         </view>

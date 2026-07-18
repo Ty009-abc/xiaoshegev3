@@ -294,6 +294,24 @@ function splitUpgradePath(pathStr) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   V5.1 display helpers: split "主身份（说明）" into title/subtitle
+   ═══════════════════════════════════════════════════════════════ */
+
+function splitIdentityDisplay(raw) {
+  if (!raw) return { title: '', subtitle: '' }
+  var str = String(raw).trim()
+  // Match "主身份（括号内容）" or "主身份(括号内容)"
+  var m = str.match(/^(.+?)[（(]([^）)]+)[）)]$/)
+  if (m) return { title: m[1].trim(), subtitle: m[2].trim() }
+  // No bracket — subtitle empty
+  return { title: str, subtitle: '' }
+}
+
+function buildUpgradePathSteps(rawPaths) {
+  return rawPaths.map(function(step) { return splitIdentityDisplay(step) })
+}
+
+/* ═══════════════════════════════════════════════════════════════
    置信度标签
    ═══════════════════════════════════════════════════════════════ */
 
@@ -363,6 +381,9 @@ function buildDiagnosticV4ViewModel(report) {
 
   // ── identity 升级路径 ──
   var upgradeSteps = splitUpgradePath(iu.upgradePath)
+  var currentParts = splitIdentityDisplay(iu.currentIdentity)
+  var targetParts = splitIdentityDisplay(iu.targetIdentity)
+  var upgradePathSteps = buildUpgradePathSteps(upgradeSteps)
 
   var vm = {
     reportId: report.reportId || '',
@@ -386,6 +407,12 @@ function buildDiagnosticV4ViewModel(report) {
       target: iu.targetIdentity || '',
       gap: iu.gap || '',
       upgradePath: splitUpgradePath(iu.upgradePath),
+      // V5.1 display layer
+      currentTitle: currentParts.title,
+      currentSubtitle: currentParts.subtitle,
+      targetTitle: targetParts.title,
+      targetSubtitle: targetParts.subtitle,
+      upgradePathSteps: upgradePathSteps,
       hasCurrent: !!iu.currentIdentity,
       hasTarget: !!iu.targetIdentity,
       hasGap: !!iu.gap,
