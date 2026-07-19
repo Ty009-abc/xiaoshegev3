@@ -95,6 +95,10 @@ const project = new ci.Project({
     'private.key',
     'world_rules_import.json',
     'cloudfunctions/**/*',
+    'backup/**/*',
+    'miniprogram/pages/challenge/importRules.js',
+    'miniprogram_npm/**/*',
+    'node_modules/**/*',
   ],
 })
 
