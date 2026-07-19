@@ -37,3 +37,12 @@ build/
 # 测试
 coverage/
 __tests__/
+
+# 审计/部署/恢复中间报告
+.audit-reports/
+*_REPORT.md
+*_RECOVERY.md
+*_SNAPSHOT.md
+
+# 上传排除（非运行时文件）
+backup/
