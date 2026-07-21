@@ -2,30 +2,52 @@
  * common/payment.js - 微信支付封装（JSAPI v3）
  *
  * ⚠️ 部署前必须配置以下环境变量或安全配置：
- *   - WXPAY_MCHID        商户号
- *   - WXPAY_APPID        小程序 AppID
- *   - WXPAY_SERIAL_NO    证书序列号
- *   - WXPAY_PRIVATE_KEY  商户私钥 (PEM 格式，换行用 \n)
- *   - WXPAY_API_V3_KEY   APIv3 密钥
- *   - WXPAY_NOTIFY_URL   支付回调地址
+ *   - WXPAY_MCHID           商户号
+ *   - WXPAY_APPID           小程序 AppID
+ *   - WXPAY_SERIAL_NO       证书序列号
+ *   - WXPAY_PRIVATE_KEY     商户私钥 (PEM 格式，换行用 \n)
+ *     - 或 WXPAY_PRIVATE_KEY_PATH 私钥文件路径（二选一）
+ *   - WXPAY_API_V3_KEY      APIv3 密钥
+ *   - WXPAY_NOTIFY_URL      支付回调地址
  *
- * 占位模式（当前）：createOrder 返回 TEST_MODE 提醒，不发起真实支付。
- * 正式环境请填写上述配置并设置 isMock=false。
+ * 私钥读取优先级：
+ *   1. WXPAY_PRIVATE_KEY 环境变量（PEM 原文，\n 换行）
+ *   2. WXPAY_PRIVATE_KEY_PATH 文件路径
+ *   3. 均未设置 → 生产环境明确失败（WXPAY_PRIVATE_KEY_MISSING）
+ *
+ * 生产环境必须配置 WXPAY_MCHID，否则所有支付操作失败。
+ * 不再静默 fallback 到 mock 模式。
  */
 
 const crypto = require('crypto')
+const fs = require('fs')
 const now = () => Date.now()
 
 // ======================== 配置读取 ========================
 function getConfig() {
+  const mchid = process.env.WXPAY_MCHID || ''
+
+  // 私钥读取：优先环境变量 → 文件路径 → 明确失败
+  let privateKey = ''
+  if (process.env.WXPAY_PRIVATE_KEY) {
+    privateKey = process.env.WXPAY_PRIVATE_KEY.replace(/\\n/g, '\n')
+  } else if (process.env.WXPAY_PRIVATE_KEY_PATH) {
+    try {
+      privateKey = fs.readFileSync(process.env.WXPAY_PRIVATE_KEY_PATH, 'utf8')
+    } catch (err) {
+      console.error('[WXPAY] 读取私钥文件失败:', err.message)
+      privateKey = ''
+    }
+  }
+  // 都不存在 → privateKey 为空，生产环境会明确失败
+
   return {
-    isMock: !process.env.WXPAY_MCHID,
-    mchid: process.env.WXPAY_MCHID || '',
-    appid: process.env.WXPAY_APPID || 'REPLACE_WITH_YOUR_APPID',
+    isMock: !mchid,
+    mchid,
+    appid: process.env.WXPAY_APPID || '',
     serialNo: process.env.WXPAY_SERIAL_NO || '',
-    privateKey: process.env.WXPAY_PRIVATE_KEY
-      ? process.env.WXPAY_PRIVATE_KEY.replace(/\\n/g, '\n')
-      : '',
+    privateKey,
+    privateKeyMissing: !privateKey,
     apiV3Key: process.env.WXPAY_API_V3_KEY || '',
     notifyUrl: process.env.WXPAY_NOTIFY_URL || '',
   }
@@ -55,8 +77,20 @@ function sign(method, path, body, mchid, serialNo, privateKey) {
  * @returns {{ success, prepay_id, paymentParams }}
  */
 async function jsapiOrder(params) {
-  const { appid, mchid, serialNo, privateKey, apiV3Key, notifyUrl, isMock } = getConfig()
+  const { appid, mchid, serialNo, privateKey, privateKeyMissing, apiV3Key, notifyUrl, isMock } = getConfig()
   const { orderId, productName, totalAmount, openid } = params
+
+  // 生产环境：私钥缺失 → 明确失败
+  if (!isMock && privateKeyMissing) {
+    console.error('[WXPAY] WXPAY_PRIVATE_KEY_MISSING — 生产环境缺少商户私钥')
+    return { success: false, error: 'WXPAY_PRIVATE_KEY_MISSING' }
+  }
+
+  // 生产环境：缺少 appid → 明确失败
+  if (!isMock && (!appid || appid === 'REPLACE_WITH_YOUR_APPID')) {
+    console.error('[WXPAY] WXPAY_APPID 未配置或仍使用占位值')
+    return { success: false, error: 'WXPAY_APPID_MISSING' }
+  }
 
   if (isMock) {
     console.warn('[WXPAY] ⚠️ 沙箱模式 — 未配置真实商户参数')
@@ -145,7 +179,13 @@ async function jsapiOrder(params) {
  * @returns {{ success, tradeState, transactionId }}
  */
 async function queryOrder(orderId) {
-  const { mchid, serialNo, privateKey, isMock } = getConfig()
+  const { mchid, serialNo, privateKey, privateKeyMissing, isMock } = getConfig()
+
+  // 生产环境：私钥缺失 → 明确失败
+  if (!isMock && privateKeyMissing) {
+    console.error('[WXPAY] WXPAY_PRIVATE_KEY_MISSING — 生产环境缺少商户私钥')
+    return { success: false, tradeState: 'ERROR', error: 'WXPAY_PRIVATE_KEY_MISSING' }
+  }
 
   if (isMock) {
     console.warn('[WXPAY] 沙箱查单 — 返回已支付')

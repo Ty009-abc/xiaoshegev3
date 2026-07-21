@@ -46,3 +46,14 @@ __tests__/
 
 # 上传排除（非运行时文件）
 backup/
+
+# 密钥与证书 — 禁止提交
+private.key
+private.pem
+*.merchant.key
+apiclient_key.pem
+secrets/
+certs/private/
+*.pem
+*.crt
+*.cer
