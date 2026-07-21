@@ -8,7 +8,7 @@
  * @status FROZEN — CHECKPOINT_4A
  */
 
-const { VERSION, MISSION_PHASES, MISSION_CATEGORIES_V6, COST_LEVELS, RISK_LEVELS, DIFFICULTY_LEVELS } = require('../constants')
+const { VERSION, MISSION_PHASES, MISSION_CATEGORIES_V6, MISSION_CATEGORY_CODES, COST_LEVELS, RISK_LEVELS, DIFFICULTY_LEVELS } = require('../constants')
 const { createMission } = require('../schemas/missionContractV6')
 
 /**
@@ -184,10 +184,11 @@ function createMissionPlan(overrides = {}) {
  * 格式: MSN_D{phase}_{category}_{sequence}
  */
 function normalizeMissionId(phase, category, sequence) {
-  const parts = [
+  var code = MISSION_CATEGORY_CODES[category] || 'UNKN'
+  var parts = [
     'MSN',
     phase.replace('DAY_', 'D'),
-    category.slice(0, 4).toUpperCase(),
+    code,
     String(sequence).padStart(2, '0'),
   ]
   return parts.join('_')

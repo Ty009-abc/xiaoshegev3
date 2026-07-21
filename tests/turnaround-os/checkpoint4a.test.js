@@ -44,7 +44,7 @@ test('1.1 createMission 返回完整 Contract', () => {
     'strategicPurpose', 'validatesAssumption', 'linkedLeverage', 'linkedWrongGame',
     'sourceEvidence', 'prerequisites', 'estimatedMinutes', 'estimatedCostLevel',
     'riskLevel', 'difficulty', 'expectedOutput', 'proofOfCompletion', 'successCriteria',
-    'failureSignals', 'fallbackAction', 'nextMissionIds', 'priorityScore', 'confidence']
+    'failureSignals', 'fallback', 'nextMissionIds', 'priorityScore', 'confidence']
   for (const k of required) {
     if (!keys.includes(k)) throw new Error(`缺少字段: ${k}`)
   }
@@ -123,17 +123,17 @@ test('3.3 旧 MISSION_CATEGORIES 零残留', () => {
 })
 
 test('3.4 非法 category 被拒绝', () => {
-  // createMission 会修正非法值 → 需要直传给 validator 验证
+  // createMission 返回冻结对象 → 需要使用 Object.assign 浅拷贝后修改
   const m = createMission({ missionId: 'MSN_X' })
-  m.category = 'INVALID_CAT'
-  const result = validateMissionContractV6(m)
+  const mutated = Object.assign({}, m, { category: 'INVALID_CAT' })
+  const result = validateMissionContractV6(mutated)
   if (result.valid) throw new Error('非法 category 应被拒绝')
 })
 
 test('3.5 非法 phase 被拒绝', () => {
   const m = createMission({ missionId: 'MSN_X' })
-  m.phase = 'DAY_999'
-  const result = validateMissionContractV6(m)
+  const mutated = Object.assign({}, m, { phase: 'DAY_999' })
+  const result = validateMissionContractV6(mutated)
   if (result.valid) throw new Error('非法 phase 应被拒绝')
 })
 
@@ -211,9 +211,8 @@ test('6.3 estimatedMinutes 范围 [1,1440]', () => {
 
 test('6.4 超范围值被校验器捕获', () => {
   const m = createMission({ missionId: 'MSN_X' })
-  m.priorityScore = 999
-  m.confidence = -5
-  const result = validateMissionContractV6(m)
+  const mutated = Object.assign({}, m, { priorityScore: 999, confidence: -5 })
+  const result = validateMissionContractV6(mutated)
   if (result.valid) throw new Error('越界值应被拒绝')
 })
 

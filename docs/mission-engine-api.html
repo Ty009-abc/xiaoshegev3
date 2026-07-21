@@ -1,0 +1,448 @@
+<h2 class="sr-only">Turnaround OS V6 Mission Engine — API documentation, demo, data structure, and call chain</h2>
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { 
+    font-family: var(--font-sans); font-size: 13px; font-weight: 400; line-height: 1.6;
+    color: var(--color-text-primary); background: var(--color-background-tertiary); 
+    padding: 24px;
+  }
+  .page { max-width: 700px; margin: 0 auto; }
+  h1 { font-size: 15px; font-weight: 500; margin: 0 0 6px; }
+  h2 { font-size: 14px; font-weight: 500; margin: 28px 0 12px; }
+  h3 { font-size: 13px; font-weight: 500; margin: 16px 0 8px; }
+  p { margin: 0 0 10px; color: var(--color-text-secondary); }
+  .card {
+    background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary);
+    border-radius: var(--border-radius-lg); padding: 16px 20px; margin: 12px 0;
+  }
+  .badge {
+    display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 4px;
+    font-weight: 500; margin-right: 6px;
+  }
+  .badge-green { background: var(--color-background-success); color: var(--color-text-success); }
+  .badge-blue { background: var(--color-background-info); color: var(--color-text-info); }
+  .badge-amber { background: var(--color-background-warning); color: var(--color-text-warning); }
+  .badge-red { background: var(--color-background-danger); color: var(--color-text-danger); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  th { font-weight: 500; color: var(--color-text-secondary); font-size: 12px; }
+  td { color: var(--color-text-primary); }
+  code {
+    font-family: var(--font-mono); font-size: 12px; background: var(--color-background-secondary);
+    padding: 1px 5px; border-radius: 3px; color: #534AB7;
+  }
+  pre {
+    font-family: var(--font-mono); font-size: 12px; background: var(--color-background-secondary);
+    border-radius: var(--border-radius-md); padding: 12px 16px; overflow-x: auto;
+    line-height: 1.5; margin: 8px 0; max-height: 400px; overflow-y: auto;
+  }
+  pre code { background: none; padding: 0; color: var(--color-text-primary); }
+  .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 8px 0; }
+  .metric {
+    background: var(--color-background-secondary); border-radius: var(--border-radius-md);
+    padding: 12px; min-width: 0;
+  }
+  .metric .label { font-size: 12px; color: var(--color-text-secondary); margin: 0 0 4px; }
+  .metric .value { font-size: 20px; font-weight: 500; line-height: 1; }
+  .mission-row {
+    display: flex; align-items: flex-start; gap: 12px; padding: 10px 0;
+    border-bottom: 0.5px solid var(--color-border-tertiary);
+  }
+  .mission-row:last-child { border-bottom: none; }
+  .mission-num {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500; line-height: 1;
+  }
+  .mission-num.d7 { background: #EEEDFE; color: #534AB7; }
+  .mission-num.d30 { background: #E1F5EE; color: #0F6E56; }
+  .mission-num.d90 { background: #FAECE7; color: #993C1D; }
+  .mission-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0; }
+  .phase-tag {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 6px;
+    border-radius: 3px; font-weight: 500;
+  }
+  .phase-DAY_7 { background: #EEEDFE; color: #534AB7; }
+  .phase-DAY_30 { background: #E1F5EE; color: #0F6E56; }
+  .phase-DAY_90 { background: #FAECE7; color: #993C1D; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+</style>
+
+<div class="page">
+
+<h1>Turnaround OS V6 — Mission Engine</h1>
+<p>基于规则引擎的翻身任务计划生成器。消费上游身份画像、战略判决、命运推演，输出可分阶段执行的完整行动方案。</p>
+
+<div class="metric-grid">
+  <div class="metric">
+    <p class="label">输入源</p>
+    <p class="value" style="font-size:15px;">3</p>
+  </div>
+  <div class="metric">
+    <p class="label">任务阶段</p>
+    <p class="value" style="font-size:15px;">7d / 30d / 90d</p>
+  </div>
+  <div class="metric">
+    <p class="label">测试覆盖</p>
+    <p class="value" style="font-size:15px;">26 pass</p>
+  </div>
+</div>
+
+<h2>1. Mission Engine API</h2>
+
+<div class="card">
+<h3>generateMissionPlan(params)</h3>
+<p>消费 profile + strategy + projection，生成完整的三阶段任务计划。</p>
+
+<pre><code>const { generateMissionPlan } = require('core/turnaround-os')
+
+const plan = generateMissionPlan({
+  profile,    // ← identityEngine.buildIdentity() 输出
+  strategy,   // ← turnaroundEngine.generateStrategy() 输出
+  projection  // ← destinyProjectionEngine.projectDestiny() 输出
+})</code></pre>
+
+<h3>输入字段</h3>
+<table>
+<tr><th>字段</th><th>来源引擎</th><th>用途</th></tr>
+<tr><td><code>profile</code></td><td>identityEngineV6</td><td>财富阶段、安全月数、能力评估、时间预算、心理画像</td></tr>
+<tr><td><code>strategy</code></td><td>turnaroundEngineV6</td><td>战略标题、主杠杆、错误游戏类型、成功条件、禁止事项</td></tr>
+<tr><td><code>projection</code></td><td>destinyProjectionEngineV6</td><td>决策节点、双路径对比、限制因素、推演假设</td></tr>
+</table>
+
+<h3>输出结构</h3>
+<table>
+<tr><th>字段</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>version</code></td><td>string</td><td>固定 "6.0"</td></tr>
+<tr><td><code>missionTheme</code></td><td>object</td><td>任务主题：标题、战略目标、主杠杆、当前阶段、错误游戏</td></tr>
+<tr><td><code>day7 / day30 / day90</code></td><td>object</td><td>三个阶段的计划，各含 missions[]、checkpoint、exitCriteria、failureResponse</td></tr>
+<tr><td><code>planPrinciples</code></td><td>array</td><td>计划执行原则（含约束原则 + 通用原则）</td></tr>
+<tr><td><code>weeklyRhythm</code></td><td>object</td><td>周节奏：执行日、复盘日、最小/最大周时、聚焦/停止规则</td></tr>
+<tr><td><code>strategicMetrics</code></td><td>array</td><td>核心指标：安全月数、执行率、假设验证进度等</td></tr>
+<tr><td><code>dependencies</code></td><td>object</td><td>任务依赖图谱：图、阻塞列表、关键路径、警告</td></tr>
+<tr><td><code>rejectedMissions</code></td><td>array</td><td>被禁止的任务类型及拒绝原因</td></tr>
+<tr><td><code>confidence</code></td><td>number</td><td>计划整体置信度 0-100</td></tr>
+<tr><td><code>evidence</code></td><td>object</td><td>证据链：命中的规则、来源字段、战略链接、推演链接</td></tr>
+</table>
+</div>
+
+<h3>scoreMissionPriority(params) — 辅助函数</h3>
+<div class="card">
+<pre><code>const result = scoreMissionPriority({
+  mission,     // 待评分的单条 Mission
+  profile,     // 用户画像
+  strategy,    // 战略判决
+  projection   // 命运推演
+})
+
+// result: { priorityScore: 0-100, scoreBreakdown: {...}, ruleHits: [...] }</code></pre>
+
+<p>十维度评分：安全重要性(20%) → 战略重要性(18%) → 验证速度(12%) → 可逆性(10%) → 成本适配(10%) → 时间适配(8%) → 依赖就绪(6%) → 杠杆匹配(8%) → 推演影响(4%) → 用户能力匹配(4%)</p>
+</div>
+
+<h2>2. 真实 Demo</h2>
+<p>用户画像：仓库管理员，月入5000、支出4800、安全月数仅0.6个月、每周可支配5小时、高焦虑(80)。</p>
+
+<div class="card">
+<h3>输入 → 输出 链路</h3>
+
+<div style="margin:12px 0">
+  <span class="badge badge-red">SURVIVAL</span>
+  <span class="badge badge-amber">SINGLE_INCOME</span>
+  <span class="badge badge-blue">AI_PRODUCTIVITY</span>
+  <span style="font-size:12px;color:var(--color-text-tertiary)">→ 战略标题: 第一步不是翻身，是活得更稳</span>
+</div>
+
+<p style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:16px">
+  World A (维持现状) → 三年后方向"下降"。World B (执行翻身) → 三年后方向"改善"。
+  决策节点：第一次行动 → 现金流安全边界 → AI工具上手 → 90天战略复查
+</p>
+
+<h3>生成的任务计划</h3>
+
+<div class="mission-row">
+  <div class="mission-num d7">1</div>
+  <div>
+    <strong>建立现金流安全垫</strong>
+    <span class="phase-tag phase-DAY_7">Day 7</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">盘点7天非必要支出，砍掉至少20%。记录每笔支出并归类。目标是安全月数 +0.5 个月。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">60分钟</span>
+      <span class="badge badge-blue">零成本</span>
+      <span class="badge badge-red">p=87</span>
+    </div>
+  </div>
+</div>
+
+<div class="mission-row">
+  <div class="mission-num d7">2</div>
+  <div>
+    <strong>时间结构审计</strong>
+    <span class="phase-tag phase-DAY_7">Day 7</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">记录7天时间去向，找出至少3个可优化时间段。当前可支配时间仅5h/wk。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">30分钟</span>
+      <span class="badge badge-blue">零成本</span>
+      <span class="badge badge-red">p=78</span>
+    </div>
+  </div>
+</div>
+
+<div class="mission-row">
+  <div class="mission-num d7">3</div>
+  <div>
+    <strong>技能资产盘点</strong>
+    <span class="phase-tag phase-DAY_7">Day 7</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">列出所有技能(工作+业余+隐藏)，评估可变现路径。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">45分钟</span>
+      <span class="badge badge-blue">零成本</span>
+      <span class="badge badge-red">p=75</span>
+    </div>
+  </div>
+</div>
+
+<div class="mission-row">
+  <div class="mission-num d30">4</div>
+  <div>
+    <strong>AI 工作流上线</strong>
+    <span class="phase-tag phase-DAY_30">Day 30</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">选择最重复的任务，用AI覆盖50%以上。记录时间对比。AI是生存期最低成本的效率放大器。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">120分钟</span>
+      <span class="badge badge-blue">低成本</span>
+      <span class="badge badge-red">p=69</span>
+    </div>
+  </div>
+</div>
+
+<div class="mission-row">
+  <div class="mission-num d30">5</div>
+  <div>
+    <strong>价值主张提炼</strong>
+    <span class="phase-tag phase-DAY_30">Day 30</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">回答三问：帮谁、解决什么、独特在哪。浓缩成一句话价值主张。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">60分钟</span>
+      <span class="badge badge-blue">零成本</span>
+      <span class="badge badge-red">p=73</span>
+    </div>
+  </div>
+</div>
+
+<div class="mission-row">
+  <div class="mission-num d90">6</div>
+  <div>
+    <strong>90天战略复盘</strong>
+    <span class="phase-tag phase-DAY_90">Day 90</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">回顾90天执行结果：验证/推翻的假设、基于数据决定下一步方向。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">120分钟</span>
+      <span class="badge badge-blue">零成本</span>
+      <span class="badge badge-red">p=71</span>
+    </div>
+  </div>
+</div>
+
+<div class="mission-row">
+  <div class="mission-num d90">7</div>
+  <div>
+    <strong>可复制资产盘点</strong>
+    <span class="phase-tag phase-DAY_90">Day 90</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">梳理90天积累的所有可复用资产，制定系统化管理计划。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">90分钟</span>
+      <span class="badge badge-blue">零成本</span>
+      <span class="badge badge-red">p=71</span>
+    </div>
+  </div>
+</div>
+
+<div class="mission-row">
+  <div class="mission-num d90">8</div>
+  <div>
+    <strong>第二收入验证</strong>
+    <span class="phase-tag phase-DAY_90">Day 90</span>
+    <p style="font-size:12px;color:var(--color-text-secondary);margin:4px 0">选已验证的方向，尝试建立持续第二收入。目标不是金额，是证明"可以"。</p>
+    <div class="mission-meta">
+      <span class="badge badge-green">180分钟</span>
+      <span class="badge badge-blue">低成本</span>
+      <span class="badge badge-red">p=69</span>
+    </div>
+  </div>
+</div>
+
+<div class="metric-grid" style="margin-top:16px">
+  <div class="metric">
+    <p class="label">有效期</p>
+    <p class="value" style="font-size:14px;">7d / 30d / 90d</p>
+  </div>
+  <div class="metric">
+    <p class="label">拒绝的任务</p>
+    <p class="value" style="font-size:14px;">11 项</p>
+  </div>
+  <div class="metric">
+    <p class="label">置信度</p>
+    <p class="value" style="font-size:14px;">85 / 100</p>
+  </div>
+</div>
+</div>
+
+<h2>3. Mission 数据结构</h2>
+
+<div class="card">
+<p>每条 Mission 是一个冻结的契约对象，可追踪、可验证、有失败回退。</p>
+
+<table>
+<tr><th style="width:30%">字段</th><th>说明</th><th>示例</th></tr>
+<tr><td><code>missionId</code></td><td>确定性 ID：MSN_D{phase}_{cat4}_{seq}</td><td>MSN_D7_SAFE_01</td></tr>
+<tr><td><code>phase</code></td><td>阶段</td><td>DAY_7 / DAY_30 / DAY_90</td></tr>
+<tr><td><code>category</code></td><td>任务类别 (17种)</td><td>SAFETY_REPAIR / AI_WORKFLOW</td></tr>
+<tr><td><code>title</code></td><td>任务标题</td><td>建立现金流安全垫</td></tr>
+<tr><td><code>instruction</code></td><td>具体执行指引</td><td>盘点7天支出，砍掉至少20%</td></tr>
+<tr><td><code>whyNow</code></td><td>为什么现在必须做</td><td>安全月数仅1个月，高脆弱</td></tr>
+<tr><td><code>strategicPurpose</code></td><td>战略目的</td><td>先修复生存安全</td></tr>
+<tr><td><code>validatesAssumption</code></td><td>验证的假设</td><td>削减支出可改善安全月数</td></tr>
+<tr><td><code>linkedLeverage</code></td><td>关联杠杆</td><td>AI_PRODUCTIVITY</td></tr>
+<tr><td><code>linkedWrongGame</code></td><td>关联错误游戏</td><td>SINGLE_INCOME</td></tr>
+<tr><td><code>estimatedMinutes</code></td><td>预计耗时 [1,1440]</td><td>60</td></tr>
+<tr><td><code>estimatedCostLevel</code></td><td>成本</td><td>NONE / LOW / MEDIUM</td></tr>
+<tr><td><code>riskLevel</code></td><td>风险</td><td>LOW / MEDIUM / HIGH</td></tr>
+<tr><td><code>difficulty</code></td><td>难度</td><td>EASY / MODERATE / HARD</td></tr>
+<tr><td><code>priorityScore</code></td><td>优先级分数 [0-100]</td><td>87</td></tr>
+<tr><td><code>proofOfCompletion</code></td><td>完成证据要求</td><td>["支出削减清单"]</td></tr>
+<tr><td><code>successCriteria</code></td><td>成功标准</td><td>识别3项可削减支出</td></tr>
+<tr><td><code>failureSignals</code></td><td>失败信号</td><td>无法找到可削减支出</td></tr>
+<tr><td><code>fallbackAction</code></td><td>失败回退</td><td>转入第二收入验证</td></tr>
+</table>
+
+<div style="margin-top:16px;padding:12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md)">
+<p style="font-size:12px;color:var(--color-text-secondary);margin:0 0 8px">Mission ID 生成规则（确定性，同输入同输出）：</p>
+<pre style="margin:0"><code>MSN_D{phase}_{category前4字母}_{2位序号}
+
+例：DAY_7 + SAFETY_REPAIR + 01 → MSN_D7_SAFE_01
+例：DAY_30 + AI_WORKFLOW + 01  → MSN_D30_AI_W_01
+例：DAY_90 + REVIEW_AND_DECIDE + 01 → MSN_D90_REVI_01</code></pre>
+</div>
+</div>
+
+<h2>4. 调用链</h2>
+
+<svg viewBox="0 0 680 620" width="100%" role="img">
+  <title>Turnaround OS V6 引擎调用链</title>
+  <desc>Identity → WrongGame → Leverage → Strategy → Projection → Mission(现在) → Action(以后) → Habit(以后) → Review(以后)</desc>
+  
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <g font-family="var(--font-sans)" font-size="13px">
+    
+    <!-- Identity -->
+    <g class="c-purple">
+      <rect x="220" y="20" width="240" height="44" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+      <text x="340" y="36" text-anchor="middle" dominant-baseline="central" font-weight="500" font-size="14px" fill="#3C3489">Identity Engine</text>
+      <text x="340" y="52" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#534AB7">buildIdentity()</text>
+    </g>
+
+    <!-- Arrow Identity → WrongGame -->
+    <line x1="340" y1="64" x2="340" y2="90" stroke="#7F77DD" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- WrongGame -->
+    <g class="c-coral">
+      <rect x="220" y="92" width="240" height="44" rx="8" fill="#FAECE7" stroke="#D85A30" stroke-width="0.5"/>
+      <text x="340" y="108" text-anchor="middle" dominant-baseline="central" font-weight="500" font-size="14px" fill="#993C1D">WrongGame Engine</text>
+      <text x="340" y="124" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#D85A30">detectWrongGame()</text>
+    </g>
+
+    <!-- Arrow WrongGame → Leverage -->
+    <line x1="340" y1="136" x2="340" y2="162" stroke="#D85A30" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Leverage -->
+    <g class="c-amber">
+      <rect x="220" y="164" width="240" height="44" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.5"/>
+      <text x="340" y="180" text-anchor="middle" dominant-baseline="central" font-weight="500" font-size="14px" fill="#854F0B">Leverage Engine</text>
+      <text x="340" y="196" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#BA7517">determineLeverage()</text>
+    </g>
+
+    <!-- Arrows: Leverage → Strategy + Leverage side branch to Projection -->
+    <line x1="340" y1="208" x2="340" y2="240" stroke="#BA7517" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Strategy -->
+    <g class="c-blue">
+      <rect x="160" y="242" width="360" height="56" rx="8" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+      <text x="340" y="258" text-anchor="middle" dominant-baseline="central" font-weight="500" font-size="14px" fill="#185FA5">Turnaround Strategy Engine</text>
+      <text x="340" y="274" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#378ADD">generateStrategy() 统一事实源</text>
+      <text x="340" y="288" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#378ADD">aggregates identity + wrongGame + leverage</text>
+    </g>
+
+    <!-- Arrow Strategy → Projection -->
+    <line x1="340" y1="298" x2="340" y2="330" stroke="#378ADD" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Projection -->
+    <g class="c-green">
+      <rect x="160" y="332" width="360" height="56" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+      <text x="340" y="348" text-anchor="middle" dominant-baseline="central" font-weight="500" font-size="14px" fill="#3B6D11">Destiny Projection Engine</text>
+      <text x="340" y="364" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#639922">projectDestiny()  World A vs World B</text>
+      <text x="340" y="380" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#639922">decision nodes + comparison + limiting factors</text>
+    </g>
+
+    <!-- Arrow Projection → Mission -->
+    <line x1="340" y1="388" x2="340" y2="420" stroke="#639922" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Mission NOW highlight -->
+    <g class="c-teal">
+      <rect x="120" y="422" width="440" height="64" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1.5"/>
+      <rect x="118" y="420" width="444" height="68" rx="11" fill="none" stroke="#0F6E56" stroke-width="1" stroke-dasharray="4 2"/>
+      <text x="340" y="442" text-anchor="middle" dominant-baseline="central" font-weight="500" font-size="15px" fill="#085041">Mission Engine  （CHECKPOINT 4B  当前）</text>
+      <text x="340" y="460" text-anchor="middle" dominant-baseline="central" font-size="12px" fill="#0F6E56">generateMissionPlan({ profile, strategy, projection })</text>
+      <text x="340" y="476" text-anchor="middle" dominant-baseline="central" font-size="11px" fill="#1D9E75">消费上游事实 不重新推导 7d / 30d / 90d + 十维度优先级评分</text>
+    </g>
+
+    <!-- Arrow Mission → Action -->
+    <line x1="340" y1="486" x2="340" y2="516" stroke="#0F6E56" stroke-width="1" stroke-dasharray="6 3" marker-end="url(#arr)"/>
+
+    <!-- Action (future) -->
+    <g class="c-gray">
+      <rect x="220" y="518" width="240" height="32" rx="8" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+      <text x="340" y="534" text-anchor="middle" dominant-baseline="central" font-size="13px" fill="#5F5E5A">Action Engine（以后）</text>
+    </g>
+
+    <!-- Arrow Action → Habit -->
+    <line x1="340" y1="550" x2="340" y2="570" stroke="#888780" stroke-width="1" stroke-dasharray="6 3" marker-end="url(#arr)"/>
+
+    <!-- Habit (future) -->
+    <g class="c-gray">
+      <rect x="220" y="572" width="240" height="32" rx="8" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+      <text x="340" y="588" text-anchor="middle" dominant-baseline="central" font-size="13px" fill="#5F5E5A">Habit Engine（以后）</text>
+    </g>
+
+    <!-- Arrow Habit → Review -->
+    <line x1="340" y1="604" x2="340" y2="620" stroke="#888780" stroke-width="0" marker-end="url(#arr)"/>
+
+    <!-- Three inputs from Strategy/Projection → Mission (side connections) -->
+    <rect x="556" y="340" width="90" height="20" rx="4" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+    <text x="601" y="350" text-anchor="middle" dominant-baseline="central" font-size="10px" fill="#185FA5">profile</text>
+
+    <rect x="556" y="368" width="90" height="20" rx="4" fill="#E6F1FB" stroke="#378ADD" stroke-width="0.5"/>
+    <text x="601" y="378" text-anchor="middle" dominant-baseline="central" font-size="10px" fill="#185FA5">strategy</text>
+
+    <rect x="556" y="396" width="90" height="20" rx="4" fill="#EAF3DE" stroke="#639922" stroke-width="0.5"/>
+    <text x="601" y="406" text-anchor="middle" dominant-baseline="central" font-size="10px" fill="#3B6D11">projection</text>
+
+    <line x1="556" y1="350" x2="520" y2="444" stroke="#378ADD" stroke-width="0.5" marker-end="url(#arr)"/>
+    <line x1="556" y1="378" x2="520" y2="454" stroke="#378ADD" stroke-width="0.5" marker-end="url(#arr)"/>
+    <line x1="556" y1="406" x2="520" y2="464" stroke="#639922" stroke-width="0.5" marker-end="url(#arr)"/>
+
+    <!-- 禁止规则标签 -->
+    <text x="160" y="228" font-size="10px" fill="#E24B4A">禁止：Mission 调用上游 Engine</text>
+
+    <!-- WIP section label -->
+    <text x="400" y="520" font-size="10px" fill="#888780" transform="rotate(-90 400 520)" text-anchor="start">WORK IN PROGRESS</text>
+  </g>
+</svg>
+
+</div>

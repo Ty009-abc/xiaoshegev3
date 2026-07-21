@@ -27,6 +27,8 @@ const { determineLeverage } = require('./engines/leverageEngineV6')
 const { generateStrategy } = require('./engines/turnaroundEngineV6')
 const { explain, explainTrend, explainBatch, explainComparison, explainDecisionNode } = require('./engines/whyEngineV6')
 const { projectDestiny } = require('./engines/destinyProjectionEngineV6')
+const { generateMissionPlan } = require('./engines/missionEngineV6')
+const { scoreMissionPriority } = require('./engines/missionPrioritizerV6')
 
 // Simulators
 const { simulateWorldA } = require('./simulators/worldASimulator')
@@ -63,6 +65,8 @@ module.exports = {
     determineLeverage,
     generateStrategy,
     projectDestiny,
+    generateMissionPlan,
+    scoreMissionPriority,
     why: { explain, explainTrend, explainBatch, explainComparison, explainDecisionNode },
   },
   simulators: {
