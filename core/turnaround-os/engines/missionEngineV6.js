@@ -42,7 +42,7 @@ const {
   normalizeMissionId,
 } = require('../contracts/missionPlanContractV6')
 
-const { createMission } = require('../schemas/missionContractV6')
+const { createMission, createFallback, FALLBACK_TYPES } = require('../schemas/missionContractV6')
 const { scoreMissionPriority } = require('./missionPrioritizerV6')
 
 const CAT = MISSION_CATEGORIES_V6
@@ -63,6 +63,10 @@ const ALL_CATEGORIES = Object.values(CAT)
  */
 function generateMissionPlan({ profile, strategy, projection } = {}) {
   const plan = createMissionPlan()
+
+  // 0. 引擎与 schema 版本
+  plan.engineVersion = '6.0.0'
+  plan.schemaVersion = 'mission-plan/1.0'
 
   // 1. 主题
   plan.missionTheme = buildTheme(strategy, profile)
@@ -273,7 +277,7 @@ function buildDay7Missions(missions, profile, strategy, lever, game, stage, phas
       proofOfCompletion: ['支出削减清单', '确认削减的支出项'],
       successCriteria: ['识别至少3项可削减支出', '至少执行2项削减'],
       failureSignals: ['无法找到可削减支出', '削减后仍无法改善安全月数'],
-      fallbackAction: '如果无法削减支出，立即转入第二收入验证模式',
+      fallback: createFallback({ type: FALLBACK_TYPES.ALTERNATE_MISSION, trigger: "无法找到可削减支出", targetCategory: CAT.SECOND_INCOME_TEST, instruction: "如果无法削减支出，说明当前支出已经是最低水平，转向探索低门槛的第二收入渠道作为补救方案。不要盲目投入资金或借债，从零成本的方式开始。" }),
       nextMissionIds: [],
     }))
   }
@@ -302,7 +306,7 @@ function buildDay7Missions(missions, profile, strategy, lever, game, stage, phas
     proofOfCompletion: ['时间记录表', '优化建议清单'],
     successCriteria: ['完成至少5天的时间记录', '找到至少3个可优化时间段'],
     failureSignals: ['无法坚持记录', '发现时间已极度紧张无法再优化'],
-    fallbackAction: '如果时间已极度紧张，转入低时间消耗的任务生成模式',
+    fallback: createFallback({ type: FALLBACK_TYPES.ALTERNATE_MISSION, trigger: "时间已极度紧张无法再优化", targetCategory: CAT.AI_WORKFLOW, instruction: "时间已极度紧张，转向低时间消耗任务：优先用AI工具自动化现有工作流程来释放时间" }),
     nextMissionIds: [],
   }))
 
@@ -329,7 +333,7 @@ function buildDay7Missions(missions, profile, strategy, lever, game, stage, phas
     proofOfCompletion: ['技能清单', '变现可行性分析'],
     successCriteria: ['列出至少5项技能', '对至少3项技能给出变现路径'],
     failureSignals: ['自我评估过于保守', '无法识别可迁移技能'],
-    fallbackAction: '如果确实感觉无可变现技能，从最想学的技能开始',
+    fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "无法识别可迁移技能", instruction: "从最想学的技能开始，制定学习计划，在30天后重新评估技能变现可能性" }),
     nextMissionIds: [],
   }))
 
@@ -368,7 +372,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['工作流截图/链接', '使用前后时间对比'],
       successCriteria: ['至少一个重复任务由AI覆盖50%以上', '每周节省至少1小时'],
       failureSignals: ['选择的AI工具无法适配工作场景', '学习成本超过节省的时间'],
-      fallbackAction: '切换AI工具或简化任务范围',
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "AI工具无法适配工作场景", instruction: "切换AI工具或简化任务范围，从最简单的任务开始重新尝试" }),
       nextMissionIds: [],
     }))
   }
@@ -396,7 +400,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['内容链接', '发布时间记录', '互动数据'],
       successCriteria: ['发布至少4篇内容', '获得至少20次有效互动'],
       failureSignals: ['发布后零互动', '无法坚持每周产出'],
-      fallbackAction: '降低内容频率，聚焦质量；分析高互动内容类型',
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "发布后零互动", instruction: "降低内容频率，聚焦质量；分析高互动内容类型并迭代" }),
       nextMissionIds: [],
     }))
 
@@ -422,7 +426,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['各平台数据截图', '渠道选择分析'],
       successCriteria: ['测试至少2个平台', '选定一个主渠道'],
       failureSignals: ['所有平台表现一致差', '无法获得有效数据'],
-      fallbackAction: '如果平台表现一致差，重新审视内容质量和定位',
+      fallback: createFallback({ type: FALLBACK_TYPES.REASSESS, trigger: "所有平台表现一致差", instruction: "重新审视内容质量和定位，必要时调整目标受众或内容方向" }),
       nextMissionIds: [],
     }))
   }
@@ -450,7 +454,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['沟通记录', '成交/拒绝记录', '话术迭代记录'],
       successCriteria: ['主动联系至少3人', '至少1笔成交或获得明确付费意向'],
       failureSignals: ['所有联系人均拒绝', '无法找到潜在客户'],
-      fallbackAction: '如果无法直接成交，先做免费服务/咨询来建立信任',
+      fallback: createFallback({ type: FALLBACK_TYPES.ALTERNATE_MISSION, trigger: "无法直接成交", targetCategory: CAT.VALUE_PROPOSITION, instruction: "先做免费服务或咨询来建立信任和用户关系，延迟直接成交直到有足够信任基础" }),
       nextMissionIds: [],
     }))
   }
@@ -478,7 +482,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['产品设计文档', '产品画布'],
       successCriteria: ['明确目标用户画像', '明确定价策略', '明确交付方式'],
       failureSignals: ['无法找到差异化定位', '目标用户过于宽泛'],
-      fallbackAction: '缩小产品范围，从一个非常具体的痛点开始',
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "无法找到差异化定位", instruction: "缩小产品范围，从一个非常具体的痛点开始，重新定义产品范围" }),
       nextMissionIds: [],
     }))
   }
@@ -506,7 +510,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['SOP文档', '检查清单'],
       successCriteria: ['SOP覆盖服务全流程', '非本人可按SOP理解60%以上'],
       failureSignals: ['服务本身过于定制化无法标准', 'SOP过于复杂无人能执行'],
-      fallbackAction: '从服务中最重复的环节开始标准化，而不是整个服务',
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "服务过于定制化无法标准", instruction: "从服务中最重复的环节开始标准化，而不是整个服务" }),
       nextMissionIds: [],
     }))
   }
@@ -534,7 +538,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['自动化流程截图', '时间节省对比'],
       successCriteria: ['至少一个流程被自动化', '节省至少30%时间'],
       failureSignals: ['自动化工具过于复杂', '流程本身不适合自动化'],
-      fallbackAction: '选择更简单的流程开始，或寻求技术帮助',
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "自动化工具过于复杂", instruction: "选择更简单的流程开始，或寻求技术帮助降低实现难度" }),
       nextMissionIds: [],
     }))
   }
@@ -562,7 +566,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
     proofOfCompletion: ['价值主张文档', '客户画像'],
     successCriteria: ['价值主张明确具体', '能用一个具体场景说明'],
     failureSignals: ['价值主张过于宽泛无法区分', '与竞争对手无差异'],
-    fallbackAction: '缩小目标客户范围，聚焦到一个非常具体的场景',
+    fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "价值主张过于宽泛无法区分", instruction: "缩小目标客户范围，聚焦到一个非常具体的场景重新提炼" }),
     nextMissionIds: [],
   }))
 
@@ -591,7 +595,7 @@ function buildDay30Missions(missions, profile, strategy, lever, game, stage, pha
       proofOfCompletion: ['访谈记录', '需求洞察总结'],
       successCriteria: ['完成至少3次访谈', '总结出至少3个关键需求'],
       failureSignals: ['无法找到目标客户访谈', '访谈结果与假设完全相反'],
-      fallbackAction: '如果完全找不到客户，说明目标客户定义有问题，需要重新定义',
+      fallback: createFallback({ type: FALLBACK_TYPES.REASSESS, trigger: "无法找到目标客户", instruction: "目标客户定义有问题，需要重新定义目标受众并调整研究方法" }),
       nextMissionIds: [],
     }))
   }
@@ -641,7 +645,7 @@ function buildDay90Missions(ctx) {
     proofOfCompletion: ["复盘报告", "调整方案"],
     successCriteria: ["完整复盘所有任务执行情况", "基于数据做出方向决策"],
     failureSignals: ["90天内执行率低于50%", "无法从数据中提取有效结论"],
-    fallbackAction: "如果执行率低，先分析执行障碍再做方向决策",
+    fallback: createFallback({ type: FALLBACK_TYPES.REASSESS, trigger: "执行率低于50%", instruction: "先分析执行障碍（时间/精力/动力/方向），再做方向决策" }),
     nextMissionIds: []
   }));
 
@@ -670,7 +674,7 @@ function buildDay90Missions(ctx) {
       proofOfCompletion: ["SOP文档集", "流程图", "检查清单集"],
       successCriteria: ["覆盖至少3个核心流程", "非本人可执行所有流程"],
       failureSignals: ["流程本身变化太快无法固化", "文档过于复杂"],
-      fallbackAction: "从最重要的1-2个流程开始，逐步扩展",
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "流程变化太快无法固化", instruction: "从最重要的1-2个流程开始，逐步扩展，等待流程稳定后再固化更多" }),
       nextMissionIds: []
     }));
   }
@@ -698,7 +702,7 @@ function buildDay90Missions(ctx) {
     proofOfCompletion: ["资产清单", "管理计划"],
     successCriteria: ["盘点至少5项可复用资产", "制定资产复用计划"],
     failureSignals: ["90天内未积累可复用资产"],
-    fallbackAction: "如果资产为零，说明需要调整策略——优先积累可复用的产出",
+    fallback: createFallback({ type: FALLBACK_TYPES.REASSESS, trigger: "90天内未积累可复用资产", instruction: "说明需要调整策略，优先积累可复用的产出而不是一次性任务" }),
     nextMissionIds: []
   }));
 
@@ -727,7 +731,7 @@ function buildDay90Missions(ctx) {
       proofOfCompletion: ["收入计划", "收入记录"],
       successCriteria: ["制定清晰的第二收入计划", "执行至少一次收入尝试"],
       failureSignals: ["尝试后无任何收入", "找不到可行的方向"],
-      fallbackAction: "从最低门槛的副业开始，不追求收入金额先追求验证",
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "尝试后无任何收入", instruction: "从最低门槛的副业开始，不追求收入金额先追求验证" }),
       nextMissionIds: []
     }));
   }
@@ -757,7 +761,7 @@ function buildDay90Missions(ctx) {
       proofOfCompletion: ["委托记录", "改进方案"],
       successCriteria: ["完成至少一次委托", "记录委托问题和改进"],
       failureSignals: ["SOP不够清晰导致委托失败", "找不到合适的人委托"],
-      fallbackAction: "如果委托失败，先优化SOP质量",
+      fallback: createFallback({ type: FALLBACK_TYPES.RETRY, trigger: "SOP不够清晰导致委托失败", instruction: "先优化SOP质量，补充更多细节和检查清单，然后重新委托" }),
       nextMissionIds: []
     }));
   }

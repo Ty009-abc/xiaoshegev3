@@ -18,6 +18,8 @@ const {
   DIFFICULTY_LEVELS,
 } = require('../constants')
 
+const { FALLBACK_TYPES } = require('../schemas/missionContractV6')
+
 const CATEGORIES = Object.values(MISSION_CATEGORIES_V6)
 const COSTS = Object.values(COST_LEVELS)
 const RISKS = Object.values(RISK_LEVELS)
@@ -84,6 +86,30 @@ function validateMissionContractV6(mission) {
 
   // 无 undefined / null 字段
   checkUndefinedOrNull(mission, '', errors)
+
+  // fallback 校验
+  if (mission.fallback && typeof mission.fallback === 'object') {
+    var f = mission.fallback
+    if (!f.type || !Object.values(FALLBACK_TYPES).includes(f.type)) {
+      errors.push('fallback.type 非法: ' + (f.type || 'empty'))
+    }
+    if (typeof f.instruction !== 'string' || f.instruction.trim() === '') {
+      warnings.push('fallback.instruction 为空')
+    }
+    if (f.type === FALLBACK_TYPES.ALTERNATE_MISSION && !f.targetMissionId && !f.targetCategory) {
+      warnings.push('ALTERNATE_MISSION fallback 缺少 targetMissionId 或 targetCategory')
+    }
+  } else if (mission.fallback) {
+    warnings.push('fallback 应为对象而非字符串（旧版兼容）')
+  }
+
+  // 禁止运行态字段
+  var runtimeFields = ['status', 'progress', 'completedAt', 'startedAt', 'actualMinutes', 'executionLog']
+  for (var i = 0; i < runtimeFields.length; i++) {
+    if (mission[runtimeFields[i]] !== undefined) {
+      errors.push('MissionDefinition 不应包含运行态字段: ' + runtimeFields[i])
+    }
+  }
 
   // title 非空
   if (!mission.title || mission.title.trim() === '') {
@@ -187,28 +213,77 @@ function validateMissionPlanContractV6(plan) {
 
   // 拒绝额外顶层字段
   const ALLOWED_KEYS = [
-    'version', 'missionTheme', 'planPrinciples', 'day7', 'day30', 'day90',
-    'weeklyRhythm', 'strategicMetrics', 'dependencies', 'rejectedMissions',
-    'assumptions', 'limitations', 'confidence', 'evidence',
+    'version', 'engineVersion', 'schemaVersion', 'missionTheme', 'planPrinciples',
+    'day7', 'day30', 'day90', 'weeklyRhythm', 'strategicMetrics',
+    'dependencies', 'rejectedMissions', 'assumptions', 'limitations',
+    'confidence', 'evidence',
   ]
   for (const key of Object.keys(plan)) {
     if (!ALLOWED_KEYS.includes(key)) {
-      errors.push(`不允许的字段: ${key}`)
+      errors.push('不允许的字段: ' + key)
     }
   }
+
+  // fallback 循环依赖检测
+  var allMsns = collectAllMissions(plan)
+  checkFallbackCycles(allMsns, errors)
 
   return { valid: errors.length === 0, errors, warnings }
 }
 
+function collectAllMissions(plan) {
+  var result = []
+  for (var i = 0; i < (plan.day7 && plan.day7.missions ? plan.day7.missions.length : 0); i++) {
+    result.push(plan.day7.missions[i])
+  }
+  for (var i = 0; i < (plan.day30 && plan.day30.missions ? plan.day30.missions.length : 0); i++) {
+    result.push(plan.day30.missions[i])
+  }
+  for (var i = 0; i < (plan.day90 && plan.day90.missions ? plan.day90.missions.length : 0); i++) {
+    result.push(plan.day90.missions[i])
+  }
+  return result
+}
+
+function checkFallbackCycles(missions, errors) {
+  var idSet = {}
+  for (var i = 0; i < missions.length; i++) {
+    idSet[missions[i].missionId] = true
+  }
+  for (var i = 0; i < missions.length; i++) {
+    var m = missions[i]
+    var fb = m.fallback
+    if (fb && fb.type && fb.targetMissionId) {
+      if (!idSet[fb.targetMissionId]) {
+        errors.push('fallback 目标 missionId 不存在: ' + fb.targetMissionId)
+      }
+      if (fb.targetMissionId === m.missionId) {
+        errors.push('fallback 不能指向自身: ' + m.missionId)
+      }
+      // 简单可达性检测（避免直接循环）
+      var targetMsn = null
+      for (var j = 0; j < missions.length; j++) {
+        if (missions[j].missionId === fb.targetMissionId) { targetMsn = missions[j]; break }
+      }
+      if (targetMsn && targetMsn.fallback && targetMsn.fallback.targetMissionId === m.missionId) {
+        errors.push('fallback 循环依赖: ' + m.missionId + ' <-> ' + fb.targetMissionId)
+      }
+    }
+  }
+}
+
 function checkUndefinedOrNull(obj, path, errors) {
+  // Skip null for optional fallback fields (targetMissionId/targetCategory)
+  var isFallbackOptional = path.indexOf('fallback.targetMissionId') >= 0 || path.indexOf('fallback.targetCategory') >= 0
   if (obj === undefined) {
-    errors.push(`${path} 为 undefined`)
+    errors.push(path + ' 为 undefined')
     return
   }
-  if (obj === null) {
-    errors.push(`${path} 为 null`)
+  if (obj === null && !isFallbackOptional) {
+    errors.push(path + ' 为 null')
     return
   }
+  if (obj === null) return  // skip null for fallback optional fields
   if (Array.isArray(obj)) {
     for (let i = 0; i < obj.length; i++) {
       checkUndefinedOrNull(obj[i], `${path}[${i}]`, errors)

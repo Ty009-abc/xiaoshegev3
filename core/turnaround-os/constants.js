@@ -222,6 +222,30 @@ const MISSION_CATEGORY_LABELS_V6 = {
 }
 
 // ═══════════════════════════════════════
+// Mission Category → 4-char 固定编码
+// ═══════════════════════════════════════
+
+const MISSION_CATEGORY_CODES = {
+  SAFETY_REPAIR: 'SAFE',
+  TIME_AUDIT: 'TIME',
+  SKILL_INVENTORY: 'SKIL',
+  CUSTOMER_RESEARCH: 'CUST',
+  VALUE_PROPOSITION: 'VALU',
+  MINIMUM_OFFER: 'MINI',
+  DISTRIBUTION_TEST: 'DIST',
+  SALES_VALIDATION: 'SALE',
+  CONTENT_SYSTEM: 'CONT',
+  SERVICE_PRODUCTIZATION: 'SERV',
+  AI_WORKFLOW: 'AIWF',
+  AUTOMATION_BUILD: 'AUTO',
+  SOP_BUILD: 'SOPB',
+  DELEGATION_TEST: 'DELE',
+  ASSET_BUILD: 'ASSE',
+  SECOND_INCOME_TEST: 'SECO',
+  REVIEW_AND_DECIDE: 'REVI',
+}
+
+// ═══════════════════════════════════════
 // Mission 成本/风险/难度级别
 // ═══════════════════════════════════════
 
@@ -299,6 +323,7 @@ module.exports = {
   MISSION_PHASE_LABELS,
   MISSION_CATEGORIES_V6,
   MISSION_CATEGORY_LABELS_V6,
+  MISSION_CATEGORY_CODES,
   COST_LEVELS,
   RISK_LEVELS,
   DIFFICULTY_LEVELS,
