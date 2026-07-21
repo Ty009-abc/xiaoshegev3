@@ -52,13 +52,13 @@ function scoreMissionPriority({ mission, profile, strategy, projection }) {
   // 时间适配
   const timeFit = scoreTimeFit(profile, mission, hasFamily, readiness, ruleHits)
   // 依赖就绪
-  const dependencyReadiness = scoreDependencyReadiness(mission, capsule, ruleHits)
+  const dependencyReadiness = scoreDependencyReadiness(mission, caps, ruleHits)
   // 杠杆匹配
   const leverageFit = scoreLeverageFit(mission, strategy, ruleHits)
   // 推演影响
   const projectionImpact = scoreProjectionImpact(mission, projection, ruleHits)
   // 用户能力匹配
-  const userCapabilityFit = scoreUserCapabilityFit(mission, capsule, ruleHits)
+  const userCapabilityFit = scoreUserCapabilityFit(mission, caps, ruleHits)
 
   const dimensions = [
     safetyImportance, strategicImportance, proofSpeed, reversibility, costFit,
