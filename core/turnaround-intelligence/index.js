@@ -209,6 +209,36 @@ function runEmotionRenderer(ctx) {
 }
 
 // ═══════════════════════════════════════
+// CP6-F: Report Experience System (RES) — 体验层
+// ═══════════════════════════════════════
+
+const cardBuilder = require('./composers/cardBuilder')
+const reportComposer = require('./composers/reportComposer')
+const experienceBuilder = require('./composers/experienceBuilder')
+
+const experienceContracts = {
+  heroCard: require('./contracts/experience/heroCard'),
+  insightCard: require('./contracts/experience/insightCard'),
+  potentialCard: require('./contracts/experience/potentialCard'),
+  strategyCard: require('./contracts/experience/strategyCard'),
+  timelineCard: require('./contracts/experience/timelineCard'),
+  actionCard: require('./contracts/experience/actionCard'),
+  evidenceDrawer: require('./contracts/experience/evidenceDrawer'),
+  reportComposer: require('./contracts/experience/reportComposer'),
+}
+
+function runCardBuilder(ctx) {
+  if (!ctx.action) ctx = runActionRenderer(ctx)
+  return context.updateContext(ctx, 'CardBuilder',
+    { cards: cardBuilder.buildCards(ctx) }, 'cards_built')
+}
+function runReportComposer(ctx) {
+  if (!ctx.cards) ctx = runCardBuilder(ctx)
+  return context.updateContext(ctx, 'ReportComposer',
+    { report: reportComposer.compose(ctx) }, 'report_composed')
+}
+
+// ═══════════════════════════════════════
 // Exports
 // ═══════════════════════════════════════
 
@@ -218,6 +248,7 @@ module.exports = {
   pattern, risk, leverage, conflict, opportunity, coreContradiction,
   decision, roadmap, feasibility, bottleneck, milestone,
   narrative: narrativeContracts,
+  experience: experienceContracts,
 
   // Builders
   normalizer: { normalize, extractAnswerSummary, validateNormalized },
@@ -246,4 +277,5 @@ module.exports = {
   runVerdictRenderer, runRealityGapRenderer, runPotentialRenderer,
   runStrategyRenderer, runTimelineRenderer, runActionRenderer,
   runConsistencyChecker, runEmotionRenderer,
+  runCardBuilder, runReportComposer,
 }
