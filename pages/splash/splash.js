@@ -11,7 +11,7 @@ Page({
       backgroundColor: '#0d0b1d'
     })
     // 2.5s 后判断跳转（延长等待确保 App 完全初始化）
-    setTimeout(() => {
+    this._splashTimer = setTimeout(() => {
       const hasOnboarded = wx.getStorageSync('onboarded')
       if (hasOnboarded) {
         // home 是 tabBar 页，必须用 switchTab
@@ -24,5 +24,8 @@ Page({
         wx.reLaunch({ url: '/pages/onboarding/onboarding' })
       }
     }, 2500)
+  },
+  onUnload() {
+    if (this._splashTimer) { clearTimeout(this._splashTimer); this._splashTimer = null }
   },
 })

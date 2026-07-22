@@ -100,7 +100,7 @@ Page({
 
       if (verifyRes.code === 0 && verifyRes.data && verifyRes.data.status === 'paid') {
         wx.showToast({ title: '解锁成功！', icon: 'success' })
-        setTimeout(() => { wx.navigateBack() }, 800)
+        this._navTimer = setTimeout(() => { wx.navigateBack() }, 800)
       } else {
         wx.showToast({ title: '支付确认中，请稍后重试', icon: 'none' })
       }
@@ -119,6 +119,9 @@ Page({
 
   onBack() {
     wx.navigateBack()
+  },
+  onUnload() {
+    if (this._navTimer) { clearTimeout(this._navTimer); this._navTimer = null }
   },
   onCancelUnlock() {
     if (this.data.paying) return
