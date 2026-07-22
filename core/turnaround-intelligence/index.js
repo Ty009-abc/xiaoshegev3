@@ -32,6 +32,18 @@ const { createCognitiveInput, validateCognitiveInput } = require('./selectors/co
 const { run: runProfileEngine } = require('./engines/profileEngine')
 const { run: runCognitiveEngine } = require('./engines/cognitiveEngine')
 
+// Contracts (CP6-C)
+const risk = require('./contracts/risk')
+const leverage = require('./contracts/leverage')
+
+// Selectors (CP6-C)
+const { createRiskInput, validateRiskInput } = require('./selectors/riskInput')
+const { createLeverageInput, validateLeverageInput } = require('./selectors/leverageInput')
+
+// Engines (CP6-C)
+const { run: runRiskEngine } = require('./engines/riskEngine')
+const { run: runLeverageEngine } = require('./engines/leverageEngine')
+
 // ═══════════════════════════════════════
 // Pipeline: answers → Context
 // ═══════════════════════════════════════
@@ -80,6 +92,24 @@ function runCognitiveStep(ctx) {
   return context.updateContext(ctx, 'CognitiveEngine', { cognitive: cognitiveOutput }, 'cognitive')
 }
 
+/**
+ * runRiskStep — Risk Engine
+ */
+function runRiskStep(ctx) {
+  const input = createRiskInput(ctx)
+  const riskOutput = runRiskEngine(input)
+  return context.updateContext(ctx, 'RiskEngine', { risk: riskOutput }, 'risk_analyzed')
+}
+
+/**
+ * runLeverageStep — Leverage Engine
+ */
+function runLeverageStep(ctx) {
+  const input = createLeverageInput(ctx)
+  const leverageOutput = runLeverageEngine(input)
+  return context.updateContext(ctx, 'LeverageEngine', { leverage: leverageOutput }, 'leverage_analyzed')
+}
+
 module.exports = {
   // Contracts
   tags,
@@ -88,6 +118,8 @@ module.exports = {
   verdict,
   profile,
   cognitive,
+  risk,
+  leverage,
 
   // Builders
   normalizer: { normalize, extractAnswerSummary, validateNormalized },
@@ -102,12 +134,18 @@ module.exports = {
     validateProfileInput,
     createCognitiveInput,
     validateCognitiveInput,
+    createRiskInput,
+    validateRiskInput,
+    createLeverageInput,
+    validateLeverageInput,
   },
 
   // Engines
   engines: {
     profile: runProfileEngine,
     cognitive: runCognitiveEngine,
+    risk: runRiskEngine,
+    leverage: runLeverageEngine,
   },
 
   // Pipeline
@@ -115,4 +153,6 @@ module.exports = {
   runPatternStep,
   runProfileStep,
   runCognitiveStep,
+  runRiskStep,
+  runLeverageStep,
 }

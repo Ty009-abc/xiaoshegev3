@@ -47,7 +47,7 @@ const KEYWORD_TAG_MAP = [
   { keywords: ['高薪', '高收入', '月入', '年薪', '工资高', '收入不错', '收入高'], tag: WEALTH_TAGS.HIGH_INCOME, weight: 0.78 },
   { keywords: ['没钱', '缺钱', '工资低', '收入低', '勉强', '仅够', '不够用'], tag: WEALTH_TAGS.LOW_INCOME, weight: 0.82 },
   { keywords: ['只有一份', '一份工作', '一个收入', '单一', '一个来源'], tag: WEALTH_TAGS.SINGLE_INCOME, weight: 0.85 },
-  { keywords: ['副业', '第二收入', '多个', '多个来源', '额外收入', '兼职'], tag: WEALTH_TAGS.MULTI_INCOME, weight: 0.78 },
+  { keywords: ['副业收入', '第二收入', '多个收入', '多个来源', '额外收入', '兼职收入'], tag: WEALTH_TAGS.MULTI_INCOME, weight: 0.78, direction: 'positive' },
   { keywords: ['没存款', '没有资产', '空手', '零', '月光', '无积蓄'], tag: WEALTH_TAGS.NO_ASSET, weight: 0.82 },
   { keywords: ['有存款', '有房', '有车', '资产', '积蓄', '储蓄', '投资'], tag: WEALTH_TAGS.HAS_ASSET, weight: 0.75 },
   { keywords: ['负债', '欠', '借', '贷款', '信用卡', '花呗', '还钱'], tag: WEALTH_TAGS.DEBT_PRESSURE, weight: 0.88 },
