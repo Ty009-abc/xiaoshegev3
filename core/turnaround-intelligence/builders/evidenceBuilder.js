@@ -39,21 +39,21 @@ const KEYWORD_TAG_MAP = [
   { keywords: ['买', '消费', '花钱', '购物', '剁手', '想要', '忍不住买'], tag: BEHAVIOR_TAGS.CONSUMPTION_PATTERN, weight: 0.72 },
   { keywords: ['长期', '未来', '几年', '三年', '五年', '持续', '积累'], tag: BEHAVIOR_TAGS.LONG_TERM_ORIENTED, weight: 0.70 },
   { keywords: ['短期', '当下', '眼前', '先', '目前', '现在'], tag: BEHAVIOR_TAGS.SHORT_TERM_ORIENTED, weight: 0.68 },
-  { keywords: ['三天打鱼', '坚持不下去', '断断续', '中断', '停', '放弃', '做不下去', '不想做'], tag: BEHAVIOR_TAGS.INCONSISTENCY, weight: 0.83 },
+  { keywords: ['三天打鱼', '坚持不下去', '断断续', '中断', '停', '放弃', '做不下去', '不想做', '换方向', '经常换', '坚持不了', '不到三个'], tag: BEHAVIOR_TAGS.INCONSISTENCY, weight: 0.83 },
   { keywords: ['执行力不足', '执行力弱', '行动力弱', '动手太慢', '做不下去'], tag: BEHAVIOR_TAGS.EXECUTION_WEAK, weight: 0.78, importance: 0.90, direction: 'negative' },
   { keywords: ['执行力强', '做得快', '效率高', '执行力高', '效率很高'], tag: BEHAVIOR_TAGS.EXECUTION_STRONG, weight: 0.78, importance: 0.90, direction: 'positive' },
 
   // --- 财富 ---
   { keywords: ['高薪', '高收入', '月入', '年薪', '工资高', '收入不错', '收入高'], tag: WEALTH_TAGS.HIGH_INCOME, weight: 0.78 },
   { keywords: ['没钱', '缺钱', '工资低', '收入低', '勉强', '仅够', '不够用'], tag: WEALTH_TAGS.LOW_INCOME, weight: 0.82 },
-  { keywords: ['只有一份', '一份工作', '一个收入', '单一', '一个来源'], tag: WEALTH_TAGS.SINGLE_INCOME, weight: 0.85 },
+  { keywords: ['只有一份', '一份工作', '一个收入', '单一', '一个来源', '只有这', '只有一份', '没有副业', '没有第二'], tag: WEALTH_TAGS.SINGLE_INCOME, weight: 0.85 },
   { keywords: ['副业收入', '第二收入', '多个收入', '多个来源', '额外收入', '兼职收入'], tag: WEALTH_TAGS.MULTI_INCOME, weight: 0.78, direction: 'positive' },
   { keywords: ['没存款', '没有资产', '空手', '零', '月光', '无积蓄'], tag: WEALTH_TAGS.NO_ASSET, weight: 0.82 },
   { keywords: ['有存款', '有房', '有车', '资产', '积蓄', '储蓄', '投资'], tag: WEALTH_TAGS.HAS_ASSET, weight: 0.75 },
   { keywords: ['负债', '欠', '借', '贷款', '信用卡', '花呗', '还钱'], tag: WEALTH_TAGS.DEBT_PRESSURE, weight: 0.88 },
   { keywords: ['存款够', '有缓冲', '不慌', '够用', '安全垫'], tag: WEALTH_TAGS.FINANCIAL_BUFFER, weight: 0.72 },
   { keywords: ['收入不稳定', '收入波动', '时有时无', '收入不稳', '收入不稳定'], tag: WEALTH_TAGS.INCOME_UNSTABLE, weight: 0.82 },
-  { keywords: ['收入稳定', '固定收入', '稳定收入', '铁饭碗'], tag: WEALTH_TAGS.INCOME_STABLE, weight: 0.75 },
+  { keywords: ['收入稳定', '固定收入', '稳定收入', '铁饭碗', '稳定工作', '公务员'], tag: WEALTH_TAGS.INCOME_STABLE, weight: 0.78 },
 
   // --- 心理 ---
   { keywords: ['怕', '担心', '不敢', '害怕', '风险', '万一'], tag: PSYCHOLOGY_TAGS.RISK_AVOID, weight: 0.80 },

@@ -1,12 +1,13 @@
 /**
  * core/turnaround-intelligence/index.js
  *
- * Turnaround Intelligence Engine V6 — CP6 统一入口
+ * Turnaround Intelligence Engine V6 — CP6-C 统一入口
  *
- * Pipeline: answers → Evidence → Pattern → Engine → Verdict
+ * Pipeline:
+ *   answers → Evidence → Pattern → Risk → Profile → Cognitive → Leverage → Conflict
  *
  * @version 6.1.0
- * @checkpoint CP6-B.1 — Pattern Graph + Evidence enhancements
+ * @checkpoint CP6-C
  */
 
 // Contracts
@@ -16,143 +17,113 @@ const context = require('./contracts/context')
 const verdict = require('./contracts/verdict')
 const profile = require('./contracts/profile')
 const cognitive = require('./contracts/cognitive')
+const pattern = require('./contracts/pattern')
+const risk = require('./contracts/risk')
+const leverage = require('./contracts/leverage')
+const conflict = require('./contracts/conflict')
 
 // Builders
 const { normalize, extractAnswerSummary, validateNormalized } = require('./builders/normalizer')
 const { buildEvidence } = require('./builders/evidenceBuilder')
 
-// Patterns (CP6-B.1)
-const patterns = require('./patterns')
-
 // Selectors
 const { createProfileInput, validateProfileInput } = require('./selectors/profileInput')
 const { createCognitiveInput, validateCognitiveInput } = require('./selectors/cognitiveInput')
-
-// Engines
-const { run: runProfileEngine } = require('./engines/profileEngine')
-const { run: runCognitiveEngine } = require('./engines/cognitiveEngine')
-
-// Contracts (CP6-C)
-const risk = require('./contracts/risk')
-const leverage = require('./contracts/leverage')
-
-// Selectors (CP6-C)
+const { createPatternInput, validatePatternInput } = require('./selectors/patternInput')
 const { createRiskInput, validateRiskInput } = require('./selectors/riskInput')
 const { createLeverageInput, validateLeverageInput } = require('./selectors/leverageInput')
+const { createConflictInput, validateConflictInput } = require('./selectors/conflictInput')
 
-// Engines (CP6-C)
+// Engines
+const { run: runPatternEngine } = require('./engines/patternEngine')
 const { run: runRiskEngine } = require('./engines/riskEngine')
+const { run: runProfileEngine } = require('./engines/profileEngine')
+const { run: runCognitiveEngine } = require('./engines/cognitiveEngine')
 const { run: runLeverageEngine } = require('./engines/leverageEngine')
+const { run: runConflictResolver } = require('./engines/conflictResolver')
 
 // ═══════════════════════════════════════
-// Pipeline: answers → Context
+// Pipeline
 // ═══════════════════════════════════════
 
-/**
- * initializePipeline — raw answers → initial TurnaroundContext
- */
 function initializePipeline(rawAnswers) {
   const normalized = normalize(rawAnswers)
   const evidenceSet = buildEvidence(normalized)
-
   let ctx = context.createContext()
   ctx = context.updateContext(ctx, 'Normalizer', { answers: normalized.answers }, 'normalized')
   ctx = context.updateContext(ctx, 'EvidenceBuilder', { evidence: evidenceSet }, 'evidence_built')
-
   return ctx
 }
 
-/**
- * runPatternStep — CP6-B.1: Pattern 层
- */
 function runPatternStep(ctx) {
-  const allPatterns = patterns.detectAllPatterns(ctx.evidence.evidences)
-  return context.updateContext(ctx, 'PatternDetector', { patterns: allPatterns }, 'pattern_detected')
+  const input = createPatternInput(ctx)
+  const patternOutput = runPatternEngine(input)
+  return context.updateContext(ctx, 'PatternEngine', { patterns: patternOutput }, 'pattern_detected')
 }
 
-/**
- * runProfileStep — Profile Engine
- */
+function runRiskStep(ctx) {
+  if (ctx._meta.pipelineStage !== 'pattern_detected') ctx = runPatternStep(ctx)
+  const input = createRiskInput(ctx)
+  const riskOutput = runRiskEngine(input)
+  return context.updateContext(ctx, 'RiskEngine', { risk: riskOutput }, 'risk_analyzed')
+}
+
 function runProfileStep(ctx) {
-  // 如果还没跑 Pattern，先跑
-  if (ctx._meta.pipelineStage !== 'pattern_detected') {
-    ctx = runPatternStep(ctx)
-  }
+  if (!ctx.patterns) ctx = runPatternStep(ctx)
   const input = createProfileInput(ctx)
   const profileOutput = runProfileEngine(input)
   return context.updateContext(ctx, 'ProfileEngine', { profile: profileOutput }, 'profiled')
 }
 
-/**
- * runCognitiveStep — Cognitive Engine
- */
 function runCognitiveStep(ctx) {
   const input = createCognitiveInput(ctx)
   const cognitiveOutput = runCognitiveEngine(input)
   return context.updateContext(ctx, 'CognitiveEngine', { cognitive: cognitiveOutput }, 'cognitive')
 }
 
-/**
- * runRiskStep — Risk Engine
- */
-function runRiskStep(ctx) {
-  const input = createRiskInput(ctx)
-  const riskOutput = runRiskEngine(input)
-  return context.updateContext(ctx, 'RiskEngine', { risk: riskOutput }, 'risk_analyzed')
-}
-
-/**
- * runLeverageStep — Leverage Engine
- */
 function runLeverageStep(ctx) {
   const input = createLeverageInput(ctx)
   const leverageOutput = runLeverageEngine(input)
   return context.updateContext(ctx, 'LeverageEngine', { leverage: leverageOutput }, 'leverage_analyzed')
 }
 
-module.exports = {
-  // Contracts
-  tags,
-  evidence,
-  context,
-  verdict,
-  profile,
-  cognitive,
-  risk,
-  leverage,
+function runConflictStep(ctx) {
+  if (!ctx.risk) ctx = runRiskStep(ctx)
+  if (!ctx.leverage) ctx = runLeverageStep(ctx)
+  const input = createConflictInput(ctx)
+  const conflictOutput = runConflictResolver(input)
+  return context.updateContext(ctx, 'ConflictResolver', { conflicts: conflictOutput }, 'conflicts_resolved')
+}
 
-  // Builders
+module.exports = {
+  tags, evidence, context, verdict, profile, cognitive, pattern, risk, leverage, conflict,
+
   normalizer: { normalize, extractAnswerSummary, validateNormalized },
   evidenceBuilder: { buildEvidence },
 
-  // Patterns (CP6-B.1)
-  patterns,
-
-  // Selectors
   selectors: {
-    createProfileInput,
-    validateProfileInput,
-    createCognitiveInput,
-    validateCognitiveInput,
-    createRiskInput,
-    validateRiskInput,
-    createLeverageInput,
-    validateLeverageInput,
+    createProfileInput, validateProfileInput,
+    createCognitiveInput, validateCognitiveInput,
+    createPatternInput, validatePatternInput,
+    createRiskInput, validateRiskInput,
+    createLeverageInput, validateLeverageInput,
+    createConflictInput, validateConflictInput,
   },
 
-  // Engines
   engines: {
+    pattern: runPatternEngine,
+    risk: runRiskEngine,
     profile: runProfileEngine,
     cognitive: runCognitiveEngine,
-    risk: runRiskEngine,
     leverage: runLeverageEngine,
+    conflict: runConflictResolver,
   },
 
-  // Pipeline
   initializePipeline,
   runPatternStep,
+  runRiskStep,
   runProfileStep,
   runCognitiveStep,
-  runRiskStep,
   runLeverageStep,
+  runConflictStep,
 }

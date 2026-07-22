@@ -1,220 +1,193 @@
 /**
  * core/turnaround-intelligence/contracts/leverage.js
  *
- * CP6-C Leverage Contract — 杠杆定义
+ * CP6-C Leverage Contract — 12 个固定杠杆编码
  *
- * Leverage Engine 回答："翻身靠什么？"
+ * 每个杠杆项包含:
+ *   code, title, strength, priority, confidence, reason, evidenceRefs
  *
- * 杠杆是从 Profile 优势、正向 Pattern 和 Evidence 中
- * 识别出的可以撬动改变的力量源。
+ * 禁止 AI 自由命名杠杆
  *
  * @version 6.1.0
  * @checkpoint CP6-C
  */
 
 // ═══════════════════════════════════════
-// Leverage Codes
+// Leverage Catalog — 12 个固定 Code
 // ═══════════════════════════════════════
 
-const LEVERAGE_CODES = Object.freeze({
+const LEVERAGE_CATALOG = Object.freeze({
 
-  // === 能力杠杆 ===
-  LEARNING_CAPACITY_LEVERAGE: {
-    code: 'LEARNING_CAPACITY_LEVERAGE',
-    label: '学习能力',
+  LEARNING_SPEED: {
+    code: 'LEARNING_SPEED',
+    title: '学习速度',
     category: 'CAPABILITY',
+    estimatedTimeToImpact: 30,
     description: '学习吸收能力强，新知识转化快',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 30,
-  },
-  EXECUTION_CONSISTENCY_LEVERAGE: {
-    code: 'EXECUTION_CONSISTENCY_LEVERAGE',
-    label: '执行力优势',
-    category: 'CAPABILITY',
-    description: '能持续执行并有坚持的能力',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 15,
-  },
-  SELF_AWARENESS_LEVERAGE: {
-    code: 'SELF_AWARENESS_LEVERAGE',
-    label: '自我觉察',
-    category: 'CAPABILITY',
-    description: '对自身困境有清晰认知，这是改变的第一步',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 7,
   },
 
-  // === 资源杠杆 ===
-  MULTI_INCOME_LEVERAGE: {
-    code: 'MULTI_INCOME_LEVERAGE',
-    label: '多收入来源',
-    category: 'RESOURCE',
-    description: '已有多条收入渠道，分散风险',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 0,
-  },
-  FINANCIAL_BUFFER_LEVERAGE: {
-    code: 'FINANCIAL_BUFFER_LEVERAGE',
-    label: '财务安全垫',
-    category: 'RESOURCE',
-    description: '有存款或资产缓冲，可支撑转型期',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 0,
-  },
-  STABLE_INCOME_LEVERAGE: {
-    code: 'STABLE_INCOME_LEVERAGE',
-    label: '稳定收入基础',
-    category: 'RESOURCE',
-    description: '有稳定现金流，不用担心生存问题',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 0,
+  EXECUTION_SPEED: {
+    code: 'EXECUTION_SPEED',
+    title: '执行速度',
+    category: 'CAPABILITY',
+    estimatedTimeToImpact: 15,
+    description: '启动快、动手能力强',
   },
 
-  // === 心态杠杆 ===
-  GROWTH_MINDSET_LEVERAGE: {
-    code: 'GROWTH_MINDSET_LEVERAGE',
-    label: '成长心态',
-    category: 'PSYCHOLOGY',
-    description: '相信能力可通过努力提升，愿意改变',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 30,
-  },
-  RESILIENCE_LEVERAGE: {
-    code: 'RESILIENCE_LEVERAGE',
-    label: '心理韧性',
-    category: 'PSYCHOLOGY',
-    description: '面对挫折有较强恢复力',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 15,
-  },
-  CONFIDENCE_LEVERAGE: {
-    code: 'CONFIDENCE_LEVERAGE',
-    label: '自信心',
-    category: 'PSYCHOLOGY',
-    description: '对自己有信心，敢尝试新方向',
-    reversibility: 'N/A',
+  COMMUNICATION: {
+    code: 'COMMUNICATION',
+    title: '沟通表达',
+    category: 'CAPABILITY',
     estimatedTimeToImpact: 20,
+    description: '善于表达和影响他人',
   },
 
-  // === 策略杠杆（复合） ===
-  COGNITION_LEVERAGE: {
-    code: 'COGNITION_LEVERAGE',
-    label: '认知放大杠杆',
-    category: 'STRATEGY',
-    description: '认知能力强 → 一旦行动，学习效率会远超平均水平',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 45,
+  SALES: {
+    code: 'SALES',
+    title: '销售转化',
+    category: 'CAPABILITY',
+    estimatedTimeToImpact: 20,
+    description: '能有效说服和完成交易',
   },
-  DISCIPLINE_LEVERAGE: {
-    code: 'DISCIPLINE_LEVERAGE',
-    label: '纪律复利杠杆',
-    category: 'STRATEGY',
-    description: '纪律性强 → 持续执行会形成复利效应',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 60,
-  },
-  ADAPTABILITY_LEVERAGE: {
-    code: 'ADAPTABILITY_LEVERAGE',
-    label: '适应力加速杠杆',
-    category: 'STRATEGY',
-    description: '适应力强 → 可以快速切换方向，降低试错成本',
-    reversibility: 'N/A',
+
+  TECHNOLOGY: {
+    code: 'TECHNOLOGY',
+    title: '技术优势',
+    category: 'CAPABILITY',
     estimatedTimeToImpact: 30,
+    description: '技术功底扎实，可打造产品壁垒',
   },
-  LOW_RISK_LEVERAGE: {
-    code: 'LOW_RISK_LEVERAGE',
-    label: '低风险控制杠杆',
-    category: 'STRATEGY',
-    description: '风险控制力强 → 翻身过程不容易再次踩坑',
-    reversibility: 'N/A',
-    estimatedTimeToImpact: 90,
+
+  NETWORK: {
+    code: 'NETWORK',
+    title: '人际网络',
+    category: 'RESOURCE',
+    estimatedTimeToImpact: 0,
+    description: '有现成的人脉资源可用',
+  },
+
+  DISCIPLINE: {
+    code: 'DISCIPLINE',
+    title: '自律坚持',
+    category: 'PSYCHOLOGY',
+    estimatedTimeToImpact: 60,
+    description: '能持续执行，形成复利效应',
+  },
+
+  CREATIVITY: {
+    code: 'CREATIVITY',
+    title: '创造力',
+    category: 'CAPABILITY',
+    estimatedTimeToImpact: 30,
+    description: '能提出差异化方案',
+  },
+
+  CONSISTENCY: {
+    code: 'CONSISTENCY',
+    title: '持续力',
+    category: 'PSYCHOLOGY',
+    estimatedTimeToImpact: 45,
+    description: '有耐心长期投入，不急于回报',
+  },
+
+  SPECIALIZATION: {
+    code: 'SPECIALIZATION',
+    title: '专精深度',
+    category: 'CAPABILITY',
+    estimatedTimeToImpact: 60,
+    description: '在某个领域有深度积累',
+  },
+
+  RESOURCE_INTEGRATION: {
+    code: 'RESOURCE_INTEGRATION',
+    title: '资源整合',
+    category: 'RESOURCE',
+    estimatedTimeToImpact: 30,
+    description: '能把不同资源组合变现',
+  },
+
+  CONTENT_CREATION: {
+    code: 'CONTENT_CREATION',
+    title: '内容创作',
+    category: 'CAPABILITY',
+    estimatedTimeToImpact: 45,
+    description: '能持续生产有价值的内容',
   },
 })
 
 // ═══════════════════════════════════════
-// Leverage Categories
+// Evidence Tag → Leverage 映射
 // ═══════════════════════════════════════
 
-const LEVERAGE_CATEGORIES = Object.freeze({
-  CAPABILITY: 'CAPABILITY',
-  RESOURCE: 'RESOURCE',
-  PSYCHOLOGY: 'PSYCHOLOGY',
-  STRATEGY: 'STRATEGY',
+const TAG_TO_LEVERAGE = Object.freeze({
+  'LEARNING': 'LEARNING_SPEED',
+  'EXECUTION_STRONG': 'EXECUTION_SPEED',
+  'ACTION_FAST': 'EXECUTION_SPEED',
+  'DISCIPLINE': 'DISCIPLINE',
+  'PERSISTENCE': 'CONSISTENCY',
+  'LONG_TERM_ORIENTED': 'CONSISTENCY',
+  'GROWTH_MINDSET': 'LEARNING_SPEED',
+  'RESILIENCE_HIGH': 'CONSISTENCY',
+  'CONFIDENCE': 'COMMUNICATION',
+  'MULTI_INCOME': 'RESOURCE_INTEGRATION',
 })
 
 // ═══════════════════════════════════════
-// Leverage Impact Levels
+// Profile Strength → Leverage 映射
 // ═══════════════════════════════════════
 
-const IMPACT_LEVELS = Object.freeze({
-  IMMEDIATE: { min: 80, label: '立即可重用' },
-  SHORT_TERM: { min: 60, label: '短期可撬动' },
-  MEDIUM_TERM: { min: 40, label: '中期可开发' },
-  LONG_TERM: { min: 20, label: '长期可培育' },
-  LATENT: { min: 0, label: '隐性潜力' },
+const STRENGTH_TO_LEVERAGE = Object.freeze({
+  'LEARNING_CAPACITY': 'LEARNING_SPEED',
+  'SELF_AWARENESS': 'LEARNING_SPEED',
+  'ACCEPTING_REALITY': 'CONSISTENCY',
 })
 
-function getImpactLevel(score) {
-  if (score >= 80) return 'IMMEDIATE'
-  if (score >= 60) return 'SHORT_TERM'
-  if (score >= 40) return 'MEDIUM_TERM'
-  if (score >= 20) return 'LONG_TERM'
-  return 'LATENT'
-}
-
 // ═══════════════════════════════════════
-// Create Leverage Output
+// Leverage Output
 // ═══════════════════════════════════════
 
 /**
- * createLeverageOutput — 验证并冻结 Leverage Engine 输出
+ * 只输出 Top 3 Leverage
  */
 function createLeverageOutput({
   version,
-  leverages,
-  topLeverage,
+  topLeverages,
   totalLeverageScore,
-  evidenceRefs,
 }) {
   if (!version) throw new Error('LeverageOutput: version required')
-  if (!Array.isArray(leverages)) throw new Error('LeverageOutput: leverages must be an array')
-  if (!topLeverage || !topLeverage.code) throw new Error('LeverageOutput: topLeverage required')
-  if (typeof totalLeverageScore !== 'number' || totalLeverageScore < 0) {
-    throw new Error(`LeverageOutput: totalLeverageScore must be ≥0`)
+  if (!Array.isArray(topLeverages)) throw new Error('LeverageOutput: topLeverages must be an array')
+  if (topLeverages.length > 3) {
+    throw new Error('LeverageOutput: topLeverages max 3, got ' + topLeverages.length)
   }
-  if (!Array.isArray(evidenceRefs)) throw new Error('LeverageOutput: evidenceRefs required')
+  if (typeof totalLeverageScore !== 'number') throw new Error('LeverageOutput: totalLeverageScore required')
 
-  for (const lev of leverages) {
-    if (!lev.code) throw new Error(`Leverage item missing code`)
-    if (!LEVERAGE_CODES[lev.code]) throw new Error(`Unknown leverage code: "${lev.code}"`)
-    if (typeof lev.strength !== 'number' || lev.strength < 0 || lev.strength > 100) {
-      throw new Error(`Leverage ${lev.code}: strength out of range: ${lev.strength}`)
+  for (let i = 0; i < topLeverages.length; i++) {
+    const l = topLeverages[i]
+    if (!l.code) throw new Error(`topLeverages[${i}]: code required`)
+    if (!LEVERAGE_CATALOG[l.code]) throw new Error(`Unknown leverage code: "${l.code}"`)
+    if (typeof l.strength !== 'number' || l.strength < 0 || l.strength > 100) {
+      throw new Error(`Leverage ${l.code}: strength out of range`)
     }
-    if (typeof lev.estimatedTimeToImpact !== 'number' || lev.estimatedTimeToImpact < 0) {
-      throw new Error(`Leverage ${lev.code}: invalid estimatedTimeToImpact`)
+    if (l.priority !== i + 1) throw new Error(`topLeverages[${i}]: priority must be ${i + 1}`)
+    if (typeof l.confidence !== 'number' || l.confidence < 0 || l.confidence > 1) {
+      throw new Error(`Leverage ${l.code}: confidence out of range`)
     }
-    if (!Array.isArray(lev.evidenceRefs)) {
-      throw new Error(`Leverage ${lev.code}: evidenceRefs must be an array`)
-    }
+    if (typeof l.reason !== 'string') throw new Error(`Leverage ${l.code}: reason required`)
+    if (!Array.isArray(l.evidenceRefs)) throw new Error(`Leverage ${l.code}: evidenceRefs required`)
   }
 
   return Object.freeze({
     version,
-    leverages: Object.freeze(leverages.map(l => Object.freeze({ ...l }))),
-    topLeverage: Object.freeze({ ...topLeverage }),
+    topLeverages: Object.freeze(topLeverages.map(l => Object.freeze({ ...l }))),
     totalLeverageScore: Math.round(clamp(totalLeverageScore, 0, 100)),
-    evidenceRefs: Object.freeze([...evidenceRefs]),
   })
 }
 
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val))
-}
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
 
 module.exports = {
-  LEVERAGE_CODES,
-  LEVERAGE_CATEGORIES,
-  IMPACT_LEVELS,
-  getImpactLevel,
+  LEVERAGE_CATALOG,
+  TAG_TO_LEVERAGE,
+  STRENGTH_TO_LEVERAGE,
   createLeverageOutput,
 }

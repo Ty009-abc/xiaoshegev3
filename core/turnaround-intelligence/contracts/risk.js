@@ -1,240 +1,210 @@
 /**
  * core/turnaround-intelligence/contracts/risk.js
  *
- * CP6-C Risk Contract — 风险定义
+ * CP6-C Risk Contract — 12 个固定风险编码
  *
- * Risk Engine 回答："为什么翻不了身？"
+ * 每个风险项包含:
+ *   riskCode, title, severity, priority, reversibility,
+ *   estimatedRecoveryDays, confidence, patternRefs, evidenceRefs, actionHints
  *
- * 每个风险项：
- *   - riskCode        唯一标识
- *   - severity        0-100 严重程度
- *   - reversibility   HIGH | MEDIUM | LOW — 可逆性（两个月 vs 两年）
- *   - estimatedRecoveryDays — 预计建立新习惯/改善风险的周期
- *   - evidenceRefs    证据引用
- *   - patternRefs     模式引用（如有）
+ * actionHints 是内部暗示，供 Action Engine 用
  *
  * @version 6.1.0
  * @checkpoint CP6-C
  */
 
 // ═══════════════════════════════════════
-// Risk Codes — 风险编码表
+// Risk Catalog — 12 个固定 Code
 // ═══════════════════════════════════════
 
-const RISK_CODES = Object.freeze({
+const RISK_CATALOG = Object.freeze({
 
-  // === 执行层风险 ===
   EXECUTION_FRAGMENTATION: {
     code: 'EXECUTION_FRAGMENTATION',
-    label: '执行碎片化',
+    title: '执行碎片化',
     category: 'EXECUTION',
+    reversibility: 'HIGH',
+    estimatedRecoveryDays: 45,
     description: '计划频繁中断，无法形成持续执行闭环',
+    actionHints: ['BUILD_ROUTINE', 'CREATE_FEEDBACK', 'MINI_HABITS'],
   },
+
   ANALYSIS_PARALYSIS: {
     code: 'ANALYSIS_PARALYSIS',
-    label: '分析瘫痪',
+    title: '分析瘫痪',
     category: 'EXECUTION',
+    reversibility: 'MEDIUM',
+    estimatedRecoveryDays: 60,
     description: '过度思考导致无法启动行动',
+    actionHints: ['TIME_BOX_DECISION', 'ACTION_FIRST', 'CUT_OVERPLANNING'],
   },
-  EMOTIONAL_INTERRUPTION: {
-    code: 'EMOTIONAL_INTERRUPTION',
-    label: '情绪中断',
+
+  LOW_DISCIPLINE: {
+    code: 'LOW_DISCIPLINE',
+    title: '纪律缺失',
     category: 'EXECUTION',
-    description: '情绪波动导致执行周期性中断',
+    reversibility: 'MEDIUM',
+    estimatedRecoveryDays: 90,
+    description: '无法坚持计划，三天打鱼两天晒网',
+    actionHints: ['BUILD_ROUTINE', 'ACCOUNTABILITY_PARTNER', 'STREAK_TRACKING'],
   },
 
-  // === 财富层风险 ===
-  INCOME_FRAGILITY_RISK: {
-    code: 'INCOME_FRAGILITY_RISK',
-    label: '收入脆弱风险',
+  SHORT_TERM_ADDICTION: {
+    code: 'SHORT_TERM_ADDICTION',
+    title: '短期奖赏成瘾',
+    category: 'EXECUTION',
+    reversibility: 'MEDIUM',
+    estimatedRecoveryDays: 90,
+    description: '偏好即时满足，难以延迟奖赏',
+    actionHints: ['CUT_DISTRACTION', 'BUILD_ROUTINE', 'REWARD_RESTRUCTURE'],
+  },
+
+  EMOTIONAL_VOLATILITY: {
+    code: 'EMOTIONAL_VOLATILITY',
+    title: '情绪波动',
+    category: 'PSYCHOLOGY',
+    reversibility: 'MEDIUM',
+    estimatedRecoveryDays: 90,
+    description: '情绪驱动决策，导致执行周期性中断',
+    actionHints: ['EMOTION_JOURNAL', 'CREATE_FEEDBACK', 'TRIGGER_AWARENESS'],
+  },
+
+  INCOME_STRUCTURE_RISK: {
+    code: 'INCOME_STRUCTURE_RISK',
+    title: '收入结构风险',
     category: 'WEALTH',
+    reversibility: 'HIGH',
+    estimatedRecoveryDays: 60,
     description: '单一收入来源，抗风险能力极弱',
+    actionHints: ['DIVERSIFY_INCOME', 'SKILL_MONETIZATION'],
   },
-  LIQUIDITY_CRISIS_RISK: {
-    code: 'LIQUIDITY_CRISIS_RISK',
-    label: '流动性危机风险',
+
+  LOW_SKILL_COMPOUNDING: {
+    code: 'LOW_SKILL_COMPOUNDING',
+    title: '技能复利不足',
     category: 'WEALTH',
-    description: '负债加上收入不稳定，流动性风险很高',
+    reversibility: 'HIGH',
+    estimatedRecoveryDays: 90,
+    description: '学习多但无积累，技能未形成复利效应',
+    actionHints: ['DEEPEN_SPECIALIZATION', 'CREATE_FEEDBACK'],
   },
-  FINANCIAL_DISORDER_RISK: {
-    code: 'FINANCIAL_DISORDER_RISK',
-    label: '财务失控风险',
+
+  LOW_ASSET_ACCUMULATION: {
+    code: 'LOW_ASSET_ACCUMULATION',
+    title: '资产积累不足',
     category: 'WEALTH',
-    description: '短视消费加上单一收入，财务逐渐恶化',
-  },
-  NO_FINANCIAL_BUFFER_RISK: {
-    code: 'NO_FINANCIAL_BUFFER_RISK',
-    label: '无安全垫风险',
-    category: 'WEALTH',
-    description: '没有财务缓冲，小风险即可造成危机',
+    reversibility: 'HIGH',
+    estimatedRecoveryDays: 120,
+    description: '无财务缓冲，小风险即可造成危机',
+    actionHints: ['BUILD_EMERGENCY_FUND', 'CUT_DISTRACTION'],
   },
 
-  // === 心理层风险 ===
-  LEARNED_HELPLESSNESS_RISK: {
-    code: 'LEARNED_HELPLESSNESS_RISK',
-    label: '习得性无助风险',
+  RISK_MISJUDGMENT: {
+    code: 'RISK_MISJUDGMENT',
+    title: '风险误判',
     category: 'PSYCHOLOGY',
-    description: '自我否定加上外部归因，失去改变动力',
-  },
-  ANXIETY_DRIVEN_RISK: {
-    code: 'ANXIETY_DRIVEN_RISK',
-    label: '焦虑驱动风险',
-    category: 'PSYCHOLOGY',
-    description: '高焦虑导致决策偏向保守，错过机会',
-  },
-  ADDICTIVE_RISK_BEHAVIOR: {
-    code: 'ADDICTIVE_RISK_BEHAVIOR',
-    label: '成瘾型风险行为',
-    category: 'PSYCHOLOGY',
-    description: '高风险偏好加上焦虑，进入赌博式决策循环',
-  },
-  NO_SELF_DRIVE_RISK: {
-    code: 'NO_SELF_DRIVE_RISK',
-    label: '内在动力缺乏风险',
-    category: 'PSYCHOLOGY',
-    description: '外部归因加上短视，没有自主改变意愿',
-  },
-  DEFENSIVE_STANCE_RISK: {
-    code: 'DEFENSIVE_STANCE_RISK',
-    label: '防御型心态风险',
-    category: 'PSYCHOLOGY',
-    description: '过度规避风险加上追求稳定，缺乏突破意识',
+    reversibility: 'LOW',
+    estimatedRecoveryDays: 180,
+    description: '高风险偏好 + 焦虑 → 成瘾型决策循环',
+    actionHints: ['CREATE_FEEDBACK', 'RISK_FRAMEWORK', 'TRIGGER_AWARENESS'],
   },
 
-  // === 综合层风险 ===
-  LEARNING_EXECUTION_GAP_RISK: {
-    code: 'LEARNING_EXECUTION_GAP_RISK',
-    label: '学习-执行缺口风险',
+  PASSIVE_MINDSET: {
+    code: 'PASSIVE_MINDSET',
+    title: '被动心态',
+    category: 'PSYCHOLOGY',
+    reversibility: 'LOW',
+    estimatedRecoveryDays: 180,
+    description: '外部归因 + 短视 → 缺乏内在改变动力',
+    actionHints: ['INTERNAL_LOCUS_TRAINING', 'SMALL_WINS', 'CREATE_FEEDBACK'],
+  },
+
+  DECISION_FATIGUE: {
+    code: 'DECISION_FATIGUE',
+    title: '决策疲劳',
+    category: 'PSYCHOLOGY',
+    reversibility: 'MEDIUM',
+    estimatedRecoveryDays: 60,
+    description: '过度思考 + 自我怀疑 → 决策成本过高',
+    actionHints: ['TIME_BOX_DECISION', 'DECISION_RULES', 'CUT_OVERPLANNING'],
+  },
+
+  HIGH_OPPORTUNITY_COST: {
+    code: 'HIGH_OPPORTUNITY_COST',
+    title: '高机会成本',
     category: 'COMPOSITE',
-    description: '学习输入多但行动滞后，知识没转化成结果',
-  },
-  COGNITION_EXECUTION_GAP_RISK: {
-    code: 'COGNITION_EXECUTION_GAP_RISK',
-    label: '认知-执行缺口风险',
-    category: 'COMPOSITE',
-    description: '认知能力强但执行弱，形成明显落差',
-  },
-  AMBITION_DISCIPLINE_GAP_RISK: {
-    code: 'AMBITION_DISCIPLINE_GAP_RISK',
-    label: '高欲低纪风险',
-    category: 'COMPOSITE',
-    description: '欲望高但纪律性弱，容易持续放弃',
+    reversibility: 'MEDIUM',
+    estimatedRecoveryDays: 90,
+    description: '认知能力强但执行弱，能力未兑现',
+    actionHints: ['ACTION_FIRST', 'SKILL_MONETIZATION', 'BUILD_ROUTINE'],
   },
 })
 
 // ═══════════════════════════════════════
-// Reversibility Levels
-// ═══════════════════════════════════════
-
-const REVERSIBILITY = Object.freeze({
-  HIGH: {
-    level: 'HIGH',
-    label: '高可逆',
-    description: '可通过短期（≤60天）建立新习惯来改善',
-  },
-  MEDIUM: {
-    level: 'MEDIUM',
-    label: '中可逆',
-    description: '需要中期（60-120天）调整行为模式',
-  },
-  LOW: {
-    level: 'LOW',
-    label: '低可逆',
-    description: '长期形成，预计改善周期 120-365 天',
-  },
-})
-
-// ═══════════════════════════════════════
-// Risk Categories
-// ═══════════════════════════════════════
-
-const RISK_CATEGORIES = Object.freeze({
-  EXECUTION: 'EXECUTION',
-  WEALTH: 'WEALTH',
-  PSYCHOLOGY: 'PSYCHOLOGY',
-  COMPOSITE: 'COMPOSITE',
-})
-
-// ═══════════════════════════════════════
-// Classification thresholds
-// ═══════════════════════════════════════
-
-const SEVERITY_LEVELS = Object.freeze({
-  CRITICAL: { min: 80, label: '严重' },
-  HIGH: { min: 65, label: '高位' },
-  MODERATE: { min: 45, label: '中等' },
-  LOW: { min: 25, label: '低位' },
-  NEGLIGIBLE: { min: 0, label: '可忽略' },
-})
-
-function getSeverityLevel(score) {
-  if (score >= 80) return 'CRITICAL'
-  if (score >= 65) return 'HIGH'
-  if (score >= 45) return 'MODERATE'
-  if (score >= 25) return 'LOW'
-  return 'NEGLIGIBLE'
-}
-
-// ═══════════════════════════════════════
-// Create Risk Output
+// Risk Output
 // ═══════════════════════════════════════
 
 /**
- * createRiskOutput — 验证并冻结 Risk Engine 输出
+ * 只输出 Top 3 Risk
  */
 function createRiskOutput({
   version,
-  risks,
-  topRisk,
+  topRisks,
   totalRiskScore,
-  evidenceRefs,
-  patternRefs,
 }) {
   if (!version) throw new Error('RiskOutput: version required')
-  if (!Array.isArray(risks)) throw new Error('RiskOutput: risks must be an array')
-  if (!topRisk || !topRisk.riskCode) throw new Error('RiskOutput: topRisk required')
-  if (typeof totalRiskScore !== 'number' || totalRiskScore < 0) {
-    throw new Error(`RiskOutput: totalRiskScore must be ≥0, got ${totalRiskScore}`)
+  if (!Array.isArray(topRisks)) throw new Error('RiskOutput: topRisks must be an array')
+  if (topRisks.length > 3) {
+    throw new Error('RiskOutput: topRisks max 3, got ' + topRisks.length)
   }
-  if (!Array.isArray(evidenceRefs)) throw new Error('RiskOutput: evidenceRefs required')
+  if (typeof totalRiskScore !== 'number') throw new Error('RiskOutput: totalRiskScore required')
 
-  // 验证每条风险
-  for (const risk of risks) {
-    if (!risk.riskCode) throw new Error(`Risk item missing riskCode`)
-    if (!RISK_CODES[risk.riskCode]) throw new Error(`Unknown riskCode: "${risk.riskCode}"`)
-    if (typeof risk.severity !== 'number' || risk.severity < 0 || risk.severity > 100) {
-      throw new Error(`Risk ${risk.riskCode}: severity out of range: ${risk.severity}`)
+  for (let i = 0; i < topRisks.length; i++) {
+    const r = topRisks[i]
+    if (!r.riskCode) throw new Error(`topRisks[${i}]: riskCode required`)
+    if (!RISK_CATALOG[r.riskCode]) throw new Error(`Unknown riskCode: "${r.riskCode}"`)
+    if (typeof r.severity !== 'number' || r.severity < 0 || r.severity > 100) {
+      throw new Error(`Risk ${r.riskCode}: severity out of range`)
     }
-    if (!['HIGH', 'MEDIUM', 'LOW'].includes(risk.reversibility)) {
-      throw new Error(`Risk ${risk.riskCode}: invalid reversibility: ${risk.reversibility}`)
+    if (r.priority !== i + 1) throw new Error(`topRisks[${i}]: priority must be ${i + 1}`)
+    if (typeof r.confidence !== 'number' || r.confidence < 0 || r.confidence > 1) {
+      throw new Error(`Risk ${r.riskCode}: confidence out of range`)
     }
-    if (typeof risk.estimatedRecoveryDays !== 'number' || risk.estimatedRecoveryDays < 0) {
-      throw new Error(`Risk ${risk.riskCode}: invalid estimatedRecoveryDays: ${risk.estimatedRecoveryDays}`)
-    }
-    if (!Array.isArray(risk.evidenceRefs)) {
-      throw new Error(`Risk ${risk.riskCode}: evidenceRefs must be an array`)
-    }
+    if (!Array.isArray(r.patternRefs)) throw new Error(`Risk ${r.riskCode}: patternRefs required`)
+    if (!Array.isArray(r.evidenceRefs)) throw new Error(`Risk ${r.riskCode}: evidenceRefs required`)
+    if (!Array.isArray(r.actionHints)) throw new Error(`Risk ${r.riskCode}: actionHints required`)
   }
 
   return Object.freeze({
     version,
-    risks: Object.freeze(risks.map(r => Object.freeze({ ...r }))),
-    topRisk: Object.freeze({ ...topRisk }),
+    topRisks: Object.freeze(topRisks.map(r => Object.freeze({ ...r }))),
     totalRiskScore: Math.round(clamp(totalRiskScore, 0, 100)),
-    evidenceRefs: Object.freeze([...evidenceRefs]),
-    patternRefs: patternRefs ? Object.freeze([...patternRefs]) : Object.freeze([]),
   })
 }
 
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val))
+// ═══════════════════════════════════════
+// Pattern → Risk 映射
+// ═══════════════════════════════════════
+
+const PATTERN_TO_RISK = {
+  ACTION_FRAGMENTATION: 'EXECUTION_FRAGMENTATION',
+  HIGH_INPUT_LOW_OUTPUT: 'HIGH_OPPORTUNITY_COST',
+  SHORT_TERM_REWARD: 'SHORT_TERM_ADDICTION',
+  EMOTIONAL_DECISION: 'EMOTIONAL_VOLATILITY',
+  RISK_AVOIDANCE: 'DECISION_FATIGUE',
+  RISK_OVERCONFIDENCE: 'RISK_MISJUDGMENT',
+  SINGLE_INCOME_DEPENDENCY: 'INCOME_STRUCTURE_RISK',
+  LOW_COMPOUNDING: 'LOW_ASSET_ACCUMULATION',
+  LOW_MONETIZATION: 'LOW_SKILL_COMPOUNDING',
+  PASSIVE_EXPECTATION: 'PASSIVE_MINDSET',
+  LEARNING_WITHOUT_PRACTICE: 'ANALYSIS_PARALYSIS',
+  GOAL_INSTABILITY: 'LOW_DISCIPLINE',
 }
 
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)) }
+
 module.exports = {
-  RISK_CODES,
-  REVERSIBILITY,
-  RISK_CATEGORIES,
-  SEVERITY_LEVELS,
-  getSeverityLevel,
+  RISK_CATALOG,
+  PATTERN_TO_RISK,
   createRiskOutput,
 }
