@@ -40,8 +40,8 @@ const KEYWORD_TAG_MAP = [
   { keywords: ['长期', '未来', '几年', '三年', '五年', '持续', '积累'], tag: BEHAVIOR_TAGS.LONG_TERM_ORIENTED, weight: 0.70 },
   { keywords: ['短期', '当下', '眼前', '先', '目前', '现在'], tag: BEHAVIOR_TAGS.SHORT_TERM_ORIENTED, weight: 0.68 },
   { keywords: ['三天打鱼', '坚持不下去', '断断续', '中断', '停', '放弃', '做不下去', '不想做'], tag: BEHAVIOR_TAGS.INCONSISTENCY, weight: 0.83 },
-  { keywords: ['执行力不足', '执行力弱', '行动力弱', '动手太慢', '做不下去'], tag: BEHAVIOR_TAGS.EXECUTION_WEAK, weight: 0.78 },
-  { keywords: ['执行力强', '做得快', '效率高', '执行力高', '效率很高'], tag: BEHAVIOR_TAGS.EXECUTION_STRONG, weight: 0.78 },
+  { keywords: ['执行力不足', '执行力弱', '行动力弱', '动手太慢', '做不下去'], tag: BEHAVIOR_TAGS.EXECUTION_WEAK, weight: 0.78, importance: 0.90, direction: 'negative' },
+  { keywords: ['执行力强', '做得快', '效率高', '执行力高', '效率很高'], tag: BEHAVIOR_TAGS.EXECUTION_STRONG, weight: 0.78, importance: 0.90, direction: 'positive' },
 
   // --- 财富 ---
   { keywords: ['高薪', '高收入', '月入', '年薪', '工资高', '收入不错', '收入高'], tag: WEALTH_TAGS.HIGH_INCOME, weight: 0.78 },
@@ -169,12 +169,14 @@ function buildEvidence(normalized) {
     const answer = answers[questionId]
     const matchedTags = matchTags(answer)
 
-    for (const { tag, weight, reason, occurrences } of matchedTags) {
+    for (const { tag, weight, importance, direction, reason, occurrences } of matchedTags) {
       evidenceList.push({
         id: makeId(),
         questionId,
         answer: truncate(answer, 120),
         weight: weight,
+        importance: importance,
+        direction: direction,
         tags: [tag],
         reason: `${questionId}: ${reason}`
           + (occurrences > 1 ? ` (关键词命中 ${occurrences} 次)` : ''),
@@ -242,6 +244,8 @@ function matchTags(text) {
       results.push({
         tag: rule.tag,
         weight: rule.weight,
+        importance: rule.importance || rule.weight,
+        direction: rule.direction || undefined,
         reason: `命中标签：${rule.tag}（关键词出现 ${hitCount} 次）`,
         occurrences: hitCount,
       })
@@ -307,7 +311,7 @@ function mergeEvidencesByQuestionTag(evidences) {
     const key = `${ev.questionId}|${ev.tags[0]}`
     const existing = groups.get(key)
     if (!existing || ev.weight > existing.weight) {
-      groups.set(key, ev)
+      groups.set(key, { ...ev })
     }
   }
   return [...groups.values()]

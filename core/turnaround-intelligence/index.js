@@ -3,8 +3,10 @@
  *
  * Turnaround Intelligence Engine V6 — CP6 统一入口
  *
- * @version 6.0.0
- * @checkpoint CP6-B — Profile Engine & Cognitive Engine
+ * Pipeline: answers → Evidence → Pattern → Engine → Verdict
+ *
+ * @version 6.1.0
+ * @checkpoint CP6-B.1 — Pattern Graph + Evidence enhancements
  */
 
 // Contracts
@@ -12,20 +14,21 @@ const tags = require('./contracts/tags')
 const evidence = require('./contracts/evidence')
 const context = require('./contracts/context')
 const verdict = require('./contracts/verdict')
+const profile = require('./contracts/profile')
+const cognitive = require('./contracts/cognitive')
 
 // Builders
 const { normalize, extractAnswerSummary, validateNormalized } = require('./builders/normalizer')
 const { buildEvidence } = require('./builders/evidenceBuilder')
 
-// Contracts (CP6-B)
-const profile = require('./contracts/profile')
-const cognitive = require('./contracts/cognitive')
+// Patterns (CP6-B.1)
+const patterns = require('./patterns')
 
-// Selectors (CP6-B)
+// Selectors
 const { createProfileInput, validateProfileInput } = require('./selectors/profileInput')
 const { createCognitiveInput, validateCognitiveInput } = require('./selectors/cognitiveInput')
 
-// Engines (CP6-B)
+// Engines
 const { run: runProfileEngine } = require('./engines/profileEngine')
 const { run: runCognitiveEngine } = require('./engines/cognitiveEngine')
 
@@ -34,23 +37,12 @@ const { run: runCognitiveEngine } = require('./engines/cognitiveEngine')
 // ═══════════════════════════════════════
 
 /**
- * initializePipeline — CP6-A 入口：raw answers → initial TurnaroundContext
- *
- * 这是 pipeline 的前两步（Normalizer + EvidenceBuilder），
- * 返回一个包含标准化 answers 和 evidence 的 Context，
- * 供后续 Engine 使用。
- *
- * @param {Object} rawAnswers — { Q1: "...", Q2: "...", ... }
- * @returns {Object} TurnaroundContext (stage: evidence_built)
+ * initializePipeline — raw answers → initial TurnaroundContext
  */
 function initializePipeline(rawAnswers) {
-  // Step 1: Normalize
   const normalized = normalize(rawAnswers)
-
-  // Step 2: Build Evidence
   const evidenceSet = buildEvidence(normalized)
 
-  // Step 3: Create Context
   let ctx = context.createContext()
   ctx = context.updateContext(ctx, 'Normalizer', { answers: normalized.answers }, 'normalized')
   ctx = context.updateContext(ctx, 'EvidenceBuilder', { evidence: evidenceSet }, 'evidence_built')
@@ -59,22 +51,28 @@ function initializePipeline(rawAnswers) {
 }
 
 /**
- * runProfileStep — 运行 Profile Engine
- *
- * @param {Object} ctx — TurnaroundContext (stage ≥ evidence_built)
- * @returns {Object} 更新后的 Context (stage: profiled)
+ * runPatternStep — CP6-B.1: Pattern 层
+ */
+function runPatternStep(ctx) {
+  const allPatterns = patterns.detectAllPatterns(ctx.evidence.evidences)
+  return context.updateContext(ctx, 'PatternDetector', { patterns: allPatterns }, 'pattern_detected')
+}
+
+/**
+ * runProfileStep — Profile Engine
  */
 function runProfileStep(ctx) {
+  // 如果还没跑 Pattern，先跑
+  if (ctx._meta.pipelineStage !== 'pattern_detected') {
+    ctx = runPatternStep(ctx)
+  }
   const input = createProfileInput(ctx)
   const profileOutput = runProfileEngine(input)
   return context.updateContext(ctx, 'ProfileEngine', { profile: profileOutput }, 'profiled')
 }
 
 /**
- * runCognitiveStep — 运行 Cognitive Engine
- *
- * @param {Object} ctx — TurnaroundContext (stage ≥ profiled)
- * @returns {Object} 更新后的 Context (stage: cognitive)
+ * runCognitiveStep — Cognitive Engine
  */
 function runCognitiveStep(ctx) {
   const input = createCognitiveInput(ctx)
@@ -88,16 +86,17 @@ module.exports = {
   evidence,
   context,
   verdict,
+  profile,
+  cognitive,
 
   // Builders
   normalizer: { normalize, extractAnswerSummary, validateNormalized },
   evidenceBuilder: { buildEvidence },
 
-  // Contracts (CP6-B)
-  profile,
-  cognitive,
+  // Patterns (CP6-B.1)
+  patterns,
 
-  // Selectors (CP6-B)
+  // Selectors
   selectors: {
     createProfileInput,
     validateProfileInput,
@@ -105,7 +104,7 @@ module.exports = {
     validateCognitiveInput,
   },
 
-  // Engines (CP6-B)
+  // Engines
   engines: {
     profile: runProfileEngine,
     cognitive: runCognitiveEngine,
@@ -113,6 +112,7 @@ module.exports = {
 
   // Pipeline
   initializePipeline,
+  runPatternStep,
   runProfileStep,
   runCognitiveStep,
 }

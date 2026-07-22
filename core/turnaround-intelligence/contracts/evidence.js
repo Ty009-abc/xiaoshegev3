@@ -1,18 +1,40 @@
 /**
  * core/turnaround-intelligence/contracts/evidence.js
  *
- * CP6-A 证据模型 (Evidence Model)
+ * CP6-B.1 证据模型 (Evidence Model) — 增强版
  *
  * Evidence 是整个 Turnaround Intelligence Engine 的基础数据类型。
  * 每条 Evidence 将用户原始答案转换为结构化推理素材。
  *
- * 所有 Engine 只能读取 Evidence，不允许直接读取原始答案。
+ * 新增 (CP6-B.1):
+ *   - importance  — 影响力 (区分于可信度 weight)
+ *   - direction   — 正/负/中性方向
  *
- * @version 6.0.0
- * @checkpoint CP6-A
+ * 以后 Verdict 引用 importance，不是 weight。
+ * 以后 Score 直接用 direction，不用 Tag 反推。
+ *
+ * @version 6.1.0
+ * @checkpoint CP6-B.1
  */
 
 const { ALL_TAGS } = require('./tags')
+
+// 负向标签集合（默认 direction = negative 的标签）
+const NEGATIVE_TAGS = new Set([
+  'ACTION_DELAY', 'INCONSISTENCY', 'EXECUTION_WEAK',
+  'SHORT_TERM_ORIENTED', 'EMOTION_DRIVEN', 'OVERTHINKING',
+  'SELF_DOUBT', 'ANXIETY_HIGH', 'FIXED_MINDSET', 'EXTERNAL_LOCUS',
+  'RISK_SEEK', 'DEBT_PRESSURE', 'INCOME_UNSTABLE', 'SINGLE_INCOME',
+])
+
+// 正向标签集合（默认 direction = positive 的标签）
+const POSITIVE_TAGS = new Set([
+  'EXECUTION_STRONG', 'LEARNING', 'DISCIPLINE', 'PERSISTENCE',
+  'LONG_TERM_ORIENTED', 'ACTION_FAST',
+  'GROWTH_MINDSET', 'RESILIENCE_HIGH', 'CONFIDENCE',
+  'FINANCIAL_BUFFER', 'INCOME_STABLE', 'MULTI_INCOME',
+  'STABILITY_SEEKING', 'RISK_AVOID',
+])
 
 // ═══════════════════════════════════════
 // Evidence — 单条证据
@@ -25,13 +47,15 @@ const { ALL_TAGS } = require('./tags')
  * @param {string}  params.id           — 证据ID，格式 E-NNN
  * @param {string}  params.questionId   — 来源题目ID，如 "Q4"
  * @param {string}  params.answer       — 用户答案摘要
- * @param {number}  params.weight       — 权重 0.0–1.0，表示该证据在推理中的重要程度
+ * @param {number}  params.weight       — 可信度 0.0–1.0（关键词匹配强度）
+ * @param {number}  [params.importance] — 影响力 0.0–1.0，该证据对结论的影响力（默认 = weight）
+ * @param {'positive'|'negative'|'neutral'} [params.direction] — 方向（默认从 tags 推断）
  * @param {string[]} params.tags        — 关联标签（必须来自 ALL_TAGS）
  * @param {string}  params.reason       — 为什么这条答案构成证据
  * @param {Object}  [params.metadata]   — 额外元数据
  * @returns {Object} 冻结的 Evidence 对象
  */
-function createEvidence({ id, questionId, answer, weight, tags, reason, metadata }) {
+function createEvidence({ id, questionId, answer, weight, importance, direction, tags, reason, metadata }) {
   if (!id || typeof id !== 'string') {
     throw new Error(`Evidence id required and must be a string, got: ${JSON.stringify(id)}`)
   }
@@ -57,17 +81,46 @@ function createEvidence({ id, questionId, answer, weight, tags, reason, metadata
     throw new Error('Evidence reason required')
   }
 
+  // importance — 影响力（默认 = weight）
+  if (importance !== undefined && (typeof importance !== 'number' || importance < 0 || importance > 1)) {
+    throw new Error(`Evidence importance must be 0–1, got: ${importance}`)
+  }
+  const imp = importance !== undefined ? importance : weight
+
+  // direction — 正/负/中性（默认从 tags 推断）
+  if (direction !== undefined && !['positive', 'negative', 'neutral'].includes(direction)) {
+    throw new Error(`Evidence direction must be positive|negative|neutral, got: ${direction}`)
+  }
+  const dir = direction || inferDirection(tags)
+
   const evidence = Object.freeze({
     id,
     questionId,
     answer: Object.freeze(typeof answer === 'string' ? answer : String(answer)),
-    weight: clampWeight(weight, 2),
+    weight: clampWeight(weight, 2),         // 可信度
+    importance: clampWeight(imp, 2),        // 影响力
+    direction: dir,                          // positive | negative | neutral
     tags: Object.freeze([...tags]),
     reason,
     metadata: metadata ? Object.freeze({ ...metadata }) : Object.freeze({}),
   })
 
   return evidence
+}
+
+/**
+ * inferDirection — 从标签推断方向
+ */
+function inferDirection(tags) {
+  if (tags.length === 0) return 'neutral'
+  let pos = 0, neg = 0
+  for (const tag of tags) {
+    if (POSITIVE_TAGS.has(tag)) pos++
+    if (NEGATIVE_TAGS.has(tag)) neg++
+  }
+  if (pos > neg) return 'positive'
+  if (neg > pos) return 'negative'
+  return 'neutral'
 }
 
 /**
@@ -88,7 +141,6 @@ function createEvidenceSet(evidenceList) {
     ids.add(ev.id)
   }
 
-  // 验证覆盖情况（不强制要求最小题目数，因为用户可能只答了几道题）
   const questions = new Set(evidences.map(e => e.questionId))
 
   return Object.freeze({
@@ -103,10 +155,6 @@ function createEvidenceSet(evidenceList) {
 
 /**
  * getEvidencesByTag — 按标签筛选证据
- *
- * @param {Object[]} evidences
- * @param {string} tag
- * @returns {Object[]}
  */
 function getEvidencesByTag(evidences, tag) {
   if (!ALL_TAGS.has(tag)) {
@@ -117,43 +165,40 @@ function getEvidencesByTag(evidences, tag) {
 
 /**
  * getEvidencesByQuestion — 按题目筛选证据
- *
- * @param {Object[]} evidences
- * @param {string} questionId
- * @returns {Object[]}
  */
 function getEvidencesByQuestion(evidences, questionId) {
   return evidences.filter(e => e.questionId === questionId)
 }
 
 /**
- * getTopEvidences — 按权重取 top N 条证据
- *
- * @param {Object[]} evidences
- * @param {number} [n=5]
- * @returns {Object[]}
+ * getTopEvidences — 按 importance 取 top N 条证据
  */
 function getTopEvidences(evidences, n = 5) {
   return [...evidences]
-    .sort((a, b) => b.weight - a.weight)
+    .sort((a, b) => b.importance - a.importance)
     .slice(0, n)
 }
 
 /**
+ * getEvidencesByDirection — 按方向筛选
+ */
+function getEvidencesByDirection(evidences, direction) {
+  return evidences.filter(e => e.direction === direction)
+}
+
+/**
  * aggregateTagsFromEvidence — 从证据集中聚合标签统计
- *
- * @param {Object[]} evidences
- * @returns {Object} { tag → { count, totalWeight, evidences[] } }
  */
 function aggregateTagsFromEvidence(evidences) {
   const agg = {}
   for (const ev of evidences) {
     for (const tag of ev.tags) {
       if (!agg[tag]) {
-        agg[tag] = { count: 0, totalWeight: 0, evidenceIds: [] }
+        agg[tag] = { count: 0, totalWeight: 0, totalImportance: 0, evidenceIds: [] }
       }
       agg[tag].count += 1
       agg[tag].totalWeight += ev.weight
+      agg[tag].totalImportance += (ev.importance || ev.weight)
       agg[tag].evidenceIds.push(ev.id)
     }
   }
@@ -162,16 +207,6 @@ function aggregateTagsFromEvidence(evidences) {
 
 /**
  * validateEvidenceChain — 验证证据链完整性
- *
- * 检查点:
- *  1. 最少 2 条证据
- *  2. 最少覆盖 2 道题
- *  3. 无重复ID
- *  4. 所有权重在 [0,1]
- *  5. 所有标签有效
- *
- * @param {Object[]} evidences
- * @returns {{ valid: boolean, errors: string[] }}
  */
 function validateEvidenceChain(evidences) {
   const errors = []
@@ -207,8 +242,6 @@ function validateEvidenceChain(evidences) {
     }
   }
 
-  // 不强制最小题目数 — 由上层 Verdict Engine 决定证据是否足够
-
   return Object.freeze({
     valid: errors.length === 0,
     errors: Object.freeze(errors),
@@ -234,6 +267,10 @@ module.exports = {
   getEvidencesByTag,
   getEvidencesByQuestion,
   getTopEvidences,
+  getEvidencesByDirection,
   aggregateTagsFromEvidence,
   validateEvidenceChain,
+  POSITIVE_TAGS,
+  NEGATIVE_TAGS,
+  inferDirection,
 }
