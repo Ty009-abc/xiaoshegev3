@@ -128,6 +128,20 @@ function run(name) {
   ctx = ti.runCognitiveStep(ctx)
   ctx = ti.runLeverageStep(ctx)
   ctx = ti.runConflictStep(ctx)
+  ctx = ti.runOpportunityStep(ctx)
+  ctx = ti.runCoreContradictionStep(ctx)
+  return ctx
+}
+
+function runToConflict(name) {
+  const raw = F[name]
+  let ctx = ti.initializePipeline(raw)
+  ctx = ti.runPatternStep(ctx)
+  ctx = ti.runRiskStep(ctx)
+  ctx = ti.runProfileStep(ctx)
+  ctx = ti.runCognitiveStep(ctx)
+  ctx = ti.runLeverageStep(ctx)
+  ctx = ti.runConflictStep(ctx)
   return ctx
 }
 
@@ -304,9 +318,94 @@ test('4.3 每个 Conflict 有 severity/riskRef/leverageRef', () => {
 
 test('4.4 Conflict 数量 ≤ 3', () => {
   for (const name of Object.keys(F)) {
-    const ctx = run(name)
+    const ctx = runToConflict(name)
     assert((ctx.conflicts.conflicts || []).length <= 3, `${name}: too many conflicts`)
   }
+})
+
+// ═══════════════════════════════════════
+// SECTION 4-B: Opportunity Engine
+// ═══════════════════════════════════════
+
+section = 'Opportunity Engine'
+console.log('\n📋 ' + section)
+
+test('4-B.1 Opportunity Catalog 12 个', () => {
+  assert(Object.keys(ti.opportunity.OPPORTUNITY_CATALOG).length === 12, 'Should have 12 opportunities')
+})
+
+test('4-B.2 Opportunity 输出 ≤ 3', () => {
+  for (const name of Object.keys(F)) {
+    const ctx = run(name)
+    assert(ctx.opportunity.topOpportunities.length <= 3, `${name}: got ${ctx.opportunity.topOpportunities.length}`)
+  }
+})
+
+test('4-B.3 高认知低执行 → KNOWLEDGE_TO_EXECUTION', () => {
+  const ctx = run('highCogLowExec')
+  const codes = ctx.opportunity.topOpportunities.map(o => o.opportunityCode)
+  assert(codes.includes('KNOWLEDGE_TO_EXECUTION'), `Expected KNOWLEDGE_TO_EXECUTION, got: ${codes}`)
+})
+
+test('4-B.4 每个 Opportunity 有 window/difficulty/expectedImpact/confidence', () => {
+  for (const name of Object.keys(F)) {
+    const ctx = run(name)
+    for (const o of ctx.opportunity.topOpportunities) {
+      assert(['NEXT_30_DAYS','NEXT_60_DAYS','NEXT_90_DAYS','NEXT_180_DAYS'].includes(o.window), `${name}: window`)
+      assert(['LOW','MEDIUM','HIGH'].includes(o.difficulty), `${name}: difficulty`)
+      assert(typeof o.expectedImpact === 'number', `${name}: expectedImpact`)
+      assert(typeof o.confidence === 'number', `${name}: confidence`)
+    }
+  }
+})
+
+test('4-B.5 所有 Opportunity 必须是 Catalog 中的固定编码', () => {
+  for (const name of Object.keys(F)) {
+    const ctx = run(name)
+    for (const o of ctx.opportunity.topOpportunities) {
+      assert(ti.opportunity.OPPORTUNITY_CATALOG[o.opportunityCode], `${name}: unknown opp code ${o.opportunityCode}`)
+    }
+  }
+})
+
+// ═══════════════════════════════════════
+// SECTION 4-C: Core Contradiction Engine
+// ═══════════════════════════════════════
+
+section = 'Core Contradiction'
+console.log('\n📋 ' + section)
+
+test('4-C.1 高认知低执行 → LEARNING_EXECUTION_CONFLICT', () => {
+  const ctx = run('highCogLowExec')
+  assert(ctx.coreContradiction.code === 'LEARNING_EXECUTION_CONFLICT',
+    `Expected LEARNING_EXECUTION_CONFLICT, got: ${ctx.coreContradiction.code}`)
+})
+
+test('4-C.2 CoreContradiction 是唯一一个', () => {
+  for (const name of Object.keys(F)) {
+    const ctx = run(name)
+    assert(typeof ctx.coreContradiction.code === 'string', `${name}: should have core contradiction`)
+    assert(typeof ctx.coreContradiction.severity === 'number', `${name}: severity`)
+    assert(typeof ctx.coreContradiction.confidence === 'number', `${name}: confidence`)
+    assert(typeof ctx.coreContradiction.reason === 'string' && ctx.coreContradiction.reason.length > 0, `${name}: reason`)
+  }
+})
+
+test('4-C.3 CoreContradiction 有 evidenceChain 溯源', () => {
+  const ctx = run('highCogLowExec')
+  assert(ctx.coreContradiction.evidenceChain !== undefined, 'evidenceChain required')
+  assert(ctx.coreContradiction.evidenceChain.nodes.length >= 1, 'should have at least 1 node')
+  // 必须包含 evidence/pattern/risk/conflict 至少各一个
+  const types = ctx.coreContradiction.evidenceChain.nodes.map(n => n.type)
+  assert(types.includes('evidence'), 'chain must include evidence nodes')
+  assert(types.includes('conflict'), 'chain must include conflict node')
+})
+
+test('4-C.4 CoreContradiction 确定性 — 同一输入结果不变', () => {
+  const r1 = run('compositeRisk')
+  const r2 = run('compositeRisk')
+  assert(r1.coreContradiction.code === r2.coreContradiction.code, 'code differ')
+  assert(r1.coreContradiction.severity === r2.coreContradiction.severity, 'severity differ')
 })
 
 // ═══════════════════════════════════════

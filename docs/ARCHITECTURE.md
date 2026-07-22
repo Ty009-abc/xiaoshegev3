@@ -23,6 +23,27 @@ plans, and produces executable action plans.
 
 - **Pure functions** — every engine is a stateless, side-effect-free
   function
+- **Deterministic scoring** — no `Math.random()`, no AI calls, no hidden parameters
+- **Evidence as foundation** — all engines read Evidence, never raw answers
+- **Fixed catalogs** — Pattern, Risk, Leverage, Opportunity are all enumerated; no engine invents new codes
+- **Input isolation** — selectors strip context to only what each engine needs
+- **Top 3 principle** — Risk and Leverage output max 3 items each
+
+### Core Architectural Principle (V6 North Star)
+
+> **"Every conclusion must converge to one contradiction."**
+>
+> 任何最终结论，都必须收敛到唯一核心矛盾。
+>
+> The entire report has exactly one through-line:
+> - 命运判决 (P0 Verdict) centers on it
+> - 风险 (Risk) explains it
+> - 杠杆 (Leverage) resolves it
+> - 策略 (Strategy) targets it
+> - 行动计划 (Action) implements it
+>
+> The user walks away remembering one sentence:
+> "真正阻止我翻身的，就是高认知、低兑现。"
 - **Deterministic** — same input always produces the same output; no
   `Math.random()`, no `Date()`, no external API calls
 - **Layered** — strict separation between contracts, engines,

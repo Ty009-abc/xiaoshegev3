@@ -1,13 +1,18 @@
 /**
  * core/turnaround-intelligence/index.js
  *
- * Turnaround Intelligence Engine V6 — CP6-C 统一入口
+ * Turnaround Intelligence Engine V6 — CP6-C.1 统一入口
  *
- * Pipeline:
- *   answers → Evidence → Pattern → Risk → Profile → Cognitive → Leverage → Conflict
+ * Pipeline (完整):
+ *   answers → Evidence → Pattern → Risk → Profile → Cognitive → Leverage
+ *   → Conflict → Opportunity → CoreContradiction → Verdict (CP6-E)
+ *
+ * 核心原则:
+ *   "Every conclusion must converge to one contradiction."
+ *   任何最终结论，都必须收敛到唯一核心矛盾。
  *
  * @version 6.1.0
- * @checkpoint CP6-C
+ * @checkpoint CP6-C.1
  */
 
 // Contracts
@@ -21,29 +26,35 @@ const pattern = require('./contracts/pattern')
 const risk = require('./contracts/risk')
 const leverage = require('./contracts/leverage')
 const conflict = require('./contracts/conflict')
+const opportunity = require('./contracts/opportunity')
+const coreContradiction = require('./contracts/coreContradiction')
 
 // Builders
 const { normalize, extractAnswerSummary, validateNormalized } = require('./builders/normalizer')
 const { buildEvidence } = require('./builders/evidenceBuilder')
 
 // Selectors
-const { createProfileInput, validateProfileInput } = require('./selectors/profileInput')
-const { createCognitiveInput, validateCognitiveInput } = require('./selectors/cognitiveInput')
-const { createPatternInput, validatePatternInput } = require('./selectors/patternInput')
-const { createRiskInput, validateRiskInput } = require('./selectors/riskInput')
-const { createLeverageInput, validateLeverageInput } = require('./selectors/leverageInput')
-const { createConflictInput, validateConflictInput } = require('./selectors/conflictInput')
+const profileSelectors = require('./selectors/profileInput')
+const cognitiveSelectors = require('./selectors/cognitiveInput')
+const patternSelectors = require('./selectors/patternInput')
+const riskSelectors = require('./selectors/riskInput')
+const leverageSelectors = require('./selectors/leverageInput')
+const conflictSelectors = require('./selectors/conflictInput')
+const opportunitySelectors = require('./selectors/opportunityInput')
+const coreSelectors = require('./selectors/coreContradictionInput')
 
 // Engines
-const { run: runPatternEngine } = require('./engines/patternEngine')
-const { run: runRiskEngine } = require('./engines/riskEngine')
-const { run: runProfileEngine } = require('./engines/profileEngine')
-const { run: runCognitiveEngine } = require('./engines/cognitiveEngine')
-const { run: runLeverageEngine } = require('./engines/leverageEngine')
-const { run: runConflictResolver } = require('./engines/conflictResolver')
+const patternEngine = require('./engines/patternEngine')
+const riskEngine = require('./engines/riskEngine')
+const profileEngine = require('./engines/profileEngine')
+const cognitiveEngine = require('./engines/cognitiveEngine')
+const leverageEngine = require('./engines/leverageEngine')
+const conflictEngine = require('./engines/conflictResolver')
+const opportunityEngine = require('./engines/opportunityEngine')
+const coreEngine = require('./engines/coreContradictionEngine')
 
 // ═══════════════════════════════════════
-// Pipeline
+// Pipeline Steps
 // ═══════════════════════════════════════
 
 function initializePipeline(rawAnswers) {
@@ -56,74 +67,84 @@ function initializePipeline(rawAnswers) {
 }
 
 function runPatternStep(ctx) {
-  const input = createPatternInput(ctx)
-  const patternOutput = runPatternEngine(input)
-  return context.updateContext(ctx, 'PatternEngine', { patterns: patternOutput }, 'pattern_detected')
+  return context.updateContext(ctx, 'PatternEngine',
+    { patterns: patternEngine.run(patternSelectors.createPatternInput(ctx)) },
+    'pattern_detected')
 }
 
 function runRiskStep(ctx) {
-  if (ctx._meta.pipelineStage !== 'pattern_detected') ctx = runPatternStep(ctx)
-  const input = createRiskInput(ctx)
-  const riskOutput = runRiskEngine(input)
-  return context.updateContext(ctx, 'RiskEngine', { risk: riskOutput }, 'risk_analyzed')
+  if (!ctx.patterns) ctx = runPatternStep(ctx)
+  return context.updateContext(ctx, 'RiskEngine',
+    { risk: riskEngine.run(riskSelectors.createRiskInput(ctx)) },
+    'risk_analyzed')
 }
 
 function runProfileStep(ctx) {
   if (!ctx.patterns) ctx = runPatternStep(ctx)
-  const input = createProfileInput(ctx)
-  const profileOutput = runProfileEngine(input)
-  return context.updateContext(ctx, 'ProfileEngine', { profile: profileOutput }, 'profiled')
+  return context.updateContext(ctx, 'ProfileEngine',
+    { profile: profileEngine.run(profileSelectors.createProfileInput(ctx)) },
+    'profiled')
 }
 
 function runCognitiveStep(ctx) {
-  const input = createCognitiveInput(ctx)
-  const cognitiveOutput = runCognitiveEngine(input)
-  return context.updateContext(ctx, 'CognitiveEngine', { cognitive: cognitiveOutput }, 'cognitive')
+  return context.updateContext(ctx, 'CognitiveEngine',
+    { cognitive: cognitiveEngine.run(cognitiveSelectors.createCognitiveInput(ctx)) },
+    'cognitive')
 }
 
 function runLeverageStep(ctx) {
-  const input = createLeverageInput(ctx)
-  const leverageOutput = runLeverageEngine(input)
-  return context.updateContext(ctx, 'LeverageEngine', { leverage: leverageOutput }, 'leverage_analyzed')
+  return context.updateContext(ctx, 'LeverageEngine',
+    { leverage: leverageEngine.run(leverageSelectors.createLeverageInput(ctx)) },
+    'leverage_analyzed')
 }
 
 function runConflictStep(ctx) {
   if (!ctx.risk) ctx = runRiskStep(ctx)
   if (!ctx.leverage) ctx = runLeverageStep(ctx)
-  const input = createConflictInput(ctx)
-  const conflictOutput = runConflictResolver(input)
-  return context.updateContext(ctx, 'ConflictResolver', { conflicts: conflictOutput }, 'conflicts_resolved')
+  return context.updateContext(ctx, 'ConflictResolver',
+    { conflicts: conflictEngine.run(conflictSelectors.createConflictInput(ctx)) },
+    'conflicts_resolved')
 }
 
+function runOpportunityStep(ctx) {
+  if (!ctx.conflicts) ctx = runConflictStep(ctx)
+  return context.updateContext(ctx, 'OpportunityEngine',
+    { opportunity: opportunityEngine.run(opportunitySelectors.createOpportunityInput(ctx)) },
+    'opportunity_analyzed')
+}
+
+function runCoreContradictionStep(ctx) {
+  if (!ctx.opportunity) ctx = runOpportunityStep(ctx)
+  return context.updateContext(ctx, 'CoreContradictionEngine',
+    { coreContradiction: coreEngine.run(coreSelectors.createCoreContradictionInput(ctx)) },
+    'core_contradiction_selected')
+}
+
+// ═══════════════════════════════════════
+// Exports
+// ═══════════════════════════════════════
+
 module.exports = {
-  tags, evidence, context, verdict, profile, cognitive, pattern, risk, leverage, conflict,
+  tags, evidence, context, verdict, profile, cognitive,
+  pattern, risk, leverage, conflict, opportunity, coreContradiction,
 
   normalizer: { normalize, extractAnswerSummary, validateNormalized },
   evidenceBuilder: { buildEvidence },
 
   selectors: {
-    createProfileInput, validateProfileInput,
-    createCognitiveInput, validateCognitiveInput,
-    createPatternInput, validatePatternInput,
-    createRiskInput, validateRiskInput,
-    createLeverageInput, validateLeverageInput,
-    createConflictInput, validateConflictInput,
+    ...profileSelectors, ...cognitiveSelectors, ...patternSelectors,
+    ...riskSelectors, ...leverageSelectors, ...conflictSelectors,
+    ...opportunitySelectors, ...coreSelectors,
   },
 
   engines: {
-    pattern: runPatternEngine,
-    risk: runRiskEngine,
-    profile: runProfileEngine,
-    cognitive: runCognitiveEngine,
-    leverage: runLeverageEngine,
-    conflict: runConflictResolver,
+    pattern: patternEngine.run, risk: riskEngine.run,
+    profile: profileEngine.run, cognitive: cognitiveEngine.run,
+    leverage: leverageEngine.run, conflict: conflictEngine.run,
+    opportunity: opportunityEngine.run, coreContradiction: coreEngine.run,
   },
 
   initializePipeline,
-  runPatternStep,
-  runRiskStep,
-  runProfileStep,
-  runCognitiveStep,
-  runLeverageStep,
-  runConflictStep,
+  runPatternStep, runRiskStep, runProfileStep, runCognitiveStep,
+  runLeverageStep, runConflictStep, runOpportunityStep, runCoreContradictionStep,
 }
