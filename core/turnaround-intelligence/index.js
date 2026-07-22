@@ -148,6 +148,67 @@ function runMilestoneStep(ctx) {
 }
 
 // ═══════════════════════════════════════
+// CP6-E: Narrative Intelligence Engine (NIE) — 渲染层
+// ═══════════════════════════════════════
+
+const verdictRenderer = require('./renderers/verdictRenderer')
+const realityGapRenderer = require('./renderers/realityGapRenderer')
+const potentialRenderer = require('./renderers/potentialRenderer')
+const strategyRenderer = require('./renderers/strategyRenderer')
+const timelineRenderer = require('./renderers/timelineRenderer')
+const actionRenderer = require('./renderers/actionRenderer')
+const consistencyChecker = require('./renderers/consistencyChecker')
+const emotionRenderer = require('./renderers/emotionRenderer')
+
+const narrativeContracts = {
+  verdict: require('./contracts/narrative/verdict'),
+  realityGap: require('./contracts/narrative/realityGap'),
+  potential: require('./contracts/narrative/potential'),
+  strategy: require('./contracts/narrative/strategy'),
+  timeline: require('./contracts/narrative/timeline'),
+  action: require('./contracts/narrative/action'),
+  consistency: require('./contracts/narrative/consistency'),
+  emotion: require('./contracts/narrative/emotion'),
+}
+
+function runVerdictRenderer(ctx) {
+  return context.updateContext(ctx, 'VerdictRenderer',
+    { verdict: verdictRenderer.run(ctx) }, 'verdict_rendered')
+}
+function runRealityGapRenderer(ctx) {
+  return context.updateContext(ctx, 'RealityGapRenderer',
+    { realityGap: realityGapRenderer.run(ctx) }, 'reality_gap_rendered')
+}
+function runPotentialRenderer(ctx) {
+  return context.updateContext(ctx, 'PotentialRenderer',
+    { potential: potentialRenderer.run(ctx) }, 'potential_rendered')
+}
+function runStrategyRenderer(ctx) {
+  if (!ctx.roadmap) ctx = runRoadmapStep(ctx)
+  return context.updateContext(ctx, 'StrategyRenderer',
+    { strategy: strategyRenderer.run(ctx) }, 'strategy_rendered')
+}
+function runTimelineRenderer(ctx) {
+  if (!ctx.milestone) ctx = runMilestoneStep(ctx)
+  return context.updateContext(ctx, 'TimelineRenderer',
+    { timeline: timelineRenderer.run(ctx) }, 'timeline_rendered')
+}
+function runActionRenderer(ctx) {
+  if (!ctx.milestone) ctx = runMilestoneStep(ctx)
+  return context.updateContext(ctx, 'ActionRenderer',
+    { action: actionRenderer.run(ctx) }, 'action_rendered')
+}
+function runConsistencyChecker(ctx) {
+  if (!ctx.action) ctx = runActionRenderer(ctx)
+  return context.updateContext(ctx, 'ConsistencyChecker',
+    { consistency: consistencyChecker.run(ctx) }, 'consistency_checked')
+}
+function runEmotionRenderer(ctx) {
+  return context.updateContext(ctx, 'EmotionRenderer',
+    { emotion: emotionRenderer.run(ctx) }, 'emotion_rendered')
+}
+
+// ═══════════════════════════════════════
 // Exports
 // ═══════════════════════════════════════
 
@@ -156,6 +217,7 @@ module.exports = {
   tags, evidence, context, verdict, profile, cognitive,
   pattern, risk, leverage, conflict, opportunity, coreContradiction,
   decision, roadmap, feasibility, bottleneck, milestone,
+  narrative: narrativeContracts,
 
   // Builders
   normalizer: { normalize, extractAnswerSummary, validateNormalized },
@@ -181,4 +243,7 @@ module.exports = {
   runPatternStep, runRiskStep, runProfileStep, runCognitiveStep,
   runLeverageStep, runConflictStep, runOpportunityStep, runCoreContradictionStep,
   runDecisionStep, runRoadmapStep, runFeasibilityStep, runBottleneckStep, runMilestoneStep,
+  runVerdictRenderer, runRealityGapRenderer, runPotentialRenderer,
+  runStrategyRenderer, runTimelineRenderer, runActionRenderer,
+  runConsistencyChecker, runEmotionRenderer,
 }
