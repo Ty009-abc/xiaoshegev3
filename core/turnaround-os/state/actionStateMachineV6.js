@@ -53,21 +53,40 @@ function transitionActionState(params) {
   var payload = params.payload || {}
 
   if (!execution || typeof execution !== 'object') {
-    return { ok: false, errorCode: 'E_MISSING_EXECUTION', execution: null }
+    return { ok: false, errorCode: 'E_MISSING_EXECUTION', details: 'execution is null or not an object', execution: null }
   }
 
   if (Object.values(EVENTS).indexOf(event) < 0) {
-    return { ok: false, errorCode: 'E_UNKNOWN_EVENT', execution: execution }
+    return { ok: false, errorCode: 'E_UNKNOWN_EVENT', details: 'Unknown event: ' + event, execution: execution }
   }
 
   var current = execution.status
   if (!current || !VALID_TRANSITIONS[current]) {
-    return { ok: false, errorCode: 'E_INVALID_CURRENT_STATE', execution: execution }
+    return { ok: false, errorCode: 'E_INVALID_CURRENT_STATE', details: 'Invalid or missing current state: ' + current, execution: execution }
   }
 
   var target = eventToTarget(event, execution, payload)
   if (!target) {
-    return { ok: false, errorCode: 'E_UNMAPPABLE_EVENT', execution: execution }
+    // 提供更具体的错误码
+    if (event === EVENTS.RETRY && execution.status === STATUS.FAILED) {
+      var max = execution.maxAttempts || 3
+      var attempts = execution.attemptCount || 0
+      return {
+        ok: false,
+        errorCode: 'E_RETRY_EXHAUSTED',
+        details: 'Retry limit exceeded: ' + attempts + '/' + max + ' attempts used',
+        execution: execution,
+      }
+    }
+    if (event === EVENTS.RETRY && execution.status === STATUS.BLOCKED) {
+      return {
+        ok: false,
+        errorCode: 'E_ILLEGAL_RETRY',
+        details: 'Cannot RETRY from BLOCKED — use UNBLOCK event instead',
+        execution: execution,
+      }
+    }
+    return { ok: false, errorCode: 'E_UNMAPPABLE_EVENT', details: 'Event ' + event + ' cannot be mapped from state ' + execution.status, execution: execution }
   }
 
   var allowed = VALID_TRANSITIONS[current]
@@ -101,9 +120,18 @@ function eventToTarget(event, execution, payload) {
     case EVENTS.SKIP:              return STATUS.SKIPPED
     case EVENTS.CANCEL:            return STATUS.CANCELLED
     case EVENTS.RETRY:
-      // 从 FAILED → READY
-      if (execution.status === STATUS.FAILED) return STATUS.READY
+      // RETRY: 仅允许从 FAILED / SKIPPED → READY
+      if (execution.status === STATUS.FAILED) {
+        // FAILED → READY 必须满足 retry 条件
+        var max = execution.maxAttempts || 3
+        var attempts = execution.attemptCount || 0
+        if (attempts >= max) {
+          return null // 超出重试上限
+        }
+        return STATUS.READY
+      }
       if (execution.status === STATUS.SKIPPED) return STATUS.READY
+      // RETRY 不可用于 BLOCKED → READY (BLOCKED 必须用 UNBLOCK)
       return null
     case EVENTS.FALLBACK_TRIGGER:
       // fallback 触发 → 根据 fallback type 决定

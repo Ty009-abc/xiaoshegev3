@@ -356,7 +356,7 @@ var cp = require('child_process')
 
 test('8.1 Checkpoint 4A 仍 27 pass', function() {
   var result = cp.spawnSync(
-    '/Users/lvjianfang/.workbuddy/binaries/node/versions/22.22.2/bin/node',
+    process.execPath,
     ['tests/turnaround-os/checkpoint4a.test.js'],
     { cwd: __dirname + '/../..', encoding: 'utf8', timeout: 30000 }
   )

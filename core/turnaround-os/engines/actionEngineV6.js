@@ -182,30 +182,43 @@ function buildDependencyMap(actions, missions) {
     }
   }
 
-  // 检测 fallback 循环
+  // 检测依赖循环 — 增强 DFS (self-cycle, 2-node, 3-node, 10-node, disconnected, multi-cycle)
+  var depCycles = findDependencyCycles(edges)
+  for (var c = 0; c < depCycles.length; c++) {
+    warnings.push({
+      actionId: '',
+      errorCode: 'ACTION_DEPENDENCY_CYCLE',
+      cyclePath: depCycles[c],
+      message: 'Dependency cycle (' + (depCycles[c].length - 1) + '-node): ' + depCycles[c].join(' → '),
+    })
+  }
+
+  // 检测 fallback 循环 — 建图 + DFS (self-cycle, 2-node, 3+ node)
+  var fbCycles = findFallbackCycles(actions, seenIds)
+  for (var d = 0; d < fbCycles.length; d++) {
+    warnings.push({
+      actionId: fbCycles[d].actionId || '',
+      errorCode: 'ACTION_FALLBACK_CYCLE',
+      cyclePath: fbCycles[d].cyclePath || [],
+      message: fbCycles[d].message,
+    })
+  }
+
+  // fallback targetActionId 缺失 (非循环类警告)
   for (var k = 0; k < actions.length; k++) {
     var act = actions[k]
     var fb = act.fallback
     if (fb && fb.targetActionId) {
       var target = fb.targetActionId
-
-      // self-cycle
-      if (target === act.actionId) {
-        warnings.push({ actionId: act.actionId, message: 'Fallback self-cycle: ' + target })
-        continue
-      }
-
-      // 目标不存在
       if (!seenIds[target]) {
-        warnings.push({ actionId: act.actionId, message: 'Fallback target not found: ' + target })
+        warnings.push({
+          actionId: act.actionId,
+          errorCode: 'ACTION_FALLBACK_TARGET_NOT_FOUND',
+          cyclePath: [],
+          message: 'Fallback target not found: ' + target,
+        })
       }
     }
-  }
-
-  // 检测依赖循环
-  var cycles = findDependencyCycles(edges)
-  for (var c = 0; c < cycles.length; c++) {
-    warnings.push({ actionId: '', message: 'Dependency cycle: ' + cycles[c].join(' → ') })
   }
 
   // 关键路径（简化：按 phase 串联的 REQUIRED 链）
@@ -219,56 +232,162 @@ function buildDependencyMap(actions, missions) {
 }
 
 // ═══════════════════════════════════════
-// 依赖循环检测（DFS）
+// 依赖循环检测 — 三色 DFS (White/Gray/Black)
+// 支持: self-cycle, 2-node, 3-node, 10-node, disconnected 局部循环, 多个独立循环
 // ═══════════════════════════════════════
 
 function findDependencyCycles(edges) {
-  var cycles = []
   var adj = {}
+  var allNodes = {}
+
   for (var i = 0; i < edges.length; i++) {
     var e = edges[i]
     if (!adj[e.from]) adj[e.from] = []
     adj[e.from].push(e.to)
+    allNodes[e.from] = true
+    allNodes[e.to] = true
   }
 
-  // 每个节点做 DFS
-  var allNodes = Object.keys(adj)
-  for (var j = 0; j < allNodes.length; j++) {
-    var node = allNodes[j]
-    var visited = {}
-    var stack = [node]
-    var path = []
-    while (stack.length > 0) {
-      var cur = stack[stack.length - 1]
-      if (visited[cur]) {
-        stack.pop()
-        path.pop()
-        continue
-      }
-      visited[cur] = true
-      path.push(cur)
-      var neighbors = adj[cur] || []
-      for (var k = 0; k < neighbors.length; k++) {
-        var n = neighbors[k]
-        if (n === node && path.length > 1) {
-          // found cycle
-          cycles.push(path.slice().concat(node))
-          stack = []
-          break
+  var nodes = Object.keys(allNodes)
+  var WHITE = 0, GRAY = 1, BLACK = 2
+  var color = {}
+  var parent = {}
+  var cycles = []
+
+  for (var i = 0; i < nodes.length; i++) {
+    color[nodes[i]] = WHITE
+    parent[nodes[i]] = null
+  }
+
+  function dfsVisit(u) {
+    color[u] = GRAY
+    var neighbors = adj[u] || []
+    for (var i = 0; i < neighbors.length; i++) {
+      var v = neighbors[i]
+      if (color[v] === GRAY) {
+        // Back edge u→v — 从 v 沿 parent 链到 u, 再回到 v
+        var cycle = [v]
+        var cur = u
+        var revPath = []
+        while (cur !== v) {
+          revPath.push(cur)
+          cur = parent[cur]
         }
-        if (!visited[n]) {
-          stack.push(n)
+        for (var ri = revPath.length - 1; ri >= 0; ri--) {
+          cycle.push(revPath[ri])
         }
+        cycle.push(v) // close
+        cycles.push(cycle)
+      } else if (color[v] === WHITE) {
+        parent[v] = u
+        dfsVisit(v)
       }
-      if (stack.length === 0) break
-      if (stack[stack.length - 1] === cur) {
-        stack.pop()
-        path.pop()
-      }
+    }
+    color[u] = BLACK
+  }
+
+  for (var i = 0; i < nodes.length; i++) {
+    if (color[nodes[i]] === WHITE) {
+      dfsVisit(nodes[i])
     }
   }
 
-  return cycles
+  // 去重
+  var seen = {}
+  var unique = []
+  for (var c = 0; c < cycles.length; c++) {
+    var key = cycles[c].join(',')
+    if (!seen[key]) {
+      seen[key] = true
+      unique.push(cycles[c])
+    }
+  }
+
+  return unique
+}
+
+// ═══════════════════════════════════════
+// Fallback 链循环检测 — 三色 DFS
+// 支持: self-cycle, 2-node, 3+ node, targetActionId 不存在, 合法无环链通过
+// ═══════════════════════════════════════
+
+function findFallbackCycles(actions, seenIds) {
+  var adj = {}
+  var allNodes = {}
+
+  for (var i = 0; i < actions.length; i++) {
+    var a = actions[i]
+    var fb = a.fallback
+    if (fb && fb.targetActionId && seenIds[fb.targetActionId]) {
+      if (!adj[a.actionId]) adj[a.actionId] = []
+      adj[a.actionId].push(fb.targetActionId)
+      allNodes[a.actionId] = true
+      allNodes[fb.targetActionId] = true
+    }
+  }
+
+  var nodes = Object.keys(allNodes)
+  if (nodes.length === 0) return []
+
+  var WHITE = 0, GRAY = 1, BLACK = 2
+  var color = {}
+  var parent = {}
+  var results = []
+
+  for (var i = 0; i < nodes.length; i++) {
+    color[nodes[i]] = WHITE
+    parent[nodes[i]] = null
+  }
+
+  function dfsVisit(u) {
+    color[u] = GRAY
+    var neighbors = adj[u] || []
+    for (var i = 0; i < neighbors.length; i++) {
+      var v = neighbors[i]
+      if (color[v] === GRAY) {
+        // Back edge u→v — fallback cycle detected
+        var cycle = [v]
+        var cur = u
+        var revPath = []
+        while (cur !== v) {
+          revPath.push(cur)
+          cur = parent[cur]
+        }
+        for (var ri = revPath.length - 1; ri >= 0; ri--) {
+          cycle.push(revPath[ri])
+        }
+        cycle.push(v) // close
+        results.push({
+          actionId: cycle[0],
+          cyclePath: cycle,
+          message: 'Fallback cycle (' + (cycle.length - 1) + '-node): ' + cycle.join(' → '),
+        })
+      } else if (color[v] === WHITE) {
+        parent[v] = u
+        dfsVisit(v)
+      }
+    }
+    color[u] = BLACK
+  }
+
+  for (var i = 0; i < nodes.length; i++) {
+    if (color[nodes[i]] === WHITE) {
+      dfsVisit(nodes[i])
+    }
+  }
+
+  // 去重
+  var seen = {}
+  var unique = []
+  for (var r = 0; r < results.length; r++) {
+    var key = results[r].cyclePath.join(',')
+    if (!seen[key]) {
+      seen[key] = true
+      unique.push(results[r])
+    }
+  }
+
+  return unique
 }
 
 // ═══════════════════════════════════════
@@ -389,4 +508,6 @@ module.exports = {
   createActionExecutionContext,
   applyTransition,
   EVENTS,
+  findDependencyCycles,
+  findFallbackCycles,
 }

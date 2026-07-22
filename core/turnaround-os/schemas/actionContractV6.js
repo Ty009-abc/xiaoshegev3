@@ -98,7 +98,7 @@ function createActionDefinition(params) {
 
   // ID 覆盖：category 4-letter code
   if (!params.actionId) {
-    res.actionId = makeActionId(phase, category, seq)
+    def.actionId = makeActionId(phase, category, seq)
   }
 
   return deepFreeze(def)
