@@ -22,6 +22,17 @@ function run(input) {
   const leverageTop = (input.leverage || {}).topLeverages || []
 
   if (conflicts.length === 0) {
+    // 回退: 从 Risk 直接推导
+    if (riskTop.length > 0) {
+      const fallbackOpp = deriveFromRisk(riskTop[0])
+      if (fallbackOpp) {
+        return createOpportunityOutput({
+          version: '6.1.0',
+          topOpportunities: [{ ...fallbackOpp, priority: 1 }],
+          totalOpportunityScore: fallbackOpp.expectedImpact,
+        })
+      }
+    }
     return createOpportunityOutput({
       version: '6.1.0',
       topOpportunities: [],

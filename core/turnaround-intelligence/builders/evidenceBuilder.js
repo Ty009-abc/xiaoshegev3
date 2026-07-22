@@ -38,7 +38,7 @@ const KEYWORD_TAG_MAP = [
   { keywords: ['冲动', '情绪', '焦虑', '烦躁', '生气', '一时上头', '上头', '控制不住'], tag: BEHAVIOR_TAGS.EMOTION_DRIVEN, weight: 0.82 },
   { keywords: ['买', '消费', '花钱', '购物', '剁手', '想要', '忍不住买'], tag: BEHAVIOR_TAGS.CONSUMPTION_PATTERN, weight: 0.72 },
   { keywords: ['长期', '未来', '几年', '三年', '五年', '持续', '积累'], tag: BEHAVIOR_TAGS.LONG_TERM_ORIENTED, weight: 0.70 },
-  { keywords: ['短期', '当下', '眼前', '先', '目前', '现在'], tag: BEHAVIOR_TAGS.SHORT_TERM_ORIENTED, weight: 0.68 },
+  { keywords: ['只看到眼前', '即痛快', '先爽', '大手大脚', '冲动消费', '忍不住买', '管不住手', '买了就'], tag: BEHAVIOR_TAGS.SHORT_TERM_ORIENTED, weight: 0.68 },
   { keywords: ['三天打鱼', '坚持不下去', '断断续', '中断', '停', '放弃', '做不下去', '不想做', '换方向', '经常换', '坚持不了', '不到三个'], tag: BEHAVIOR_TAGS.INCONSISTENCY, weight: 0.83 },
   { keywords: ['执行力不足', '执行力弱', '行动力弱', '动手太慢', '做不下去'], tag: BEHAVIOR_TAGS.EXECUTION_WEAK, weight: 0.78, importance: 0.90, direction: 'negative' },
   { keywords: ['执行力强', '做得快', '效率高', '执行力高', '效率很高'], tag: BEHAVIOR_TAGS.EXECUTION_STRONG, weight: 0.78, importance: 0.90, direction: 'positive' },

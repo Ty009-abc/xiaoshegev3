@@ -162,7 +162,7 @@ function createOpportunityOutput({ version, topOpportunities, totalOpportunitySc
     }
     if (o.priority !== i + 1) throw new Error(`topOpportunities[${i}]: priority must be ${i + 1}`)
     if (typeof o.confidence !== 'number') throw new Error(`Opportunity ${o.opportunityCode}: confidence required`)
-    if (!o.basedOn || !o.basedOn.conflict) throw new Error(`Opportunity ${o.opportunityCode}: basedOn.conflict required`)
+    if (!o.basedOn || (!o.basedOn.conflict && !o.basedOn.risk)) throw new Error(`Opportunity ${o.opportunityCode}: basedOn.conflict or basedOn.risk required`)
   }
 
   return Object.freeze({

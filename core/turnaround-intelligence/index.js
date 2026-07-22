@@ -1,18 +1,19 @@
 /**
  * core/turnaround-intelligence/index.js
  *
- * Turnaround Intelligence Engine V6 — CP6-C.1 统一入口
+ * Turnaround Intelligence Engine V6 — CP6-D 统一入口
  *
  * Pipeline (完整):
- *   answers → Evidence → Pattern → Risk → Profile → Cognitive → Leverage
- *   → Conflict → Opportunity → CoreContradiction → Verdict (CP6-E)
+ *   answers → Evidence → Pattern → Risk → Profile → Cognitive
+ *   → Leverage → Conflict → Opportunity → CoreContradiction
+ *   → Decision → Roadmap → Feasibility → Bottleneck → Milestone
+ *   → Verdict (CP6-E)
  *
  * 核心原则:
  *   "Every conclusion must converge to one contradiction."
- *   任何最终结论，都必须收敛到唯一核心矛盾。
  *
- * @version 6.1.0
- * @checkpoint CP6-C.1
+ * @version 6.2.0
+ * @checkpoint CP6-D
  */
 
 // Contracts
@@ -28,30 +29,45 @@ const leverage = require('./contracts/leverage')
 const conflict = require('./contracts/conflict')
 const opportunity = require('./contracts/opportunity')
 const coreContradiction = require('./contracts/coreContradiction')
+const decision = require('./contracts/decision')
+const roadmap = require('./contracts/roadmap')
+const feasibility = require('./contracts/feasibility')
+const bottleneck = require('./contracts/bottleneck')
+const milestone = require('./contracts/milestone')
 
 // Builders
 const { normalize, extractAnswerSummary, validateNormalized } = require('./builders/normalizer')
 const { buildEvidence } = require('./builders/evidenceBuilder')
 
 // Selectors
-const profileSelectors = require('./selectors/profileInput')
-const cognitiveSelectors = require('./selectors/cognitiveInput')
-const patternSelectors = require('./selectors/patternInput')
-const riskSelectors = require('./selectors/riskInput')
-const leverageSelectors = require('./selectors/leverageInput')
-const conflictSelectors = require('./selectors/conflictInput')
-const opportunitySelectors = require('./selectors/opportunityInput')
-const coreSelectors = require('./selectors/coreContradictionInput')
+const profileSel = require('./selectors/profileInput')
+const cognitiveSel = require('./selectors/cognitiveInput')
+const patternSel = require('./selectors/patternInput')
+const riskSel = require('./selectors/riskInput')
+const leverageSel = require('./selectors/leverageInput')
+const conflictSel = require('./selectors/conflictInput')
+const opportunitySel = require('./selectors/opportunityInput')
+const coreSel = require('./selectors/coreContradictionInput')
+const decisionSel = require('./selectors/decisionInput')
+const roadmapSel = require('./selectors/roadmapInput')
+const feasibilitySel = require('./selectors/feasibilityInput')
+const bottleneckSel = require('./selectors/bottleneckInput')
+const milestoneSel = require('./selectors/milestoneInput')
 
 // Engines
-const patternEngine = require('./engines/patternEngine')
-const riskEngine = require('./engines/riskEngine')
-const profileEngine = require('./engines/profileEngine')
-const cognitiveEngine = require('./engines/cognitiveEngine')
-const leverageEngine = require('./engines/leverageEngine')
-const conflictEngine = require('./engines/conflictResolver')
-const opportunityEngine = require('./engines/opportunityEngine')
-const coreEngine = require('./engines/coreContradictionEngine')
+const patternEng = require('./engines/patternEngine')
+const riskEng = require('./engines/riskEngine')
+const profileEng = require('./engines/profileEngine')
+const cognitiveEng = require('./engines/cognitiveEngine')
+const leverageEng = require('./engines/leverageEngine')
+const conflictEng = require('./engines/conflictResolver')
+const opportunityEng = require('./engines/opportunityEngine')
+const coreEng = require('./engines/coreContradictionEngine')
+const decisionEng = require('./engines/decisionEngine')
+const roadmapEng = require('./engines/roadmapEngine')
+const feasibilityEng = require('./engines/feasibilityEngine')
+const bottleneckEng = require('./engines/bottleneckEngine')
+const milestoneEng = require('./engines/milestoneEngine')
 
 // ═══════════════════════════════════════
 // Pipeline Steps
@@ -68,56 +84,67 @@ function initializePipeline(rawAnswers) {
 
 function runPatternStep(ctx) {
   return context.updateContext(ctx, 'PatternEngine',
-    { patterns: patternEngine.run(patternSelectors.createPatternInput(ctx)) },
-    'pattern_detected')
+    { patterns: patternEng.run(patternSel.createPatternInput(ctx)) }, 'pattern_detected')
 }
-
 function runRiskStep(ctx) {
   if (!ctx.patterns) ctx = runPatternStep(ctx)
   return context.updateContext(ctx, 'RiskEngine',
-    { risk: riskEngine.run(riskSelectors.createRiskInput(ctx)) },
-    'risk_analyzed')
+    { risk: riskEng.run(riskSel.createRiskInput(ctx)) }, 'risk_analyzed')
 }
-
 function runProfileStep(ctx) {
   if (!ctx.patterns) ctx = runPatternStep(ctx)
   return context.updateContext(ctx, 'ProfileEngine',
-    { profile: profileEngine.run(profileSelectors.createProfileInput(ctx)) },
-    'profiled')
+    { profile: profileEng.run(profileSel.createProfileInput(ctx)) }, 'profiled')
 }
-
 function runCognitiveStep(ctx) {
   return context.updateContext(ctx, 'CognitiveEngine',
-    { cognitive: cognitiveEngine.run(cognitiveSelectors.createCognitiveInput(ctx)) },
-    'cognitive')
+    { cognitive: cognitiveEng.run(cognitiveSel.createCognitiveInput(ctx)) }, 'cognitive')
 }
-
 function runLeverageStep(ctx) {
+  if (!ctx.profile) ctx = runProfileStep(ctx)
   return context.updateContext(ctx, 'LeverageEngine',
-    { leverage: leverageEngine.run(leverageSelectors.createLeverageInput(ctx)) },
-    'leverage_analyzed')
+    { leverage: leverageEng.run(leverageSel.createLeverageInput(ctx)) }, 'leverage_analyzed')
 }
-
 function runConflictStep(ctx) {
   if (!ctx.risk) ctx = runRiskStep(ctx)
   if (!ctx.leverage) ctx = runLeverageStep(ctx)
   return context.updateContext(ctx, 'ConflictResolver',
-    { conflicts: conflictEngine.run(conflictSelectors.createConflictInput(ctx)) },
-    'conflicts_resolved')
+    { conflicts: conflictEng.run(conflictSel.createConflictInput(ctx)) }, 'conflicts_resolved')
 }
-
 function runOpportunityStep(ctx) {
   if (!ctx.conflicts) ctx = runConflictStep(ctx)
   return context.updateContext(ctx, 'OpportunityEngine',
-    { opportunity: opportunityEngine.run(opportunitySelectors.createOpportunityInput(ctx)) },
-    'opportunity_analyzed')
+    { opportunity: opportunityEng.run(opportunitySel.createOpportunityInput(ctx)) }, 'opportunity_analyzed')
 }
-
 function runCoreContradictionStep(ctx) {
   if (!ctx.opportunity) ctx = runOpportunityStep(ctx)
   return context.updateContext(ctx, 'CoreContradictionEngine',
-    { coreContradiction: coreEngine.run(coreSelectors.createCoreContradictionInput(ctx)) },
-    'core_contradiction_selected')
+    { coreContradiction: coreEng.run(coreSel.createCoreContradictionInput(ctx)) }, 'core_contradiction_selected')
+}
+
+// CP6-D: Decision Operating System
+function runDecisionStep(ctx) {
+  if (!ctx.coreContradiction) ctx = runCoreContradictionStep(ctx)
+  return context.updateContext(ctx, 'DecisionEngine',
+    { decision: decisionEng.run(decisionSel.createDecisionInput(ctx)) }, 'decision_made')
+}
+function runRoadmapStep(ctx) {
+  if (!ctx.decision) ctx = runDecisionStep(ctx)
+  return context.updateContext(ctx, 'RoadmapEngine',
+    { roadmap: roadmapEng.run(roadmapSel.createRoadmapInput(ctx)) }, 'roadmap_generated')
+}
+function runFeasibilityStep(ctx) {
+  return context.updateContext(ctx, 'FeasibilityEngine',
+    { feasibility: feasibilityEng.run(feasibilitySel.createFeasibilityInput(ctx)) }, 'feasibility_analyzed')
+}
+function runBottleneckStep(ctx) {
+  return context.updateContext(ctx, 'BottleneckEngine',
+    { bottleneck: bottleneckEng.run(bottleneckSel.createBottleneckInput(ctx)) }, 'bottleneck_detected')
+}
+function runMilestoneStep(ctx) {
+  if (!ctx.roadmap) ctx = runRoadmapStep(ctx)
+  return context.updateContext(ctx, 'MilestoneEngine',
+    { milestone: milestoneEng.run(milestoneSel.createMilestoneInput(ctx)) }, 'milestone_planned')
 }
 
 // ═══════════════════════════════════════
@@ -125,26 +152,33 @@ function runCoreContradictionStep(ctx) {
 // ═══════════════════════════════════════
 
 module.exports = {
+  // Contracts
   tags, evidence, context, verdict, profile, cognitive,
   pattern, risk, leverage, conflict, opportunity, coreContradiction,
+  decision, roadmap, feasibility, bottleneck, milestone,
 
+  // Builders
   normalizer: { normalize, extractAnswerSummary, validateNormalized },
   evidenceBuilder: { buildEvidence },
 
+  // Selectors
   selectors: {
-    ...profileSelectors, ...cognitiveSelectors, ...patternSelectors,
-    ...riskSelectors, ...leverageSelectors, ...conflictSelectors,
-    ...opportunitySelectors, ...coreSelectors,
+    ...profileSel, ...cognitiveSel, ...patternSel, ...riskSel, ...leverageSel, ...conflictSel,
+    ...opportunitySel, ...coreSel, ...decisionSel, ...roadmapSel, ...feasibilitySel,
+    ...bottleneckSel, ...milestoneSel,
   },
 
+  // Engines
   engines: {
-    pattern: patternEngine.run, risk: riskEngine.run,
-    profile: profileEngine.run, cognitive: cognitiveEngine.run,
-    leverage: leverageEngine.run, conflict: conflictEngine.run,
-    opportunity: opportunityEngine.run, coreContradiction: coreEngine.run,
+    pattern: patternEng.run, risk: riskEng.run, profile: profileEng.run, cognitive: cognitiveEng.run,
+    leverage: leverageEng.run, conflict: conflictEng.run, opportunity: opportunityEng.run,
+    coreContradiction: coreEng.run, decision: decisionEng.run, roadmap: roadmapEng.run,
+    feasibility: feasibilityEng.run, bottleneck: bottleneckEng.run, milestone: milestoneEng.run,
   },
 
+  // Step functions
   initializePipeline,
   runPatternStep, runRiskStep, runProfileStep, runCognitiveStep,
   runLeverageStep, runConflictStep, runOpportunityStep, runCoreContradictionStep,
+  runDecisionStep, runRoadmapStep, runFeasibilityStep, runBottleneckStep, runMilestoneStep,
 }
