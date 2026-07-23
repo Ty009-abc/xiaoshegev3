@@ -12,8 +12,7 @@ const SAFE = 40
 const CARD_W = W - SAFE * 2
 const HEADER_H = 200
 const SUBHEADER_H = 52
-const CTA_H = 130   // 轻量 Footer
-const FOOTER_H = 40  // Slogan
+const CTA_H = 150  // 与认知暴击一致的 drawQrCta
 const GAP = 12
 
 function log(step, msg) {
@@ -51,7 +50,7 @@ function calcHeight(rule, tempCtx) {
   const cards = buildCards(rule, tempCtx)
   const cardsSum = cards.reduce((s, c) => s + c._height, 0)
   const cardsGap = GAP * (cards.length - 1)
-  return HEADER_H + SUBHEADER_H + 8 + cardsSum + cardsGap + 16 + CTA_H + FOOTER_H
+  return HEADER_H + SUBHEADER_H + 8 + cardsSum + cardsGap + 24 + CTA_H + 48
 }
 
 /**
@@ -92,24 +91,16 @@ function draw(ctx, rule, qrPath, H) {
     y += c._height + GAP
   })
 
-  // Footer: 分隔线 + 二维码 + 文字
-  const footerY = y + 16
-  ctx.setStrokeStyle('rgba(255,255,255,0.08)')
-  ctx.setLineWidth(1)
-  ctx.beginPath()
-  ctx.moveTo(SAFE + 20, footerY)
-  ctx.lineTo(W - SAFE - 20, footerY)
-  ctx.stroke()
-
-  P.drawLightFooter(ctx, qrPath, SAFE, footerY + 4, CARD_W, CTA_H - 4, '#8B5CF6')
-
-  // Slogan
-  const sloganY = H - 30
-  ctx.setTextAlign('center')
-  ctx.setFontSize(28)
-  ctx.setFillStyle('rgba(255,255,255,0.40)')
-  ctx.fillText('认知决定选择', W / 2, sloganY - 10)
-  ctx.fillText('选择决定人生', W / 2, sloganY + 20)
+  // Footer CTA（与认知暴击统一 drawQrCta 母版）
+  const ctaY = y + 24
+  P.drawQrCta(
+    ctx, qrPath,
+    SAFE, ctaY, CARD_W, CTA_H,
+    '#8B5CF6',
+    '🌐 世界规则',
+    '看懂规则，才能翻身',
+    ['🧠 认知升级', '🔍 底层逻辑', '🎯 行动建议']
+  )
 
   log('draw', 'complete')
 }
