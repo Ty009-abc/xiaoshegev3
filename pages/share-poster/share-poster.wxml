@@ -8,7 +8,7 @@
   </xsg-card>
 
   <!-- Canvas 隐藏 -->
-  <canvas canvas-id="posterCanvas" style="position:fixed;left:-9999px;width:600px;height:900px;"></canvas>
+  <canvas canvas-id="posterCanvas" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></canvas>
 
   <!-- 海报预览 -->
   <view class="poster-preview anim-fade-in" wx:if="{{posterPath}}">

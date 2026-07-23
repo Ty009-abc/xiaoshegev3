@@ -108,15 +108,21 @@ Page({
     lastReadRule: null,
     // 8 张核心模型卡
     coreModelProgress: [],
+    // 收藏模式
+    favoriteMode: false,
   },
 
   _readIds: [],
   _readSet: null,
   _fullIndex: [],       // [{ ruleId, category }]
 
-  onLoad() {
+  onLoad(opt) {
     this._initNavBar()
     this._loadProgress()
+    // 支持收藏模式
+    if (opt && opt.favorites === '1') {
+      this.setData({ favoriteMode: true })
+    }
     this._init()
   },
 
@@ -228,6 +234,12 @@ Page({
     const page = reset ? 1 : this.data.page + 1
     const { pageSize, activeCoreCats, activeCoreModel } = this.data
 
+    // 收藏模式：从本地 Storage 读取，不做云函数查询
+    if (this.data.favoriteMode) {
+      this._loadFavoritesLocal()
+      return
+    }
+
     // 构建查询参数
     let callData
     if (activeCoreModel && activeCoreCats.length) {
@@ -285,6 +297,45 @@ Page({
 
   onReachBottom() { this._loadRules(false) },
   onPullDownRefresh() { this._loadRules(true) },
+
+  /** 收藏模式：从本地 Storage 加载 */
+  _loadFavoritesLocal() {
+    const FAVORITE_KEY = 'world_rules_favorites'
+    let favorites = []
+    try {
+      const raw = wx.getStorageSync(FAVORITE_KEY)
+      if (raw && Array.isArray(raw)) favorites = raw
+    } catch (_) {}
+
+    if (favorites.length === 0) {
+      this.setData({ rules: [], total: 0, hasMore: false, loading: false, loadingMore: false })
+      wx.showToast({ title: '暂无收藏', icon: 'none' })
+      return
+    }
+
+    // 本地收藏数据只有 ruleId + title，需要批量查云函数获取完整数据
+    const ruleIds = favorites.map(f => f.ruleId || f.id).filter(Boolean)
+    if (ruleIds.length === 0) {
+      this.setData({ rules: [], total: 0, hasMore: false, loading: false, loadingMore: false })
+      return
+    }
+
+    // 逐个查询（小数量）
+    Promise.all(ruleIds.map(id =>
+      worldRuleService.getWorldRuleDetail(id).then(r => (r && r.code === 0 && r.data) ? r.data : null).catch(() => null)
+    )).then(results => {
+      const list = results.filter(Boolean).map(item => ({
+        ...item,
+        displayId: (item.ruleId || '').replace(/^WR/i, ''),
+        displayCategory: getCategoryDisplay(item.category),
+        displayTags: (item.tags || []).slice(0, 3),
+        isRead: this._readSet.has(item.ruleId),
+      }))
+      this.setData({ rules: list, total: list.length, hasMore: false, loading: false, loadingMore: false })
+    }).catch(() => {
+      this.setData({ loading: false, loadingMore: false })
+    })
+  },
 
   /** 核心模型筛选 */
   filterCat(e) {

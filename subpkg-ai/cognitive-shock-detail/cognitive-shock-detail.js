@@ -1,59 +1,56 @@
 /**
- * cognitive-shock-detail v1.1 — 独立详情页
- * 数据源: utils/cognitionStrike.js getTodayStrike()
- * 海报引擎: share/posters/index.js _neonShockPoster (Canvas+权限+预览)
- * 二维码: 懒加载 wx.cloud.callFunction getUnlimitedQR
- *   qrStatus: idle → loading → ready | error
+ * cognitive-shock-detail v1.3 — RC5.5 TaskId-based Poster Pipeline
+ *
+ * 改动：
+ *   - async/await Promise 链：QR→Canvas→绘制→导出→保存→finally
+ *   - taskId 任务取消机制
+ *   - Timer 全量管理
+ *   - 不再允许无二维码自动生成海报
  */
 
 const { getTodayStrike } = require('../../utils/cognitionStrike.js')
-const { installPoster } = require('../../share/posters/index.js')
+const StrikeRenderer = require('../../share/CognitiveStrikePosterRenderer.js')
+const PService = require('../../share/PosterService.js')
 
-const pageConfig = {
+Page({
   data: {
-    // 暴击数据
-    strike: null,
-    dateId: '',
-    displayDate: '',
-
-    // 页面
+    strike: null, dateId: '', displayDate: '',
     loading: true,
-    totalNavHeight: 0,
-    statusBarHeight: 0,
-
-    // 海报
-    showPoster: false,
-    posterGenerating: false,
-    posterPath: '',
-    posterHeight: 0,
-
-    // 二维码
-    qrPath: '',
-    qrStatus: 'idle',  // idle | loading | ready | error
-
-    // 收藏
+    totalNavHeight: 0, statusBarHeight: 0,
+    showPoster: false, posterGenerating: false, posterPath: '', posterHeight: 0,
+    qrPath: '', qrStatus: 'idle',
     isCollected: false,
+    _canvasH: 0,
   },
+
+  _destroyed: false,
+  _posterTaskId: 0,
+  _timers: [],
 
   onLoad(opt) {
     this._initNavBar()
-    const id = opt.id || opt.date || opt.scene || ''
-    const strike = getTodayStrike() // 日期锚定，当天同一条
+    const strike = getTodayStrike()
     if (!strike || !strike.core_strike) {
       this.setData({ loading: false })
       return
     }
     const dateStr = String(strike.id || '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1/$2/$3')
     this.setData({
-      strike,
-      dateId: strike.id || '',
-      displayDate: dateStr,
-      loading: false,
+      strike, dateId: strike.id || '', displayDate: dateStr, loading: false,
       isCollected: this._checkCollected(strike.id),
     })
-    // 延迟懒加载小程序码
     this._ensureQrCode()
   },
+
+  onUnload() {
+    this._destroyed = true
+    this._posterTaskId = (this._posterTaskId || 0) + 1
+    ;(this._timers || []).forEach(clearTimeout)
+    this._timers = []
+    wx.hideLoading()
+  },
+
+  safeSetData(obj) { if (this._destroyed) return; try { this.setData(obj) } catch (_) {} },
 
   _initNavBar() {
     const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
@@ -64,90 +61,61 @@ const pageConfig = {
   },
 
   _checkCollected(id) {
-    try {
-      const saved = wx.getStorageSync('strike_collection') || []
-      return !!saved.find(item => item.id === id)
-    } catch (_) { return false }
+    try { const saved = wx.getStorageSync('strike_collection') || []; return !!saved.find(item => item.id === id) } catch (_) { return false }
   },
 
-  /* ═══════════ 小程序码懒加载 ═══════════ */
+  /* ═══════════════════════════════
+   * 小程序码懒加载
+   * ═══════════════════════════════ */
   _ensureQrCode() {
     if (this._qrFetching || this.data.qrStatus === 'ready' || this.data.qrStatus === 'loading') return
     this._qrFetching = true
     this.setData({ qrStatus: 'loading' })
-    console.log('[ShockQR] call:start scene=' + (this.data.dateId || 'shock'))
-
+    console.log('[StrikeQR] fetch start scene=' + (this.data.dateId || 'shock'))
     wx.cloud.callFunction({
       name: 'getUnlimitedQR',
-      data: {
-        scene: this.data.dateId || 'shock',
-        page: 'subpkg-ai/cognitive-shock-detail/cognitive-shock-detail',
-      },
+      data: { scene: this.data.dateId || 'shock', page: 'subpkg-ai/cognitive-shock-detail/cognitive-shock-detail' },
       success: (res) => {
         const result = res.result || {}
-        console.log('[ShockQR] cloud:result code=' + result.code)
-        console.log('[ShockQR] stage=' + (result.stage || 'N/A'))
-        console.log('[ShockQR] errCode=' + (result.errCode || 'N/A'))
         const fileID = (result.data && result.data.fileID) || result.fileID || ''
-        console.log('[ShockQR] fileID=' + (fileID || '(empty)'))
+        console.log('[StrikeQR] fileID=' + (fileID ? 'ok' : 'empty'))
         if (fileID) {
-          console.log('[ShockQR] fileID:' + fileID)
           wx.cloud.downloadFile({
             fileID,
             success: (dfRes) => {
-              console.log('[ShockQR] download:success')
-              console.log('[ShockQR] tempPath:' + dfRes.tempFilePath)
               this.setData({ qrPath: dfRes.tempFilePath, qrStatus: 'ready' })
               this._qrFetching = false
             },
-            fail: (err) => {
-              console.error('[ShockQR] download:fail errMsg=' + (err.errMsg || JSON.stringify(err)))
-              this.setData({ qrPath: '', qrStatus: 'error' })
-              this._qrFetching = false
-            }
+            fail: () => { this.setData({ qrPath: '', qrStatus: 'error' }); this._qrFetching = false },
           })
         } else {
-          console.error('[ShockQR] cloud:noFileID code=' + result.code + ' message=' + (result.message || ''))
           this.setData({ qrPath: '', qrStatus: 'error' })
           this._qrFetching = false
         }
       },
-      fail: (err) => {
-        console.error('[ShockQR] cloud:fail errMsg=' + (err.errMsg || JSON.stringify(err)))
-        this.setData({ qrPath: '', qrStatus: 'error' })
-        this._qrFetching = false
-      }
+      fail: () => { this.setData({ qrPath: '', qrStatus: 'error' }); this._qrFetching = false },
     })
   },
 
-  /* ═══════════ 导航 ═══════ */
+  // ═══ 基础交互 ═══
   onBack() { wx.navigateBack({ delta: 1 }) },
-
-  /* ═══════════ 收藏 ═══════ */
   onCollect() {
-    const s = this.data.strike
-    if (!s) return
+    const s = this.data.strike; if (!s) return
     wx.showActionSheet({
       itemList: ['收藏到本地', '分享给朋友'],
       success: (res) => {
         if (res.tapIndex === 0) {
           try {
             const saved = wx.getStorageSync('strike_collection') || []
-            if (!saved.find(item => item.id === s.id)) {
-              saved.unshift({ id: s.id, title: s.core_strike, time: new Date().toISOString() })
-              wx.setStorageSync('strike_collection', saved.slice(0, 50))
-            }
+            if (!saved.find(item => item.id === s.id)) { saved.unshift({ id: s.id, title: s.core_strike, time: new Date().toISOString() }); wx.setStorageSync('strike_collection', saved.slice(0, 50)) }
             this.setData({ isCollected: true })
-            wx.showToast({ title: '已收藏 ⭐', icon: 'success' })
+            wx.showToast({ title: '已收藏', icon: 'success' })
           } catch (e) { wx.showToast({ title: '收藏失败', icon: 'none' }) }
-        } else {
-          wx.showToast({ title: '请点击右上角分享', icon: 'none', duration: 2000 })
-        }
-      }
+        } else { wx.showToast({ title: '请点击右上角分享', icon: 'none', duration: 2000 }) }
+      },
     })
   },
 
-  /* ═══════════ 破局推演 ═══════ */
   onGo() {
     const app = getApp()
     const strike = this.data.strike
@@ -158,106 +126,229 @@ const pageConfig = {
     wx.switchTab({ url: '/pages/ai-chat/ai-chat' })
   },
 
-  /* ═══════════ 海报 — 二维码状态守卫 ═══════ */
-  onSaveShockPoster() {
-    if (this.data.posterGenerating) return
+  onClosePoster() { this.setData({ showPoster: false }) },
+  preventMove() {},
 
-    const qrStatus = this.data.qrStatus
+  onShareAppMessage() {
+    const s = this.data.strike || {}
+    return {
+      title: s.core_strike ? s.core_strike.substring(0, 30) + '...' : '今日认知暴击',
+      path: '/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail',
+      imageUrl: this.data.posterPath || undefined,
+    }
+  },
 
-    // qr 还在加载中 → 等待
-    if (qrStatus === 'loading') {
-      wx.showLoading({ title: '正在生成小程序码...', mask: true })
-      const start = Date.now()
+  // ═══════════════════════════════
+  // 海报管线：taskId 保证最后一次点击生效
+  // ═══════════════════════════════
+  async onSaveShockPoster() {
+    if (this.data.posterGenerating) {
+      console.log('[StrikePoster] blocked: already generating')
+      return
+    }
+
+    const taskId = (this._posterTaskId || 0) + 1
+    this._posterTaskId = taskId
+    this.safeSetData({ posterGenerating: true })
+    wx.showLoading({ title: '正在生成海报...', mask: true })
+
+    try {
+      const strike = this.data.strike
+      if (!strike) {
+        throw new Error('认知暴击数据未加载')
+      }
+      console.log('[StrikePoster] 01 validate success')
+
+      // 等待二维码
+      const qrPath = await this._resolveShockQrPath(taskId)
+      this._assertPosterTask(taskId)
+      console.log('[StrikePoster] 02 QR ready')
+
+      // 计算高度
+      const tempCtx = wx.createCanvasContext('strikePosterCanvas', this)
+      const height = StrikeRenderer.calcHeight(strike, tempCtx)
+      if (!Number.isFinite(height) || height <= 0) {
+        throw new Error(`海报高度异常: ${height}`)
+      }
+
+      await this._setDataAsync({ _canvasH: height })
+      await this._nextTickAsync()
+      this._assertPosterTask(taskId)
+      console.log('[StrikePoster] 03 canvas ready', 750, height)
+
+      // 绘制
+      await this._drawShockPoster({ strike, qrPath, height, taskId })
+      console.log('[StrikePoster] 04 draw complete')
+
+      // 导出
+      const tempFilePath = await this._exportShockPoster({ height, taskId })
+      console.log('[StrikePoster] 05 export success', tempFilePath.substring(0, 40))
+      this._assertPosterTask(taskId)
+
+      // 保存相册
+      await this._withTimeout(PService.saveToAlbum(tempFilePath, 'cognitiveStrike'), 10000, '保存到相册超时')
+      this._assertPosterTask(taskId)
+
+      this.safeSetData({ posterPath: tempFilePath })
+      wx.showToast({ title: '海报已保存到手机相册', icon: 'success' })
+      console.log('[StrikePoster] 06 album saved')
+    } catch (error) {
+      if (error && error.code === 'POSTER_TASK_CANCELLED') {
+        return
+      }
+      console.error('[StrikePoster] failed:', error)
+      wx.showToast({ title: (error && error.message) || '海报保存失败，请重试', icon: 'none' })
+    } finally {
+      if (taskId === this._posterTaskId) {
+        this.safeSetData({ posterGenerating: false })
+      }
+      wx.hideLoading()
+      console.log('[StrikePoster] 99 finally reset')
+    }
+  },
+
+  /* ═══ 二维码等待（不允许无二维码生成） ═══ */
+  async _resolveShockQrPath(taskId) {
+    if (this.data.qrStatus === 'ready' && this.data.qrPath) {
+      return this.data.qrPath
+    }
+    if (this.data.qrStatus === 'loading') {
+      return this._waitForShockQr(taskId)
+    }
+    throw new Error('小程序码未生成，请稍后重试')
+  },
+
+  _waitForShockQr(taskId) {
+    return new Promise((resolve, reject) => {
+      const startedAt = Date.now()
       const check = () => {
-        if (this.data.qrStatus === 'ready') {
-          wx.hideLoading()
-          this._doGeneratePoster()
-        } else if (this.data.qrStatus === 'error') {
-          wx.hideLoading()
-          this._handleQrErrorPoster()
-        } else if (Date.now() - start > 15000) {
-          wx.hideLoading()
-          this._handleQrErrorPoster()
-        } else {
-          setTimeout(check, 300)
+        try {
+          this._assertPosterTask(taskId)
+          if (this.data.qrStatus === 'ready' && this.data.qrPath) {
+            resolve(this.data.qrPath)
+            return
+          }
+          if (this.data.qrStatus === 'error') {
+            reject(new Error('小程序码加载失败'))
+            return
+          }
+          if (Date.now() - startedAt >= 15000) {
+            reject(new Error('小程序码加载超时'))
+            return
+          }
+          const timer = setTimeout(check, 300)
+          this._timers = this._timers || []
+          this._timers.push(timer)
+        } catch (error) {
+          reject(error)
         }
       }
       check()
-      return
-    }
-
-    // qr 已就绪 → 生成完整海报
-    if (qrStatus === 'ready') {
-      this._doGeneratePoster()
-      return
-    }
-
-    // qr 错误/空闲 → 明确提示
-    this._handleQrErrorPoster()
+    })
   },
 
-  _doGeneratePoster() {
-    console.log('[ShockPoster] qrPath:' + (this.data.qrPath ? this.data.qrPath.substring(0, 40) : '(empty)'))
-    console.log('[ShockPoster] qrStatus:' + this.data.qrStatus)
-    this.setData({ strikeData: this.data.strike })
-    this._neonShockPoster.call(this)
-  },
+  /* ═══ Canvas绘制Promise ═══ */
+  _drawShockPoster({ strike, qrPath, height, taskId }) {
+    return new Promise((resolve, reject) => {
+      let settled = false
+      const finish = (fn, value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        fn(value)
+      }
+      const timer = setTimeout(() => {
+        finish(reject, new Error('Canvas绘制超时'))
+      }, 8000)
+      this._timers.push(timer)
 
-  _handleQrErrorPoster() {
-    wx.showModal({
-      title: '小程序码加载失败',
-      content: '小程序码生成失败，请稍后重试。\n\n是否仍要生成不含二维码的海报？',
-      confirmText: '继续生成',
-      cancelText: '取消',
-      success: (res) => {
-        if (res.confirm) {
-          this.setData({ qrPath: '' })
-          this._doGeneratePoster()
-        }
+      try {
+        this._assertPosterTask(taskId)
+        const ctx = wx.createCanvasContext('strikePosterCanvas', this)
+        StrikeRenderer.draw(ctx, strike, qrPath, height)
+        ctx.draw(false, () => {
+          try {
+            this._assertPosterTask(taskId)
+            finish(resolve)
+          } catch (error) {
+            finish(reject, error)
+          }
+        })
+      } catch (error) {
+        finish(reject, error)
       }
     })
   },
 
-  onClosePoster() {
-    this.setData({ showPoster: false })
+  /* ═══ Canvas导出Promise ═══ */
+  _exportShockPoster({ height, taskId }) {
+    return new Promise((resolve, reject) => {
+      let settled = false
+      const finish = (fn, value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        fn(value)
+      }
+      const timer = setTimeout(() => {
+        finish(reject, new Error('海报导出超时'))
+      }, 10000)
+      this._timers.push(timer)
+
+      try {
+        this._assertPosterTask(taskId)
+        wx.canvasToTempFilePath({
+          canvasId: 'strikePosterCanvas',
+          x: 0, y: 0, width: 750, height,
+          destWidth: 1500, destHeight: height * 2,
+          success: (res) => {
+            if (!res.tempFilePath) {
+              finish(reject, new Error('海报导出路径为空'))
+              return
+            }
+            finish(resolve, res.tempFilePath)
+          },
+          fail: (error) => {
+            finish(reject, new Error((error && error.errMsg) || '海报导出失败'))
+          },
+        }, this)
+      } catch (error) {
+        finish(reject, error)
+      }
+    })
   },
 
-  onSaveToAlbum() {
-    if (!this.data.posterPath) return
-    const path = this.data.posterPath
-    const doSave = () => {
-      wx.saveImageToPhotosAlbum({
-        filePath: path,
-        success() { wx.showToast({ title: '海报已保存到相册', icon: 'success' }) },
-        fail(err) {
-          if (err.errMsg && err.errMsg.indexOf('auth deny') !== -1) {
-            wx.showModal({
-              title: '需要相册权限',
-              content: '保存海报需要相册权限，请在设置中允许',
-              confirmText: '去设置',
-              success(r) { if (r.confirm) { wx.openSetting({ success(s) { if (s.authSetting['scope.writePhotosAlbum']) doSave() } }) } }
-            })
-          } else {
-            wx.showToast({ title: '海报生成失败，请重试', icon: 'none' })
-          }
-        }
-      })
+  /* ═══ 通用辅助 ═══ */
+  _setDataAsync(data) {
+    return new Promise((resolve, reject) => {
+      if (this._destroyed) {
+        reject(new Error('页面已销毁'))
+        return
+      }
+      this.setData(data, resolve)
+    })
+  },
+
+  _nextTickAsync() {
+    return new Promise((resolve) => { wx.nextTick(resolve) })
+  },
+
+  _withTimeout(promise, timeoutMs, message) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        const timer = setTimeout(() => { reject(new Error(message)) }, timeoutMs)
+        this._timers = this._timers || []
+        this._timers.push(timer)
+      }),
+    ])
+  },
+
+  _assertPosterTask(taskId) {
+    if (this._destroyed || taskId !== this._posterTaskId) {
+      const error = new Error('海报任务已取消')
+      error.code = 'POSTER_TASK_CANCELLED'
+      throw error
     }
-    doSave()
   },
-
-  preventMove() {},
-
-  /* ═══════════ 分享 ═══════ */
-  onShareAppMessage() {
-    const s = this.data.strike || {}
-    return {
-      title: s.core_strike ? `💥 ${s.core_strike.substring(0, 30)}...` : '今日认知暴击',
-      path: `/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail`,
-      imageUrl: this.data.posterPath || undefined,
-    }
-  },
-}
-
-installPoster(pageConfig)
-Page(pageConfig)
+})

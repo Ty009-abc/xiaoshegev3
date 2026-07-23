@@ -1,7 +1,7 @@
 /**
  * pages/ai-chat - AI 对话页 v3.14
  * - 100 题高质量问题池
- * - 每次随机推荐 6 条（不同分类）
+ * - 每次随机推荐 4 条（不同分类）
  * - 支持换一批
  */
 const app = getApp()
@@ -47,12 +47,13 @@ Page({
   },
 
   onUnload() {
+    clearTimeout(this._sendTimer)
     this.setData({ sending: false, inputValue: '' })
   },
 
   _refreshQuestions() {
     try {
-      const questions = pickQuestions(6, this.data.lastQuestionTexts)
+      const questions = pickQuestions(4, this.data.lastQuestionTexts)
       const texts = questions.map(q => q.text)
       console.log('[AIQuickQuestionsRuntime]', {
         source: 'data/aiChatSuggestions.js',

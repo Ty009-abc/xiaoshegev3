@@ -81,5 +81,5 @@
   </view>
 </view>
 
-<!-- 隐藏 Canvas -->
-<canvas canvas-id="posterCanvas" style="width:750px;height:{{posterHeight}}px;position:fixed;left:-9999px;top:-9999px;" />
+<!-- 隐藏 Canvas — 必须真实尺寸，不能用 1px -->
+<canvas canvas-id="strikePosterCanvas" style="position:fixed;top:-10000px;left:-10000px;width:750px;height:2000px;opacity:0;pointer-events:none;z-index:-1;" />

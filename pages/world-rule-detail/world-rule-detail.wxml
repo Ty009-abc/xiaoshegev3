@@ -1,45 +1,83 @@
-<!-- world-rule-detail v3.1 — 浅色主题 -->
+<!-- world-rule-detail v3.5 — RC5 Final Layout + Poster -->
 <view class="page">
   <xsg-navbar title="规则详情" showBack light="{{true}}" />
   <xsg-loading text="正在加载..." wx:if="{{loading}}" />
 
   <block wx:elif="{{rule}}">
-    <!-- 标题卡 -->
-    <xsg-card type="premium" theme="light">
-      <xsg-tag text="{{rule.categoryDisplay||'规则'}}" type="gold" />
-      <view class="title mt-16">{{rule.title}}</view>
-      <view class="tags-row mt-8" wx:if="{{rule.tags && rule.tags.length}}">
-        <text class="tag-chip" wx:for="{{rule.tags}}" wx:key="*this" wx:for-item="t">#{{t}}</text>
+    <scroll-view class="detail-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+
+      <!-- 标题卡 -->
+      <xsg-card type="premium" theme="light">
+        <xsg-tag text="{{rule.categoryDisplay||'规则'}}" type="gold" />
+        <view class="title mt-16">{{rule.title}}</view>
+        <view class="tags-row mt-8" wx:if="{{rule.tags && rule.tags.length}}">
+          <text class="tag-chip" wx:for="{{rule.tags}}" wx:key="*this" wx:for-item="t">#{{t}}</text>
+        </view>
+        <view class="locked-notice" wx:if="{{rule.locked}}">
+          <text class="locked-text">🔒 {{rule.preview}}</text>
+        </view>
+      </xsg-card>
+
+      <!-- 标记为已了解 -->
+      <view class="known-bar">
+        <view class="known-status" wx:if="{{isKnown}}">
+          <text class="known-check">✅</text>
+          <text class="known-text">已了解此项规则</text>
+        </view>
+        <view class="known-action" wx:else>
+          <button class="known-btn" bindtap="onMarkKnown">标记为已了解</button>
+        </view>
       </view>
-      <view class="locked-notice" wx:if="{{rule.locked}}">
-        <text class="locked-text">🔒 {{rule.preview}}</text>
+
+      <!-- 世界规则正文 -->
+      <xsg-card wx:if="{{rule.hasRule}}" theme="light">
+        <view class="section-title">世界规则</view>
+        <view class="body">{{rule.worldRule}}</view>
+      </xsg-card>
+
+      <!-- 反向逻辑 -->
+      <xsg-card wx:if="{{rule.hasReverse}}" theme="light" type="reverse">
+        <view class="section-title section-title-reverse">↔ 反向逻辑</view>
+        <view class="body">{{rule.reverseInference}}</view>
+      </xsg-card>
+
+      <!-- 现实案例 -->
+      <xsg-card wx:if="{{rule.hasExample}}" theme="light">
+        <view class="section-title">💼 现实案例</view>
+        <view class="body">{{rule.example}}</view>
+      </xsg-card>
+
+      <!-- 行动建议 -->
+      <xsg-card wx:if="{{rule.hasAction}}" theme="light" type="action">
+        <view class="section-title section-title-action">🎯 行动建议</view>
+        <view class="body">{{rule.actionAdvice}}</view>
+      </xsg-card>
+
+    </scroll-view>
+
+    <!-- 底部固定操作栏 -->
+    <view class="bottom-bar">
+      <view class="bottom-actions-row">
+        <!-- 收藏 -->
+        <view class="ba-action-secondary" bindtap="onToggleFavorite">
+          <text class="ba-icon-line {{isFavorited ? 'ba-icon-fav-active' : 'ba-icon-fav-inactive'}}">{{isFavorited ? '★' : '☆'}}</text>
+          <text class="ba-label-sm">{{isFavorited ? '已收藏' : '收藏'}}</text>
+        </view>
+        <!-- 分享 -->
+        <button class="ba-action-secondary" open-type="share">
+          <text class="ba-icon-line ba-icon-share">↗</text>
+          <text class="ba-label-sm">分享</text>
+        </button>
+        <!-- 保存海报 -->
+        <button class="ba-action-primary" bindtap="onSavePoster" disabled="{{posterGenerating}}">
+          <text class="ba-btn-main-text">{{posterGenerating ? '保存中...' : '保存海报'}}</text>
+        </button>
       </view>
-    </xsg-card>
-
-    <!-- 世界规则正文 -->
-    <xsg-card wx:if="{{rule.hasRule}}" theme="light">
-      <view class="section-title">世界规则</view>
-      <view class="body">{{rule.worldRule}}</view>
-    </xsg-card>
-
-    <!-- 反向逻辑 — 淡紫卡片 -->
-    <xsg-card wx:if="{{rule.hasReverse}}" theme="light" type="reverse">
-      <view class="section-title section-title-reverse">↔ 反向逻辑</view>
-      <view class="body">{{rule.reverseInference}}</view>
-    </xsg-card>
-
-    <!-- 现实案例 -->
-    <xsg-card wx:if="{{rule.hasExample}}" theme="light">
-      <view class="section-title">💼 现实案例</view>
-      <view class="body">{{rule.example}}</view>
-    </xsg-card>
-
-    <!-- 行动建议 — 暖黄卡片 -->
-    <xsg-card wx:if="{{rule.hasAction}}" theme="light" type="action">
-      <view class="section-title section-title-action">🎯 行动建议</view>
-      <view class="body">{{rule.actionAdvice}}</view>
-    </xsg-card>
+    </view>
   </block>
 
   <xsg-empty wx:elif="{{!loading}}" icon="📜" title="规则未找到" desc="该规则可能已被移除" btnText="返回规则列表" />
+
+  <!-- Canvas 隐藏但不影响绘制 — width/height 必须是有效值 -->
+  <canvas canvas-id="worldRulePosterCanvas" class="poster-canvas-wrap" style="width:750px;height:2000px;"></canvas>
 </view>

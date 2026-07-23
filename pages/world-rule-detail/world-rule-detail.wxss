@@ -1,15 +1,33 @@
-/* world-rule-detail v3.1 — 浅色主题 */
+/* world-rule-detail v3.4 — RC4 体验修复 */
+
+/* ═══ 防止横向溢出 ═══ */
+page {
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
 
 .page {
   background: #F5F7FB;
   color: #111827;
-  padding: 24rpx;
-  padding-top: calc(24rpx + env(safe-area-inset-top));
   min-height: 100vh;
-  padding-bottom: 120rpx;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
-/* 所有卡片在浅色主题下保持一致 */
+/* ═══ Scroll View ═══ */
+.detail-scroll {
+  flex: 1;
+  box-sizing: border-box;
+  padding: 24rpx;
+  padding-top: 28rpx;
+  padding-bottom: 0;
+}
+
+/* ═══ 卡片 ═══ */
 .card-light {
   background: #FFFFFF !important;
   border: 1rpx solid #E8ECF2 !important;
@@ -19,15 +37,16 @@
   margin-bottom: 24rpx !important;
 }
 
-/* 主标题 */
 .title {
   font-size: 40rpx;
   font-weight: 700;
   color: #111827;
   line-height: 1.4;
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
-/* 标签行 */
 .tags-row {
   display: flex;
   flex-wrap: wrap;
@@ -43,7 +62,6 @@
   font-weight: 500;
 }
 
-/* 锁定提示 */
 .locked-notice {
   margin-top: 16rpx;
   padding: 14rpx 20rpx;
@@ -57,7 +75,59 @@
   color: #B45309;
 }
 
-/* section 标题 */
+/* ═══ 标记为已了解 ═══ */
+.known-bar {
+  padding: 0 0 24rpx 0;
+  box-sizing: border-box;
+}
+
+.known-status {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: #F0FDF4;
+  border: 1rpx solid rgba(34, 197, 94, 0.2);
+  border-radius: 16rpx;
+  padding: 20rpx 28rpx;
+  box-sizing: border-box;
+}
+
+.known-check {
+  font-size: 28rpx;
+}
+
+.known-text {
+  font-size: 26rpx;
+  color: #166534;
+  font-weight: 600;
+}
+
+.known-action {
+  display: flex;
+  justify-content: center;
+}
+
+.known-btn {
+  width: 100%;
+  height: 80rpx;
+  background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+  color: #FFFFFF;
+  font-size: 28rpx;
+  font-weight: 600;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 2rpx;
+  border: none;
+  box-sizing: border-box;
+}
+
+.known-btn::after {
+  border: none;
+}
+
+/* ═══ Section ═══ */
 .section-title {
   font-size: 32rpx;
   font-weight: 650;
@@ -65,7 +135,6 @@
   margin-bottom: 14rpx;
 }
 
-/* 反向逻辑 — 淡紫卡片 */
 .card-reverse {
   background: #F7F5FF !important;
   border-color: #EDE9FE !important;
@@ -75,7 +144,6 @@
   color: #6D4AFF;
 }
 
-/* 行动建议 — 暖黄卡片 */
 .card-action-block {
   background: #FFF9EE !important;
   border-color: #FDE68A !important;
@@ -91,5 +159,98 @@
   color: #4B5563;
   line-height: 1.95;
   white-space: pre-line;
-  word-break: break-all;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* 正文底部安全距 = 底栏实际高度(~130rpx) + 底部安全区 */
+.detail-scroll::after {
+  content: '';
+  display: block;
+  height: calc(140rpx + env(safe-area-inset-bottom));
+}
+
+/* ═══ 底部固定操作栏 — 单行三列 ═══ */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border-top: 1rpx solid #E8ECF2;
+  padding: 12rpx 28rpx;
+  padding-bottom: calc(12rpx + env(safe-area-inset-bottom));
+  z-index: 100;
+  box-shadow: 0 -2rpx 16rpx rgba(0,0,0,0.04);
+}
+
+.bottom-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+/* 次按钮 — 收藏/分享 */
+.ba-action-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 12rpx;
+  background: #F5F6FA;
+  border: 1rpx solid #E8ECF2;
+  outline: none;
+  flex-shrink: 0;
+  min-width: 100rpx;
+}
+
+.ba-action-secondary::after { border: none; }
+
+.ba-icon-line {
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+.ba-icon-fav-active { color: #F59E0B; }
+.ba-icon-fav-inactive { color: #9CA3AF; }
+.ba-icon-share { color: #6B7280; }
+
+.ba-label-sm {
+  font-size: 20rpx;
+  color: #6B7280;
+  font-weight: 500;
+}
+
+/* 主按钮 — 生成认知海报 */
+.ba-action-primary {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18rpx 24rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #8B5CF6, #A78BFA);
+  border: none;
+  outline: none;
+  height: 76rpx;
+}
+
+.ba-action-primary::after { border: none; }
+
+.ba-btn-main-text {
+  font-size: 26rpx;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* ═══ Canvas 离屏 — 不覆写宽高，仅位置隐藏 ═══ */
+.poster-canvas-wrap {
+  position: fixed;
+  top: -10000px;
+  left: -10000px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
 }

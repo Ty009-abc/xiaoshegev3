@@ -102,7 +102,7 @@
             <text class="v5-id-tag v5-id-tag-current">{{viewModel.identity.currentTitle}}</text>
             <text class="v5-id-tag-sub" wx:if="{{viewModel.identity.currentSubtitle}}">{{viewModel.identity.currentSubtitle}}</text>
           </view>
-          <text class="v5-id-arrow">↓</text>
+          <text class="v5-id-arrow">→</text>
           <view class="v5-id-to">
             <text class="v5-id-tag-label">目标身份</text>
             <text class="v5-id-tag v5-id-tag-target">{{viewModel.identity.targetTitle}}</text>
@@ -368,5 +368,5 @@
   </block>
 
   <!-- ═══ Canvas 海报 ═══ -->
-  <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;left:-9999px;top:-9999px;"></canvas>
+  <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></canvas>
 </view>

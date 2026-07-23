@@ -29,6 +29,16 @@ App({
       return
     }
 
+    // ═══ 调试浮层：trial/release 环境强制关闭 ═══
+    try {
+      var envVersion = (typeof __wxConfig !== 'undefined' && __wxConfig.envVersion) || 'develop'
+      if (envVersion === 'trial' || envVersion === 'release') {
+        if (typeof wx.setEnableDebug === 'function') {
+          wx.setEnableDebug({ enableDebug: false })
+        }
+      }
+    } catch (_) {}
+
     wx.cloud.init({
       env: 'fanshex-d2g0adgv7dfbc9bdc',
       traceUser: true,

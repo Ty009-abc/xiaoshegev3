@@ -2,5 +2,12 @@
   "navigationBarTitleText": "世界规则",
   "backgroundColor": "#F5F7FB",
   "navigationBarBackgroundColor": "#F5F7FB",
-  "navigationBarTextStyle": "black"
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar",
+    "xsg-card": "/components/xsg-card/xsg-card",
+    "xsg-tag": "/components/xsg-tag/xsg-tag",
+    "xsg-loading": "/components/xsg-loading/xsg-loading",
+    "xsg-empty": "/components/xsg-empty/xsg-empty"
+  }
 }

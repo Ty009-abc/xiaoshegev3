@@ -21,7 +21,7 @@
   <view class="quick-section" wx:if="{{messages.length <= 1}}">
     <view class="quick-header">
       <text class="quick-title">你可以从这里开始</text>
-      <text class="quick-subtitle">100个高质量问题，每次随机推荐6个</text>
+      <text class="quick-subtitle">100个高质量问题，每次随机推荐4个</text>
       <button class="quick-refresh-btn" bindtap="onRefreshQuestions">换一批</button>
     </view>
 

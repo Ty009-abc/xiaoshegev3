@@ -44,7 +44,7 @@ Page({
   },
 
   goDaily()       { wx.navigateTo({ url: '/pages/cognition-daily/cognition-daily' }) },
-  goRules()       { wx.navigateTo({ url: '/pages/world-rules/world-rules' }) },
+  goRules()       { wx.navigateTo({ url: '/pages/world-rules/world-rules?favorites=1' }) },
   goChallenges()  { wx.switchTab({ url: '/pages/challenge-start/challenge-start' }) },
   goReports()     { wx.navigateTo({ url: '/pages/report-preview/report-preview' }) },
   goMembership()  { wx.navigateTo({ url: '/pages/membership/membership' }) },
