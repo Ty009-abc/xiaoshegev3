@@ -1,59 +1,37 @@
+# Secrets
+.env
+*.key
+*.pem
+project.private.config.json
+
 # Dependencies
 node_modules/
 miniprogram_npm/
 
-# 微信小程序本地临时文件
-.miniprogram/
-.wechat_devtools/
-*.wxvpkg
+# Build output
+release/
+dist/
+*.zip
+*.tar.gz
+
+# System
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.swo
 
 # IDE
 .idea/
 .vscode/
-*.swp
-*.swo
-*~
+*.sublime-*
 
-# OS
-.DS_Store
-Thumbs.db
+# Tests (separate repo)
+tests/
 
-# 日志
-*.log
-npm-debug.log*
-
-# 环境变量
-.env
-.env.local
-.env.*.local
-
-# 云函数本地调试产物
-cloudfunctions/*/node_modules/
-
-# 构建产物
-dist/
-build/
-
-# 测试
-coverage/
-__tests__/
-
-# 审计/部署/恢复中间报告
-.audit-reports/
-*_REPORT.md
-*_RECOVERY.md
-*_SNAPSHOT.md
-
-# 上传排除（非运行时文件）
+# Backups
 backup/
 
-# 密钥与证书 — 禁止提交
-private.key
-private.pem
-*.merchant.key
-apiclient_key.pem
-secrets/
-certs/private/
-*.pem
-*.crt
-*.cer
+# Temp
+tmp/
+temp/
