@@ -32,6 +32,11 @@ tests/
 # Backups
 backup/
 
+# Local reports
+.audit-reports/
+TURNAROUND_OS_V6_CHECKPOINT_*_REPORT.md
+TURNAROUND_OS_V6_PATCH_*_REPORT.md
+
 # Temp
 tmp/
 temp/
