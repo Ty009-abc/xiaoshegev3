@@ -36,19 +36,19 @@
       </xsg-card>
 
       <!-- 反向逻辑 -->
-      <xsg-card wx:if="{{rule.hasReverse}}" theme="light" type="reverse">
+      <xsg-card wx:if="{{rule.reverseLogic}}" theme="light" type="reverse">
         <view class="section-title section-title-reverse">↔ 反向逻辑</view>
-        <view class="body">{{rule.reverseInference}}</view>
+        <view class="body">{{rule.reverseLogic}}</view>
       </xsg-card>
 
       <!-- 现实案例 -->
-      <xsg-card wx:if="{{rule.hasExample}}" theme="light">
+      <xsg-card wx:if="{{rule.realCase}}" theme="light">
         <view class="section-title">💼 现实案例</view>
-        <view class="body">{{rule.example}}</view>
+        <view class="body">{{rule.realCase}}</view>
       </xsg-card>
 
       <!-- 行动建议 -->
-      <xsg-card wx:if="{{rule.hasAction}}" theme="light" type="action">
+      <xsg-card wx:if="{{rule.actionAdvice}}" theme="light" type="action">
         <view class="section-title section-title-action">🎯 行动建议</view>
         <view class="body">{{rule.actionAdvice}}</view>
       </xsg-card>

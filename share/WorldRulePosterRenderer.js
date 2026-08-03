@@ -42,10 +42,16 @@ function cleanText(text) {
 function buildCards(data, tempCtx) {
   const d = data || {}
 
+  // 防串线：01和02内容不得相同
+  const wRule = cleanText(d.worldRule)
+  const uLogic = cleanText(d.underlyingLogic)
+  if (wRule && uLogic && wRule === uLogic) {
+    console.warn('[WorldRulePoster] DUPLICATE_SECTION_CONTENT 01==02 ruleId=' + (d.id || 'unknown'))
+  }
+
   // 02 底层逻辑：有内容则展示，缺失时用短提示
-  const logicText = cleanText(d.underlyingLogic)
   const MISSING_HINT = '该条规则暂未补充底层逻辑'
-  const useMissingLogic = !logicText
+  const useMissingLogic = !uLogic
   if (useMissingLogic) {
     console.warn('[WorldRulePoster] MISSING_UNDERLYING_LOGIC ruleId=' + (d.id || 'unknown'))
   }
@@ -61,15 +67,15 @@ function buildCards(data, tempCtx) {
   const rawCards = [
     {
       icon: '📜', title: '世界规则',
-      text: cleanText(d.worldRule),
+      text: wRule,
       color: '#8B5CF6', maxLines: 10, labelColor: '#8B5CF6',
       fallback: '世界规则数据加载中...',
     },
     {
       icon: '🔍', title: '底层逻辑',
-      text: logicText,
+      text: uLogic,
       color: '#6366F1', maxLines: 8, labelColor: '#818CF8',
-      fallback: useMissingLogic ? MISSING_HINT : logicText,
+      fallback: useMissingLogic ? MISSING_HINT : uLogic,
       _isMissing: useMissingLogic,
     },
     {

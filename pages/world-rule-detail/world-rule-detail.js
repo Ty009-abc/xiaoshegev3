@@ -17,21 +17,30 @@ const KNOWN_KEY = 'world_…tion'
 const FAV_KEY = 'world_…ites'
 
 function normalizeWorldRule(raw) {
-  if (!raw) return null; const r = raw
+  if (!raw) return null
+  const r = raw
 
-  // 01 世界规则：Season 1-4 rule 字段 或 Season 5+ worldRule/mechanism
-  const worldRule = r.worldRule || r.rule || r.mechanism || ''
+  // 真实字段映射（基于云函数 getWorldRuleDetail 返回结构）
+  // Season 1-4: rule, reverseLogic, example, action
+  // Season 5+:  worldRule, mechanism, boundary, realityCheck, caseStudy, todayAction, highLevelThinking
+  const worldRule = cleanText(r.worldRule || r.rule || r.mechanism)
+  const reverseLogic = cleanText(r.reverseLogic || r.reverseInference || r.boundary || r.realityCheck)
+  const realCase = cleanText(r.example || r.caseStudy || r.realCase || r.commonMistake)
+  const actionAdvice = cleanText(r.actionAdvice || r.action || r.todayAction || r.highLevelThinking || r.suggestion)
 
-  // 02 底层逻辑：数据库无专属字段，从 rule 字段提取（与 01 卡片共享实际内容）
-  const underlyingLogic = (r.rule && r.rule.trim() ? r.rule : '') || ''
+  // 底层逻辑独立映射
+  // 注意：数据库无专属 underlyingLogic 字段，S1-4 rule 字段承载了底层逻辑语义
+  // 但 worldRule 已使用 rule 字段作为 01 卡片内容
+  // 两个卡片不应 fallback 到同一字段，否则内容重复
+  // 当前阶段：underlyingLogic 独立为其可能的字段，不 fallback 到 worldRule
+  const underlyingLogic = cleanText(r.underlyingLogic || r.coreLogic || r.logicAnalysis || r.logic)
 
-  // 03 反向推理
-  const reverseLogic = r.reverseLogic || r.reverseInference || r.boundary || r.realityCheck || ''
+  // 防串线断言
+  if (worldRule && underlyingLogic && worldRule === underlyingLogic) {
+    console.warn('[WorldRuleNormalizer] DUPLICATE_SECTION_CONTENT ruleId=' + r.ruleId + ' worldRule==underlyingLogic')
+  }
 
-  // 04 行动建议
-  const actionAdvice = r.actionAdvice || r.action || r.todayAction || r.highLevelThinking || r.suggestion || ''
-
-  // 诊断日志（受 debug 开关控制）
+  // 诊断日志
   const _DEBUG = true
   if (_DEBUG) {
     console.log('[WorldRuleNormalizer] rawKeys:', Object.keys(r).join(', '))
@@ -45,7 +54,7 @@ function normalizeWorldRule(raw) {
     }
   }
 
-  return {
+  const result = {
     id: r.ruleId || '',
     category: r.category || '',
     categoryDisplay: getCatDisplay(r.category),
@@ -53,6 +62,7 @@ function normalizeWorldRule(raw) {
     worldRule,
     underlyingLogic,
     reverseLogic,
+    realCase,
     actionAdvice,
     tags: r.tags || [],
     locked: r.locked === true,
@@ -62,6 +72,18 @@ function normalizeWorldRule(raw) {
     hasReverse: !!reverseLogic,
     hasAction: !!actionAdvice,
   }
+
+  // 重复检测（仅 warning，不篡改）
+  if (result.worldRule && result.underlyingLogic && result.worldRule === result.underlyingLogic) {
+    console.warn('[WorldRuleNormalizer] DUPLICATE_01_02_CONTENT ruleId=' + r.ruleId)
+  }
+
+  return result
+}
+
+function cleanText(text) {
+  if (!text || typeof text !== 'string') return ''
+  return text.trim()
 }
 function getCatDisplay(cat) {
   const m = { wealth: '💰 财富模型', mindset: '🧠 认知升级', probability: '🎲 概率决策', system: '⚙️ 系统模型', info: '📡 信息网络', cognition: '🧠 认知升级', capital: '💰 财富模型', risk: '🎲 概率决策', business: '🤖 商业与AI', longterm: '🌍 长期文明', ethics: '⚖️ 伦理意义', human: '🧠 认知升级', leverage: '💰 财富模型', decision: '🎲 概率决策', ai: '🤖 商业与AI', network: '📡 信息网络', coevolution: '🌍 长期文明', manifesto: '📜 宣言' }
@@ -157,7 +179,7 @@ Page({
   _doGenerate(rule, qrPath) {
     console.log('[WorldRulePoster] 02 qr ready, calc height')
 
-    // 规范化海报数据（确保 Renderer 收到标准字段）
+    // 海报数据直接使用 normalized rule 字段（统一契约，不二次映射）
     const posterData = {
       id: rule.id || '',
       category: rule.category || '',
@@ -167,7 +189,6 @@ Page({
       underlyingLogic: rule.underlyingLogic || '',
       reverseLogic: rule.reverseLogic || '',
       actionAdvice: rule.actionAdvice || '',
-      hasLogic: rule.hasLogic !== undefined ? rule.hasLogic : !!rule.underlyingLogic,
     }
     console.log('[WorldRulePoster] posterData:', JSON.stringify({
       id: posterData.id,
