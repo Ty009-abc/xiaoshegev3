@@ -1,5 +1,6 @@
 # Secrets
 .env
+.env.ci
 *.key
 *.pem
 project.private.config.json
@@ -35,3 +36,9 @@ backup/
 # Temp
 tmp/
 temp/
+
+# CI output
+preview-*.png
+.audit-reports/
+TURNAROUND_OS_V6_CHECKPOINT_*_REPORT.md
+TURNAROUND_OS_V6_PATCH_*_REPORT.md
