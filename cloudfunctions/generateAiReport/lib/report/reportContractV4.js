@@ -6,6 +6,9 @@
  * 禁止新增字段。禁止删除字段。
  *
  * 此文件也是 Validator 的 schema 来源。
+ *
+ * v6.5.2 (RC5.15.2): 新增 verdict/contradiction/potential/decision/primaryAction
+ * 结构化语义字段，从 engine 透传到 poster。旧字段保留兼容。
  */
 
 const { REPORT_SECTIONS } = require('./reportTypes')
@@ -38,6 +41,12 @@ function createReportContract(engineResult, filledReport) {
       stopDoing: filledReport.stopDoing || null,
       identityUpgrade: filledReport.identityUpgrade || null,
       finalStrike: filledReport.finalStrike || null,
+      // ── v6.5.2 结构化语义字段 ──
+      verdict: filledReport.verdict || null,
+      contradiction: filledReport.contradiction || null,
+      potential: filledReport.potential || null,
+      decision: filledReport.decision || null,
+      primaryAction: filledReport.primaryAction || null,
     },
   }
 }
@@ -62,6 +71,12 @@ function createReportSkeleton() {
     stopDoing: null,
     identityUpgrade: null,
     finalStrike: null,
+    // ── v6.5.2 结构化语义字段 ──
+    verdict: null,
+    contradiction: null,
+    potential: null,
+    decision: null,
+    primaryAction: null,
   }
 }
 

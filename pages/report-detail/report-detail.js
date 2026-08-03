@@ -295,17 +295,34 @@ Page({
       }
     }
 
-    this._drawPoster(
-      posterData.fatalSentence,
-      posterData.coreProblem,
-      posterData.systemTrap,
-      posterData.strategyPath,
-      posterData.advice,
-      posterData.finalStrike || '',
-    )
+    this._drawPoster(posterData)
   },
 
-  _drawPoster(fatalSentence, coreProblem, systemTrap, strategyPath, advice, finalStrike) {
+  _drawPoster(pd) {
+    // v6.5.2: 新Adapter输出
+    const verdict     = (pd.verdict || '')
+    const contradictionTitle = (pd.contradiction && pd.contradiction.title) || ''
+    const contradictionDesc  = (pd.contradiction && pd.contradiction.description) || ''
+    const potentialScore = (pd.potential && pd.potential.score) || 0
+    const potentialLevel = (pd.potential && pd.potential.level) || ''
+    const potentialAdvantages = (pd.potential && pd.potential.advantages) || []
+    const potentialConstraints = (pd.potential && pd.potential.constraints) || []
+    const decisionTitle = (pd.decision && pd.decision.title) || ''
+    const decisionReason = (pd.decision && pd.decision.reason) || ''
+    const actionTitle = (pd.primaryAction && pd.primaryAction.title) || ''
+    const actionWhy = (pd.primaryAction && pd.primaryAction.why) || ''
+    const actionCheckpoint = (pd.primaryAction && pd.primaryAction.checkpoint) || ''
+    const actionCriteria = (pd.primaryAction && pd.primaryAction.successCriteria) || []
+    const emotionClosing = (pd.emotionClosing || '')
+    const pathText = (pd.path || '')
+
+    // 旧字段兼容：如果新字段为空，保留旧 fallback
+    const fatalSentence = verdict || (pd.fatalSentence || '')
+    const coreProblem = contradictionTitle || contradictionDesc || (pd.coreProblem || '')
+    const systemTrap = (pd.systemTrap || '')
+    const strategyPath = pathText || (pd.strategyPath || '')
+    const finalStrikeStr = emotionClosing || (pd.finalStrike || '')
+    const advice = pd.advice || ''
     // === 防空白：入口数据校验 ===
     if (!fatalSentence && !coreProblem && !systemTrap && !strategyPath) {
       console.error('[ReportPoster] BLANK_PREVENTED: all 5 fields empty')
@@ -327,11 +344,14 @@ Page({
 
     const cards = [
       { no: '01', icon: '📍', title: '命运判决',          color: '#ff2d55', text: fatalSentence || '' },
-      { no: '02', icon: '🔍', title: '核心矛盾',          color: '#ff3b3b', text: coreProblem || '' },
-      { no: '03', icon: '📊', title: '翻身潜力',          color: '#7b3cff', text: systemTrap || '' },
-      { no: '04', icon: '🚀', title: '翻身路径',          color: '#ff9f1a', text: strategyPath || '' },
-      { no: '05', icon: '📅', title: '行动建议',          color: '#39d353', text: advice || '' },
-      { no: '06', icon: '⚡', title: '唯一决策',          color: '#ff5ca8', text: finalStrike || '' },
+      { no: '02', icon: '🔍', title: '核心矛盾',          color: '#ff3b3b',
+        text: (contradictionTitle ? contradictionTitle + ': ' + contradictionDesc : coreProblem) || '' },
+      { no: '03', icon: '📊', title: '唯一决策',          color: '#7b3cff',
+        text: (decisionTitle ? decisionTitle + (decisionReason ? ' — ' + decisionReason : '') : finalStrikeStr) || '' },
+      { no: '04', icon: '⚡', title: '第一行动',          color: '#ff9f1a',
+        text: (actionTitle ? actionTitle + (actionCheckpoint ? '（' + actionCheckpoint + '）' : '') : systemTrap) || '' },
+      { no: '05', icon: '📅', title: '翻身潜力',          color: '#39d353',
+        text: (potentialScore ? '评分' + potentialScore + '/' + potentialLevel : systemTrap) || '' },
     ]
 
     function roundRect(x, y, w, h, r) {

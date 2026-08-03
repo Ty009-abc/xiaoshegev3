@@ -433,6 +433,262 @@ function computeFinalStrike(result) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// v6.5.2: 结构化语义字段
+// ═══════════════════════════════════════════════════════════════
+
+const CONTRADICTION_PATTERNS = [
+  // 高认知低执行: HIGH_COGNITION + LOW_EXECUTION
+  { leftRisk: 'ANALYSIS_PARALYSIS', leftRiskAlt: 'HIGH_OPPORTUNITY_COST', right: 'LEARNING_SPEED',
+    code: 'LEARNING_EXECUTION_CONFLICT', title: '学习强 × 执行弱',
+    leftSide: '学习吸收能力强', rightSide: '执行连续性弱',
+    desc: '你吸收信息的速度远高于产出结果的速度，知识长期停留在输入端' },
+  // 学习强变现弱: LEARNING_STRONG + LOW_MONETIZATION
+  { leftRisk: 'LOW_MONETIZATION', right: 'LEARNING_SPEED',
+    code: 'LEARNING_EXECUTION_CONFLICT', title: '学习强 × 变现弱',
+    leftSide: '学习能力强', rightSide: '变现能力弱',
+    desc: '你的能力从未换到过钱。在商业世界，未被付费验证的能力等于不存在' },
+  // 高欲望低纪律: HIGH_DESIRE + LOW_DISCIPLINE
+  { leftRisk: 'LOW_DISCIPLINE', leftRiskAlt: 'SHORT_TERM_ADDICTION', right: 'CREATIVITY',
+    code: 'AMBITION_DISCIPLINE_CONFLICT', title: '高欲 × 低律',
+    leftSide: '欲望/野心高', rightSide: '纪律/坚持力弱',
+    desc: '你的目标很大但坚持力不足，频繁在启动和放弃间循环' },
+  // 收入单一抗风险弱: SINGLE_INCOME + LOW_RISK_BUFFER
+  { leftRisk: 'SINGLE_INCOME_DEPENDENCY', right: 'SAFETY_MARGIN',
+    code: 'STABILITY_GROWTH_CONFLICT', title: '收入单一 × 抗风险弱',
+    leftSide: '收入来源单一', rightSide: '抗风险能力弱',
+    desc: '连一次行业波动都扛不过去。焦虑来源于这个现实，不是认知问题' },
+  // 风险过度自信
+  { leftRisk: 'DEBT_PRESSURE', right: 'EXECUTION_SPEED',
+    code: 'RISK_REWARD_CONFLICT', title: '敢赌 × 缺框',
+    leftSide: '风险偏好高/负债多', rightSide: '缺乏风控框架',
+    desc: '消费贷/高负债是认知翻身的最大障碍。利息在吞噬你未来的一切可能性' },
+  // 现金流断裂
+  { leftRisk: 'NEGATIVE_CASHFLOW', right: 'SKILL_ASSETS',
+    code: 'SPEED_CONSISTENCY_CONFLICT', title: '入不敷出 × 技能闲置',
+    leftSide: '每月入不敷出', rightSide: '有技能未变现',
+    desc: '收支刚好持平/负结余，没有燃料积累。这不是发展问题，是生存问题' },
+  // 执行力强但方向杂乱
+  { leftRisk: 'DIRECTION_CHAOS', leftRiskAlt: 'EXECUTION_FRAGMENTATION', right: 'EXECUTION_SPEED',
+    code: 'SPEED_CONSISTENCY_CONFLICT', title: '快进 × 不持续',
+    leftSide: '执行力强', rightSide: '方向/持续性弱',
+    desc: '你有爆发力但缺持久力，碎片化执行导致每次都从零开始' },
+]
+
+/**
+ * 从 engine 数据推导核心矛盾
+ * 使用 fatal rules + scores 判定冲突类型
+ */
+function computeContradiction(engineResult) {
+  const fatalIds = (engineResult.fatalRules || []).map(r => r.id)
+  const scores = engineResult.scores || {}
+  const profile = engineResult.normalizedProfile || {}
+
+  // 收集关键信号
+  const signals = {
+    hasAnalysisParalysis: fatalIds.some(id => /R_DEC_004|R_DEC_006|R_EXEC_005/.test(id)),
+    hasLowExecution: scores.execution <= 30,
+    hasLowMonetization: profile.skillValidationRaw?.level === 'never' || profile.skillValidationRaw?.level === 'unpaid',
+    hasLearningStrength: scores.skill >= 50,
+    hasLowDiscipline: fatalIds.some(id => /R_DEC_007|R_EXEC_006/.test(id)) || scores.execution <= 25,
+    hasHighAmbition: scores.skill >= 50,
+    hasSingleIncome: profile.incomeStructureRaw?.level === 'salary',
+    hasLowRiskBuffer: profile.safetyMonthsRaw?.level === 'critical' || profile.safetyMonthsRaw?.level === 'very_low',
+    hasDebtPressure: profile.debtPressureRaw?.level === 'high' || profile.debtPressureRaw?.level === 'consumer',
+    hasNegativeCashflow: profile.monthlySurplusRaw?.level === 'negative' || profile.monthlySurplusRaw?.level === 'zero',
+    hasHighExecution: scores.execution >= 60,
+    hasFragmentedExecution: fatalIds.some(id => /R_EXEC_006|R_DEC_007/.test(id)),
+  }
+
+  // 匹配模式（按优先级）
+  if (signals.hasAnalysisParalysis && signals.hasLearningStrength) {
+    return CONTRADICTION_PATTERNS[0]
+  }
+  if (signals.hasLowMonetization && signals.hasLearningStrength) {
+    return CONTRADICTION_PATTERNS[1]
+  }
+  if (signals.hasLowDiscipline && signals.hasHighAmbition) {
+    return CONTRADICTION_PATTERNS[2]
+  }
+  if (signals.hasSingleIncome && signals.hasLowRiskBuffer && fatalIds.length >= 3) {
+    return CONTRADICTION_PATTERNS[3]
+  }
+  if (signals.hasDebtPressure && scores.risk <= 30) {
+    return CONTRADICTION_PATTERNS[4]
+  }
+  if (signals.hasNegativeCashflow) {
+    return CONTRADICTION_PATTERNS[5]
+  }
+  if (signals.hasHighExecution && signals.hasFragmentedExecution) {
+    return CONTRADICTION_PATTERNS[6]
+  }
+
+  // 兜底: 从 fatal diagnosis 提取 title
+  const fd = computeFatalDiagnosis(engineResult)
+  if (fd && fd.reason) {
+    return {
+      code: 'FALLBACK',
+      title: fd.mainProblem || '关键矛盾',
+      leftSide: '当前困境',
+      rightSide: '期望方向',
+      desc: fd.reason || '',
+    }
+  }
+
+  // 无致命规则 → 从优势规则推导成长矛盾
+  const advRules = engineResult.advantageRules || []
+  if (advRules.length >= 3 && scores.overall >= 50) {
+    return {
+      code: 'STABILITY_GROWTH_CONFLICT',
+      title: '求稳 × 求变',
+      leftSide: '基础条件好',
+      rightSide: '尚未完全释放潜力',
+      desc: '你已经有良好的基础条件，矛盾不在于生存而在于突破——能否把现有优势转化为更大成果',
+    }
+  }
+
+  return null
+}
+
+/**
+ * 从矛盾推导唯一决策
+ */
+function computeDecision(contradiction, engineResult) {
+  if (!contradiction || contradiction.code === 'FALLBACK') {
+    // Fallback for users with no fatal contradiction → growth path
+    const scores = engineResult.scores || {}
+    if (scores.overall >= 50) {
+      return {
+        code: 'INCREASE_MONETIZATION',
+        title: '把已验证的能力规模化变现',
+        reason: '你的基础条件已经具备，下一步是把能力转化为可重复的收入系统',
+        expectedCycleDays: 90,
+      }
+    }
+    return null
+  }
+
+  const code = contradiction.code
+  const scores = engineResult.scores || {}
+  const fatalCount = (engineResult.fatalRules || []).length
+
+  // 基于矛盾类型和引擎分数推导
+  const decisionMap = {
+    LEARNING_EXECUTION_CONFLICT: {
+      code: 'BUILD_EXECUTION_SYSTEM',
+      title: '先建立连续执行系统',
+      reason: '核心矛盾是学习强执行弱，在知识再次堆积之前，必须连续执行21天以上',
+      expectedCycleDays: 90,
+    },
+    AMBITION_DISCIPLINE_CONFLICT: {
+      code: 'BUILD_DISCIPLINE',
+      title: '先建立纪律系统',
+      reason: '野心和纪律之间的落差是目前最大问题，固定时间做固定动作比什么都重要',
+      expectedCycleDays: 60,
+    },
+    SPEED_CONSISTENCY_CONFLICT: {
+      code: 'BUILD_EXECUTION_SYSTEM',
+      title: '先聚焦一个方向连续执行',
+      reason: '爆发力不是问题，持续性才是。把碎片化执行合并为一个固定节奏',
+      expectedCycleDays: 90,
+    },
+    STABILITY_GROWTH_CONFLICT: {
+      code: 'BUILD_SECOND_INCOME',
+      title: '在不辞职的前提下启动第二收入线',
+      reason: '单一收入是最大风险。在不影响主业的前提下验证技能变现',
+      expectedCycleDays: 180,
+    },
+    RISK_REWARD_CONFLICT: {
+      code: 'REBUILD_RISK_FRAMEWORK',
+      title: '先止住出血再谈翻身',
+      reason: '当前负债正在吞噬未来的一切机会。停损是第一优先，任何投资都要等现金流转正之后',
+      expectedCycleDays: 60,
+    },
+  }
+
+  const match = decisionMap[code]
+  if (!match) return null
+
+  return {
+    code: match.code,
+    title: match.title,
+    reason: match.reason,
+    expectedCycleDays: match.expectedCycleDays,
+  }
+}
+
+/**
+ * 从 contradiction + verdict 推导命运判决
+ */
+function computeVerdict(contradiction, engineResult) {
+  const h = computeHeadline(engineResult.normalizedProfile, engineResult)
+  const cc = contradiction || {}
+
+  return {
+    headline: h.title,
+    explanation: h.subtitle,
+    contradictionCode: cc.code || 'UNKNOWN',
+  }
+}
+
+/**
+ * 从 scoreCard 和 profile 推导翻身潜力三要素
+ */
+function computePotential(engineResult) {
+  const scores = engineResult.scores || {}
+  const profile = engineResult.normalizedProfile || {}
+
+  // 优势
+  const advantages = []
+  if (scores.skill >= 60) advantages.push('技能变现已验证')
+  if (scores.execution >= 60) advantages.push('执行力强')
+  if (scores.time >= 60) advantages.push('可投入时间充裕')
+  if (scores.cashflow >= 60) advantages.push('现金流健康')
+  if (profile.skillValidationRaw?.level === 'market_validated' || profile.skillValidationRaw?.level === 'stable_clients') advantages.push('市场已付费验证')
+  if (profile.safetyMonthsRaw?.level === 'strong' || profile.safetyMonthsRaw?.level === 'moderate_high') advantages.push('安全垫充裕')
+
+  // 约束
+  const constraints = []
+  if (scores.risk <= 30) constraints.push('风险抵抗弱')
+  if (scores.execution <= 30) constraints.push('执行持续性差')
+  if (scores.skill <= 30) constraints.push('技能未验证')
+  if (scores.time <= 30) constraints.push('可投入时间少')
+  if (profile.debtPressureRaw?.level === 'high' || profile.debtPressureRaw?.level === 'consumer') constraints.push('负债压力大')
+  if (profile.safetyMonthsRaw?.level === 'critical') constraints.push('生存安全垫不足')
+  if (profile.monthlySurplusRaw?.level === 'negative') constraints.push('月结余为负')
+
+  // 预计修复周期
+  const fatalCount = (engineResult.fatalRules || []).length
+  const estimatedDays = fatalCount >= 4 ? 180 : fatalCount >= 2 ? 120 : 60
+
+  return {
+    score: scores.overall || 0,
+    level: scores.overall >= 75 ? 'high' : scores.overall >= 45 ? 'moderate' : 'critical',
+    advantages: advantages.length ? advantages : ['个人能力基础'],
+    constraints: constraints.length ? constraints : ['数据不足，待深入诊断'],
+    estimatedRecoveryDays: estimatedDays,
+  }
+}
+
+/**
+ * 从 actionPlan 提取第一行动（含 checkpoint 和 successCriteria）
+ */
+function computePrimaryAction(engineResult) {
+  const fd = computeFatalDiagnosis(engineResult)
+  const ap = computeActionPlan(engineResult)
+  const d1 = ap.day1 || {}
+  const contradiction = computeContradiction(engineResult)
+  const decision = computeDecision(contradiction, engineResult)
+
+  return {
+    title: d1.goal || '明确方向并执行第一步',
+    why: decision ? decision.reason : (fd ? fd.reason || '' : '诊断结果显示需要立刻行动'),
+    tasks: d1.tasks || [],
+    checkpoint: d1.checkpoint || '24小时内完成',
+    successCriteria: d1.checkpoint ? [d1.checkpoint] : ['完成第一步任务'],
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 主入口：Engine Result → Report Skeleton
 // ═══════════════════════════════════════════════════════════════
 
@@ -491,6 +747,23 @@ function mapEngineToReport(engineResult) {
   // 13. finalStrike
   skeleton.finalStrike = computeFinalStrike(engineResult)
 
+  // ── v6.5.2: 结构化语义字段 ──
+  // 14. contradiction（核心矛盾）
+  const contradiction = computeContradiction(engineResult)
+  skeleton.contradiction = contradiction
+
+  // 15. decision（唯一决策，从矛盾推导）
+  skeleton.decision = computeDecision(contradiction, engineResult)
+
+  // 16. verdict（命运判决）
+  skeleton.verdict = computeVerdict(contradiction, engineResult)
+
+  // 17. potential（翻身潜力三要素）
+  skeleton.potential = computePotential(engineResult)
+
+  // 18. primaryAction（第一行动含 checkpoint）
+  skeleton.primaryAction = computePrimaryAction(engineResult)
+
   return skeleton
 }
 
@@ -508,4 +781,10 @@ module.exports = {
   computeIdentityUpgrade,
   computeFinalStrike,
   deriveWealthStage,
+  // v6.5.2
+  computeContradiction,
+  computeDecision,
+  computeVerdict,
+  computePotential,
+  computePrimaryAction,
 }
