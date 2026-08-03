@@ -305,6 +305,15 @@ Page({
   },
 
   _drawPoster(fatalSentence, coreProblem, systemTrap, strategyPath, advice) {
+    // === 防空白：入口数据校验 ===
+    if (!fatalSentence && !coreProblem && !systemTrap && !strategyPath) {
+      console.error('[ReportPoster] BLANK_PREVENTED: all 5 fields empty')
+      this.setData({ posterGenerating: false })
+      wx.hideLoading()
+      wx.showToast({ title: '报告数据不完整，请重试', icon: 'none', duration: 2500 })
+      return
+    }
+
     const ctx = wx.createCanvasContext('posterCanvas', this)
     const W = 750
     const safeX = 40
@@ -313,6 +322,7 @@ Page({
     const textX = safeX + leftW + 28
     const textMaxW = cardW - leftW - 52
     const qrPath = this.data.qrPath || '/images/qrcode.png'
+    var drawnSections = 0
 
     const cards = [
       { no: '01', icon: '📍', title: '致命一句话',        color: '#ff2d55', text: fatalSentence || '' },
@@ -409,6 +419,8 @@ Page({
     // 背景
     ctx.setFillStyle('#050914')
     ctx.fillRect(0, 0, W, H)
+    drawnSections++
+    console.log('[ReportPoster] background drawn W=' + W + ' H=' + H)
 
     drawGlow(160, 120, 220, '#7b3cff', 0.26)
     drawGlow(620, 120, 240, '#ff2d75', 0.18)
@@ -430,6 +442,7 @@ Page({
     ctx.moveTo(70, 145)
     ctx.lineTo(680, 145)
     ctx.stroke()
+    drawnSections++
 
     // 卡片
     let y = 180
@@ -477,6 +490,8 @@ Page({
 
       y += h + gap
     })
+    drawnSections++
+    console.log('[ReportPoster] cards drawn count=' + cards.length)
 
     // CTA
     const ctaY = y + 48
@@ -520,6 +535,18 @@ Page({
     ctx.setFontSize(22)
     ctx.setFillStyle('#7b6dff')
     ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, H - 30)
+    drawnSections++
+
+    // === 防空白：导出前完整性校验 ===
+    const MIN_SECTIONS = 4
+    console.log('[ReportPoster] drawnSections=' + drawnSections + ' min=' + MIN_SECTIONS)
+    if (drawnSections < MIN_SECTIONS) {
+      console.error('[ReportPoster] BLANK_PREVENTED: drawnSections=' + drawnSections + ' < ' + MIN_SECTIONS)
+      this.setData({ posterGenerating: false })
+      wx.hideLoading()
+      wx.showToast({ title: '报告数据不完整，请重试', icon: 'none', duration: 2500 })
+      return
+    }
 
     const self = this
     ctx.draw(false, () => {
