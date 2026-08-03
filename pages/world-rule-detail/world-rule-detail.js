@@ -82,7 +82,6 @@ function normalizeWorldRule(raw) {
     hasReverse: !!reverseLogic,
     hasAction: !!actionAdvice,
   }
-  }
 
   // 重复检测（仅 warning，不篡改）
   if (result.worldRule && result.underlyingLogic && result.worldRule === result.underlyingLogic) {
