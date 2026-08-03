@@ -18,24 +18,48 @@ const FAV_KEY = 'world_…ites'
 
 function normalizeWorldRule(raw) {
   if (!raw) return null; const r = raw
-  const worldRule = r.rule || r.worldRule || r.mechanism || ''
-  const reverseInference = r.reverseLogic || r.reverseInference || r.boundary || r.realityCheck || ''
-  const example = r.example || r.commonMistake || r.caseStudy || r.realCase || r.case || ''
-  const actionAdvice = r.action || r.actionAdvice || r.todayAction || r.highLevelThinking || r.suggestion || ''
-  console.log('[WorldRuleDebug] rawKeys:', Object.keys(r).join(', '))
-  console.log('[WorldRuleDebug] worldRule:', worldRule.substring(0, 50))
-  console.log('[WorldRuleDebug] reverseInference:', reverseInference.substring(0, 50))
-  console.log('[WorldRuleDebug] example:', example.substring(0, 50))
-  console.log('[WorldRuleDebug] actionAdvice:', actionAdvice.substring(0, 50))
+
+  // 01 世界规则：Season 1-4 rule 字段 或 Season 5+ worldRule/mechanism
+  const worldRule = r.worldRule || r.rule || r.mechanism || ''
+
+  // 02 底层逻辑：数据库无专属字段，从 rule 字段提取（与 01 卡片共享实际内容）
+  const underlyingLogic = (r.rule && r.rule.trim() ? r.rule : '') || ''
+
+  // 03 反向推理
+  const reverseLogic = r.reverseLogic || r.reverseInference || r.boundary || r.realityCheck || ''
+
+  // 04 行动建议
+  const actionAdvice = r.actionAdvice || r.action || r.todayAction || r.highLevelThinking || r.suggestion || ''
+
+  // 诊断日志（受 debug 开关控制）
+  const _DEBUG = true
+  if (_DEBUG) {
+    console.log('[WorldRuleNormalizer] rawKeys:', Object.keys(r).join(', '))
+    console.log('[WorldRuleNormalizer] ruleId:', r.ruleId)
+    console.log('[WorldRuleNormalizer] 01 worldRule:', worldRule.substring(0, 60))
+    console.log('[WorldRuleNormalizer] 02 underlyingLogic:', underlyingLogic.substring(0, 60))
+    console.log('[WorldRuleNormalizer] 03 reverseLogic:', reverseLogic.substring(0, 60))
+    console.log('[WorldRuleNormalizer] 04 actionAdvice:', actionAdvice.substring(0, 60))
+    if (!underlyingLogic) {
+      console.warn('[WorldRuleNormalizer] MISSING_UNDERLYING_LOGIC ruleId=' + r.ruleId, 'rawKeys=' + Object.keys(r).join(','))
+    }
+  }
+
   return {
-    id: r.ruleId || '', category: r.category || '', categoryDisplay: getCatDisplay(r.category),
+    id: r.ruleId || '',
+    category: r.category || '',
+    categoryDisplay: getCatDisplay(r.category),
     title: r.title || '',
-    worldRule, reverseInference, logic: r.logic || r.underlyingLogic || r.fundamentalLogic || '',
-    example, actionAdvice,
-    tags: r.tags || [], locked: r.locked === true, preview: r.preview || '',
+    worldRule,
+    underlyingLogic,
+    reverseLogic,
+    actionAdvice,
+    tags: r.tags || [],
+    locked: r.locked === true,
+    preview: r.preview || '',
     hasRule: !!worldRule,
-    hasReverse: !!reverseInference,
-    hasExample: !!example,
+    hasLogic: !!underlyingLogic,
+    hasReverse: !!reverseLogic,
     hasAction: !!actionAdvice,
   }
 }
@@ -132,16 +156,39 @@ Page({
 
   _doGenerate(rule, qrPath) {
     console.log('[WorldRulePoster] 02 qr ready, calc height')
+
+    // 规范化海报数据（确保 Renderer 收到标准字段）
+    const posterData = {
+      id: rule.id || '',
+      category: rule.category || '',
+      categoryDisplay: rule.categoryDisplay || '',
+      title: rule.title || '',
+      worldRule: rule.worldRule || '',
+      underlyingLogic: rule.underlyingLogic || '',
+      reverseLogic: rule.reverseLogic || '',
+      actionAdvice: rule.actionAdvice || '',
+      hasLogic: rule.hasLogic !== undefined ? rule.hasLogic : !!rule.underlyingLogic,
+    }
+    console.log('[WorldRulePoster] posterData:', JSON.stringify({
+      id: posterData.id,
+      category: posterData.category,
+      worldRule: posterData.worldRule.substring(0, 40),
+      underlyingLogic: posterData.underlyingLogic.substring(0, 40),
+      reverseLogic: posterData.reverseLogic.substring(0, 40),
+      actionAdvice: posterData.actionAdvice.substring(0, 40),
+      hasLogic: posterData.hasLogic,
+    }))
+
     const page = this
     const tempCtx = wx.createCanvasContext('worldRulePosterCanvas', this)
-    const H = RuleRenderer.calcHeight(rule, tempCtx)
+    const H = RuleRenderer.calcHeight(posterData, tempCtx)
     console.log('[WorldRulePoster] 03 H=' + H)
 
     wx.showLoading({ title: '正在生成海报...', mask: true })
 
     wx.nextTick(() => {
       const ctx = wx.createCanvasContext('worldRulePosterCanvas', page)
-      RuleRenderer.draw(ctx, rule, qrPath, H)
+      RuleRenderer.draw(ctx, posterData, qrPath, H)
       console.log('[WorldRulePoster] 04 draw submitted')
 
       // draw 超时 6s
