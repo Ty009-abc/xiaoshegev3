@@ -17,27 +17,83 @@ const KNOWN_KEY = 'world_…tion'
 const FAV_KEY = 'world_…ites'
 
 function normalizeWorldRule(raw) {
-  if (!raw) return null; const r = raw
-  const worldRule = r.rule || r.worldRule || r.mechanism || ''
-  const reverseInference = r.reverseLogic || r.reverseInference || r.boundary || r.realityCheck || ''
-  const example = r.example || r.commonMistake || r.caseStudy || r.realCase || r.case || ''
-  const actionAdvice = r.action || r.actionAdvice || r.todayAction || r.highLevelThinking || r.suggestion || ''
-  console.log('[WorldRuleDebug] rawKeys:', Object.keys(r).join(', '))
-  console.log('[WorldRuleDebug] worldRule:', worldRule.substring(0, 50))
-  console.log('[WorldRuleDebug] reverseInference:', reverseInference.substring(0, 50))
-  console.log('[WorldRuleDebug] example:', example.substring(0, 50))
-  console.log('[WorldRuleDebug] actionAdvice:', actionAdvice.substring(0, 50))
-  return {
-    id: r.ruleId || '', category: r.category || '', categoryDisplay: getCatDisplay(r.category),
+  if (!raw) return null
+  const r = raw
+
+  // === 补充底层逻辑库（Season 1-4 旧规则，数据无专属字段时使用）===
+  let SUPPLEMENTAL = null
+  try {
+    const supp = require('../../data/worldRuleUnderlyingLogic.js')
+    SUPPLEMENTAL = supp && supp[r.ruleId || r.id]
+  } catch (_) { /* 补充库不存在时不报错 */ }
+
+  // === 字段映射 ===
+  // 01 世界规则：worldRule（S5+）> rule（S1-4）> ''
+  // mechanism 不进入 01（属于底层机制，不是规则正文）
+  const worldRule = cleanText(r.worldRule || r.rule)
+
+  // 02 底层逻辑：原生字段 > mechanism（底层机制）> 补充库
+  const underlyingLogic =
+    cleanText(r.underlyingLogic || r.coreLogic || r.logicAnalysis || r.logic || r.mechanism || (SUPPLEMENTAL && SUPPLEMENTAL.underlyingLogic))
+
+  // 03 反向推理
+  const reverseLogic = cleanText(r.reverseLogic || r.reverseInference || r.boundary || r.realityCheck)
+
+  // 04 现实案例
+  const realCase = cleanText(r.example || r.caseStudy || r.realCase || r.commonMistake)
+
+  // 05 行动建议
+  const actionAdvice = cleanText(r.actionAdvice || r.action || r.todayAction || r.highLevelThinking || r.suggestion)
+
+  // === 防串线断言 ===
+  if (worldRule && underlyingLogic && worldRule === underlyingLogic) {
+    console.warn('[WorldRuleNormalizer] DUPLICATE_SECTION_CONTENT ruleId=' + r.ruleId + ' worldRule==underlyingLogic')
+  }
+
+  // === 诊断日志 ===
+  const _DEBUG = true
+  if (_DEBUG) {
+    console.log('[WorldRuleNormalizer] rawKeys:', Object.keys(r).join(', '))
+    console.log('[WorldRuleNormalizer] ruleId:', r.ruleId)
+    console.log('[WorldRuleNormalizer] 01 worldRule:', worldRule.substring(0, 60))
+    console.log('[WorldRuleNormalizer] 02 underlyingLogic:', underlyingLogic.substring(0, 60))
+    console.log('[WorldRuleNormalizer] 03 reverseLogic:', reverseLogic.substring(0, 60))
+    console.log('[WorldRuleNormalizer] 04 actionAdvice:', actionAdvice.substring(0, 60))
+    if (!underlyingLogic) {
+      console.warn('[WorldRuleNormalizer] MISSING_UNDERLYING_LOGIC ruleId=' + r.ruleId, 'rawKeys=' + Object.keys(r).join(','))
+    }
+  }
+
+  const result = {
+    id: r.ruleId || '',
+    category: r.category || '',
+    categoryDisplay: getCatDisplay(r.category),
     title: r.title || '',
-    worldRule, reverseInference, logic: r.logic || r.underlyingLogic || r.fundamentalLogic || '',
-    example, actionAdvice,
-    tags: r.tags || [], locked: r.locked === true, preview: r.preview || '',
+    worldRule,
+    underlyingLogic,
+    reverseLogic,
+    realCase,
+    actionAdvice,
+    tags: r.tags || [],
+    locked: r.locked === true,
+    preview: r.preview || '',
     hasRule: !!worldRule,
-    hasReverse: !!reverseInference,
-    hasExample: !!example,
+    hasLogic: !!underlyingLogic,
+    hasReverse: !!reverseLogic,
     hasAction: !!actionAdvice,
   }
+
+  // 重复检测（仅 warning，不篡改）
+  if (result.worldRule && result.underlyingLogic && result.worldRule === result.underlyingLogic) {
+    console.warn('[WorldRuleNormalizer] DUPLICATE_01_02_CONTENT ruleId=' + r.ruleId)
+  }
+
+  return result
+}
+
+function cleanText(text) {
+  if (!text || typeof text !== 'string') return ''
+  return text.trim()
 }
 function getCatDisplay(cat) {
   const m = { wealth: '💰 财富模型', mindset: '🧠 认知升级', probability: '🎲 概率决策', system: '⚙️ 系统模型', info: '📡 信息网络', cognition: '🧠 认知升级', capital: '💰 财富模型', risk: '🎲 概率决策', business: '🤖 商业与AI', longterm: '🌍 长期文明', ethics: '⚖️ 伦理意义', human: '🧠 认知升级', leverage: '💰 财富模型', decision: '🎲 概率决策', ai: '🤖 商业与AI', network: '📡 信息网络', coevolution: '🌍 长期文明', manifesto: '📜 宣言' }
@@ -132,16 +188,65 @@ Page({
 
   _doGenerate(rule, qrPath) {
     console.log('[WorldRulePoster] 02 qr ready, calc height')
+
+    // 海报数据直接使用 normalized rule 字段（统一契约，不二次映射）
+    const posterData = {
+      id: rule.id || '',
+      category: rule.category || '',
+      categoryDisplay: rule.categoryDisplay || '',
+      title: rule.title || '',
+      worldRule: rule.worldRule || '',
+      underlyingLogic: rule.underlyingLogic || '',
+      reverseLogic: rule.reverseLogic || '',
+      actionAdvice: rule.actionAdvice || '',
+    }
+
+    // === 生成前强制内容校验 ===
+    let validator = null
+    try {
+      validator = require('../../utils/worldRuleContentValidator.js')
+    } catch (_) {}
+    if (validator && validator.validateWorldRuleContent) {
+      const validation = validator.validateWorldRuleContent(posterData)
+      if (validation.status === 'MISSING') {
+        console.error('[WorldRulePoster] CONTENT_VALIDATION_FAILED', JSON.stringify(validation))
+        this.safeSetData({ posterGenerating: false })
+        wx.hideLoading()
+        wx.showToast({ title: '该规则关键内容缺失，暂时无法生成海报', icon: 'none', duration: 3000 })
+        return
+      }
+      if (validation.status === 'TEMPORARY') {
+        console.warn('[WorldRulePoster] TEMP_UNDERLYING_LOGIC ruleId=' + posterData.id)
+        posterData.underlyingLogicStatus = 'TEMPORARY'
+        posterData.underlyingLogic = '这条规则的机制分析正在补充中。先结合反向推理判断它在什么条件下成立，再用行动建议验证它是否适用于你。'
+      } else {
+        posterData.underlyingLogicStatus = 'COMPLETE'
+      }
+      if (validation.warnings.length) {
+        console.warn('[WorldRulePoster] CONTENT_WARNINGS:', validation.warnings)
+      }
+    }
+
+    // 调试日志
+    console.log('[WorldRulePoster] posterData:', JSON.stringify({
+      id: posterData.id,
+      category: posterData.category,
+      worldRule: posterData.worldRule.substring(0, 40),
+      underlyingLogic: posterData.underlyingLogic.substring(0, 40),
+      reverseLogic: posterData.reverseLogic.substring(0, 40),
+      actionAdvice: posterData.actionAdvice.substring(0, 40),
+    }))
+
     const page = this
     const tempCtx = wx.createCanvasContext('worldRulePosterCanvas', this)
-    const H = RuleRenderer.calcHeight(rule, tempCtx)
+    const H = RuleRenderer.calcHeight(posterData, tempCtx)
     console.log('[WorldRulePoster] 03 H=' + H)
 
     wx.showLoading({ title: '正在生成海报...', mask: true })
 
     wx.nextTick(() => {
       const ctx = wx.createCanvasContext('worldRulePosterCanvas', page)
-      RuleRenderer.draw(ctx, rule, qrPath, H)
+      RuleRenderer.draw(ctx, posterData, qrPath, H)
       console.log('[WorldRulePoster] 04 draw submitted')
 
       // draw 超时 6s
