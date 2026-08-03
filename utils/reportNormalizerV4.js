@@ -484,18 +484,46 @@ function buildDiagnosticV4ViewModel(report) {
 
 function mapDiagnosticV4ToPoster(vm) {
   var bestPath = vm.primaryWealthPath || (vm.wealthPaths.length > 0 ? vm.wealthPaths[0] : null)
+
+  // 01 命运判决 = headline.title
+  var headline = (vm.hero && vm.hero.title) ||
+    (vm.fatalDiagnosis && vm.fatalDiagnosis.mainProblem) || ''
+
+  // 02 核心矛盾 = fatalDiagnosis.reason
+  var coreProblem = (vm.fatalDiagnosis && vm.fatalDiagnosis.reason) ||
+    (vm.fatalDiagnosis && vm.fatalDiagnosis.mainProblem) || ''
+
+  // 03 翻身潜力 = scoreCard 总结
+  var potentialText = ''
+  if (vm.scoreCard && vm.scoreCard.length) {
+    var parts = vm.scoreCard.map(function(s) {
+      return s.label + '(' + s.value + '分 ' + s.grade + ')'
+    })
+    potentialText = parts.join(' · ')
+  }
+
+  // 04 翻身路径 = primaryPath
+  var strategyPath = bestPath
+    ? bestPath.name + ' (' + bestPath.statusLabel + ') — ' + bestPath.description
+    : ''
+
+  // 05 行动建议 = DAY1/7/30 摘要
+  var advice = [
+    buildDaySummary(vm.actionTimeline[0]),
+    buildDaySummary(vm.actionTimeline[2]),
+    buildDaySummary(vm.actionTimeline[4]),
+  ].filter(Boolean)
+
+  // 06 唯一决策 = finalStrike.sentence
+  var finalStrike = (vm.finalStrike && vm.finalStrike.sentence) || ''
+
   return {
-    fatalSentence: vm.hero.title || '',
-    coreProblem: (vm.fatalDiagnosis && vm.fatalDiagnosis.reason) || (vm.fatalDiagnosis && vm.fatalDiagnosis.mainProblem) || '',
-    systemTrap: (vm.systemLeaks || []).map(function(r) { return r.title + ': ' + r.description }).join(' | '),
-    strategyPath: bestPath
-      ? bestPath.name + ' (' + bestPath.statusLabel + ') — ' + bestPath.description
-      : '',
-    advice: [
-      buildDaySummary(vm.actionTimeline[0]),
-      buildDaySummary(vm.actionTimeline[2]),
-      buildDaySummary(vm.actionTimeline[4]),
-    ].filter(Boolean),
+    fatalSentence: headline,
+    coreProblem: coreProblem,
+    systemTrap: potentialText || '',
+    strategyPath: strategyPath,
+    advice: advice,
+    finalStrike: finalStrike,
   }
 }
 

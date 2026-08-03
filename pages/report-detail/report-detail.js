@@ -301,10 +301,11 @@ Page({
       posterData.systemTrap,
       posterData.strategyPath,
       posterData.advice,
+      posterData.finalStrike || '',
     )
   },
 
-  _drawPoster(fatalSentence, coreProblem, systemTrap, strategyPath, advice) {
+  _drawPoster(fatalSentence, coreProblem, systemTrap, strategyPath, advice, finalStrike) {
     // === 防空白：入口数据校验 ===
     if (!fatalSentence && !coreProblem && !systemTrap && !strategyPath) {
       console.error('[ReportPoster] BLANK_PREVENTED: all 5 fields empty')
@@ -325,11 +326,12 @@ Page({
     var drawnSections = 0
 
     const cards = [
-      { no: '01', icon: '📍', title: '致命一句话',        color: '#ff2d55', text: fatalSentence || '' },
-      { no: '02', icon: '🔍', title: '核心问题',          color: '#ff3b3b', text: coreProblem || '' },
-      { no: '03', icon: '🚫', title: '系统困局',          color: '#ff6b6b', text: systemTrap || '' },
+      { no: '01', icon: '📍', title: '命运判决',          color: '#ff2d55', text: fatalSentence || '' },
+      { no: '02', icon: '🔍', title: '核心矛盾',          color: '#ff3b3b', text: coreProblem || '' },
+      { no: '03', icon: '📊', title: '翻身潜力',          color: '#7b3cff', text: systemTrap || '' },
       { no: '04', icon: '🚀', title: '翻身路径',          color: '#ff9f1a', text: strategyPath || '' },
       { no: '05', icon: '📅', title: '行动建议',          color: '#39d353', text: advice || '' },
+      { no: '06', icon: '⚡', title: '唯一决策',          color: '#ff5ca8', text: finalStrike || '' },
     ]
 
     function roundRect(x, y, w, h, r) {
