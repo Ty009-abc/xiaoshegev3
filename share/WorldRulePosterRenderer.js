@@ -63,6 +63,7 @@ function buildCards(data, tempCtx) {
       icon: '🔍', title: '底层逻辑',
       text: uLogic,
       color: '#6366F1', maxLines: 8, labelColor: '#818CF8',
+      _badge: d.underlyingLogicStatus === 'TEMPORARY' ? '机制分析·待完善' : null,
     },
     {
       icon: '↔', title: '反向推理',
@@ -132,6 +133,26 @@ function draw(ctx, data, qrPath, H) {
   let y = HEADER_H + 8
   cards.forEach(c => {
     P.drawNumberedCard(ctx, c, SAFE, y, CARD_W)
+
+    // TEMPORARY 标记：在卡片右上角绘制 "内容补充中" 标签
+    if (c._badge) {
+      const badgeText = c._badge
+      const badgeW = ctx.measureText(badgeText).width + 24
+      const badgeH = 26
+      const badgeX = SAFE + CARD_W - badgeW - 12
+      const badgeY = y + 10
+      P.roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 6)
+      ctx.setFillStyle('rgba(245,158,11,0.18)')
+      ctx.fill()
+      ctx.setStrokeStyle('rgba(245,158,11,0.5)')
+      ctx.setLineWidth(1)
+      ctx.stroke()
+      ctx.setTextAlign('center')
+      ctx.setFontSize(18)
+      ctx.setFillStyle('#FBBF24')
+      ctx.fillText(badgeText, badgeX + badgeW / 2, badgeY + 19)
+    }
+
     y += c._height + GAP
   })
 

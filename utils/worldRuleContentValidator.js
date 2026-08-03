@@ -3,6 +3,11 @@
  *
  * 世界规则海报内容质量校验器
  * 在生成海报前执行，确保所有卡片有真实内容
+ *
+ * 三级状态：
+ *   COMPLETE  — 四个核心字段完整，正常生成
+ *   TEMPORARY — 只缺 underlyingLogic，但 worldRule / reverseLogic / actionAdvice 完整，允许生成
+ *   MISSING   — 缺 worldRule / reverseLogic / actionAdvice 任一，阻止生成
  */
 
 /**
@@ -18,7 +23,6 @@ function clean(text) {
  */
 function charCount(text) {
   if (!text) return 0
-  // 中文按 1 字计，英文词按 ~0.5 字计
   let count = 0
   for (const ch of text) {
     count += /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(ch) ? 1 : 0.5
@@ -57,49 +61,63 @@ function similarityScore(a, b) {
 
 /**
  * 校验世界规则海报内容
+ *
+ * @returns {{ ok, status: 'COMPLETE'|'TEMPORARY'|'MISSING', errors, warnings, missingFields }}
  */
 function validateWorldRuleContent(rule) {
-  if (!rule) return { ok: false, errors: ['rule is null'], warnings: [] }
+  if (!rule) return { ok: false, status: 'MISSING', errors: ['rule is null'], warnings: [], missingFields: ['rule'] }
 
   const errors = []
   const warnings = []
+  const missingFields = []
 
   const wr = clean(rule.worldRule)
   const ul = clean(rule.underlyingLogic)
   const rl = clean(rule.reverseLogic)
   const aa = clean(rule.actionAdvice)
 
-  // 1. 非空检查
-  if (!wr) errors.push('01 世界规则为空')
-  if (!ul) errors.push('02 底层逻辑为空')
-  if (!rl) errors.push('03 反向推理为空')
-  if (!aa) errors.push('04 行动建议为空')
+  // 核心字段非空检查
+  if (!wr) { errors.push('01 世界规则为空'); missingFields.push('worldRule') }
+  if (!ul) { missingFields.push('underlyingLogic') }
+  if (!rl) { errors.push('03 反向推理为空'); missingFields.push('reverseLogic') }
+  if (!aa) { errors.push('04 行动建议为空'); missingFields.push('actionAdvice') }
 
-  // 2. 01 == 02 完全相同
-  if (wr && ul && wr === ul) {
-    errors.push('01 世界规则 与 02 底层逻辑 内容完全相同')
+  // 判定状态
+  let status = 'COMPLETE'
+  if (!wr || !rl || !aa) {
+    status = 'MISSING'
+  } else if (!ul) {
+    // 仅缺 underlyingLogic，其余三个完整 → TEMPORARY
+    status = 'TEMPORARY'
+    warnings.push('02 底层逻辑暂时缺失，使用过渡内容')
   }
 
-  // 3. 01 与 02 相似度过高
-  if (wr && ul && errors.length === 0) {
+  // 01 == 02 完全相同
+  if (wr && ul && wr === ul) {
+    errors.push('01 世界规则 与 02 底层逻辑 内容完全相同')
+    if (status === 'COMPLETE') status = 'MISSING'
+  }
+
+  // 01 与 02 相似度过高
+  if (wr && ul && status === 'COMPLETE') {
     const sim = similarityScore(wr, ul)
     if (sim > 0.7) {
       errors.push('01 与 02 内容相似度过高 (' + Math.round(sim * 100) + '%)')
+      status = 'MISSING'
     }
   }
 
-  // 4. 02 是占位句
+  // 02 是占位句
   if (ul && isPlaceholder(ul)) {
     errors.push('02 底层逻辑包含占位句')
+    if (status !== 'MISSING') status = 'MISSING'
   }
 
-  // 5. 长度建议
-  const ulChars = charCount(ul)
-  if (ulChars > 0 && ulChars < 50) {
-    warnings.push('02 底层逻辑偏短 (' + ulChars + '字)，建议 80-140 字')
-  }
-  if (ulChars > 200) {
-    warnings.push('02 底层逻辑偏长 (' + ulChars + '字)，建议 80-140 字')
+  // 长度建议（仅 COMPLETE 状态时有效）
+  if (status === 'COMPLETE') {
+    const ulChars = charCount(ul)
+    if (ulChars < 50) warnings.push('02 底层逻辑偏短 (' + ulChars + '字)，建议 80-140 字')
+    if (ulChars > 200) warnings.push('02 底层逻辑偏长 (' + ulChars + '字)，建议 80-140 字')
   }
 
   const rlChars = charCount(rl)
@@ -112,11 +130,9 @@ function validateWorldRuleContent(rule) {
     warnings.push('04 行动建议偏短 (' + aaChars + '字)，建议 40-100 字')
   }
 
-  return {
-    ok: errors.length === 0,
-    errors,
-    warnings,
-  }
+  const ok = status !== 'MISSING'
+
+  return { ok, status, errors, warnings, missingFields }
 }
 
 module.exports = { validateWorldRuleContent }

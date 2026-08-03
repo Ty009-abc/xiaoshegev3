@@ -208,12 +208,19 @@ Page({
     } catch (_) {}
     if (validator && validator.validateWorldRuleContent) {
       const validation = validator.validateWorldRuleContent(posterData)
-      if (!validation.ok) {
+      if (validation.status === 'MISSING') {
         console.error('[WorldRulePoster] CONTENT_VALIDATION_FAILED', JSON.stringify(validation))
         this.safeSetData({ posterGenerating: false })
         wx.hideLoading()
-        wx.showToast({ title: '该规则内容尚未完善，请更换一条规则', icon: 'none', duration: 3000 })
+        wx.showToast({ title: '该规则关键内容缺失，暂时无法生成海报', icon: 'none', duration: 3000 })
         return
+      }
+      if (validation.status === 'TEMPORARY') {
+        console.warn('[WorldRulePoster] TEMP_UNDERLYING_LOGIC ruleId=' + posterData.id)
+        posterData.underlyingLogicStatus = 'TEMPORARY'
+        posterData.underlyingLogic = '这条规则的机制分析正在补充中。先结合反向推理判断它在什么条件下成立，再用行动建议验证它是否适用于你。'
+      } else {
+        posterData.underlyingLogicStatus = 'COMPLETE'
       }
       if (validation.warnings.length) {
         console.warn('[WorldRulePoster] CONTENT_WARNINGS:', validation.warnings)
