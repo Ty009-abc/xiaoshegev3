@@ -42,65 +42,45 @@ function cleanText(text) {
 function buildCards(data, tempCtx) {
   const d = data || {}
 
-  // 防串线：01和02内容不得相同
+  // 全部字段读取规范字段（不 fallback，不填占位句）
   const wRule = cleanText(d.worldRule)
   const uLogic = cleanText(d.underlyingLogic)
+  const rLogic = cleanText(d.reverseLogic)
+  const aAdvice = cleanText(d.actionAdvice)
+
+  // 防串线：01和02内容不得相同
   if (wRule && uLogic && wRule === uLogic) {
     console.warn('[WorldRulePoster] DUPLICATE_SECTION_CONTENT 01==02 ruleId=' + (d.id || 'unknown'))
   }
-
-  // 02 底层逻辑：有内容则展示，缺失时用短提示
-  const MISSING_HINT = '该条规则暂未补充底层逻辑'
-  const useMissingLogic = !uLogic
-  if (useMissingLogic) {
-    console.warn('[WorldRulePoster] MISSING_UNDERLYING_LOGIC ruleId=' + (d.id || 'unknown'))
-  }
-
-  // 03 反向推理
-  const reverseText = cleanText(d.reverseLogic)
-  const useMissingReverse = !reverseText
-
-  // 04 行动建议
-  const actionText = cleanText(d.actionAdvice)
-  const useMissingAction = !actionText
 
   const rawCards = [
     {
       icon: '📜', title: '世界规则',
       text: wRule,
       color: '#8B5CF6', maxLines: 10, labelColor: '#8B5CF6',
-      fallback: '世界规则数据加载中...',
     },
     {
       icon: '🔍', title: '底层逻辑',
       text: uLogic,
       color: '#6366F1', maxLines: 8, labelColor: '#818CF8',
-      fallback: useMissingLogic ? MISSING_HINT : uLogic,
-      _isMissing: useMissingLogic,
     },
     {
       icon: '↔', title: '反向推理',
-      text: reverseText,
+      text: rLogic,
       color: '#F59E0B', maxLines: 9, labelColor: '#FBBF24',
-      fallback: useMissingReverse ? '该条规则暂未补充反向推理' : reverseText,
-      _isMissing: useMissingReverse,
     },
     {
       icon: '🎯', title: '行动建议',
-      text: actionText,
+      text: aAdvice,
       color: '#10B981', maxLines: 7, labelColor: '#34D399',
-      fallback: useMissingAction ? '该条规则暂未补充行动建议' : actionText,
-      _isMissing: useMissingAction,
     },
   ]
 
   return rawCards.map((c, i) => {
-    const displayText = c.text || c.fallback || ''
+    const displayText = c.text || ''
     const lines = P.wrapChineseText(tempCtx, displayText, CARD_W - 72, 26)
     const capped = P.truncateLines(lines, c.maxLines)
-    // 缺失卡片用较小高度；正常卡片根据行数动态计算
-    const h = c._isMissing ? 70 + capped.length * 34 :
-      66 + capped.length * 50 + 16
+    const h = 66 + capped.length * 50 + 16
     return { ...c, _lines: capped, _height: h, _idx: String(i + 1).padStart(2, '0') }
   })
 }

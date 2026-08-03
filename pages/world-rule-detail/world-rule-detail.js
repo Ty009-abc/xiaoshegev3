@@ -20,27 +20,37 @@ function normalizeWorldRule(raw) {
   if (!raw) return null
   const r = raw
 
-  // 真实字段映射（基于云函数 getWorldRuleDetail 返回结构）
-  // Season 1-4: rule, reverseLogic, example, action
-  // Season 5+:  worldRule, mechanism, boundary, realityCheck, caseStudy, todayAction, highLevelThinking
-  const worldRule = cleanText(r.worldRule || r.rule || r.mechanism)
+  // === 补充底层逻辑库（Season 1-4 旧规则，数据无专属字段时使用）===
+  let SUPPLEMENTAL = null
+  try {
+    const supp = require('../../data/worldRuleUnderlyingLogic.js')
+    SUPPLEMENTAL = supp && supp[r.ruleId || r.id]
+  } catch (_) { /* 补充库不存在时不报错 */ }
+
+  // === 字段映射 ===
+  // 01 世界规则：worldRule（S5+）> rule（S1-4）> ''
+  // mechanism 不进入 01（属于底层机制，不是规则正文）
+  const worldRule = cleanText(r.worldRule || r.rule)
+
+  // 02 底层逻辑：原生字段 > mechanism（底层机制）> 补充库
+  const underlyingLogic =
+    cleanText(r.underlyingLogic || r.coreLogic || r.logicAnalysis || r.logic || r.mechanism || (SUPPLEMENTAL && SUPPLEMENTAL.underlyingLogic))
+
+  // 03 反向推理
   const reverseLogic = cleanText(r.reverseLogic || r.reverseInference || r.boundary || r.realityCheck)
+
+  // 04 现实案例
   const realCase = cleanText(r.example || r.caseStudy || r.realCase || r.commonMistake)
+
+  // 05 行动建议
   const actionAdvice = cleanText(r.actionAdvice || r.action || r.todayAction || r.highLevelThinking || r.suggestion)
 
-  // 底层逻辑独立映射
-  // 注意：数据库无专属 underlyingLogic 字段，S1-4 rule 字段承载了底层逻辑语义
-  // 但 worldRule 已使用 rule 字段作为 01 卡片内容
-  // 两个卡片不应 fallback 到同一字段，否则内容重复
-  // 当前阶段：underlyingLogic 独立为其可能的字段，不 fallback 到 worldRule
-  const underlyingLogic = cleanText(r.underlyingLogic || r.coreLogic || r.logicAnalysis || r.logic)
-
-  // 防串线断言
+  // === 防串线断言 ===
   if (worldRule && underlyingLogic && worldRule === underlyingLogic) {
     console.warn('[WorldRuleNormalizer] DUPLICATE_SECTION_CONTENT ruleId=' + r.ruleId + ' worldRule==underlyingLogic')
   }
 
-  // 诊断日志
+  // === 诊断日志 ===
   const _DEBUG = true
   if (_DEBUG) {
     console.log('[WorldRuleNormalizer] rawKeys:', Object.keys(r).join(', '))
@@ -71,6 +81,7 @@ function normalizeWorldRule(raw) {
     hasLogic: !!underlyingLogic,
     hasReverse: !!reverseLogic,
     hasAction: !!actionAdvice,
+  }
   }
 
   // 重复检测（仅 warning，不篡改）
@@ -190,6 +201,27 @@ Page({
       reverseLogic: rule.reverseLogic || '',
       actionAdvice: rule.actionAdvice || '',
     }
+
+    // === 生成前强制内容校验 ===
+    let validator = null
+    try {
+      validator = require('../../utils/worldRuleContentValidator.js')
+    } catch (_) {}
+    if (validator && validator.validateWorldRuleContent) {
+      const validation = validator.validateWorldRuleContent(posterData)
+      if (!validation.ok) {
+        console.error('[WorldRulePoster] CONTENT_VALIDATION_FAILED', JSON.stringify(validation))
+        this.safeSetData({ posterGenerating: false })
+        wx.hideLoading()
+        wx.showToast({ title: '该规则内容尚未完善，请更换一条规则', icon: 'none', duration: 3000 })
+        return
+      }
+      if (validation.warnings.length) {
+        console.warn('[WorldRulePoster] CONTENT_WARNINGS:', validation.warnings)
+      }
+    }
+
+    // 调试日志
     console.log('[WorldRulePoster] posterData:', JSON.stringify({
       id: posterData.id,
       category: posterData.category,
@@ -197,7 +229,6 @@ Page({
       underlyingLogic: posterData.underlyingLogic.substring(0, 40),
       reverseLogic: posterData.reverseLogic.substring(0, 40),
       actionAdvice: posterData.actionAdvice.substring(0, 40),
-      hasLogic: posterData.hasLogic,
     }))
 
     const page = this
