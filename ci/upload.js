@@ -102,6 +102,9 @@ const project = new ci.Project({
     'scripts/**/*',
     '.audit-reports/**/*',
     'docs/**/*',
+    'miniprogram/pages/challenge/importRules.js',
+    'release/wechat-ci-*.json',
+    'release/**/*.json',
   ],
 });
 
