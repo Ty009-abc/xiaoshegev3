@@ -3,10 +3,11 @@
 # ci/before-upload.sh — 上传前一键预检 + 门禁 + 上传
 #
 # 流程：
-#   bash ci/before-upload.sh [--preview|--experience|--dev] [--ver x.x.x] [--desc "..."]
+#   bash ci/before-upload.sh --preview
+#   bash ci/before-upload.sh --upload --ver 6.5.1 --desc "..."
 #
 #   1. 运行 gate-check.sh 门禁
-#   2. 展示版本摘要
+#   2. 环境变量检查
 #   3. node ci/upload.js 执行上传
 # ═══════════════════════════════════════════════════════════════
 
@@ -14,10 +15,21 @@ set -euo pipefail
 
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
+
+MODE="${1:-}"
+if [ "$MODE" != "--preview" ] && [ "$MODE" != "--upload" ] && [ "$MODE" != "--dev" ]; then
+  echo ""
+  echo -e "${RED}用法:${NC}"
+  echo "  bash ci/before-upload.sh --preview"
+  echo "  bash ci/before-upload.sh --upload --ver 6.5.1 --desc \"fix: footer\""
+  echo ""
+  exit 1
+fi
 
 echo ""
 echo -e "${BLUE}╔═══════════════════════════════════════════╗${NC}"
@@ -27,14 +39,13 @@ echo ""
 
 # ── Step 1: 门禁 ──
 echo -e "${GREEN}[1/3] Git 门禁检查…${NC}"
-if ! bash "$PROJECT_DIR/ci/gate-check.sh"; then
+if ! bash "$PROJECT_DIR/ci/gate-check.sh" "$MODE"; then
   echo ""
   echo "❌ 门禁未通过，上传已取消。"
-  echo "   请先修复门禁问题后重试。"
   exit 1
 fi
 
-# ── Step 2: 环境变量检查 ──
+# ── Step 2: 环境变量检查（不输出私钥信息）──
 echo -e "${GREEN}[2/3] 环境变量检查…${NC}"
 if [ -z "${WX_APPID:-}" ]; then
   echo "❌ 缺少环境变量 WX_APPID"
@@ -47,12 +58,10 @@ if [ -z "${WX_PRIVATE_KEY_PATH:-}" ]; then
   exit 1
 fi
 if [ ! -f "$WX_PRIVATE_KEY_PATH" ]; then
-  echo "❌ 私钥文件不存在: $WX_PRIVATE_KEY_PATH"
+  echo "❌ 私钥文件不存在"
   exit 1
 fi
 echo -e "   ✅ 环境变量已就绪"
-echo "      AppID:   $WX_APPID"
-echo "      密钥:    $(basename "$WX_PRIVATE_KEY_PATH")"
 
 # ── Step 3: 执行上传 ──
 echo ""
