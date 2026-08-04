@@ -475,10 +475,196 @@ const CONTRADICTION_PATTERNS = [
 ]
 
 /**
+ * v6.5.3: 输入守卫
+ */
+function assertValidEngineResult(engineResult) {
+  if (!engineResult || typeof engineResult !== 'object') {
+    const error = new Error('Invalid engine result')
+    error.code = 'E_ENGINE_RESULT_INVALID'
+    throw error
+  }
+}
+
+/**
+ * FALLBACK 二级结构化分类
+ * 基于 fatal rules + scores + profile 确定二级矛盾类型。
+ * 只使用结构化字段，禁止自然语言模糊匹配。
+ */
+function classifyFallbackContradiction(engineResult) {
+  const fatalIds = (engineResult.fatalRules || []).map(r => r.id)
+  const scores = engineResult.scores || {}
+  const profile = engineResult.normalizedProfile || {}
+
+  // ── 信号采集 ──
+  const income = profile.incomeStructureRaw?.level
+  const skillVal = profile.skillValidationRaw?.level
+  const safety = profile.safetyMonthsRaw?.level
+  const debt = profile.debtPressureRaw?.level
+  const surplus = profile.monthlySurplusRaw?.level
+  const skillType = profile.monetizableSkillRaw?.level
+  const weeklyTime = profile.weeklyTimeRaw?.level
+  const pastAttempt = profile.pastAttemptStageRaw?.level
+  const execScore = scores.execution || 0
+  const skillScore = scores.skill || 0
+  const riskScore = scores.risk || 0
+  const overall = scores.overall || 0
+  const fatalCount = (engineResult.fatalRules || []).length
+  const evidenceCount = [profile.incomeStructureRaw, profile.monthlySurplusRaw, profile.safetyMonthsRaw,
+    profile.debtPressureRaw, profile.monetizableSkillRaw, profile.skillValidationRaw,
+    profile.weeklyTimeRaw, profile.pastAttemptStageRaw, profile.decisionStyleRaw]
+    .filter(v => v && typeof v.level === 'string' && v.level !== 'none' && v.level !== 'undefined')
+    .length
+
+  // ── 二级分类逻辑（按优先级）──
+
+  // CASE A: 证据不足 — evidenceCount < 4 → 无法形成可靠判断
+  if (evidenceCount < 4) {
+    return {
+      code: 'INSUFFICIENT_EVIDENCE',
+      title: '信息不足 × 决策可靠性不足',
+      leftSide: '可用数据不足',
+      rightSide: '需要更多确定性信息',
+      desc: '当前回答不足以支持高置信度的路径判断。在商业世界，盲人摸象是指数级风险的加速器',
+      confidence: 0.3,
+      evidenceRefs: ['incomeStructure', 'monthlySurplus', 'safetyMonths', 'monetizableSkill', 'skillValidation'],
+      classificationSource: 'classifyFallbackContradiction[evidenceCount<4]',
+    }
+  }
+
+  // CASE B: 单一收入 + 低缓冲 → SINGLE_INCOME_LOW_BUFFER
+  if (income === 'salary' && (safety === 'critical' || safety === 'very_low' || safety === 'low')) {
+    return {
+      code: 'SINGLE_INCOME_LOW_BUFFER',
+      title: '收入来源单一 × 抗风险缓冲不足',
+      leftSide: '工资/单一收入',
+      rightSide: '抗风险缓冲不足',
+      desc: safety === 'critical'
+        ? '你的收入全部依赖单一工资，但安全垫不到1个月。任何收入中断都会立即压缩选择空间'
+        : safety === 'very_low'
+          ? '你的收入全部依赖单一工资，仅1-3个月缓冲。行业波动会在你找到方向前耗光积累'
+          : '收入来源单一，结余有限。你需要在稳定期中积累选择性，而不是等问题爆发',
+      confidence: 0.85,
+      evidenceRefs: ['incomeStructure:salary', 'safetyMonths:' + (safety || 'unknown'), 'fatalCount:' + fatalCount],
+      classificationSource: 'classifyFallbackContradiction[singleIncome+lowBuffer]',
+    }
+  }
+
+  // CASE C: 内容能力 + 获客弱 → CONTENT_WITHOUT_ACQUISITION
+  if (skillType === 'content' && (skillVal === 'earned_once' || skillVal === 'unpaid')) {
+    return {
+      code: 'CONTENT_WITHOUT_ACQUISITION',
+      title: '内容能力 × 获客能力不足',
+      leftSide: '有内容创作能力',
+      rightSide: '缺少稳定获客/成交能力',
+      desc: '你的内容能力已经存在，但从内容到成交的转化链尚未建立。能力存在但杠杆不足',
+      confidence: 0.80,
+      evidenceRefs: ['monetizableSkill:content', 'skillValidation:' + (skillVal || 'unknown')],
+      classificationSource: 'classifyFallbackContradiction[content+weakAcquisition]',
+    }
+  }
+
+  // CASE D: 风险规避 × 机会暴露不足 → RISK_AVOIDANCE_OPPORTUNITY
+  if ((safety === 'strong' || safety === 'moderate_high') && execScore <= 30 && weeklyTime === 'very_low') {
+    return {
+      code: 'RISK_AVOIDANCE_OPPORTUNITY',
+      title: '风险规避 × 机会暴露不足',
+      leftSide: '安全垫充裕但过度保守',
+      rightSide: '几乎不暴露于任何新机会',
+      desc: '你的安全垫足够，但每周可自由支配时间不足2小时。不暴露于机会的人，无法被机会选中',
+      confidence: 0.80,
+      evidenceRefs: ['safetyMonths:' + safety, 'execution:' + execScore, 'weeklyTime:' + weeklyTime],
+      classificationSource: 'classifyFallbackContradiction[riskAvoidance+lowExposure]',
+    }
+  }
+
+  // CASE E: 稳定职业 + 成长焦虑 → STABILITY_GROWTH_CONFLICT
+  if (income === 'salary' && debt === 'mortgage_low' && (skillVal === 'never' || skillVal === 'unpaid')) {
+    return {
+      code: 'STABILITY_GROWTH_CONFLICT',
+      title: '稳定需求 × 成长焦虑',
+      leftSide: '职业稳定但有房贷/家庭责任',
+      rightSide: '成长空间受限，技能未验证',
+      desc: '你有稳定工作，但稳定的代价是成长缓慢。你的能力从未在市场中被定价——这就是焦虑的真正来源',
+      confidence: 0.85,
+      evidenceRefs: ['incomeStructure:salary', 'debtPressure:mortgage_low', 'skillValidation:' + (skillVal || 'unknown')],
+      classificationSource: 'classifyFallbackContradiction[stability+growthAnxiety]',
+    }
+  }
+
+  // CASE F: 执行强 + 方向弱 → EXECUTION_WITHOUT_DIRECTION
+  // 注意：无论 execScore 是否达到 60，只要 skillType 为 sales 且 pastAttempt 有尝试记录，就属于此类
+  const hasExecutionEvidence =
+    execScore >= 60 ||
+    (skillType === 'sales' && pastAttempt === 'small_sales') ||
+    (weeklyTime === 'high' && (pastAttempt === 'small_sales' || pastAttempt === 'stable_side'))
+  if (hasExecutionEvidence && riskScore <= 30) {
+    return {
+      code: 'EXECUTION_WITHOUT_DIRECTION',
+      title: '行动速度 × 方向判断不足',
+      leftSide: '执行力强/时间充裕',
+      rightSide: '方向判断不足/风险暴露',
+      desc: '你的执行能量存在，但当前路径风险敞口过高。需要的是方向校准，而不是更多的行动',
+      confidence: 0.75,
+      evidenceRefs: ['execution:' + execScore, 'risk:' + riskScore,
+        'weeklyTime:' + weeklyTime, 'pastAttempt:' + pastAttempt, 'skillType:' + skillType],
+      classificationSource: 'classifyFallbackContradiction[execution+directionGap]',
+    }
+  }
+
+  // CASE G: 低变现 + 无线索 → LOW_MONETIZATION_WITHOUT_LEVERAGE
+  if ((skillVal === 'never' || skillVal === 'unpaid') && execScore <= 30) {
+    return {
+      code: 'LOW_MONETIZATION_WITHOUT_LEVERAGE',
+      title: '能力存在 × 变现杠杆不足',
+      leftSide: '具备个人能力基础',
+      rightSide: '从未被市场验证或定价',
+      desc: '你的能力从未换到过钱。在商业世界，未被付费验证的能力等于不存在',
+      confidence: 0.85,
+      evidenceRefs: ['skillValidation:' + skillVal, 'execution:' + execScore, 'fatalCount:' + fatalCount],
+      classificationSource: 'classifyFallbackContradiction[lowMonetization+noLeverage]',
+    }
+  }
+
+  // CASE H: 通用的 STABILITY_GROWTH_CONFLICT（仅用于不适用以上分类的高分画像）
+  if (overall >= 50) {
+    const variantTitle = skillType === 'content' ? '能力完整 × 方向聚焦不足' : '求稳 × 求变'
+    const variantDesc = skillType === 'content'
+      ? '你的内容能力和变现资源都已具备。矛盾不是生存，而是你还没有把优势集中在最值得的方向'
+      : '你已经有良好的基础条件，矛盾不在于生存而在于突破——能否把现有优势转化为更大成果'
+    return {
+      code: 'STABILITY_GROWTH_CONFLICT',
+      title: variantTitle,
+      leftSide: '基础条件好',
+      rightSide: '尚未完全释放潜力',
+      desc: variantDesc,
+      confidence: 0.70,
+      evidenceRefs: ['overall:' + overall, 'skillType:' + (skillType || 'unknown')],
+      classificationSource: 'classifyFallbackContradiction[genericStabilityGrowth]',
+    }
+  }
+
+  // 绝对兜底 — 到达这里说明所有分类失败（不会发生，但保留安全）
+  const fd = computeFatalDiagnosis(engineResult)
+  return {
+    code: 'LOW_MONETIZATION_WITHOUT_LEVERAGE',
+    title: fd ? (fd.mainProblem || '关键矛盾') : '变现与执行的落差',
+    leftSide: '当前困境',
+    rightSide: '期望方向',
+    desc: fd ? (fd.reason || '需要补足关键信息') : '你的能力基础存在，但执行和变现两个关键链路尚未打通',
+    confidence: 0.5,
+    evidenceRefs: ['fatalDiagnosis:' + (fd ? fatalCount : 0)],
+    classificationSource: 'classifyFallbackContradiction[absoluteFallback]',
+  }
+}
+
+/**
  * 从 engine 数据推导核心矛盾
- * 使用 fatal rules + scores 判定冲突类型
+ * 使用 fatal rules + scores 判定冲突类型。
+ * FALLBACK 不再直接返回，而是通过 classifyFallbackContradiction 二级结构化。
  */
 function computeContradiction(engineResult) {
+  assertValidEngineResult(engineResult)
+
   const fatalIds = (engineResult.fatalRules || []).map(r => r.id)
   const scores = engineResult.scores || {}
   const profile = engineResult.normalizedProfile || {}
@@ -497,6 +683,17 @@ function computeContradiction(engineResult) {
     hasNegativeCashflow: profile.monthlySurplusRaw?.level === 'negative' || profile.monthlySurplusRaw?.level === 'zero',
     hasHighExecution: scores.execution >= 60,
     hasFragmentedExecution: fatalIds.some(id => /R_EXEC_006|R_DEC_007/.test(id)),
+    hasContentSkill: profile.monetizableSkillRaw?.level === 'content',
+    hasContentButWeakAcquisition: profile.monetizableSkillRaw?.level === 'content' &&
+      (profile.skillValidationRaw?.level === 'earned_once' || profile.skillValidationRaw?.level === 'unpaid'),
+    hasStrongSafetyWithLowExecution: (profile.safetyMonthsRaw?.level === 'strong' || profile.safetyMonthsRaw?.level === 'moderate_high') &&
+      scores.execution <= 30,
+    hasStabilityAnxiety: profile.incomeStructureRaw?.level === 'salary' &&
+      profile.debtPressureRaw?.level === 'mortgage_low' &&
+      (profile.skillValidationRaw?.level === 'never' || profile.skillValidationRaw?.level === 'unpaid'),
+    hasHighExecutionWithDirectionGap:
+      scores.execution >= 60 ||
+      (profile.monetizableSkillRaw?.level === 'sales' && profile.pastAttemptStageRaw?.level === 'small_sales'),
   }
 
   // 匹配模式（按优先级）
@@ -510,10 +707,20 @@ function computeContradiction(engineResult) {
     return CONTRADICTION_PATTERNS[2]
   }
   if (signals.hasSingleIncome && signals.hasLowRiskBuffer && fatalIds.length >= 3) {
-    return CONTRADICTION_PATTERNS[3]
+    // v6.5.3: 动态化 desc
+    const bufferLevel = profile.safetyMonthsRaw?.level || 'low'
+    const variantDesc = bufferLevel === 'critical'
+      ? '你的收入全部依赖单一工资，但安全垫不到1个月。任何一个意外支出都能打乱你的全盘计划'
+      : '收入来源单一且安全垫不足。行业波动会在你找到新方向前把积累耗光'
+    return { ...CONTRADICTION_PATTERNS[3], desc: variantDesc }
   }
   if (signals.hasDebtPressure && scores.risk <= 30) {
-    return CONTRADICTION_PATTERNS[4]
+    // v6.5.3: 动态化 desc 以提高多样性
+    const debtLevel = profile.debtPressureRaw?.level || 'unknown'
+    const variantDesc = debtLevel === 'high'
+      ? '以贷养贷正在吞噬你未来的一切可能性。利息不是问题，是问题放大器'
+      : '消费贷/信用卡压力是你的机会成本黑洞。先止血，再想进攻'
+    return { ...CONTRADICTION_PATTERNS[4], desc: variantDesc }
   }
   if (signals.hasNegativeCashflow) {
     return CONTRADICTION_PATTERNS[5]
@@ -522,118 +729,281 @@ function computeContradiction(engineResult) {
     return CONTRADICTION_PATTERNS[6]
   }
 
-  // 兜底: 从 fatal diagnosis 提取 title
-  const fd = computeFatalDiagnosis(engineResult)
-  if (fd && fd.reason) {
-    return {
-      code: 'FALLBACK',
-      title: fd.mainProblem || '关键矛盾',
-      leftSide: '当前困境',
-      rightSide: '期望方向',
-      desc: fd.reason || '',
-    }
+  // ── v6.5.3: 新增确定性信号直通 ──
+  if (signals.hasContentButWeakAcquisition) {
+    return classifyFallbackContradiction(engineResult) // → CONTENT_WITHOUT_ACQUISITION
+  }
+  if (signals.hasStrongSafetyWithLowExecution) {
+    return classifyFallbackContradiction(engineResult) // → RISK_AVOIDANCE_OPPORTUNITY
+  }
+  if (signals.hasStabilityAnxiety) {
+    return classifyFallbackContradiction(engineResult) // → STABILITY_GROWTH_CONFLICT
+  }
+  if (signals.hasHighExecutionWithDirectionGap && scores.risk <= 30) {
+    return classifyFallbackContradiction(engineResult) // → EXECUTION_WITHOUT_DIRECTION
+  }
+  if (signals.hasSingleIncome && scores.overall < 50 && !signals.hasLowRiskBuffer) {
+    return classifyFallbackContradiction(engineResult) // → SINGLE_INCOME_LOW_BUFFER
   }
 
-  // 无致命规则 → 从优势规则推导成长矛盾
-  const advRules = engineResult.advantageRules || []
-  if (advRules.length >= 3 && scores.overall >= 50) {
-    return {
-      code: 'STABILITY_GROWTH_CONFLICT',
-      title: '求稳 × 求变',
-      leftSide: '基础条件好',
-      rightSide: '尚未完全释放潜力',
-      desc: '你已经有良好的基础条件，矛盾不在于生存而在于突破——能否把现有优势转化为更大成果',
-    }
-  }
+  // 兜底: 二级结构化分类
+  return classifyFallbackContradiction(engineResult)
+}
 
-  return null
+/**
+ * v6.5.3: 完整 CONTRADICTION_TO_DECISION 映射表
+ * 覆盖所有可能的 contradiction code → decision。
+ * INSUFFICIENT_EVIDENCE → COLLECT_MORE_EVIDENCE（provisional decision）
+ */
+const CONTRADICTION_TO_DECISION = {
+  LEARNING_EXECUTION_CONFLICT: {
+    code: 'BUILD_EXECUTION_SYSTEM',
+    title: '先建立连续执行系统',
+    reason: '核心矛盾是学习强执行弱，在知识再次堆积之前，必须连续执行21天以上',
+    expectedCycleDays: 90,
+    confidence: 0.85,
+    provisional: false,
+  },
+  AMBITION_DISCIPLINE_CONFLICT: {
+    code: 'BUILD_DISCIPLINE',
+    title: '先建立纪律系统',
+    reason: '野心和纪律之间的落差是目前最大问题，固定时间做固定动作比什么都重要',
+    expectedCycleDays: 60,
+    confidence: 0.85,
+    provisional: false,
+  },
+  SPEED_CONSISTENCY_CONFLICT: {
+    code: 'BUILD_EXECUTION_SYSTEM',
+    title: '先聚焦一个方向连续执行',
+    reason: '爆发力不是问题，持续性才是。把碎片化执行合并为一个固定节奏',
+    expectedCycleDays: 90,
+    confidence: 0.80,
+    provisional: false,
+  },
+  STABILITY_GROWTH_CONFLICT: {
+    code: 'BUILD_SECOND_INCOME',
+    title: '在不辞职的前提下启动第二收入线',
+    reason: '单一收入是最大风险。在不影响主业的前提下验证技能变现',
+    expectedCycleDays: 180,
+    confidence: 0.85,
+    provisional: false,
+  },
+  RISK_REWARD_CONFLICT: {
+    code: 'REBUILD_RISK_FRAMEWORK',
+    title: '先止住出血再谈翻身',
+    reason: '当前负债正在吞噬未来的一切机会。停损是第一优先，任何投资都要等现金流转正之后',
+    expectedCycleDays: 60,
+    confidence: 0.90,
+    provisional: false,
+  },
+  SINGLE_INCOME_LOW_BUFFER: {
+    code: 'BUILD_SECOND_INCOME',
+    title: '在不辞职的前提下启动第二收入线',
+    reason: '单一收入是最大风险。在不影响主业的前提下验证技能变现，未来90～180天建立独立于工资的第二收入线',
+    expectedCycleDays: 180,
+    confidence: 0.85,
+    provisional: false,
+  },
+  CONTENT_WITHOUT_ACQUISITION: {
+    code: 'INCREASE_MONETIZATION',
+    title: '把已验证的能力规模化变现',
+    reason: '你的能力已经存在并且有过初步验证，下一步是建立从内容到成交的最小转化链',
+    expectedCycleDays: 90,
+    confidence: 0.80,
+    provisional: false,
+  },
+  RISK_AVOIDANCE_OPPORTUNITY: {
+    code: 'REDUCE_DECISION_FATIGUE',
+    title: '释放安全垫红利，增加低风险机会暴露',
+    reason: '你的安全垫是优势而非枷锁。在维持安全垫的前提下，每周投入1个低风险小实验，增加被机会选中的概率',
+    expectedCycleDays: 90,
+    confidence: 0.80,
+    provisional: false,
+  },
+  EXECUTION_WITHOUT_DIRECTION: {
+    code: 'DEEPEN_SPECIALIZATION',
+    title: '校准方向后再释放执行力',
+    reason: '你的执行能量不是问题，问题是当前方向风险敞口过高。先确定一个可积累的方向再全速前进',
+    expectedCycleDays: 90,
+    confidence: 0.75,
+    provisional: false,
+  },
+  LOW_MONETIZATION_WITHOUT_LEVERAGE: {
+    code: 'INCREASE_MONETIZATION',
+    title: '用最小代价完成首次付费验证',
+    reason: '你的能力从未换到过钱。在商业世界，未被付费验证的能力等于不存在。优先完成一次真实的技能变现',
+    expectedCycleDays: 90,
+    confidence: 0.85,
+    provisional: false,
+  },
+  INSUFFICIENT_EVIDENCE: {
+    code: 'COLLECT_MORE_EVIDENCE',
+    title: '先补齐关键证据，再确定翻身主线',
+    reason: '当前回答不足以支持高置信度的路径判断。盲人摸象是指数级风险的加速器——先补信息，不假装已经知道答案',
+    expectedCycleDays: 7,
+    confidence: 0.4,
+    provisional: true,
+  },
 }
 
 /**
  * 从矛盾推导唯一决策
+ *
+ * v6.5.3 变更:
+ *  - 不再返回 null
+ *  - FALLBACK 被二级分类覆盖，不再有 FALLBACK code
+ *  - INSUFFICIENT_EVIDENCE → COLLECT_MORE_EVIDENCE（provisional decision）
+ *  - 固定返回 { code, title, reason, expectedCycleDays, confidence, provisional, source }
  */
 function computeDecision(contradiction, engineResult) {
-  if (!contradiction || contradiction.code === 'FALLBACK') {
-    // Fallback for users with no fatal contradiction → growth path
+  if (!contradiction || !contradiction.code) {
+    const error = new Error('computeDecision requires a valid contradiction with code')
+    error.code = 'E_DECISION_INPUT_INVALID'
+    throw error
+  }
+
+  if (!engineResult || typeof engineResult !== 'object') {
+    const error = new Error('computeDecision requires a valid engineResult')
+    error.code = 'E_DECISION_INPUT_INVALID'
+    throw error
+  }
+
+  const code = contradiction.code
+  const match = CONTRADICTION_TO_DECISION[code]
+
+  if (!match) {
+    // 已知 code 但不在映射表中 → fallback to low-monetization path
     const scores = engineResult.scores || {}
-    if (scores.overall >= 50) {
+    const overall = scores.overall || 0
+    if (overall >= 50) {
       return {
         code: 'INCREASE_MONETIZATION',
         title: '把已验证的能力规模化变现',
         reason: '你的基础条件已经具备，下一步是把能力转化为可重复的收入系统',
         expectedCycleDays: 90,
+        confidence: 0.70,
+        provisional: false,
+        source: 'computeDecision[unknownCode:' + code + '][overall:' + overall + ']',
       }
     }
-    return null
-  }
-
-  const code = contradiction.code
-  const scores = engineResult.scores || {}
-  const fatalCount = (engineResult.fatalRules || []).length
-
-  // 基于矛盾类型和引擎分数推导
-  const decisionMap = {
-    LEARNING_EXECUTION_CONFLICT: {
-      code: 'BUILD_EXECUTION_SYSTEM',
-      title: '先建立连续执行系统',
-      reason: '核心矛盾是学习强执行弱，在知识再次堆积之前，必须连续执行21天以上',
+    return {
+      code: 'INCREASE_MONETIZATION',
+      title: '用最小代价完成首次付费验证',
+      reason: '当前画像数据不足以确定最优路径，但优先策略是完成一次真实变现',
       expectedCycleDays: 90,
-    },
-    AMBITION_DISCIPLINE_CONFLICT: {
-      code: 'BUILD_DISCIPLINE',
-      title: '先建立纪律系统',
-      reason: '野心和纪律之间的落差是目前最大问题，固定时间做固定动作比什么都重要',
-      expectedCycleDays: 60,
-    },
-    SPEED_CONSISTENCY_CONFLICT: {
-      code: 'BUILD_EXECUTION_SYSTEM',
-      title: '先聚焦一个方向连续执行',
-      reason: '爆发力不是问题，持续性才是。把碎片化执行合并为一个固定节奏',
-      expectedCycleDays: 90,
-    },
-    STABILITY_GROWTH_CONFLICT: {
-      code: 'BUILD_SECOND_INCOME',
-      title: '在不辞职的前提下启动第二收入线',
-      reason: '单一收入是最大风险。在不影响主业的前提下验证技能变现',
-      expectedCycleDays: 180,
-    },
-    RISK_REWARD_CONFLICT: {
-      code: 'REBUILD_RISK_FRAMEWORK',
-      title: '先止住出血再谈翻身',
-      reason: '当前负债正在吞噬未来的一切机会。停损是第一优先，任何投资都要等现金流转正之后',
-      expectedCycleDays: 60,
-    },
+      confidence: 0.5,
+      provisional: false,
+      source: 'computeDecision[unknownCode:' + code + '][overall:' + overall + ']',
+    }
   }
-
-  const match = decisionMap[code]
-  if (!match) return null
 
   return {
     code: match.code,
     title: match.title,
     reason: match.reason,
     expectedCycleDays: match.expectedCycleDays,
+    confidence: match.confidence,
+    provisional: match.provisional || false,
+    source: 'CONTRADICTION_TO_DECISION[' + code + ']',
   }
 }
 
 /**
- * 从 contradiction + verdict 推导命运判决
+ * v6.5.3: 从 contradiction + engine 推导命运判决
+ * 绑定 contradiction.code → verdict 变量化以提高多样性
  */
 function computeVerdict(contradiction, engineResult) {
-  const h = computeHeadline(engineResult.normalizedProfile, engineResult)
-  const cc = contradiction || {}
+  assertValidEngineResult(engineResult)
 
+  const profile = engineResult.normalizedProfile || {}
+  const scores = engineResult.scores || {}
+  const fatalCount = (engineResult.fatalRules || []).length
+  const cc = contradiction || {}
+  const code = cc.code || 'UNKNOWN'
+
+  // ── 基于 contradiction.code 的确定性 verdict mapping ──
+  const verdictByCode = {
+    LEARNING_EXECUTION_CONFLICT: {
+      headline: fatalCount >= 3 ? '你的财富系统存在关键的知行缺口' : '你的学习速度需要匹配执行强度',
+      explanation: fatalCount >= 3
+        ? fatalCount + '个风险信号指向执行链断裂。输入和产出的速度严重不匹配'
+        : '你吸收信息的速度高于产出结果的速度，知识长期停留在输入端',
+    },
+    AMBITION_DISCIPLINE_CONFLICT: {
+      headline: '你的野心和纪律之间存在致命裂缝',
+      explanation: '你的目标很大但坚持力不足，频繁在启动和放弃间循环。这正在侵蚀你的机会成本',
+    },
+    SPEED_CONSISTENCY_CONFLICT: {
+      headline: '你的爆发力在消耗你的可能性',
+      explanation: '你有爆发力但缺持久力，碎片化执行导致每次都从零开始。连续性比强度更重要',
+    },
+    STABILITY_GROWTH_CONFLICT: {
+      headline: scores.overall >= 60 ?
+        (profile.monetizableSkillRaw?.level === 'content' ? '你的创造力和系统化能力在等待引爆' : '你已经站在财富跃迁的起跑线上')
+        : '你的稳定正在成为你成长的代价',
+      explanation: scores.overall >= 60
+        ? ((engineResult.advantageRules || []).length + '个优势点已被系统识别。只需要聚焦行动')
+        : '你已经有良好的基础条件，但稳定的惯性正在压制突破的可能性',
+    },
+    RISK_REWARD_CONFLICT: {
+      headline: (profile.debtPressureRaw?.level === 'high')
+        ? '风险杠杆已经透支你未来的可能性'
+        : '风险敞口已经超过你的回收能力',
+      explanation: (profile.debtPressureRaw?.level === 'high')
+        ? '以贷养贷是指数级风险的加速器。利息不是问题，利息是问题放大器。任何投资都要等现金流转正之后'
+        : '当前负债正在吞噬未来的一切机会。停损是第一优先，任何投资都要等现金流转正之后',
+    },
+    SINGLE_INCOME_LOW_BUFFER: {
+      headline: scores.overall <= 25 ? '你的财富系统已经陷入多维度危机' : '收入结构是你当前所有问题的放大镜',
+      explanation: '收入来源单一且抗风险缓冲不足。任何行业波动都会在你找到方向前耗光积累',
+    },
+    CONTENT_WITHOUT_ACQUISITION: {
+      headline: '你的创造力和变现能力不在同一个量级',
+      explanation: '内容能力已经存在，但从内容到成交的转化链尚未建立。能力存在但杠杆不足',
+    },
+    RISK_AVOIDANCE_OPPORTUNITY: {
+      headline: '你的安全感正在让你错过系统性机会',
+      explanation: '安全垫充裕，但几乎不暴露于任何新机会。不暴露于机会的人，无法被机会选中',
+    },
+    EXECUTION_WITHOUT_DIRECTION: {
+      headline: '你的行动力需要一个正确的方向校准',
+      explanation: '执行力强/时间充裕，但当前路径风险敞口过高。方向校准后你的能量才能形成复利',
+    },
+    LOW_MONETIZATION_WITHOUT_LEVERAGE: {
+      headline: fatalCount >= 4 ? '你的财富系统已经陷入多维度危机' : '你的能力还在等待第一次市场投票',
+      explanation: fatalCount >= 4
+        ? fatalCount + '个致命风险点被触发。现行路径正在加速资本损耗'
+        : '你的能力从未换到过钱。在商业世界，未被付费验证的能力等于不存在',
+    },
+    INSUFFICIENT_EVIDENCE: {
+      headline: '尚未形成完整画像 — 暂定诊断',
+      explanation: '当前回答不足以支撑高置信度的路径判断。先补齐收入、时间、技能、负债四项关键信息再进入正式诊断',
+    },
+  }
+
+  const match = verdictByCode[code]
+  if (match) {
+    return {
+      headline: match.headline,
+      explanation: match.explanation,
+      contradictionCode: code,
+    }
+  }
+
+  // fallback: 保留旧的 computeHeadline 逻辑
+  const h = computeHeadline(profile, engineResult)
   return {
     headline: h.title,
     explanation: h.subtitle,
-    contradictionCode: cc.code || 'UNKNOWN',
+    contradictionCode: code,
   }
 }
 
 /**
- * 从 scoreCard 和 profile 推导翻身潜力三要素
+ * v6.5.3: 从 scoreCard 和 profile 推导翻身潜力三要素
  */
 function computePotential(engineResult) {
+  assertValidEngineResult(engineResult)
   const scores = engineResult.scores || {}
   const profile = engineResult.normalizedProfile || {}
 
@@ -670,21 +1040,90 @@ function computePotential(engineResult) {
 }
 
 /**
- * 从 actionPlan 提取第一行动（含 checkpoint 和 successCriteria）
+ * v6.5.3: 从 actionPlan + decision 推导第一行动
+ * PrimaryAction 必须与 Decision code 对应
  */
+const DECISION_ACTION_MAP = {
+  BUILD_EXECUTION_SYSTEM: {
+    title: '21天连续执行——选择一个固定动作，每天完成并记录',
+    tasks: ['选定一个可重复执行的固定动作', '设置每日提醒与执行时间窗口', '建立执行日志（纸笔或APP均可）'],
+    checkpoint: '7天内建立执行习惯的初步反馈',
+    successCriteria: ['连续7天完成每日执行', '执行日志中至少有一个阶段的回顾'],
+  },
+  BUILD_DISCIPLINE: {
+    title: '固定作息计划——锁定每天90分钟不可变通的执行时间',
+    tasks: ['从日程中去掉1个最无关紧要的活动', '确立每天的固定执行时间段', '设定一个本周必须完成的小目标'],
+    checkpoint: '7天内验证作息是否可持续',
+    successCriteria: ['本周内至少5天遵守固定执行时间', '完成一个小目标的产出'],
+  },
+  BUILD_SECOND_INCOME: {
+    title: '7天内完成一个可售卖副业样本',
+    tasks: ['从技能标签中选择一个可交付的服务', '定义服务的具体交付物和报价', '向3个潜在客户发出服务邀约'],
+    checkpoint: '7天内有一个可被外部人评估的样本',
+    successCriteria: ['至少1个外部人对样本给出了反馈', '明确了报价和服务边界'],
+  },
+  REBUILD_RISK_FRAMEWORK: {
+    title: '7天内完成一次小额、可逆、有限损失的机会测试',
+    tasks: ['列出不依赖主业以外的3个低成本收入实验', '选择一个损失上限最低的实验', '设定一个清晰的止损条件'],
+    checkpoint: '7天内完成第一次实验并记录结果',
+    successCriteria: ['实验实际花费不超过预设上限', '已记录实验的关键数据和反思'],
+  },
+  INCREASE_MONETIZATION: {
+    title: '7天内设计一个明确报价并联系3个潜在客户',
+    tasks: ['选定一个可交付的技能服务', '写下具体的服务描述和价格', '联系至少3个人——不推销，只告知服务'],
+    checkpoint: '7天内获得第一个外部反应',
+    successCriteria: ['至少1个人表达了兴趣或拒绝（拒绝也是有价值的反馈数据）', '形成了可复用的服务描述'],
+  },
+  REDUCE_DECISION_FATIGUE: {
+    title: '每周投资1个低风险小实验',
+    tasks: ['列出3个不超过2小时就能完成的机会测试', '选择一个风险最低的立即执行', '记录实验结论：值不值得深入？'],
+    checkpoint: '7天内完成一个实验并做出价值判断',
+    successCriteria: ['完成一个实验并记录结论', '下一个实验方向基于上一个实验的结论'],
+  },
+  DEEPEN_SPECIALIZATION: {
+    title: '14天内完成一个专精方向的作品或案例',
+    tasks: ['从现有技能中选出最想深耕的一个方向', '定义一个可展示的作品/案例标准', '制定14天内的产出里程碑'],
+    checkpoint: '14天内有一个可被评估的专精作品',
+    successCriteria: ['作品达到了预设的质量标准', '能够用一句话说明自己的专注领域和价值'],
+  },
+  COLLECT_MORE_EVIDENCE: {
+    title: '7天内补齐收入、时间、技能、负债四项信息',
+    tasks: ['记录近3个月的月度收入与支出', '记录一周的时间开销分布', '列出所有可交付技能及历史上的付费记录', '整理所有负债项目的利率和还款计划'],
+    checkpoint: '7天内完成四项信息的收集',
+    successCriteria: ['四项信息至少三项有可用的数据', '可以回答：我现在每个月到底能留下多少钱？'],
+  },
+}
+
 function computePrimaryAction(engineResult) {
+  assertValidEngineResult(engineResult)
   const fd = computeFatalDiagnosis(engineResult)
-  const ap = computeActionPlan(engineResult)
-  const d1 = ap.day1 || {}
   const contradiction = computeContradiction(engineResult)
   const decision = computeDecision(contradiction, engineResult)
+  const dCode = (decision && decision.code) || ''
 
+  // ── v6.5.3: 基于 decision code 匹配行动 ──
+  const mapped = DECISION_ACTION_MAP[dCode]
+  if (mapped) {
+    return {
+      title: mapped.title,
+      why: decision ? decision.reason : (fd ? fd.reason || '' : '诊断结果显示需要立刻行动'),
+      tasks: mapped.tasks || [],
+      checkpoint: mapped.checkpoint || '24小时内完成',
+      successCriteria: mapped.successCriteria || ['完成第一步任务'],
+      decisionCode: dCode,
+    }
+  }
+
+  // fallback to action plan
+  const ap = computeActionPlan(engineResult)
+  const d1 = ap.day1 || {}
   return {
     title: d1.goal || '明确方向并执行第一步',
     why: decision ? decision.reason : (fd ? fd.reason || '' : '诊断结果显示需要立刻行动'),
     tasks: d1.tasks || [],
     checkpoint: d1.checkpoint || '24小时内完成',
     successCriteria: d1.checkpoint ? [d1.checkpoint] : ['完成第一步任务'],
+    decisionCode: dCode,
   }
 }
 
@@ -747,21 +1186,22 @@ function mapEngineToReport(engineResult) {
   // 13. finalStrike
   skeleton.finalStrike = computeFinalStrike(engineResult)
 
-  // ── v6.5.2: 结构化语义字段 ──
-  // 14. contradiction（核心矛盾）
+  // ── v6.5.3: 结构化语义字段 ──
+  // 14. contradiction（核心矛盾 — 永不为 null，至少返回二级分类结果）
   const contradiction = computeContradiction(engineResult)
-  skeleton.contradiction = contradiction
+  skeleton.contradiction = contradiction || { code: 'LOW_MONETIZATION_WITHOUT_LEVERAGE', title: '', leftSide: '', rightSide: '', desc: '' }
 
-  // 15. decision（唯一决策，从矛盾推导）
-  skeleton.decision = computeDecision(contradiction, engineResult)
+  // 15. decision（唯一决策 — 永不为 null，provisional 标记用于证据不足）
+  const decision = computeDecision(contradiction || { code: 'LOW_MONETIZATION_WITHOUT_LEVERAGE' }, engineResult)
+  skeleton.decision = decision
 
   // 16. verdict（命运判决）
-  skeleton.verdict = computeVerdict(contradiction, engineResult)
+  skeleton.verdict = computeVerdict(contradiction || { code: 'UNKNOWN' }, engineResult)
 
   // 17. potential（翻身潜力三要素）
   skeleton.potential = computePotential(engineResult)
 
-  // 18. primaryAction（第一行动含 checkpoint）
+  // 18. primaryAction（第一行动含 checkpoint，与 decision code 对应）
   skeleton.primaryAction = computePrimaryAction(engineResult)
 
   return skeleton
@@ -781,10 +1221,14 @@ module.exports = {
   computeIdentityUpgrade,
   computeFinalStrike,
   deriveWealthStage,
-  // v6.5.2
+  // v6.5.3
   computeContradiction,
   computeDecision,
   computeVerdict,
   computePotential,
   computePrimaryAction,
+  classifyFallbackContradiction,
+  assertValidEngineResult,
+  CONTRADICTION_TO_DECISION,
+  DECISION_ACTION_MAP,
 }

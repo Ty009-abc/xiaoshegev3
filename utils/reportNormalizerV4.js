@@ -599,6 +599,8 @@ function mapDiagnosticV4ToPoster(vm) {
       title: vm.decision.title || '',
       reason: vm.decision.reason || '',
       expectedCycleDays: vm.decision.expectedCycleDays || 0,
+      confidence: typeof vm.decision.confidence === 'number' ? vm.decision.confidence : undefined,
+      provisional: vm.decision.provisional === true,
     }
   } else {
     // 无新契约则留空 — 不 fallback 到 finalStrike
@@ -607,6 +609,8 @@ function mapDiagnosticV4ToPoster(vm) {
       title: '',
       reason: '',
       expectedCycleDays: 0,
+      confidence: undefined,
+      provisional: false,
     }
   }
 

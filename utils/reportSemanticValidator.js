@@ -65,9 +65,16 @@ function validatePosterSemantics(pd) {
 
   // ═══ G4: Decision (must be actionable, not slogan) ═══
   const dc = pd.decision || {}
+  // v6.5.3: COLLECT_MORE_EVIDENCE / provisional decisions are valid
+  const isProvisional = dc.provisional === true || dc.code === 'COLLECT_MORE_EVIDENCE'
   if (!dc.code && !dc.title) {
-    warnings.push('G4: decision is empty (no structured decision available)')
-    scores.decision = 0
+    if (isProvisional) {
+      // provisional decisions without code/title are still invalid
+      errors.push('G4: provisional decision missing code and title')
+    } else {
+      warnings.push('G4: decision is empty (no structured decision available)')
+    }
+    scores.decision = isProvisional ? 1 : 0
   } else {
     const slogHit = FORBIDDEN_DECISION_SLOGANS.filter(w => (dc.title + dc.reason).includes(w))
     if (slogHit.length) {
