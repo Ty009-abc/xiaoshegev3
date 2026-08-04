@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "source": "information network rules — desensitized",
+    "count": 1,
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "rules": [
+    {
+      "id": "WRL_IN_001",
+      "title": "信息网络决定机会密度",
+      "category": "information",
+      "worldRule": "一个人的机会密度等于其信息网络的广度乘以深度",
+      "underlyingLogic": "每个高质量弱连接都是一个信息漏斗，带来你在自己圈子里接触不到的机会",
+      "reverseLogic": "封闭的社交圈必然导致机会密度下降——同样的信息反复循环，没有增量",
+      "realCase": "参加跨行业社群后，3个月内获得2个原本不可能知道的项目机会",
+      "actionAdvice": "每月至少见2个不同行业的人，不带目的，只建立信息连接",
+      "contentStatus": "FINAL"
+    }
+  ]
+}

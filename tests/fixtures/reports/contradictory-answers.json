@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "label": "回答矛盾",
+    "profile": "10 回答矛盾",
+    "description": "高负债+负结余+低安全垫 — 最差画像",
+    "source": "sim-v3-rc515.js profile 10 — real desensitized",
+    "engineVersion": "v4",
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "input": {
+    "incomeStructure": "asset_income",
+    "monthlySurplus": "negative",
+    "safetyMonths": "critical",
+    "debtPressure": "high",
+    "monetizableSkill": "technical",
+    "skillValidation": "never",
+    "weeklyTime": "very_low",
+    "pastAttemptStage": "never",
+    "decisionStyle": "intuitive"
+  },
+  "expectedOutput": {
+    "contradictionCode": "RISK_REWARD_CONFLICT",
+    "decisionCode": "REBUILD_RISK_FRAMEWORK",
+    "decisionProvisional": false,
+    "verdictNonEmpty": true,
+    "primaryActionRiskRelated": true,
+    "scoreCardOverall": 13,
+    "fatalRulesCountMin": 4
+  }
+}

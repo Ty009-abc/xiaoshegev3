@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "label": "学习强变现弱",
+    "profile": "03 学习强变现弱",
+    "description": "有技能但未验证，低收入低安全垫",
+    "source": "sim-v3-rc515.js profile 03 — real desensitized",
+    "engineVersion": "v4",
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "input": {
+    "incomeStructure": "salary",
+    "monthlySurplus": "low",
+    "safetyMonths": "very_low",
+    "debtPressure": "none",
+    "monetizableSkill": "technical",
+    "skillValidation": "unpaid",
+    "weeklyTime": "moderate",
+    "pastAttemptStage": "studied",
+    "decisionStyle": "analytical"
+  },
+  "expectedOutput": {
+    "contradictionCode": "SINGLE_INCOME_LOW_BUFFER",
+    "decisionCode": "BUILD_SECOND_INCOME",
+    "decisionProvisional": false,
+    "verdictNonEmpty": true,
+    "primaryActionNonEmpty": true,
+    "scoreCardOverall": 33,
+    "fatalRulesCountMin": 3
+  }
+}

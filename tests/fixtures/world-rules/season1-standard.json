@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "source": "season 1 standard world rules — desensitized",
+    "count": 3,
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "rules": [
+    {
+      "id": "WRL_S1_001",
+      "title": "信息不对称创造超额利润",
+      "category": "information",
+      "worldRule": "信息不对称创造超额利润",
+      "underlyingLogic": "掌握信息不对称的一方可以通过低买高卖获取议价优势",
+      "reverseLogic": "公众信息不创造超额利润，已经被市场完全定价",
+      "realCase": "二手市场中，卖家不知道真实市场价导致买家获得超额利润",
+      "actionAdvice": "建立专属信息渠道——行业报告、付费社区、专家访谈",
+      "contentStatus": "FINAL"
+    },
+    {
+      "id": "WRL_S1_002",
+      "title": "复利效应的关键是本金规模",
+      "category": "income",
+      "worldRule": "复利效应的关键是本金规模，而非收益率",
+      "underlyingLogic": "在年化收益10%的情况下，10倍本金差异在10年后变成了10倍总资产差异",
+      "reverseLogic": "高收益率无法弥补本金不足——1万元年化50%仍远不如100万元年化5%",
+      "realCase": "巴菲特如果只有10万元本金起步，至今大约能积累约168万；实际上他有数十亿美元本金",
+      "actionAdvice": "优先扩大本金规模——提升主业收入或建立第二收入线",
+      "contentStatus": "FINAL"
+    },
+    {
+      "id": "WRL_S1_003",
+      "title": "认知税是最大的隐性成本",
+      "category": "cognition",
+      "worldRule": "认知税是最大的隐性成本",
+      "underlyingLogic": "不懂的领域永远付出溢价——保险费率、贷款利率、投资手续费",
+      "reverseLogic": "在熟悉的领域，你可以碾压99%的对手",
+      "realCase": "同样买保险，懂条款的人保费降低40%；不懂的人被推荐最高佣金产品",
+      "actionAdvice": "每个季度深入学习一个金融领域的基础知识",
+      "contentStatus": "FINAL"
+    }
+  ]
+}

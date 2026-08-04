@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "type": "cognitive-strike-poster",
+    "description": "认知暴击海报数据 — valid case (simplified)",
+    "source": "desensitized"
+  },
+  "poster": {
+    "id": "COG_001",
+    "title": "认知暴击",
+    "category": "cognition",
+    "strikeText": "认知税是最大的隐性成本——不懂的领域永远付出溢价",
+    "explanation": "同样买保险，懂条款的人保费降低40%",
+    "width": 750,
+    "height": 1334
+  }
+}

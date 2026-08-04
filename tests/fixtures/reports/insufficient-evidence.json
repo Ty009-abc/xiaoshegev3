@@ -1,0 +1,37 @@
+{
+  "_meta": {
+    "label": "证据不足",
+    "profile": "真实证据不足样本 — 大部分字段缺失",
+    "description": "大部分关键字段为 null/undefined，engine 无法做出可靠判断。不包含任何默认值填充。",
+    "source": "manual construction — pure insufficient evidence",
+    "engineVersion": "v4",
+    "generatedAt": "2026-08-04T00:00:00.000Z",
+    "expectedCooperativeIndex": "low",
+    "expectedEvidenceCount": "<= 3"
+  },
+  "input": {
+    "lifeStage": "early_career",
+    "primaryGoal": "financial_independence",
+    "incomeStructureRaw": { "level": null },
+    "monthlySurplusRaw": { "level": null },
+    "safetyMonthsRaw": { "level": null },
+    "debtPressureRaw": { "level": null },
+    "monetizableSkillRaw": { "level": null },
+    "skillValidationRaw": { "level": null },
+    "weeklyTimeRaw": { "level": null },
+    "pastAttemptStageRaw": { "level": null },
+    "decisionStyleRaw": { "level": null },
+    "maxTrialCost": null
+  },
+  "expectedOutput": {
+    "contradictionCode": "INSUFFICIENT_EVIDENCE",
+    "decisionCode": "COLLECT_MORE_EVIDENCE",
+    "decisionProvisional": true,
+    "decisionExpectedCycleDays": 7,
+    "confidenceBelowThreshold": true,
+    "verdictNotFatal": true,
+    "primaryActionIsEvidenceCollection": true,
+    "primaryActionNotMonetization": true,
+    "scoreCardOverall": "<= 40"
+  }
+}

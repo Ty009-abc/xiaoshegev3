@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "label": "高认知低执行",
+    "profile": "02 高认知低执行",
+    "description": "技能已验证、有付费需求，但执行持续性差",
+    "source": "sim-v3-rc515.js profile 02 — real desensitized",
+    "engineVersion": "v4",
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "input": {
+    "incomeStructure": "skill_service",
+    "monthlySurplus": "moderate",
+    "safetyMonths": "moderate",
+    "debtPressure": "none",
+    "monetizableSkill": "technical",
+    "skillValidation": "market_validated",
+    "weeklyTime": "moderate",
+    "pastAttemptStage": "studied",
+    "decisionStyle": "analytical"
+  },
+  "expectedOutput": {
+    "contradictionCode": "STABILITY_GROWTH_CONFLICT",
+    "decisionCode": "BUILD_SECOND_INCOME",
+    "decisionProvisional": false,
+    "verdictNonEmpty": true,
+    "primaryActionNonEmpty": true,
+    "scoreCardOverall": 65,
+    "fatalRulesCount": 0,
+    "advantageRulesCount": 4
+  }
+}

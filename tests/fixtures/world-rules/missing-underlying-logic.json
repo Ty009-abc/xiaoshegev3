@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "label": "缺失 underlyingLogic 的规则",
+    "description": "用于测试契约拦截 — worldRule 不能等于 underlyingLogic",
+    "purpose": "负面测试样本"
+  },
+  "rules": [
+    {
+      "id": "WRL_BAD_001",
+      "title": "测试规则",
+      "category": "risk",
+      "worldRule": "same text as underlying logic",
+      "underlyingLogic": "same text as underlying logic",
+      "reverseLogic": "",
+      "realCase": "",
+      "actionAdvice": "",
+      "contentStatus": "DRAFT"
+    }
+  ]
+}

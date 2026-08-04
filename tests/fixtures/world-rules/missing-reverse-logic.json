@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "label": "缺失 reverseLogic 的规则",
+    "description": "用于测试契约拦截 — 缺少 reverseLogic 字段",
+    "purpose": "负面测试样本"
+  },
+  "rules": [
+    {
+      "id": "WRL_BAD_002",
+      "title": "测试规则2",
+      "category": "mechanism",
+      "worldRule": "测试世界规则",
+      "underlyingLogic": "测试底层逻辑",
+      "realCase": "测试案例",
+      "actionAdvice": "测试建议",
+      "contentStatus": "DRAFT"
+    }
+  ]
+}

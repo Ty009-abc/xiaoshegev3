@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "type": "world-rule-poster",
+    "description": "标准世界规则海报数据 — valid case",
+    "source": "desensitized from production world rule"
+  },
+  "poster": {
+    "id": "WRL_S1_001",
+    "title": "信息不对称创造超额利润",
+    "category": "information",
+    "worldRule": "信息不对称创造超额利润",
+    "underlyingLogic": "掌握信息不对称的一方可以通过低买高卖获取议价优势",
+    "reverseLogic": "公众信息不创造超额利润，已经被市场完全定价",
+    "realCase": "二手市场中，卖家不知道真实市场价导致买家获得超额利润",
+    "actionAdvice": "建立专属信息渠道——行业报告、付费社区、专家访谈",
+    "width": 750,
+    "height": 1334
+  }
+}

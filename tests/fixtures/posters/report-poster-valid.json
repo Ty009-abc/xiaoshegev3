@@ -1,0 +1,35 @@
+{
+  "_meta": {
+    "type": "report-poster",
+    "version": "v4",
+    "description": "标准翻身报告海报数据 — valid case",
+    "source": "sim-v3-rc515.js output for 02 high-cognition-low-execution — desensitized"
+  },
+  "poster": {
+    "verdict": "你已经站在财富跃迁的起跑线上",
+    "contradiction": {
+      "code": "STABILITY_GROWTH_CONFLICT",
+      "title": "求稳 × 求变",
+      "description": "你已经有良好的基础条件，矛盾不在于生存而在于突破"
+    },
+    "potential": {
+      "score": 65,
+      "level": "moderate",
+      "advantages": ["技能变现已验证", "市场已付费验证"],
+      "constraints": ["执行持续性差"]
+    },
+    "decision": {
+      "code": "BUILD_SECOND_INCOME",
+      "title": "在不辞职的前提下启动第二收入线",
+      "reason": "单一收入是最大风险。在不影响主业的前提下验证技能变现"
+    },
+    "primaryAction": {
+      "title": "7天内完成一个可售卖副业样本",
+      "checkpoint": "7天内有一个可被外部人评估的样本",
+      "successCriteria": ["至少1个外部人对样本给出了反馈", "明确了报价和服务边界"]
+    },
+    "emotionClosing": "赚钱是短期行为，建立系统是长期资产。",
+    "width": 750,
+    "height": 1334
+  }
+}

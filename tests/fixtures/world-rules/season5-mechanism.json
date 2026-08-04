@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "source": "season 5 mechanism-type world rules — desensitized",
+    "count": 2,
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "rules": [
+    {
+      "id": "WRL_S5_001",
+      "title": "系统杠杆 > 个人努力",
+      "category": "mechanism",
+      "worldRule": "系统杠杆 > 个人努力",
+      "underlyingLogic": "系统杠杆将单位时间产出放大到远超个人努力的规模——代码、内容、渠道、团队",
+      "reverseLogic": "没有杠杆的个人努力，时薪有天花板——每天最多24小时",
+      "realCase": "程序员写了一个自动化脚本，别人执行仍需要1小时的操作变成1秒",
+      "actionAdvice": "找到你工作中可以系统化的一个环节，用工具替代人工",
+      "contentStatus": "FINAL"
+    },
+    {
+      "id": "WRL_S5_002",
+      "title": "交易是认知的闭环",
+      "category": "mechanism",
+      "worldRule": "交易是认知的闭环——没有交易的认知都是未被验证的假设",
+      "underlyingLogic": "只有通过交易（付费/拒绝）才能验证市场对自己的定价",
+      "reverseLogic": "免费被夸不是验证——熟人不会告诉你真正的问题",
+      "realCase": "内容创作者发布免费内容被夸，但尝试卖课只有1%转化率",
+      "actionAdvice": "每次发布内容后附加一个可选的付费选项，用数据验证你的价值",
+      "contentStatus": "FINAL"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "label": "单一收入依赖",
+    "profile": "01 单一收入依赖",
+    "description": "工资/固定薪资，低收入，低安全垫，技能未验证",
+    "source": "sim-v3-rc515.js profile 01 — real desensitized",
+    "engineVersion": "v4",
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "input": {
+    "incomeStructure": "salary",
+    "monthlySurplus": "low",
+    "safetyMonths": "low",
+    "debtPressure": "none",
+    "monetizableSkill": "operations",
+    "skillValidation": "never",
+    "weeklyTime": "low",
+    "pastAttemptStage": "studied",
+    "decisionStyle": "analytical"
+  },
+  "expectedOutput": {
+    "contradictionCode": "SINGLE_INCOME_LOW_BUFFER",
+    "decisionCode": "BUILD_SECOND_INCOME",
+    "decisionProvisional": false,
+    "verdictNonEmpty": true,
+    "primaryActionNonEmpty": true,
+    "scoreCardOverall": 22,
+    "fatalRulesCountMin": 3,
+    "advantageRulesCountMax": 2
+  }
+}

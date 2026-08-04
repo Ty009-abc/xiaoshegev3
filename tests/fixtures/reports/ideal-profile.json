@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "label": "理想画像",
+    "profile": "12 理想画像",
+    "description": "内容创作者+高收入+强安全垫+已验证技能+高时间投入+持续经营",
+    "source": "sim-v3-rc515.js profile 12 — real desensitized",
+    "engineVersion": "v4",
+    "generatedAt": "2026-08-04T00:00:00.000Z"
+  },
+  "input": {
+    "incomeStructure": "content_online",
+    "monthlySurplus": "high",
+    "safetyMonths": "strong",
+    "debtPressure": "none",
+    "monetizableSkill": "content",
+    "skillValidation": "stable_clients",
+    "weeklyTime": "high",
+    "pastAttemptStage": "stable_side",
+    "decisionStyle": "intuitive"
+  },
+  "expectedOutput": {
+    "contradictionCode": "STABILITY_GROWTH_CONFLICT",
+    "decisionCode": "BUILD_SECOND_INCOME",
+    "decisionProvisional": false,
+    "verdictNonEmpty": true,
+    "primaryActionNonEmpty": true,
+    "scoreCardOverall": 75,
+    "fatalRulesCount": 0,
+    "advantageRulesCountMin": 4
+  }
+}
