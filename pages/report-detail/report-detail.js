@@ -361,31 +361,62 @@ Page({
       }
     }
 
-    this._drawPoster(
-      posterData.fatalSentence,
-      posterData.coreProblem,
-      posterData.systemTrap,
-      posterData.strategyPath,
-      posterData.advice,
-    )
+    this._drawPoster(posterData)
   },
 
-  _drawPoster(fatalSentence, coreProblem, systemTrap, strategyPath, advice) {
-    const ctx = wx.createCanvasContext('posterCanvas', this)
-    const W = 750
-    const safeX = 40
-    const cardW = 670
-    const leftW = 112
-    const textX = safeX + leftW + 28
-    const textMaxW = cardW - leftW - 52
-    const qrPath = this.data.qrPath || '/images/qrcode.png'
+  _drawPoster(posterData) {
+    var pd = posterData || {}
+    var ctx = wx.createCanvasContext('posterCanvas', this)
+    var W = 750
+    var safeX = 40
+    var cardW = 670
+    var leftW = 112
+    var textX = safeX + leftW + 28
+    var textMaxW = cardW - leftW - 52
+    var qrPath = this.data.qrPath || '/images/qrcode.png'
 
-    const cards = [
-      { no: '01', icon: '📍', title: '致命一句话',        color: '#ff2d55', text: fatalSentence || '' },
-      { no: '02', icon: '🔍', title: '核心问题',          color: '#ff3b3b', text: coreProblem || '' },
-      { no: '03', icon: '🚫', title: '系统困局',          color: '#ff6b6b', text: systemTrap || '' },
-      { no: '04', icon: '🚀', title: '翻身路径',          color: '#ff9f1a', text: strategyPath || '' },
-      { no: '05', icon: '📅', title: '行动建议',          color: '#39d353', text: advice || '' },
+    // ── Get V6 fields with safe fallback ──
+    var sim = pd.destinySimulator || {}
+    var cog = pd.cognitiveVerdict || {}
+
+    var currentIndex = Number.isFinite(sim.currentIndex) ? sim.currentIndex : 0
+    var projectedIndex = Number.isFinite(sim.actionPath && sim.actionPath.projectedIndex)
+      ? sim.actionPath.projectedIndex
+      : currentIndex
+    if (projectedIndex < currentIndex) projectedIndex = currentIndex
+
+    var currentLevelLabel = sim.currentLevelLabel || '待评估'
+    var repairCycleDays = sim.repairCycleDays || 90
+
+    var baselineOutcome = (sim.baselinePath && sim.baselinePath.outcome) ||
+      '继续沿用当前方式，收入结构大概率不会明显改变。'
+
+    var actionOutcome = (sim.actionPath && sim.actionPath.outcome) ||
+      '完成关键动作后，收入结构有机会逐步改善。'
+
+    var keyVariable = sim.keyVariable || '建立可持续执行系统'
+
+    var turningPoints = Array.isArray(sim.turningPoints) ? sim.turningPoints : []
+
+    var cogStatement = cog.statement || '你的翻身条件已在积累，但仍被一个关键缺口限制。'
+    var cogActionAnchor = cog.actionAnchor || '把能量集中到一条有验证的方向。'
+
+    var fatalSentence = pd.fatalSentence || ''
+    var coreProblem = pd.coreProblem || ''
+    var systemTrap = pd.systemTrap || ''
+    var strategyPath = pd.strategyPath || ''
+    var advice = pd.advice || ''
+
+    var hasDestiny = (currentIndex > 0) || (projectedIndex > 0)
+    var hasCogVerdict = (cogStatement && cogStatement.length > 5) || (cogActionAnchor && cogActionAnchor.length > 5)
+
+    var cards = [
+      { no: '01', icon: '📍', title: '致命一句话', color: '#ff2d55', text: fatalSentence || '' },
+      { no: '02', icon: '🔍', title: '核心问题',   color: '#ff3b3b', text: coreProblem || '' },
+      { no: '03', icon: '🚫', title: '系统困局',   color: '#ff6b6b', text: systemTrap || '' },
+      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: strategyPath || '' },
+      { no: '05', icon: '🧭', title: '命运模拟器', color: '#108C59', text: '', type: 'destiny' },
+      { no: '06', icon: '💥', title: '认知宣判',   color: '#7B3CFF', text: '', type: 'cogVerdict' },
     ]
 
     function roundRect(x, y, w, h, r) {
@@ -404,29 +435,69 @@ Page({
 
     function splitLines(text, maxWidth, size) {
       ctx.setFontSize(size)
-      const chars = String(text || '').replace(/\n/g, ' ').split('')
-      let line = ''
-      const lines = []
-      chars.forEach(ch => {
-        const test = line + ch
+      var chars = String(text || '').replace(/\n/g, ' ').split('')
+      var line = ''
+      var lines = []
+      for (var i = 0; i < chars.length; i++) {
+        var test = line + chars[i]
         if (ctx.measureText(test).width > maxWidth && line) {
           lines.push(line)
-          line = ch
+          line = chars[i]
         } else {
           line = test
         }
-      })
+      }
       if (line) lines.push(line)
       return lines
     }
 
-    function splitActionLines(text) {
-      return String(text || '')
-        .replace(/；/g, '；\n')
-        .replace(/。/g, '。\n')
-        .split('\n')
-        .map(s => s.trim())
-        .filter(Boolean)
+    /**
+     * drawWrappedText(ctx, text, x, y, options)
+     * options: { maxWidth, lineHeight, fontSize, color, maxLines, ellipsis }
+     * Returns: { height: number, lines: number }
+     */
+    function drawWrappedText(text, x, y, options) {
+      var opts = options || {}
+      var maxW = opts.maxWidth || textMaxW
+      var lh = opts.lineHeight || 28
+      var size = opts.fontSize || 24
+      var color = opts.color || '#eaf0ff'
+      var maxLines = opts.maxLines || 99
+      var ellipsis = opts.ellipsis || ''
+
+      ctx.setFontSize(size)
+      ctx.setFillStyle(color)
+      ctx.setTextAlign('left')
+
+      var lines = []
+      var chars = String(text || '').replace(/\n/g, ' ').split('')
+      var line = ''
+      for (var i = 0; i < chars.length; i++) {
+        var test = line + chars[i]
+        if (ctx.measureText(test).width > maxW && line) {
+          lines.push(line)
+          if (lines.length >= maxLines) break
+          line = chars[i]
+        } else {
+          line = test
+        }
+      }
+      if (line && lines.length < maxLines) lines.push(line)
+
+      // Apply ellipsis to last line if truncated
+      if (lines.length >= maxLines && ellipsis && line.length < chars.length) {
+        var last = lines[lines.length - 1]
+        while (last.length > 0 && ctx.measureText(last + ellipsis).width > maxW) {
+          last = last.slice(0, -1)
+        }
+        lines[lines.length - 1] = last + ellipsis
+      }
+
+      for (var j = 0; j < lines.length; j++) {
+        ctx.fillText(lines[j], x, y + j * lh)
+      }
+
+      return { height: lines.length * lh, lines: lines.length }
     }
 
     function drawWrappedLines(lines, x, y, lineHeight, color, size) {
@@ -448,17 +519,42 @@ Page({
       ctx.setGlobalAlpha(1)
     }
 
-    // 预计算每张卡片真实高度
-    cards.forEach((item, index) => {
-      if (index === 4) {
-        const points = splitActionLines(item.text)
-        let totalLines = 0
-        item._points = points.map(p => {
-          const lines = splitLines(p, textMaxW - 30, 22)
-          totalLines += lines.length
-          return lines
-        })
-        item._height = Math.max(220, 90 + totalLines * 28 + points.length * 8 + 30)
+    // ══════════════════════════════════════════════
+    //  预计算每张卡片真实高度
+    // ══════════════════════════════════════════════
+    cards.forEach(function(item, index) {
+      if (item.type === 'destiny') {
+        // RC6.0 05: 命运模拟器压缩版
+        var partsH = 0
+        // Score line: "62分 · 中等"
+        partsH += 32
+        // Baseline outcome (max 3 lines @ 26px)
+        ctx.setFontSize(22)
+        partsH += Math.min(splitLines(baselineOutcome, textMaxW - 4, 22).length, 3) * 28
+        // Action projected: "62 → 81"
+        partsH += 30
+        // Repair cycle
+        partsH += 28
+        // Key variable (max 2 lines @ 22px)
+        ctx.setFontSize(22)
+        partsH += Math.min(splitLines(keyVariable, textMaxW - 4, 22).length, 2) * 26
+        // Turning points condensed (1 line)
+        partsH += 22
+        // Gap between sections
+        partsH += 16
+        item._height = Math.max(260, 95 + partsH + 24)
+      } else if (item.type === 'cogVerdict') {
+        // RC6.0 06: 认知宣判压缩版
+        var cogH = 0
+        // Statement (max 3 lines @ 24px)
+        ctx.setFontSize(24)
+        var stLines = Math.min(splitLines(cogStatement, textMaxW - 4, 24).length, 3)
+        cogH += stLines * 32
+        // Action anchor (max 2 lines @ 22px)
+        ctx.setFontSize(22)
+        var aaLines = Math.min(splitLines(cogActionAnchor, textMaxW - 4, 22).length, 2)
+        cogH += aaLines * 28 + 20
+        item._height = Math.max(200, 95 + cogH + 40)
       } else {
         item._lines = splitLines(item.text, textMaxW, 26)
         item._height = Math.max(145, 95 + item._lines.length * 34 + 28)
@@ -500,8 +596,8 @@ Page({
     // 卡片
     let y = 180
 
-    cards.forEach((item, index) => {
-      const h = item._height
+    cards.forEach(function(item, index) {
+      var h = item._height
 
       roundRect(safeX, y, cardW, h, 16)
       ctx.setFillStyle('rgba(8,14,32,0.88)')
@@ -528,15 +624,107 @@ Page({
       ctx.setFillStyle(item.color)
       ctx.fillText(item.icon + ' ' + item.title, textX, y + 46)
 
-      if (index === 4) {
-        let py = y + 86
-        item._points.forEach(lines => {
-          ctx.setFontSize(22)
-          ctx.setFillStyle('#39d353')
-          ctx.fillText('•', textX, py)
-          drawWrappedLines(lines, textX + 24, py, 28, '#eaf0ff', 22)
-          py += lines.length * 28 + 8
+      if (item.type === 'destiny') {
+        // ── RC6.0 05: 命运模拟器 ──
+        var dy = y + 88
+
+        // 当前指数: "62分 · 中等"
+        ctx.setFontSize(36)
+        ctx.setFillStyle('#108C59')
+        ctx.fillText(currentIndex + '分', textX, dy)
+        ctx.setFontSize(22)
+        ctx.setFillStyle('#108C59')
+        ctx.fillText(' · ' + currentLevelLabel, textX + ctx.measureText(currentIndex + '分').width, dy)
+        dy += 34
+
+        // A 路径 — 保持现状
+        ctx.setFontSize(20)
+        ctx.setFillStyle('#8EA0B5')
+        ctx.fillText('▸ 保持现状', textX, dy)
+        dy += 26
+
+        var baseLines = splitLines(baselineOutcome, textMaxW - 4, 22)
+        if (baseLines.length > 3) baseLines = baseLines.slice(0, 3)
+        ctx.setFontSize(22)
+        ctx.setFillStyle('#8899B0')
+        for (var bi = 0; bi < baseLines.length; bi++) {
+          ctx.fillText(baseLines[bi], textX + 16, dy)
+          dy += 28
+        }
+        dy += 10
+
+        // B 路径 — 执行方案 + 指数变化
+        ctx.setFontSize(20)
+        ctx.setFillStyle('#108C59')
+        ctx.fillText('▸ 执行方案', textX, dy)
+        dy += 28
+
+        ctx.setFontSize(32)
+        ctx.setFillStyle('#108C59')
+        ctx.fillText(currentIndex + '', textX + 16, dy)
+        var arrW = ctx.measureText(currentIndex + '').width
+        ctx.setFontSize(24)
+        ctx.setFillStyle('#108C59')
+        ctx.fillText(' → ', textX + 16 + arrW, dy)
+        var arrowW = ctx.measureText(' → ').width
+        ctx.setFontSize(38)
+        ctx.setFillStyle('#108C59')
+        ctx.fillText(projectedIndex + '', textX + 16 + arrW + arrowW, dy)
+        dy += 38
+
+        // 修复周期
+        ctx.setFontSize(22)
+        ctx.setFillStyle('#108C59')
+        ctx.fillText('预计结构修复周期：' + repairCycleDays + '天', textX + 16, dy)
+        dy += 32
+
+        // 关键变量
+        ctx.setFontSize(20)
+        ctx.setFillStyle('#8EA0B5')
+        ctx.fillText('关键变量', textX, dy)
+        dy += 26
+
+        ctx.setFontSize(22)
+        ctx.setFillStyle('#2B4258')
+        var kvLines = splitLines(keyVariable, textMaxW - 4, 22)
+        if (kvLines.length > 2) kvLines = kvLines.slice(0, 2)
+        for (var ki = 0; ki < kvLines.length; ki++) {
+          ctx.fillText(kvLines[ki], textX + 16, dy)
+          dy += 26
+        }
+
+        // 转折点压缩版（1行）
+        if (turningPoints.length > 0) {
+          dy += 4
+          ctx.setFontSize(18)
+          ctx.setFillStyle('#90B0C5')
+          var tpText = turningPoints.map(function(t) { return '第' + t.day + '天:' + (t.label || '').slice(0, 8) }).join(' · ')
+          var tpLines = splitLines(tpText, textMaxW, 18)
+          if (tpLines.length > 1) tpText = tpLines[0] + '…'
+          ctx.fillText(tpText, textX + 16, dy)
+        }
+
+      } else if (item.type === 'cogVerdict') {
+        // ── RC6.0 06: 认知宣判 ──
+        var cy = y + 86
+
+        // 核心宣判 (max 3 lines)
+        cy += drawWrappedText(cogStatement, textX, cy, {
+          maxWidth: textMaxW - 4, lineHeight: 32, fontSize: 24,
+          color: '#D9C5FF', maxLines: 3, ellipsis: '…',
+        }).height + 16
+
+        // 行动锚点 (max 2 lines)
+        ctx.setFontSize(20)
+        ctx.setFillStyle('#A68FCE')
+        ctx.fillText('行动锚点', textX, cy)
+        cy += 26
+
+        drawWrappedText(cogActionAnchor, textX + 16, cy, {
+          maxWidth: textMaxW - 4, lineHeight: 28, fontSize: 22,
+          color: '#D9C5FF', maxLines: 2, ellipsis: '…',
         })
+
       } else {
         drawWrappedLines(item._lines, textX, y + 86, 34, '#eaf0ff', 26)
       }

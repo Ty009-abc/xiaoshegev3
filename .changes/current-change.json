@@ -1,24 +1,18 @@
 {
-  "taskId": "RC6.0-REPORT-RUNTIME-001",
-  "baseCommit": "1f37294",
-  "branch": "fix/rc6.0-report-runtime",
-  "problem": "Part 1 完成了数据底座，需要在页面运行时展示 05 命运模拟器 和 06 认知宣判",
+  "taskId": "RC6.0-POSTER-RUNTIME-001",
+  "baseCommit": "3bf04de",
+  "branch": "fix/rc6.0-poster-runtime",
+  "problem": "海报需渲染RC6.0新增的05命运模拟器和06认知宣判卡片",
   "allowedFiles": [
     "pages/report-detail/report-detail.js",
-    "pages/report-detail/report-detail.wxml",
-    "pages/report-detail/report-detail.wxss",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
-    "share/**",
-    "ci/**",
-    "app.js",
-    "app.wxss",
-    "app.json",
-    "utils/reportDestinySimulator.js",
-    "utils/cognitiveVerdictBuilder.js"
+    "pages/report-detail/report-detail.wxml",
+    "pages/report-detail/report-detail.wxss",
+    "share/**"
   ],
   "contractsAffected": [],
-  "requiredTests": ["node syntax check on report-detail.js"],
-  "rollbackPlan": "git checkout fix/rc6.0-destiny-engine && git branch -D fix/rc6.0-report-runtime"
+  "requiredTests": ["node syntax check pages/report-detail/report-detail.js"],
+  "rollbackPlan": "git checkout fix/rc6.0-report-runtime && git branch -D fix/rc6.0-poster-runtime"
 }
