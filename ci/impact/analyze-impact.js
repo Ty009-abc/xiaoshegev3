@@ -22,17 +22,21 @@ function analyze(options = {}) {
   // Get budget
   const budget = changeBudget.overrides[currentBranch] || changeBudget.defaults
 
-  // Get changed files
+  // Get changed files (committed + unstaged)
   let changedFiles = []
   try {
-    changedFiles = execSync(`git diff --name-only ${baseCommit}..HEAD`, { encoding: 'utf8' })
-      .split('\n')
-      .filter(Boolean)
+    // Committed changes vs base
+    const committed = execSync(`git diff --name-only ${baseCommit}..HEAD`, { encoding: 'utf8' })
+      .split('\n').filter(Boolean)
+    // Unstaged changes in working tree
+    const unstaged = execSync('git diff --name-only', { encoding: 'utf8' })
+      .split('\n').filter(Boolean)
+    // Untracked files
+    const untracked = execSync('git ls-files --others --exclude-standard', { encoding: 'utf8' })
+      .split('\n').filter(Boolean)
+    changedFiles = [...new Set([...committed, ...unstaged, ...untracked])]
   } catch (e) {
-    // If no base, use working tree diff
-    changedFiles = execSync('git diff --name-only --cached', { encoding: 'utf8' })
-      .split('\n')
-      .filter(Boolean)
+    changedFiles = []
   }
 
   // Get line count
