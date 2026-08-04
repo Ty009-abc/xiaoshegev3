@@ -17,7 +17,6 @@
 .msg-list {
   flex: 1;
   padding: 24rpx;
-  padding-top: calc(24rpx + env(safe-area-inset-top));
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;

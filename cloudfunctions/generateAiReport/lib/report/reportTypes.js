@@ -72,6 +72,12 @@ const REPORT_SECTIONS = [
   'stopDoing',
   'identityUpgrade',
   'finalStrike',
+  // v6.5.2: 结构化语义字段
+  'verdict',
+  'contradiction',
+  'potential',
+  'decision',
+  'primaryAction',
 ]
 
 // ═══════════════════════════════════════════════════════════════

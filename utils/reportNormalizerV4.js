@@ -361,6 +361,12 @@ function buildDiagnosticV4ViewModel(report) {
   var iu = report.identityUpgrade || {}
   var wp = report.wealthProbability || {}
   var fs = report.finalStrike || {}
+  // v6.5.2: 结构化语义字段
+  var vd = report.verdict || {}
+  var cc = report.contradiction || {}
+  var pt = report.potential || {}
+  var dc = report.decision || {}
+  var pa = report.primaryAction || {}
 
   // ── 财富路径 ──
   var normalizedPaths = wps.map(normalizeWealthPath)
@@ -470,6 +476,40 @@ function buildDiagnosticV4ViewModel(report) {
       sentence: fs.sentence || '',
       shareTitle: fs.shareTitle || '',
     },
+
+    // v6.5.2: 结构化语义字段（透传）
+    verdict: {
+      headline: vd.headline || h.title || '',
+      explanation: vd.explanation || h.subtitle || '',
+      contradictionCode: vd.contradictionCode || (cc.code || ''),
+    },
+    contradiction: {
+      code: cc.code || '',
+      title: cc.title || '',
+      leftSide: cc.leftSide || '',
+      rightSide: cc.rightSide || '',
+      desc: cc.desc || cc.description || '',
+    },
+    potential: {
+      score: pt.score || sc.overall || 0,
+      level: pt.level || 'unknown',
+      advantages: pt.advantages || [],
+      constraints: pt.constraints || [],
+      estimatedRecoveryDays: pt.estimatedRecoveryDays || 0,
+    },
+    decision: {
+      code: dc.code || '',
+      title: dc.title || '',
+      reason: dc.reason || '',
+      expectedCycleDays: dc.expectedCycleDays || 0,
+    },
+    primaryAction: {
+      title: pa.title || '',
+      why: pa.why || '',
+      tasks: pa.tasks || [],
+      checkpoint: pa.checkpoint || '',
+      successCriteria: pa.successCriteria || [],
+    },
   }
 
   // ── leak scan (dev only) ──
@@ -483,19 +523,130 @@ function buildDiagnosticV4ViewModel(report) {
    ═══════════════════════════════════════════════════════════════ */
 
 function mapDiagnosticV4ToPoster(vm) {
-  var bestPath = vm.primaryWealthPath || (vm.wealthPaths.length > 0 ? vm.wealthPaths[0] : null)
+  // v6.5.2: 新语义字段优先，旧字段兼容 fallback
+
+  // 01 命运判决
+  var verdict = ''
+  if (vm.verdict && vm.verdict.headline) {
+    verdict = vm.verdict.headline
+  } else if (vm.hero && vm.hero.title) {
+    verdict = vm.hero.title
+  } else {
+    verdict = ''
+  }
+
+  // 02 核心矛盾
+  var contradiction = {}
+  if (vm.contradiction && vm.contradiction.code) {
+    contradiction = {
+      code: vm.contradiction.code,
+      title: vm.contradiction.title || '',
+      leftSide: vm.contradiction.leftSide || '',
+      rightSide: vm.contradiction.rightSide || '',
+      description: vm.contradiction.desc || vm.contradiction.description || '',
+    }
+  } else {
+    // 旧字段兼容：从 fatalDiagnosis 拼凑
+    contradiction = {
+      code: 'UNKNOWN',
+      title: '',
+      leftSide: '',
+      rightSide: '',
+      description: (vm.fatalDiagnosis && (vm.fatalDiagnosis.reason || vm.fatalDiagnosis.mainProblem)) || '',
+    }
+  }
+
+  // 03 翻身潜力
+  var potential = {}
+  if (vm.potential && typeof vm.potential.score !== 'undefined') {
+    potential = {
+      score: vm.potential.score || 0,
+      level: vm.potential.level || 'unknown',
+      advantages: vm.potential.advantages || [],
+      constraints: vm.potential.constraints || [],
+      estimatedRecoveryDays: vm.potential.estimatedRecoveryDays || 0,
+    }
+  } else {
+    // 旧字段兼容：从 scoreCard 拼凑
+    var advantageArr = []
+    var constraintArr = []
+    if (vm.scoreCard && vm.scoreCard.length) {
+      vm.scoreCard.forEach(function(s) {
+        if (s.value >= 60) advantageArr.push(s.label + '(' + s.value + '分)')
+        else constraintArr.push(s.label + '(' + s.value + '分)')
+      })
+    }
+    potential = {
+      score: 0,
+      level: 'unknown',
+      advantages: advantageArr.length ? advantageArr : ['数据不足'],
+      constraints: constraintArr.length ? constraintArr : ['待深入诊断'],
+      estimatedRecoveryDays: 0,
+    }
+  }
+
+  // 04 富裕路径（简化为标识）
+  var bestPath = vm.primaryWealthPath || (vm.wealthPaths && vm.wealthPaths.length > 0 ? vm.wealthPaths[0] : null)
+  var pathText = bestPath
+    ? bestPath.name + ' (' + (bestPath.statusLabel || bestPath.recommend || '') + ')'
+    : ''
+
+  // 05 唯一决策
+  var decision = {}
+  if (vm.decision && vm.decision.code) {
+    decision = {
+      code: vm.decision.code,
+      title: vm.decision.title || '',
+      reason: vm.decision.reason || '',
+      expectedCycleDays: vm.decision.expectedCycleDays || 0,
+      confidence: typeof vm.decision.confidence === 'number' ? vm.decision.confidence : undefined,
+      provisional: vm.decision.provisional === true,
+    }
+  } else {
+    // 无新契约则留空 — 不 fallback 到 finalStrike
+    decision = {
+      code: '',
+      title: '',
+      reason: '',
+      expectedCycleDays: 0,
+      confidence: undefined,
+      provisional: false,
+    }
+  }
+
+  // 06 第一行动（含 checkpoint）
+  var primaryAction = {}
+  if (vm.primaryAction && vm.primaryAction.title) {
+    primaryAction = {
+      title: vm.primaryAction.title,
+      why: vm.primaryAction.why || '',
+      tasks: vm.primaryAction.tasks || [],
+      checkpoint: vm.primaryAction.checkpoint || '',
+      successCriteria: vm.primaryAction.successCriteria || [],
+    }
+  } else {
+    // 旧字段兼容：从 actionTimeline 取 day1
+    var d1 = vm.actionTimeline && vm.actionTimeline[0]
+    primaryAction = {
+      title: d1 ? (d1.goal || '') : '',
+      why: '',
+      tasks: d1 ? (d1.tasks || []) : [],
+      checkpoint: d1 ? (d1.checkpoint || '') : '',
+      successCriteria: d1 && d1.checkpoint ? [d1.checkpoint] : [],
+    }
+  }
+
+  // 07 情绪结尾（finalStrike 降级为 emotionClosing，不再冒充决策）
+  var emotionClosing = (vm.finalStrike && vm.finalStrike.sentence) || ''
+
   return {
-    fatalSentence: vm.hero.title || '',
-    coreProblem: (vm.fatalDiagnosis && vm.fatalDiagnosis.reason) || (vm.fatalDiagnosis && vm.fatalDiagnosis.mainProblem) || '',
-    systemTrap: (vm.systemLeaks || []).map(function(r) { return r.title + ': ' + r.description }).join(' | '),
-    strategyPath: bestPath
-      ? bestPath.name + ' (' + bestPath.statusLabel + ') — ' + bestPath.description
-      : '',
-    advice: [
-      buildDaySummary(vm.actionTimeline[0]),
-      buildDaySummary(vm.actionTimeline[2]),
-      buildDaySummary(vm.actionTimeline[4]),
-    ].filter(Boolean),
+    verdict: verdict,
+    contradiction: contradiction,
+    potential: potential,
+    path: pathText,
+    decision: decision,
+    primaryAction: primaryAction,
+    emotionClosing: emotionClosing,
   }
 }
 

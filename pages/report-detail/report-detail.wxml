@@ -368,5 +368,5 @@
   </block>
 
   <!-- ═══ Canvas 海报 ═══ -->
-  <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></canvas>
+  <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;top:-9999px;left:-9999px;pointer-events:none;"></canvas>
 </view>
