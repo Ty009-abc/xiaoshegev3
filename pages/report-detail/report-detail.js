@@ -7,6 +7,11 @@ const n4 = require('../../utils/reportNormalizerV4.js')
 const app = getApp()
 const REVEAL_DELAYS = [200, 500, 900, 1300, 1700, 2100, 2500, 2900]
 
+// 确定性等级映射 — 与 Normalizer 保持一致，Renderer 不得重复计算
+const POTENTIAL_LEVEL_LABELS = {
+  LOW: '偏低', MEDIUM: '中等', MODERATE: '中等', HIGH: '较高', VERY_HIGH: '很高', CRITICAL: '偏低',
+}
+
 Page({
   data: {
     reportId: '',
@@ -351,7 +356,11 @@ Page({
       { no: '04', icon: '⚡', title: '第一行动',          color: '#ff9f1a',
         text: (actionTitle ? actionTitle + (actionCheckpoint ? '（' + actionCheckpoint + '）' : '') : systemTrap) || '' },
       { no: '05', icon: '📅', title: '翻身潜力',          color: '#39d353',
-        text: (potentialScore ? '评分' + potentialScore + '/' + potentialLevel : systemTrap) || '' },
+        potentialCard: true, score: potentialScore, level: potentialLevel,
+        advantages: potentialAdvantages.slice(0, 2),
+        constraints: potentialConstraints.slice(0, 2),
+        estimatedRecoveryDays: (pd.potential && pd.potential.estimatedRecoveryDays) || 0,
+        text: (potentialScore ? potentialScore + '分 · ' + (POTENTIAL_LEVEL_LABELS[potentialLevel] || '中等') : '') || '' },
     ]
 
     function roundRect(x, y, w, h, r) {
@@ -416,7 +425,14 @@ Page({
 
     // 预计算每张卡片真实高度
     cards.forEach((item, index) => {
-      if (index === 4) {
+      if (index === 4 && item.potentialCard) {
+        // V6.5.4: 翻身潜力富内容卡 — 动态高度
+        let contentH = 60 // score line
+        if (item.advantages && item.advantages.length > 0) contentH += 24 + item.advantages.length * 24
+        if (item.constraints && item.constraints.length > 0) contentH += 24 + item.constraints.length * 24
+        if (item.estimatedRecoveryDays && item.estimatedRecoveryDays > 0) contentH += 28
+        item._height = Math.max(220, 95 + contentH + 28)
+      } else if (index === 4) {
         const points = splitActionLines(item.text)
         let totalLines = 0
         item._points = points.map(p => {
@@ -497,7 +513,59 @@ Page({
       ctx.setFillStyle(item.color)
       ctx.fillText(item.icon + ' ' + item.title, textX, y + 46)
 
-      if (index === 4) {
+      if (index === 4 && item.potentialCard) {
+        // V6.5.4: 翻身潜力富内容卡
+        let py = y + 86
+        ctx.setFontSize(24)
+        ctx.setFillStyle('#eaf0ff')
+
+        // Score line
+        ctx.fillText(item.text, textX, py)
+        py += 32
+
+        // Advantages
+        if (item.advantages && item.advantages.length > 0) {
+          ctx.setFontSize(20)
+          ctx.setFillStyle('#39d353')
+          ctx.fillText('✧ 优势', textX, py)
+          py += 26
+          ctx.setFillStyle('#eaf0ff')
+          ctx.setFontSize(20)
+          item.advantages.forEach(a => {
+            if (a && a.length <= 22) {
+              ctx.fillText('  ' + a.slice(0, 22), textX, py)
+              py += 24
+            }
+          })
+          py += 4
+        }
+
+        // Constraints
+        if (item.constraints && item.constraints.length > 0) {
+          ctx.setFontSize(20)
+          ctx.setFillStyle('#ff9f1a')
+          ctx.fillText('⚠ 约束', textX, py)
+          py += 26
+          ctx.setFillStyle('#eaf0ff')
+          ctx.setFontSize(20)
+          item.constraints.forEach(c => {
+            if (c && c.length <= 22) {
+              ctx.fillText('  ' + c.slice(0, 22), textX, py)
+              py += 24
+            }
+          })
+          py += 4
+        }
+
+        // Recovery cycle
+        if (item.estimatedRecoveryDays && item.estimatedRecoveryDays > 0) {
+          ctx.setFontSize(20)
+          ctx.setFillStyle('#7b3cff')
+          ctx.fillText('⏱ 预计修复周期：' + item.estimatedRecoveryDays + '天', textX, py)
+        }
+
+      } else if (index === 4) {
+        // Fallback old format
         let py = y + 86
         item._points.forEach(lines => {
           ctx.setFontSize(22)

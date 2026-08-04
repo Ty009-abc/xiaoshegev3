@@ -1,0 +1,28 @@
+{
+  "taskId": "RC5.15.4-001",
+  "baseCommit": "55be54d",
+  "branch": "fix/rc5.15.4-potential-card-runtime",
+  "problem": "报告海报05「翻身潜力」只显示 评分62/unknown，缺优势/约束/预计周期",
+  "rootCause": "release/v6.5.0 mapper 无 computePotential(); Normalizer level 未映射; poster card 仅显示评分行",
+  "allowedFiles": [
+    "cloudfunctions/generateAiReport/lib/report/reportMapperV4.js",
+    "cloudfunctions/generateAiReport/lib/report/reportContractV4.js",
+    "utils/reportNormalizerV4.js",
+    "utils/reportSemanticValidator.js",
+    "pages/report-detail/report-detail.js",
+    "tests/fixtures/reports/cook-single-income-monetization.json",
+    ".changes/current-change.json"
+  ],
+  "forbiddenFiles": [
+    "share/PosterPrimitives.js",
+    "share/PosterService.js",
+    "core/turnaround-intelligence/",
+    "ci/**",
+    "cloudfunctions/generateAiReport/lib/ai.js",
+    "app.js"
+  ],
+  "contractsAffected": ["report/turnaroundReportV4"],
+  "requiredFixtures": ["cook-single-income-monetization.json"],
+  "requiredTests": ["node scripts/sim-v3-rc515.js"],
+  "rollbackPlan": "git checkout fix/rc5.15.3-decision-coverage && git branch -D fix/rc5.15.4-potential-card-runtime"
+}

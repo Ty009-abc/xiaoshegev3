@@ -1,0 +1,38 @@
+{
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.4",
+  "description": "厨师画像 — 技能已验证、收入来源单一、执行力薄弱。mid-career技术工人。真实脱敏样本。",
+  "_meta": {
+    "label": "cook-single-income-monetization",
+    "generatedAt": "2026-08-04T20:00:00Z",
+    "sourceCommit": "55be54d"
+  },
+  "input": {
+    "lifeStage": "mid_career",
+    "primaryGoal": "financial_independence",
+    "incomeStructure": "single",
+    "monthlySurplus": "positive",
+    "safetyMonths": "weak",
+    "debtPressure": "low",
+    "monetizableSkill": "high",
+    "skillValidation": "market_validated",
+    "skillType": "technical",
+    "weeklyTime": "moderate",
+    "pastAttemptStage": "first_attempt",
+    "decisionStyle": "moderate"
+  },
+  "expectedOutput": {
+    "potentialScoreAbove": 55,
+    "potentialScoreBelow": 75,
+    "potentialLevelNotUnknown": true,
+    "potentialLevelIs": "MEDIUM",
+    "potentialAdvantagesMinLength": 1,
+    "potentialConstraintsMinLength": 1,
+    "potentialEstimatedRecoveryDaysAbove": 0,
+    "verdictNonEmpty": true,
+    "decisionNonEmpty": true,
+    "verdictNotEqualDecision": true,
+    "contradictionCode": "STABILITY_GROWTH_CONFLICT",
+    "decisionCode": "BUILD_SECOND_INCOME"
+  }
+}

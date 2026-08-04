@@ -1007,7 +1007,7 @@ function computePotential(engineResult) {
   const scores = engineResult.scores || {}
   const profile = engineResult.normalizedProfile || {}
 
-  // 优势
+  // 优势：从结构化字段提取
   const advantages = []
   if (scores.skill >= 60) advantages.push('技能变现已验证')
   if (scores.execution >= 60) advantages.push('执行力强')
@@ -1015,8 +1015,11 @@ function computePotential(engineResult) {
   if (scores.cashflow >= 60) advantages.push('现金流健康')
   if (profile.skillValidationRaw?.level === 'market_validated' || profile.skillValidationRaw?.level === 'stable_clients') advantages.push('市场已付费验证')
   if (profile.safetyMonthsRaw?.level === 'strong' || profile.safetyMonthsRaw?.level === 'moderate_high') advantages.push('安全垫充裕')
+  // 技能类型相关
+  if (profile.skillType === 'technical' || profile.monetizableSkillRaw?.level === 'high') advantages.push('具备可产品化的专业技能')
+  if (profile.skillType === 'content' || profile.monetizableSkillRaw?.level === 'medium') advantages.push('已具备内容创作基础')
 
-  // 约束
+  // 约束：从结构化字段提取
   const constraints = []
   if (scores.risk <= 30) constraints.push('风险抵抗弱')
   if (scores.execution <= 30) constraints.push('执行持续性差')
@@ -1025,16 +1028,27 @@ function computePotential(engineResult) {
   if (profile.debtPressureRaw?.level === 'high' || profile.debtPressureRaw?.level === 'consumer') constraints.push('负债压力大')
   if (profile.safetyMonthsRaw?.level === 'critical') constraints.push('生存安全垫不足')
   if (profile.monthlySurplusRaw?.level === 'negative') constraints.push('月结余为负')
+  // 从 profile 场景推导
+  if (profile.incomeStructure === 'single' || profile.incomeStructure === 'single_source') constraints.push('收入来源仍然单一')
+  if (scores.skill >= 50 && scores.risk <= 55) constraints.push('技能依赖单一交付方式，未形成获客系统')
 
-  // 预计修复周期
+  // 预计修复周期（基于致命规则数量）
   const fatalCount = (engineResult.fatalRules || []).length
-  const estimatedDays = fatalCount >= 4 ? 180 : fatalCount >= 2 ? 120 : 60
+  const estimatedDays = fatalCount >= 4 ? 180 : fatalCount >= 2 ? 120 : 90
+
+  // 确定性等级映射
+  const overall = scores.overall || 0
+  let level = 'MEDIUM'
+  if (overall >= 85) level = 'VERY_HIGH'
+  else if (overall >= 70) level = 'HIGH'
+  else if (overall >= 40) level = 'MEDIUM'
+  else level = 'LOW'
 
   return {
-    score: scores.overall || 0,
-    level: scores.overall >= 75 ? 'high' : scores.overall >= 45 ? 'moderate' : 'critical',
-    advantages: advantages.length ? advantages : ['个人能力基础'],
-    constraints: constraints.length ? constraints : ['数据不足，待深入诊断'],
+    score: overall,
+    level: level,
+    advantages: advantages.length > 0 ? advantages.slice(0, 3) : ['个人能力基础'],
+    constraints: constraints.length > 0 ? constraints.slice(0, 3) : ['数据不足，待深入诊断'],
     estimatedRecoveryDays: estimatedDays,
   }
 }

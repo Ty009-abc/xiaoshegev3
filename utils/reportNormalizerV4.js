@@ -348,6 +348,42 @@ function buildDaySummary(day) {
    Builder: Report Contract → ViewModel
    ═══════════════════════════════════════════════════════════════ */
 
+/**
+ * 统一 Potential Level 映射 — 必须在 Normalizer 中执行，Renderer 不得再计算。
+ * 无法识别的 level → POTENTIAL_LEVEL_INVALID 并阻止正式海报。
+ */
+var POTENTIAL_LEVEL_LABELS = {
+  LOW: '偏低',
+  MEDIUM: '中等',
+  MODERATE: '中等',
+  HIGH: '较高',
+  VERY_HIGH: '很高',
+  CRITICAL: '偏低',
+}
+function normalizePotentialLevel(rawLevel, score) {
+  if (!rawLevel || typeof rawLevel !== 'string') {
+    // 仅能从分数推导（一次）
+    if (typeof score === 'number' && score > 0) {
+      if (score < 40) return 'LOW'
+      if (score < 70) return 'MEDIUM'
+      if (score < 85) return 'HIGH'
+      return 'VERY_HIGH'
+    }
+    return 'MEDIUM'
+  }
+  var upper = rawLevel.toUpperCase()
+  if (upper in POTENTIAL_LEVEL_LABELS) return upper
+  if (upper === 'UNKNOWN') return 'MEDIUM' // never allow 'unknown' in poster
+  if (upper === 'LOW_CONFIDENCE') return 'LOW_CONFIDENCE'
+  // 尝试从分数推导
+  if (typeof score === 'number' && score > 0) {
+    if (score < 40) return 'LOW'
+    if (score < 70) return 'MEDIUM'
+    if (score < 85) return 'HIGH'
+    return 'VERY_HIGH'
+  }
+  return 'MEDIUM'
+}
 function buildDiagnosticV4ViewModel(report) {
   var h = report.headline || {}
   var sc = report.scoreCard || {}
@@ -492,7 +528,7 @@ function buildDiagnosticV4ViewModel(report) {
     },
     potential: {
       score: pt.score || sc.overall || 0,
-      level: pt.level || 'unknown',
+      level: normalizePotentialLevel(pt.level, pt.score || sc.overall || 0),
       advantages: pt.advantages || [],
       constraints: pt.constraints || [],
       estimatedRecoveryDays: pt.estimatedRecoveryDays || 0,
@@ -561,9 +597,9 @@ function mapDiagnosticV4ToPoster(vm) {
   if (vm.potential && typeof vm.potential.score !== 'undefined') {
     potential = {
       score: vm.potential.score || 0,
-      level: vm.potential.level || 'unknown',
-      advantages: vm.potential.advantages || [],
-      constraints: vm.potential.constraints || [],
+      level: (vm.potential.level && vm.potential.level !== 'unknown') ? vm.potential.level : 'MEDIUM',
+      advantages: vm.potential.advantages && vm.potential.advantages.length ? vm.potential.advantages : [],
+      constraints: vm.potential.constraints && vm.potential.constraints.length ? vm.potential.constraints : [],
       estimatedRecoveryDays: vm.potential.estimatedRecoveryDays || 0,
     }
   } else {
@@ -578,9 +614,9 @@ function mapDiagnosticV4ToPoster(vm) {
     }
     potential = {
       score: 0,
-      level: 'unknown',
-      advantages: advantageArr.length ? advantageArr : ['数据不足'],
-      constraints: constraintArr.length ? constraintArr : ['待深入诊断'],
+      level: 'MEDIUM',
+      advantages: advantageArr.length ? advantageArr : [],
+      constraints: constraintArr.length ? constraintArr : [],
       estimatedRecoveryDays: 0,
     }
   }

@@ -28,6 +28,19 @@ function validatePosterSemantics(pd) {
   const warnings = []
   const scores = {}
 
+  // ═══ G0: Verdict ≠ Decision (cross-card deduplication) ═══
+  const verdictText = (pd.verdict || '').trim()
+  const decisionTitle = ((pd.decision || {}).title || '').trim()
+  const decisionReason = ((pd.decision || {}).reason || '').trim()
+  if (verdictText && decisionTitle) {
+    // 标准化后比较相似度
+    const vLow = verdictText.replace(/[\s\u3000，。！？,.!?]/g, '')
+    const dLow = (decisionTitle + decisionReason).replace(/[\s\u3000，。！？,.!?]/g, '')
+    if (vLow === dLow || vLow.length > 10 && dLow.includes(vLow) || vLow.length > 10 && vLow.includes(dLow)) {
+      errors.push('VERDICT_DECISION_DUPLICATE: verdict and decision contain identical content')
+    }
+  }
+
   // ═══ G1: Verdict ═══
   if (!pd.verdict || !pd.verdict.trim()) {
     errors.push('G1: verdict is empty')
@@ -51,15 +64,32 @@ function validatePosterSemantics(pd) {
     scores.contradiction = hasConflict ? 1 : 0
   }
 
-  // ═══ G3: Potential (score + advantage + constraint) ═══
+  // ═══ G3: Potential (score + level + advantages + constraints + recoveryDays) ═══
   const pt = pd.potential || {}
-  if (typeof pt.score === 'undefined') {
-    errors.push('G3: potential missing score')
+  if (typeof pt.score !== 'number' || pt.score < 0 || pt.score > 100) {
+    errors.push('POTENTIAL_SCORE_REQUIRED: potential.score must be 0-100')
   } else {
     let g3pass = true
-    if (!pt.level) { warnings.push('G3: potential missing level'); g3pass = false }
-    if (!pt.advantages || pt.advantages.length === 0) { warnings.push('G3: potential missing advantages'); g3pass = false }
-    if (!pt.constraints || pt.constraints.length === 0) { warnings.push('G3: potential missing constraints'); g3pass = false }
+    // G3.1: level must be recognized
+    if (!pt.level || pt.level === 'unknown') {
+      errors.push('POTENTIAL_LEVEL_UNKNOWN_FORBIDDEN: potential.level cannot be unknown')
+      g3pass = false
+    }
+    // G3.2: at least 1 advantage
+    if (!pt.advantages || pt.advantages.length === 0) {
+      errors.push('POTENTIAL_ADVANTAGE_REQUIRED: potential.advantages must have >= 1 item')
+      g3pass = false
+    }
+    // G3.3: at least 1 constraint
+    if (!pt.constraints || pt.constraints.length === 0) {
+      errors.push('POTENTIAL_CONSTRAINT_REQUIRED: potential.constraints must have >= 1 item')
+      g3pass = false
+    }
+    // G3.4: recovery days > 0
+    if (!pt.estimatedRecoveryDays || pt.estimatedRecoveryDays <= 0) {
+      errors.push('POTENTIAL_RECOVERY_DAYS_REQUIRED: potential.estimatedRecoveryDays must be > 0')
+      g3pass = false
+    }
     scores.potential = g3pass ? 1 : 0
   }
 
