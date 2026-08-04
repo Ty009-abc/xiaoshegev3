@@ -105,6 +105,20 @@ ci/**
 - 禁止仅背景的空海报导出
 - 禁止 `finalStrike` 映射为 `decision`
 - 禁止旧报告冒充新版报告
+- 禁止 `git commit --no-verify` 和 `git push --no-verify`
+
+## Git Hook 规则
+
+禁止使用以下命令绕过 Git Hook：
+- `git commit --no-verify`
+- `git push --no-verify`
+
+紧急事故必须绕过时，需创建 `EMERGENCY_BYPASS_APPROVAL.md`，包含：
+- 原因
+- 批准人
+- 时间
+- 补偿测试
+- 后续修复 Issue
 
 ---
 
