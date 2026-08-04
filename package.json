@@ -1,5 +1,12 @@
 {
   "dependencies": {
     "miniprogram-ci": "^2.1.31"
+  },
+  "scripts": {
+    "test:contracts": "node scripts/test-contracts.js",
+    "test:fixtures": "node scripts/test-fixtures.js",
+    "test:impact": "node scripts/test-impact.js",
+    "test:smoke": "node scripts/test-smoke.js",
+    "test:guardrails": "node scripts/test-guardrails.js"
   }
 }
