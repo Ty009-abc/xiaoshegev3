@@ -16,5 +16,8 @@
       "actionAdvice": "每月至少见2个不同行业的人，不带目的，只建立信息连接",
       "contentStatus": "FINAL"
     }
-  ]
+  ],
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "information-network — real desensitized sample"
 }

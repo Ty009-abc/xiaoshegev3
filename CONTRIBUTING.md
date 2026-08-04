@@ -25,6 +25,8 @@ scope: report | world-rule | poster | ci | docs
 - [ ] 影响分析非 BLOCKED
 - [ ] 真机验证通过
 - [ ] 未修改冻结模块（或已提交 FRZ_CHG_REQ）
+- [ ] 禁止使用 `git commit --no-verify` 或 `git push --no-verify`
+      （紧急绕过需 `EMERGENCY_BYPASS_APPROVAL.md`）
 
 ---
 

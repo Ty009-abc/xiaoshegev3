@@ -38,5 +38,8 @@
       "actionAdvice": "每个季度深入学习一个金融领域的基础知识",
       "contentStatus": "FINAL"
     }
-  ]
+  ],
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "season1-standard — real desensitized sample"
 }

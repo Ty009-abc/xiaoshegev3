@@ -27,5 +27,8 @@
       "actionAdvice": "每次发布内容后附加一个可选的付费选项，用数据验证你的价值",
       "contentStatus": "FINAL"
     }
-  ]
+  ],
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "season5-mechanism — real desensitized sample"
 }

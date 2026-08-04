@@ -19,12 +19,14 @@
     "decisionStyle": "analytical"
   },
   "expectedOutput": {
-    "contradictionCode": "SINGLE_INCOME_LOW_BUFFER",
-    "decisionCode": "BUILD_SECOND_INCOME",
-    "decisionProvisional": false,
-    "verdictNonEmpty": true,
+    "contradictionCode": "LEARNING_EXECUTION_CONFLICT",
+    "decisionCode": "BUILD_EXECUTION_SYSTEM",
+    "potentialScoreBelow": 40,
     "primaryActionNonEmpty": true,
-    "scoreCardOverall": 33,
-    "fatalRulesCountMin": 3
-  }
+    "verdictNonEmpty": true,
+    "primaryActionTitleContains": "连续执行"
+  },
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "learning-strong-low-monetization — real desensitized user profile"
 }

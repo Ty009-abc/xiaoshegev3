@@ -1,6 +1,8 @@
 #!/bin/bash
 # .git-hooks/pre-commit
-# Pre-commit checks: current-change, impact, syntax, contract tests
+# Pre-commit checks: current-change, whitespace, syntax, contract tests.
+# v2: Checks both working tree and staged files for .changes/current-change.json.
+#     Does NOT allow --no-verify bypass without EMERGENCY_BYPASS_APPROVAL.md.
 
 set -e
 ROOT_DIR="$(git rev-parse --show-toplevel)"
@@ -8,13 +10,45 @@ cd "$ROOT_DIR"
 
 echo "━━━ pre-commit guardrails ━━━"
 
-# 1. current-change.json exists
-if [ ! -f ".changes/current-change.json" ]; then
+# 1. Check .changes/current-change.json exists (staged OR working tree)
+CHANGE_FOUND=false
+
+# Check working tree
+if [ -f ".changes/current-change.json" ]; then
+  CHANGE_FOUND=true
+fi
+
+# Check staged (git cat-file for object existence)
+if git cat-file -e ":$(git rev-parse --git-path HEAD 2>/dev/null || echo 'HEAD')" 2>/dev/null; then
+  if git cat-file -e :".changes/current-change.json" 2>/dev/null; then
+    CHANGE_FOUND=true
+  fi
+fi
+
+# If not in working tree, check staged directly
+if [ "$CHANGE_FOUND" = false ]; then
+  if git ls-files --cached ".changes/current-change.json" | grep -q .; then
+    CHANGE_FOUND=true
+  fi
+fi
+
+if [ "$CHANGE_FOUND" = false ]; then
   echo "✗ .changes/current-change.json not found"
   echo "  Run: cp .changes/current-change.json.template .changes/current-change.json"
+  echo ""
+  echo "  Note: --no-verify bypass is FORBIDDEN without EMERGENCY_BYPASS_APPROVAL.md"
   exit 1
 fi
 echo "✓ current-change.json exists"
+
+# Verify it's valid JSON
+if [ -f ".changes/current-change.json" ]; then
+  if ! node -e "JSON.parse(require('fs').readFileSync('.changes/current-change.json','utf8'))" 2>/dev/null; then
+    echo "✗ .changes/current-change.json is not valid JSON"
+    exit 1
+  fi
+fi
+echo "✓ current-change.json is valid JSON"
 
 # 2. git diff --check (whitespace errors)
 if ! git diff --check --cached > /dev/null 2>&1; then

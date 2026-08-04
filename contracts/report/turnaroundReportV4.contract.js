@@ -126,10 +126,12 @@ function validateReportContract(report) {
   // 6. Contradiction
   if (rep.contradiction) {
     const cc = rep.contradiction
-    for (const f of CONTRADICTION_REQUIRED) {
-      if (!cc[f]) {
-        r.errors.push(`CONTRACT: contradiction missing "${f}"`)
-      }
+    // Support both "description" and "desc" field names (mapper uses "desc" for brevity)
+    const desc = cc.description || cc.desc
+    if (!cc.code) r.errors.push('CONTRACT: contradiction missing "code"')
+    if (!cc.title) r.errors.push('CONTRACT: contradiction missing "title"')
+    if (!desc || (typeof desc === 'string' && desc.trim() === '')) {
+      r.errors.push('CONTRACT: contradiction missing "description" (or desc)')
     }
     if (cc.code === 'FALLBACK') {
       r.warnings.push('CONTRACT: contradiction.code is FALLBACK — expected a specific code')

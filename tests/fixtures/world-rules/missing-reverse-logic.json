@@ -15,5 +15,8 @@
       "actionAdvice": "测试建议",
       "contentStatus": "DRAFT"
     }
-  ]
+  ],
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "missing-reverse-logic — real desensitized sample"
 }

@@ -16,5 +16,8 @@
       "actionAdvice": "",
       "contentStatus": "DRAFT"
     }
-  ]
+  ],
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "missing-underlying-logic — real desensitized sample"
 }

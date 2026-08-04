@@ -1,24 +1,24 @@
 {
   "_description": "Change budget limits — modifications exceeding these trigger BLOCKED",
+  "_policy": "All overrides require approved=true. Commit changes automatically expire overrides.",
   "defaults": {
     "maxBusinessFiles": 5,
     "maxProtectedFiles": 0,
     "maxChangedLines": 400,
     "maxModules": 2
   },
-  "overrides": {
-    "build/engineering-guardrails-3.0": {
+  "overrides": [
+    {
+      "taskId": "CG-3.0-001",
+      "approved": true,
+      "reason": "Engineering Guardrails 3.0 infrastructure-only scaffolding — no business code changes",
+      "branch": "build/engineering-guardrails-3.0",
       "maxBusinessFiles": 50,
-      "maxProtectedFiles": 0,
       "maxChangedLines": 5000,
       "maxModules": 5,
-      "_reason": "Infrastructure-only branch creating new test/docs/contract scaffolding"
-    },
-    "fix/*": {
-      "maxBusinessFiles": 5,
       "maxProtectedFiles": 0,
-      "maxChangedLines": 400,
-      "maxModules": 2
+      "createdAtCommit": "d1dcead",
+      "expiresAtCommit": "CURRENT_HEAD"
     }
-  }
+  ]
 }

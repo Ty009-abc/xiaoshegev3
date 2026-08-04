@@ -12,5 +12,8 @@
     "explanation": "同样买保险，懂条款的人保费降低40%",
     "width": 750,
     "height": 1334
-  }
+  },
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "cognitive-strike-poster-valid — real desensitized sample"
 }

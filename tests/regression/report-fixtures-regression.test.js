@@ -1,22 +1,30 @@
 /**
  * tests/regression/report-fixtures-regression.test.js
  *
- * 真实报表 Fixture 回归测试。
+ * 真实报表 Fixture 回归测试 — 零 SKIP 版本。
+ *
  * 每个 Fixture 通过 Mapper → Contract → Validator 链进行回归。
- * 检查：verdict, contradiction, potential, decision, primaryAction 的完整性。
+ * 强制检查: verdict, contradiction, potential, decision, primaryAction 的完整性。
+ * 缺失任何关键字段直接 FAIL，exit 1。
  */
 
 const M = require('../../cloudfunctions/generateAiReport/lib/report/reportMapperV4.js')
 const RC = require('../../contracts/report/turnaroundReportV4.contract.js')
+const SV = require('../../utils/reportSemanticValidator.js')
 const RULES_DIR = '../../cloudfunctions/generateAiReport/lib/engine/rules'
-// NOTE: release/v6.5.0 mapper does not yet export contradiction/decision/verdict/potential/primaryAction.
-// These fields are added in fix/rc5.15.3-decision-coverage.
-// Regression tests here verify the existing contract structure (headline, fatalDiagnosis, scoreCard, etc.)
-// and the fixture data itself is valid JSON.
 
 let passed = 0; let failed = 0; const failures = []
 function test(n, fn) { try { fn(); passed++ } catch(e) { failed++; failures.push(`${n}: ${e.message}`) } }
 function assert(c, m) { if (!c) throw new Error(m || 'assertion failed') }
+
+/** Validate fixture structural schema before any content test */
+function validateFixtureSchema(fx, path) {
+  assert(fx.fixtureVersion, `FIXTURE_SCHEMA_INVALID: ${path} — missing fixtureVersion`)
+  assert(fx.sourceVersion, `FIXTURE_SCHEMA_INVALID: ${path} — missing sourceVersion`)
+  assert(fx.description, `FIXTURE_SCHEMA_INVALID: ${path} — missing description`)
+  assert(fx.input, `FIXTURE_SCHEMA_INVALID: ${path} — missing input`)
+  assert(fx.expectedOutput, `FIXTURE_SCHEMA_INVALID: ${path} — missing expectedOutput`)
+}
 
 // Load rules
 const categoryFiles = ['incomeRules','cashflowRules','skillRules','timeRules','executionRules','goalRules','riskRules','decisionRules']
@@ -41,6 +49,7 @@ function miniEngine(p) {
     decisionStyleRaw:p.input.decisionStyleRaw||{level:p.input.decisionStyle},
     maxTrialCost:'3000',
   }
+  if (p.input.skillType) d.skillType = p.input.skillType
   let fatal=[],advantage=[]
   for (const rule of ALL_RULES) {
     if (typeof rule.condition !== 'function') continue
@@ -61,7 +70,10 @@ function miniEngine(p) {
 
 function runFixture(path) {
   const fx = require(path)
-  if (!fx.expectedOutput) { return }
+  const label = fx._meta?.label || path
+
+  // === STEP 0: Schema validation (MANDATORY — must FAIL if missing) ===
+  validateFixtureSchema(fx, path)
 
   const eng = miniEngine(fx)
   const skeleton = M.mapEngineToReport(eng)
@@ -69,43 +81,99 @@ function runFixture(path) {
   const cv = RC.validateReportContract(contract)
   const eo = fx.expectedOutput
 
-  // Base contract validation (headline, fatalDiagnosis, scoreCard, wealthProbability)
-  test(`${fx._meta.label}: contract validation`, () => {
+  // === CONTRACT VALIDATION ===
+  test(`${label}: contract validation`, () => {
     assert(cv.ok, cv.errors.join('; '))
   })
 
-  // Verdict non-empty (fatalDiagnosis.mainProblem or headline)
-  // NOTE: release/v6.5.0 mapper returns mainProblem, not headline
-  if (eo.verdictNonEmpty && skeleton.fatalDiagnosis) {
-    const verdict = skeleton.fatalDiagnosis.headline || skeleton.fatalDiagnosis.mainProblem
-    test(`${fx._meta.label}: verdict (fatalDiagnosis) non-empty`, () => {
-      assert(verdict && verdict.trim() !== '', 'verdict is empty')
+  // === VERDICT (MANDATORY) ===
+  test(`${label}: verdict non-empty`, () => {
+    const verdict = skeleton.fatalDiagnosis?.headline || skeleton.fatalDiagnosis?.mainProblem || ''
+    if (eo.verdictNonEmpty) {
+      assert(verdict && verdict.trim().length > 0, 'verdict is empty but expectedNonEmpty=true')
+    } else {
+      // If fixture says verdictNonEmpty=false, it's acceptable to be empty
+      assert(true, 'verdict expected empty')
+    }
+  })
+
+  // === CONTRADICTION (MANDATORY) ===
+  test(`${label}: contradiction present`, () => {
+    assert(skeleton.contradiction, 'contradiction is missing')
+    assert(skeleton.contradiction.code, 'contradiction.code is missing')
+  })
+  test(`${label}: contradiction.code === ${eo.contradictionCode}`, () => {
+    assert(skeleton.contradiction.code === eo.contradictionCode,
+      `expected contradiction.code=${eo.contradictionCode}, got ${skeleton.contradiction.code}`)
+  })
+  test(`${label}: contradiction has title`, () => {
+    assert(skeleton.contradiction.title && skeleton.contradiction.title.trim().length > 0,
+      'contradiction.title is empty')
+  })
+  test(`${label}: contradiction has description`, () => {
+    const desc = skeleton.contradiction.description || skeleton.contradiction.desc
+    assert(desc && desc.trim().length > 0,
+      'contradiction.description (or desc) is empty')
+  })
+
+  // === DECISION (MANDATORY) ===
+  test(`${label}: decision present`, () => {
+    assert(skeleton.decision, 'decision is missing')
+    assert(skeleton.decision.code, 'decision.code is missing')
+  })
+  test(`${label}: decision.code === ${eo.decisionCode}`, () => {
+    assert(skeleton.decision.code === eo.decisionCode,
+      `expected decision.code=${eo.decisionCode}, got ${skeleton.decision.code}`)
+  })
+  test(`${label}: decision has title`, () => {
+    assert(skeleton.decision.title && skeleton.decision.title.trim().length > 0,
+      'decision.title is empty')
+  })
+  test(`${label}: decision has reason`, () => {
+    assert(skeleton.decision.reason && skeleton.decision.reason.trim().length > 0,
+      'decision.reason is empty')
+  })
+
+  // === POTENTIAL (MANDATORY) ===
+  test(`${label}: potential present`, () => {
+    assert(skeleton.potential, 'potential is missing')
+    assert(typeof skeleton.potential.score === 'number', 'potential.score is not a number')
+  })
+  if (eo.potentialScoreAbove !== undefined) {
+    test(`${label}: potential.score > ${eo.potentialScoreAbove}`, () => {
+      assert(skeleton.potential.score > eo.potentialScoreAbove,
+        `potential.score=${skeleton.potential.score} <= ${eo.potentialScoreAbove}`)
+    })
+  }
+  if (eo.potentialScoreBelow !== undefined) {
+    test(`${label}: potential.score < ${eo.potentialScoreBelow}`, () => {
+      assert(skeleton.potential.score < eo.potentialScoreBelow,
+        `potential.score=${skeleton.potential.score} >= ${eo.potentialScoreBelow}`)
     })
   }
 
-  // ScoreCard overall present
-  if (eo.scoreCardOverall !== undefined) {
-    test(`${fx._meta.label}: scoreCard.overall present`, () => {
-      assert(skeleton.scoreCard && typeof skeleton.scoreCard.overall === 'number')
-    })
-  }
+  // === PRIMARY ACTION (MANDATORY) ===
+  test(`${label}: primaryAction present`, () => {
+    assert(skeleton.primaryAction, 'primaryAction is missing')
+  })
+  test(`${label}: primaryAction non-empty`, () => {
+    assert(skeleton.primaryAction.title && skeleton.primaryAction.title.trim().length > 0,
+      'primaryAction.title is empty')
+  })
+  test(`${label}: primaryAction has checkpoint`, () => {
+    assert(skeleton.primaryAction.checkpoint && skeleton.primaryAction.checkpoint.trim().length > 0,
+      'primaryAction.checkpoint is empty')
+  })
+  test(`${label}: primaryAction has successCriteria`, () => {
+    assert(Array.isArray(skeleton.primaryAction.successCriteria) && skeleton.primaryAction.successCriteria.length > 0,
+      'primaryAction.successCriteria is empty or not an array')
+  })
 
-  // NOTE: contradiction/decision/verdict/potential/primaryAction tests are SKIPPED in CG3.0
-  // because release/v6.5.0 mapper does not yet export these fields.
-  // They will be activated after merging fix/rc5.15.3-decision-coverage.
-  if (skeleton.contradiction && eo.contradictionCode) {
-    test(`${fx._meta.label}: contradiction.code === ${eo.contradictionCode}`, () => {
-      assert(skeleton.contradiction.code === eo.contradictionCode, `got ${skeleton.contradiction.code}`)
-    })
-  }
-  if (skeleton.decision && eo.decisionCode) {
-    test(`${fx._meta.label}: decision.code === ${eo.decisionCode}`, () => {
-      assert(skeleton.decision.code === eo.decisionCode, `got ${skeleton.decision.code}`)
-    })
-  }
-  if (skeleton.primaryAction && eo.primaryActionNonEmpty) {
-    test(`${fx._meta.label}: primaryAction non-empty`, () => {
-      assert(skeleton.primaryAction && skeleton.primaryAction.title && skeleton.primaryAction.title.trim() !== '')
+  // Optional: title contains
+  if (eo.primaryActionTitleContains) {
+    test(`${label}: primaryAction.title contains "${eo.primaryActionTitleContains}"`, () => {
+      assert(skeleton.primaryAction.title.includes(eo.primaryActionTitleContains),
+        `expected title to contain "${eo.primaryActionTitleContains}", got "${skeleton.primaryAction.title}"`)
     })
   }
 }

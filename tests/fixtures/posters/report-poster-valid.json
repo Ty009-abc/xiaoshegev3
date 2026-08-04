@@ -15,8 +15,13 @@
     "potential": {
       "score": 65,
       "level": "moderate",
-      "advantages": ["技能变现已验证", "市场已付费验证"],
-      "constraints": ["执行持续性差"]
+      "advantages": [
+        "技能变现已验证",
+        "市场已付费验证"
+      ],
+      "constraints": [
+        "执行持续性差"
+      ]
     },
     "decision": {
       "code": "BUILD_SECOND_INCOME",
@@ -26,10 +31,16 @@
     "primaryAction": {
       "title": "7天内完成一个可售卖副业样本",
       "checkpoint": "7天内有一个可被外部人评估的样本",
-      "successCriteria": ["至少1个外部人对样本给出了反馈", "明确了报价和服务边界"]
+      "successCriteria": [
+        "至少1个外部人对样本给出了反馈",
+        "明确了报价和服务边界"
+      ]
     },
     "emotionClosing": "赚钱是短期行为，建立系统是长期资产。",
     "width": 750,
     "height": 1334
-  }
+  },
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "report-poster-valid — real desensitized sample"
 }

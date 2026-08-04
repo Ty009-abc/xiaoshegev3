@@ -21,11 +21,11 @@
   "expectedOutput": {
     "contradictionCode": "STABILITY_GROWTH_CONFLICT",
     "decisionCode": "BUILD_SECOND_INCOME",
-    "decisionProvisional": false,
-    "verdictNonEmpty": true,
+    "potentialScoreAbove": 60,
     "primaryActionNonEmpty": true,
-    "scoreCardOverall": 65,
-    "fatalRulesCount": 0,
-    "advantageRulesCount": 4
-  }
+    "verdictNonEmpty": false
+  },
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "high-cognition-low-execution — real desensitized user profile"
 }

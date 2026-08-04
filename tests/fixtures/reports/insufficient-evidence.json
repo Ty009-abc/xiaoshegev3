@@ -12,15 +12,33 @@
   "input": {
     "lifeStage": "early_career",
     "primaryGoal": "financial_independence",
-    "incomeStructureRaw": { "level": null },
-    "monthlySurplusRaw": { "level": null },
-    "safetyMonthsRaw": { "level": null },
-    "debtPressureRaw": { "level": null },
-    "monetizableSkillRaw": { "level": null },
-    "skillValidationRaw": { "level": null },
-    "weeklyTimeRaw": { "level": null },
-    "pastAttemptStageRaw": { "level": null },
-    "decisionStyleRaw": { "level": null },
+    "incomeStructureRaw": {
+      "level": null
+    },
+    "monthlySurplusRaw": {
+      "level": null
+    },
+    "safetyMonthsRaw": {
+      "level": null
+    },
+    "debtPressureRaw": {
+      "level": null
+    },
+    "monetizableSkillRaw": {
+      "level": null
+    },
+    "skillValidationRaw": {
+      "level": null
+    },
+    "weeklyTimeRaw": {
+      "level": null
+    },
+    "pastAttemptStageRaw": {
+      "level": null
+    },
+    "decisionStyleRaw": {
+      "level": null
+    },
     "maxTrialCost": null
   },
   "expectedOutput": {
@@ -33,5 +51,8 @@
     "primaryActionIsEvidenceCollection": true,
     "primaryActionNotMonetization": true,
     "scoreCardOverall": "<= 40"
-  }
+  },
+  "fixtureVersion": "1.0.0",
+  "sourceVersion": "v6.5.0",
+  "description": "Real insufficient evidence profile — input has null values requiring COLLECT_MORE_EVIDENCE"
 }
