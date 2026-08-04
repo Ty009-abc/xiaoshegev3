@@ -62,12 +62,14 @@ fi
 
 echo "📋 当前分支: $BRANCH"
 
-if [[ "$BRANCH" =~ ^(fix/|release/) ]]; then
+if [[ "$BRANCH" =~ ^(fix/|release/|build/) ]]; then
   echo -e "${GREEN}   ✅ 分支命名符合规范${NC}"
-else
-  echo -e "${RED}   ❌ 分支不在 fix/ 或 release/ 系列${NC}"
-  echo "      当前: $BRANCH"
-  exit 1
+  # build/ branches: preview-only, no upload
+  if [[ "$BRANCH" =~ ^build/ ]] && [ "$MODE" = "--upload" ]; then
+    echo -e "${RED}   ❌ build/ 分支禁止 upload${NC}"
+    echo "      build 分支为基础设施分支，不产生业务预览"
+    exit 1
+  fi
 fi
 
 # ── 2. 工作区检查 ──
