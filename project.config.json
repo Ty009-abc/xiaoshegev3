@@ -1,5 +1,5 @@
 {
-  "description": "珠澳小事哥 · 认知操作系统 v3.0",
+  "description": "\u73e0\u6fb3\u5c0f\u4e8b\u54e5 \u00b7 \u8ba4\u77e5\u64cd\u4f5c\u7cfb\u7edf v3.0",
   "packOptions": {
     "ignore": [
       {
@@ -29,6 +29,74 @@
       {
         "type": "glob",
         "value": "cloudfunctions/**/*.js"
+      },
+      {
+        "type": "glob",
+        "value": "backup/**"
+      },
+      {
+        "type": "glob",
+        "value": "tests/**"
+      },
+      {
+        "type": "glob",
+        "value": "scripts/**"
+      },
+      {
+        "type": "glob",
+        "value": "docs/**"
+      },
+      {
+        "type": "glob",
+        "value": ".audit-reports/**"
+      },
+      {
+        "type": "glob",
+        "value": "**/*.test.js"
+      },
+      {
+        "type": "glob",
+        "value": "**/*.spec.js"
+      },
+      {
+        "type": "glob",
+        "value": "preview-*.png"
+      },
+      {
+        "type": "glob",
+        "value": "release/**"
+      },
+      {
+        "type": "glob",
+        "value": "package-lock.json"
+      },
+      {
+        "type": "glob",
+        "value": ".changes/**"
+      },
+      {
+        "type": "glob",
+        "value": ".git-hooks/**"
+      },
+      {
+        "type": "glob",
+        "value": "EMERGENCY_BYPASS_APPROVAL.md"
+      },
+      {
+        "type": "glob",
+        "value": "TECHNICAL_AUDIT_REPORT.md"
+      },
+      {
+        "type": "glob",
+        "value": "*.backup"
+      },
+      {
+        "type": "glob",
+        "value": "*.bak"
+      },
+      {
+        "type": "glob",
+        "value": "*.old"
       }
     ],
     "include": []
