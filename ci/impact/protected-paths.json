@@ -1,0 +1,16 @@
+{
+  "_description": "Protected paths that require FROZEN_MODULE_CHANGE_REQUEST",
+  "protectedPaths": [
+    "share/PosterPrimitives.js",
+    "share/PosterService.js",
+    "core/turnaround-intelligence/",
+    "core/turnaround-os/",
+    "ci/",
+    "cloudfunctions/generateAiReport/lib/report/reportContractV4.js"
+  ],
+  "autoBlock": [
+    "pages/report-detail/report-detail.js",
+    "pages/profile/profile.js",
+    "pages/index/index.js"
+  ]
+}

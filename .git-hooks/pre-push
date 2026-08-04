@@ -1,0 +1,24 @@
+#!/bin/bash
+# .git-hooks/pre-push
+# Pre-push checks: full contract + fixture + semantic + smoke
+
+set -e
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+echo "━━━ pre-push guardrails ━━━"
+
+# 1. Full contract tests
+echo "Contract tests..."
+node scripts/test-contracts.js || { echo "✗ Contract tests failed"; exit 1; }
+
+# 2. Fixture regression
+echo "Fixture regression..."
+node scripts/test-fixtures.js || { echo "✗ Fixture regression failed"; exit 1; }
+
+# 3. Smoke tests
+echo "Smoke tests..."
+node scripts/test-smoke.js || { echo "✗ Smoke tests failed"; exit 1; }
+
+echo "━━━ pre-push passed ━━━"
+exit 0

@@ -1,0 +1,24 @@
+{
+  "_description": "Change budget limits — modifications exceeding these trigger BLOCKED",
+  "defaults": {
+    "maxBusinessFiles": 5,
+    "maxProtectedFiles": 0,
+    "maxChangedLines": 400,
+    "maxModules": 2
+  },
+  "overrides": {
+    "build/engineering-guardrails-3.0": {
+      "maxBusinessFiles": 50,
+      "maxProtectedFiles": 0,
+      "maxChangedLines": 5000,
+      "maxModules": 5,
+      "_reason": "Infrastructure-only branch creating new test/docs/contract scaffolding"
+    },
+    "fix/*": {
+      "maxBusinessFiles": 5,
+      "maxProtectedFiles": 0,
+      "maxChangedLines": 400,
+      "maxModules": 2
+    }
+  }
+}

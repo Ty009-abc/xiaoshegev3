@@ -1,0 +1,47 @@
+#!/bin/bash
+# .git-hooks/pre-commit
+# Pre-commit checks: current-change, impact, syntax, contract tests
+
+set -e
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+echo "━━━ pre-commit guardrails ━━━"
+
+# 1. current-change.json exists
+if [ ! -f ".changes/current-change.json" ]; then
+  echo "✗ .changes/current-change.json not found"
+  echo "  Run: cp .changes/current-change.json.template .changes/current-change.json"
+  exit 1
+fi
+echo "✓ current-change.json exists"
+
+# 2. git diff --check (whitespace errors)
+if ! git diff --check --cached > /dev/null 2>&1; then
+  echo "✗ whitespace errors found"
+  git diff --check --cached
+  exit 1
+fi
+echo "✓ no whitespace errors"
+
+# 3. JS syntax check on staged JS files
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACM | grep '\.js$' || true)
+for f in $STAGED_JS; do
+  if [ -f "$f" ]; then
+    if ! node --check "$f" 2>/dev/null; then
+      echo "✗ syntax error in $f"
+      exit 1
+    fi
+  fi
+done
+echo "✓ JS syntax ok"
+
+# 4. Contract tests on staged contracts
+STAGED_CONTRACTS=$(git diff --cached --name-only --diff-filter=ACM | grep '^contracts/' || true)
+if [ -n "$STAGED_CONTRACTS" ]; then
+  echo "Running contract tests..."
+  node scripts/test-contracts.js || exit 1
+fi
+
+echo "━━━ pre-commit passed ━━━"
+exit 0

@@ -1,0 +1,45 @@
+{
+  "_description": "Module-to-path mapping for impact analysis",
+  "modules": {
+    "contracts": {
+      "paths": ["contracts/"],
+      "tests": ["tests/contracts/"],
+      "freezeLevel": 2
+    },
+    "report-engine": {
+      "paths": ["cloudfunctions/generateAiReport/lib/engine/", "cloudfunctions/generateAiReport/lib/report/reportTypes.js"],
+      "tests": ["tests/regression/report-fixtures-regression.test.js"],
+      "freezeLevel": 1
+    },
+    "report-mapper": {
+      "paths": ["cloudfunctions/generateAiReport/lib/report/reportMapperV4.js"],
+      "tests": ["tests/regression/report-fixtures-regression.test.js"],
+      "freezeLevel": 1
+    },
+    "normalizer": {
+      "paths": ["utils/reportNormalizerV4.js"],
+      "tests": ["tests/regression/report-fixtures-regression.test.js"],
+      "freezeLevel": 0
+    },
+    "poster": {
+      "paths": ["share/PosterPrimitives.js", "share/PosterService.js", "share/posters/"],
+      "tests": ["tests/regression/poster-data-regression.test.js"],
+      "freezeLevel": 3
+    },
+    "core-intelligence": {
+      "paths": ["core/turnaround-intelligence/"],
+      "tests": [],
+      "freezeLevel": 3
+    },
+    "pages": {
+      "paths": ["pages/"],
+      "tests": [],
+      "freezeLevel": 0
+    },
+    "ci": {
+      "paths": ["ci/"],
+      "tests": [],
+      "freezeLevel": 3
+    }
+  }
+}
