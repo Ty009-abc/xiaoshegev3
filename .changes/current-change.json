@@ -1,0 +1,31 @@
+{
+  "taskId": "RC6.0-DESTINY-ENGINE-001",
+  "baseCommit": "1fa7f27",
+  "branch": "feature/rc6.0-destiny-engine",
+  "problem": "报告缺少命运模拟器和认知宣判 — 需双路径对比未来模拟",
+  "allowedFiles": [
+    "cloudfunctions/generateAiReport/lib/report/reportMapperV4.js",
+    "cloudfunctions/generateAiReport/lib/report/reportContractV4.js",
+    "cloudfunctions/generateAiReport/lib/report/reportTypes.js",
+    "utils/reportDestinySimulator.js",
+    "utils/cognitiveVerdictBuilder.js",
+    "utils/reportV6Migration.js",
+    "utils/reportSemanticValidator.js",
+    "utils/reportNormalizerV4.js",
+    "tests/rc6-destiny-engine.test.js",
+    ".changes/current-change.json"
+  ],
+  "forbiddenFiles": [
+    "pages/report-detail/report-detail.wxml",
+    "pages/report-detail/report-detail.wxss",
+    "pages/report-detail/report-detail.js",
+    "share/**",
+    "ci/**",
+    "app.js",
+    "app.wxss",
+    "app.json"
+  ],
+  "contractsAffected": ["report/turnaroundReportV4"],
+  "requiredTests": ["tests/rc6-destiny-engine.test.js"],
+  "rollbackPlan": "git checkout release/v6.5.0 && git branch -D feature/rc6.0-destiny-engine"
+}

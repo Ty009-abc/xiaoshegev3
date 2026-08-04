@@ -3,6 +3,8 @@
  *
  * 职责：Engine Result → Report Contract 的数据转换。
  * 只做数据转换，禁止生成文案。文案由 AI Prompt 基于 contract 字段生成。
+ *
+ * RC6.0: 新增 destinySimulator + cognitiveVerdict
  */
 
 const {
@@ -13,6 +15,22 @@ const {
 } = require('./reportTypes')
 
 const { createReportSkeleton } = require('./reportContractV4')
+
+// RC6.0: Destiny engine — lazy require to avoid circular dep
+let _DestinySim = null
+function getDestinySim() {
+  if (!_DestinySim) {
+    _DestinySim = require('../../../../utils/reportDestinySimulator')
+  }
+  return _DestinySim
+}
+let _CogVerdict = null
+function getCogVerdict() {
+  if (!_CogVerdict) {
+    _CogVerdict = require('../../../../utils/cognitiveVerdictBuilder')
+  }
+  return _CogVerdict
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Wealth Probability 未来预测
@@ -491,6 +509,30 @@ function mapEngineToReport(engineResult) {
   // 13. finalStrike
   skeleton.finalStrike = computeFinalStrike(engineResult)
 
+  // 14. RC6.0: destinySimulator
+  try {
+    var DestinySim = getDestinySim()
+    skeleton.destinySimulator = DestinySim.computeDestinySimulator(
+      profile,
+      { scoreCard: scores, fatalRules: engineResult.fatalRules, advantageRules: engineResult.advantageRules, matchedRules: engineResult.matchedRules }
+    )
+  } catch (e) {
+    console.error('[reportMapperV4] computeDestinySimulator failed:', e.message)
+    skeleton.destinySimulator = null
+  }
+
+  // 15. RC6.0: cognitiveVerdict
+  try {
+    var CogVerdict = getCogVerdict()
+    skeleton.cognitiveVerdict = CogVerdict.buildCognitiveVerdict(
+      { scoreCard: scores, fatalRules: engineResult.fatalRules, advantageRules: engineResult.advantageRules },
+      skeleton.destinySimulator || {}
+    )
+  } catch (e) {
+    console.error('[reportMapperV4] buildCognitiveVerdict failed:', e.message)
+    skeleton.cognitiveVerdict = null
+  }
+
   return skeleton
 }
 
@@ -508,4 +550,13 @@ module.exports = {
   computeIdentityUpgrade,
   computeFinalStrike,
   deriveWealthStage,
+  // RC6.0
+  computeDestinySimulator: function(profile, reportContext) {
+    var DestinySim = require('../../../../utils/reportDestinySimulator')
+    return DestinySim.computeDestinySimulator(profile, reportContext)
+  },
+  computeCognitiveVerdict: function(reportContext, destinySimulator) {
+    var CogVerdict = require('../../../../utils/cognitiveVerdictBuilder')
+    return CogVerdict.buildCognitiveVerdict(reportContext, destinySimulator)
+  },
 }

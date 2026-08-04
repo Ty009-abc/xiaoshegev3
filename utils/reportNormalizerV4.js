@@ -130,6 +130,12 @@ function normalizeDiagnosticV4Response(raw) {
     inner = inner.data
   }
 
+  // RC6.0: Ensure V6 fields (destiny + cognitive) exist, migrate from old potential if available
+  var V6 = require('./reportV6Migration')
+  if (inner.report) {
+    V6.ensureV6Fields(inner.report)
+  }
+
   if (inner.reportType === 'diagnostic_v4' && inner.report) {
     return buildOk(inner)
   }
@@ -361,6 +367,8 @@ function buildDiagnosticV4ViewModel(report) {
   var iu = report.identityUpgrade || {}
   var wp = report.wealthProbability || {}
   var fs = report.finalStrike || {}
+  var ds = report.destinySimulator || {}
+  var cv = report.cognitiveVerdict || {}
 
   // ── 财富路径 ──
   var normalizedPaths = wps.map(normalizeWealthPath)
@@ -470,6 +478,31 @@ function buildDiagnosticV4ViewModel(report) {
       sentence: fs.sentence || '',
       shareTitle: fs.shareTitle || '',
     },
+
+    // RC6.0: destinySimulator
+    destinySimulator: {
+      currentIndex: ds.currentIndex || sc.overall || 50,
+      currentLevel: ds.currentLevel || 'medium',
+      currentLevelLabel: ds.currentLevelLabel || '中等',
+      horizonDays: ds.horizonDays || 365,
+      repairCycleDays: ds.repairCycleDays || 90,
+      baselinePath: ds.baselinePath || { title: '', summary: '', systemProgress: 0, riskLevel: '', riskLabel: '', outcome: '' },
+      actionPath: ds.actionPath || { title: '', summary: '', systemProgress: 0, riskLevel: '', riskLabel: '', projectedIndex: 0, outcome: '' },
+      strengths: ds.strengths || [],
+      constraints: ds.constraints || [],
+      turningPoints: ds.turningPoints || [],
+      keyVariable: ds.keyVariable || '',
+      confidence: ds.confidence || 'rule_based',
+    },
+
+    // RC6.0: cognitiveVerdict
+    cognitiveVerdict: {
+      title: cv.title || '认知宣判',
+      statement: cv.statement || '',
+      explanation: cv.explanation || '',
+      actionAnchor: cv.actionAnchor || '',
+      shareQuote: cv.shareQuote || '',
+    },
   }
 
   // ── leak scan (dev only) ──
@@ -496,6 +529,10 @@ function mapDiagnosticV4ToPoster(vm) {
       buildDaySummary(vm.actionTimeline[2]),
       buildDaySummary(vm.actionTimeline[4]),
     ].filter(Boolean),
+
+    // RC6.0: destiny + cognitive to poster
+    destinySimulator: vm.destinySimulator || null,
+    cognitiveVerdict: vm.cognitiveVerdict || null,
   }
 }
 

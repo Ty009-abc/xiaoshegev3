@@ -49,6 +49,7 @@ function createReportContract(engineResult, filledReport) {
  */
 function createReportSkeleton() {
   return {
+    // V4 fields
     headline: null,
     wealthStage: null,
     fatalDiagnosis: null,
@@ -62,6 +63,10 @@ function createReportSkeleton() {
     stopDoing: null,
     identityUpgrade: null,
     finalStrike: null,
+
+    // RC6.0: Destiny Engine
+    destinySimulator: null,
+    cognitiveVerdict: null,
   }
 }
 

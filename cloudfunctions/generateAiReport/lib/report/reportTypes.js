@@ -72,6 +72,9 @@ const REPORT_SECTIONS = [
   'stopDoing',
   'identityUpgrade',
   'finalStrike',
+  // RC6.0
+  'destinySimulator',
+  'cognitiveVerdict',
 ]
 
 // ═══════════════════════════════════════════════════════════════
