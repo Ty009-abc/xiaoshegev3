@@ -481,5 +481,5 @@
   </block>
 
   <!-- ═══ Canvas 海报 ═══ -->
-  <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></canvas>
+  <canvas id="posterCanvas" type="2d" class="poster-canvas-offscreen" style="width:{{posterCanvasWidth}}px;height:{{posterCanvasHeight}}px;" />
 </view>

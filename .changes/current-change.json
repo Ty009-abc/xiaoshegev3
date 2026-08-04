@@ -1,18 +1,16 @@
 {
-  "taskId": "RC6.0-POSTER-RUNTIME-001",
-  "baseCommit": "3bf04de",
+  "taskId": "RC6.0-CANVAS-2D-MIGRATION",
+  "baseCommit": "76ae176",
   "branch": "fix/rc6.0-poster-runtime",
-  "problem": "海报需渲染RC6.0新增的05命运模拟器和06认知宣判卡片",
+  "problem": "P0: Canvas 1.0 API已废弃，Native渲染桥接中断导致海报空白 — 完整迁移至Canvas 2D",
   "allowedFiles": [
     "pages/report-detail/report-detail.js",
-    ".changes/current-change.json"
-  ],
-  "forbiddenFiles": [
     "pages/report-detail/report-detail.wxml",
     "pages/report-detail/report-detail.wxss",
-    "share/**"
+    ".changes/current-change.json"
   ],
+  "forbiddenFiles": [],
   "contractsAffected": [],
   "requiredTests": ["node syntax check pages/report-detail/report-detail.js"],
-  "rollbackPlan": "git checkout fix/rc6.0-report-runtime && git branch -D fix/rc6.0-poster-runtime"
+  "rollbackPlan": "git checkout 76ae176 -- pages/report-detail/"
 }
