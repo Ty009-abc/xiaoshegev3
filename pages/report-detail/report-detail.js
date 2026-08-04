@@ -32,6 +32,10 @@ Page({
     // V4 ViewModel
     viewModel: null,
 
+    // RC6.0: Destiny Simulator + Cognitive Verdict cards
+    destinySimulator: null,
+    cognitiveVerdict: null,
+
     // V3 sections (legacy)
     sections: [],
 
@@ -199,7 +203,69 @@ Page({
     })
 
     this.setData({ loading: false, viewModel: vm })
+    this._prepareV6Cards(vm)
     this._stopLoadingCarousel()
+  },
+
+  /* ═══════════════════════════════════
+     RC6.0: Prepare 05/06 cards with safe fallback
+     ═══════════════════════════════════ */
+  _prepareV6Cards(vm) {
+    // ── 05 命运模拟器 ──
+    var sim = vm.destinySimulator || {}
+
+    var destinySimulator = {
+      currentIndex: Number.isFinite(sim.currentIndex) ? sim.currentIndex : 0,
+      currentLevelLabel: sim.currentLevelLabel || '待评估',
+      horizonDays: sim.horizonDays || 365,
+      repairCycleDays: sim.repairCycleDays || 90,
+
+      baselinePath: {
+        title: (sim.baselinePath && sim.baselinePath.title) || '继续保持现状',
+        riskLabel: (sim.baselinePath && sim.baselinePath.riskLabel) || '待评估',
+        systemProgress: (sim.baselinePath && typeof sim.baselinePath.systemProgress === 'number') ? sim.baselinePath.systemProgress : 0,
+        summary: (sim.baselinePath && sim.baselinePath.summary) || '',
+        outcome: (sim.baselinePath && sim.baselinePath.outcome) || '如果继续沿用当前方式，收入结构大概率不会出现明显变化。',
+      },
+
+      actionPath: {
+        title: (sim.actionPath && sim.actionPath.title) || '执行翻身方案',
+        riskLabel: (sim.actionPath && sim.actionPath.riskLabel) || '待评估',
+        projectedIndex: (sim.actionPath && typeof sim.actionPath.projectedIndex === 'number') ? sim.actionPath.projectedIndex : (sim.currentIndex || 0),
+        summary: (sim.actionPath && sim.actionPath.summary) || '',
+        outcome: (sim.actionPath && sim.actionPath.outcome) || '完成关键动作后，收入结构有机会逐步改善。',
+      },
+
+      turningPoints: Array.isArray(sim.turningPoints) ? sim.turningPoints : [],
+      keyVariable: sim.keyVariable || '建立可持续执行系统',
+
+      // 风险颜色标签
+      baselineRiskClass: this._riskClass((sim.baselinePath && sim.baselinePath.riskLevel) || 'high'),
+      actionRiskClass: this._riskClass((sim.actionPath && sim.actionPath.riskLevel) || 'medium'),
+    }
+
+    // 确保 projectedIndex >= currentIndex
+    if (destinySimulator.actionPath.projectedIndex < destinySimulator.currentIndex) {
+      destinySimulator.actionPath.projectedIndex = destinySimulator.currentIndex
+    }
+
+    // ── 06 认知宣判 ──
+    var cog = vm.cognitiveVerdict || {}
+    var cognitiveVerdict = {
+      statement: cog.statement || '你的翻身条件已在积累，但仍被一个关键缺口限制。',
+      explanation: cog.explanation || '持续调整收入结构和执行系统，翻开新的发展路径。',
+      actionAnchor: cog.actionAnchor || '把能量集中到一条有验证的方向。',
+    }
+
+    this.setData({
+      destinySimulator: destinySimulator,
+      cognitiveVerdict: cognitiveVerdict,
+    })
+  },
+
+  _riskClass(level) {
+    var map = { high: 'risk-high', medium: 'risk-medium', low: 'risk-low', critical: 'risk-critical', very_low: 'risk-low' }
+    return map[level] || 'risk-medium'
   },
 
   /* ═══════════════════════════════════

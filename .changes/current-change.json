@@ -1,31 +1,24 @@
 {
-  "taskId": "RC6.0-DESTINY-ENGINE-001",
-  "baseCommit": "1fa7f27",
-  "branch": "feature/rc6.0-destiny-engine",
-  "problem": "报告缺少命运模拟器和认知宣判 — 需双路径对比未来模拟",
+  "taskId": "RC6.0-REPORT-RUNTIME-001",
+  "baseCommit": "1f37294",
+  "branch": "fix/rc6.0-report-runtime",
+  "problem": "Part 1 完成了数据底座，需要在页面运行时展示 05 命运模拟器 和 06 认知宣判",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/report/reportMapperV4.js",
-    "cloudfunctions/generateAiReport/lib/report/reportContractV4.js",
-    "cloudfunctions/generateAiReport/lib/report/reportTypes.js",
-    "utils/reportDestinySimulator.js",
-    "utils/cognitiveVerdictBuilder.js",
-    "utils/reportV6Migration.js",
-    "utils/reportSemanticValidator.js",
-    "utils/reportNormalizerV4.js",
-    "tests/rc6-destiny-engine.test.js",
+    "pages/report-detail/report-detail.js",
+    "pages/report-detail/report-detail.wxml",
+    "pages/report-detail/report-detail.wxss",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
-    "pages/report-detail/report-detail.wxml",
-    "pages/report-detail/report-detail.wxss",
-    "pages/report-detail/report-detail.js",
     "share/**",
     "ci/**",
     "app.js",
     "app.wxss",
-    "app.json"
+    "app.json",
+    "utils/reportDestinySimulator.js",
+    "utils/cognitiveVerdictBuilder.js"
   ],
-  "contractsAffected": ["report/turnaroundReportV4"],
-  "requiredTests": ["tests/rc6-destiny-engine.test.js"],
-  "rollbackPlan": "git checkout release/v6.5.0 && git branch -D feature/rc6.0-destiny-engine"
+  "contractsAffected": [],
+  "requiredTests": ["node syntax check on report-detail.js"],
+  "rollbackPlan": "git checkout fix/rc6.0-destiny-engine && git branch -D fix/rc6.0-report-runtime"
 }
