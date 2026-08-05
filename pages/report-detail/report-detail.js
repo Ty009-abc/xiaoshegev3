@@ -590,12 +590,135 @@ Page({
     var self = this
 
     return (async function () {
-    var W = 750
-    var safeX = 40
-    var cardW = 670
-    var leftW = 112
-    var contentX = safeX + leftW + 28
-    var contentRight = safeX + cardW - 28
+
+    // ══════════════════════════════════════════════
+    //  RC6.1 Poster Design System
+    // ══════════════════════════════════════════════
+    var DS = {
+      // ── Typography Tokens ──
+      T: {
+        PLATE:       { size: 42, weight: '700', lh: 48 },
+        PLATE_SUB:   { size: 26, weight: '600', lh: 32 },
+        CARD_TITLE:  { size: 26, weight: '600', lh: 34 },
+        SCORE:       { size: 30, weight: '700', lh: 36 },
+        SCORE_LABEL: { size: 20, weight: '600', lh: 26 },
+        SECTION:     { size: 20, weight: '600', lh: 28 },
+        SECTION:     { size: 20, weight: '600', lh: 28 },
+        BODY:        { size: 22, weight: '400', lh: 33 },
+        BODY_SM:     { size: 20, weight: '400', lh: 30 },
+        LABEL:       { size: 18, weight: '600', lh: 24 },
+        BADGE:       { size: 16, weight: '700', lh: 20 },
+        CAPTION:     { size: 17, weight: '400', lh: 22 },
+        CARD_NO:     { size: 52, weight: '700', lh: 56 },
+        CARD_ICON:   { size: 40, weight: '400', lh: 46 },
+        QR_TITLE:    { size: 34, weight: '600', lh: 40 },
+        QR_SUB:      { size: 28, weight: '600', lh: 34 },
+        QR_TAG:      { size: 15, weight: '400', lh: 20 },
+        FOOTER:      { size: 22, weight: '600', lh: 28 },
+        HEADER_RULE: { size: 26, weight: '600', lh: 32 },
+      },
+      // ── Spacing Tokens ──
+      S: {
+        CARD_PAD_TOP:    28,
+        CARD_PAD_BOT:    32,
+        TITLE_TO_BODY:   14,
+        SECTION_GAP:     18,
+        PARAGRAPH_GAP:   14,
+        ITEM_GAP:        10,
+        CARD_GAP:        16,
+        QR_GAP:          36,
+        FOOTER_GAP:      18,
+        DIVIDER_INSET:   0,
+        BODY_INSET:      16,
+      },
+      // ── Layout ──
+      L: {
+        W: 750, SAFE: 40, CARD_W: 670, LEFT_W: 112,
+        CARD_R: 16, CARD_BORDER: 1.5,
+        HEADER_H: 180, CTA_H: 150, FOOTER_H: 80,
+        QR_SIZE: 94, QR_R: 18, QR_PAD: 20,
+        CTA_R: 24, GLOW_ALPHA: 0.22,
+      },
+      // ── Card Minimum Heights ──
+      CARD_MIN: {
+        '01': 140, '02': 150, '03': 150, '04': 140,
+        'destiny': 420, 'cogVerdict': 180,
+      },
+      // ── Colors ──
+      CLR: {
+        BG:           '#070b20',
+        CARD_BG:      'rgba(8,14,32,0.88)',
+        CARD_GLOW:    '#7b3cff',
+        TEXT_WHITE:   '#ffffff',
+        TEXT_ACCENT:  '#ff5ca8',
+        RULE:         'rgba(255,92,168,0.45)',
+        DIVIDER:      'rgba(255,255,255,0.08)',
+        BODY:         '#eaf0ff',
+        FOOTER:       '#7b6dff',
+        QR_TITLE:     '#ff45c8',
+        QR_TAG_BG:    'rgba(123,92,255,0.14)',
+        QR_TAG_BD:    'rgba(180,130,255,0.7)',
+        QR_TAG_TEXT:  '#d9d6ff',
+        CTA_BG:       'rgba(10,12,40,0.94)',
+        CTA_BD:       '#7b5cff',
+        CTA_BD_W:     2,
+        // 05 colors
+        DESTINY_ACCENT:  '#108C59',
+        DESTINY_LABEL:   '#94A3B8',
+        DESTINY_BODY:    'rgba(185,210,200,0.88)',
+        DESTINY_KV:      'rgba(210,225,218,0.88)',
+        DESTINY_TP:      '#E2E8F0',
+        // 06 colors
+        COG_STATEMENT:   'rgba(225,210,255,0.92)',
+        COG_LABEL:       '#B8A5E0',
+        // Glow colors
+        GLOW_1:          '#7b3cff',
+        GLOW_2:          '#ff2d75',
+        GLOW_3:          '#2d6bff',
+      },
+    }
+
+    // ── Token Helpers ──
+    function font(tok) { return (tok.weight || '400') + ' ' + tok.size + 'px sans-serif' }
+    function setFont(ctx, tok) { ctx.font = font(tok) }
+    function setColor(ctx, c) { ctx.fillStyle = (c) }
+
+    // ── Divider ──
+    function drawDivider(ctx, x, y, w) {
+      ctx.strokeStyle = DS.CLR.DIVIDER
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.moveTo(x + DS.S.DIVIDER_INSET, y)
+      ctx.lineTo(x + w - DS.S.DIVIDER_INSET, y)
+      ctx.stroke()
+    }
+
+    // ── Badge ──
+    function drawBadge(ctx, x, y, text, type) {
+      var badges = {
+        yellow: { bg: 'rgba(255,193,7,0.18)', bd: '#ffc107', fg: '#ffc107' },
+        green:  { bg: 'rgba(16,140,89,0.18)',  bd: '#108C59', fg: '#108C59' },
+        purple: { bg: 'rgba(123,60,255,0.18)', bd: '#7b3cff', fg: '#b07cff' },
+        blue:   { bg: 'rgba(45,107,255,0.18)', bd: '#2d6bff', fg: '#5a9cff' },
+        red:    { bg: 'rgba(255,45,85,0.18)',  bd: '#ff2d55', fg: '#ff6b81' },
+      }
+      var b = badges[type] || badges.yellow
+      var t = DS.T.BADGE
+      setFont(ctx, t)
+      var tw = ctx.measureText(text).width
+      var bw = tw + 14; var bh = t.lh + 6
+      roundRect(x, y, bw, bh, bh / 2)
+      ctx.fillStyle = b.bg; ctx.fill()
+      ctx.strokeStyle = b.bd; ctx.lineWidth = 1; ctx.stroke()
+      ctx.fillStyle = b.fg; ctx.textAlign = 'center'
+      ctx.fillText(text, x + bw / 2, y + bh / 2 + t.size / 3)
+    }
+
+    // ── Layout computed ──
+    var L = DS.L
+    var W = L.W; var safeX = L.SAFE; var cardW = L.CARD_W; var leftW = L.LEFT_W
+    var contentX = safeX + leftW + DS.S.BODY_INSET * 2
+    var contentRight = safeX + cardW - DS.S.BODY_INSET * 2
     var contentWidth = contentRight - contentX
     var qrPath = self.data.qrPath || '/images/qrcode.png'
 
@@ -787,86 +910,173 @@ Page({
     ctx.scale(dpr, dpr)
 
     // ══════════════════════════════════════════════
-    //  用真实 ctx 重新计算所有卡片高度
+    //  Layout: real ctx measureText for all cards
     // ══════════════════════════════════════════════
-    var CARD_PAD_TOP = 40
-    var CARD_PAD_BOT = 28
-    var TITLE_H = 38
-    var GAP = 16  // card gap
-    var CARD_MIN_H = {
-      '01': 142,
-      '02': 155,
-      '03': 155,
-      '04': 142,
-      'destiny': 300,
-      'cogVerdict': 205
+    var SP = DS.S; var CM = DS.CARD_MIN; var T = DS.T; var C = DS.CLR
+    var TITLE_H = T.CARD_TITLE.lh
+
+    // ══════════════════════════════════════════════
+    //  Card05 single-source layout (shared by measurement & drawing)
+    // ══════════════════════════════════════════════
+    var BADGE_H = T.BADGE.lh + 10  // badge visual height
+
+    function layoutCard05Sections(ctx, cardY) {
+      // Returns sections with y relative to CONTENT AREA TOP (after paddingTop + title)
+      // Each section: { name, y, h } — drawing uses baseY + section.y
+      var cy = 0
+      var s = []
+
+      // 1. Score
+      s.push({ name: 'score', y: cy, h: T.SCORE.lh + SP.ITEM_GAP })
+      cy += s[s.length - 1].h
+
+      // Divider 1
+      cy += SP.ITEM_GAP
+      s.push({ name: 'divider1', y: cy, h: SP.SECTION_GAP })
+      cy += SP.SECTION_GAP
+
+      // 2. Baseline section: label + body
+      setFont(ctx, T.SECTION)
+      cy += T.SECTION.lh
+      setFont(ctx, T.BODY_SM)
+      var baseLines = splitLines(ctx, baselineOutcome, contentWidth - SP.BODY_INSET, T.BODY_SM.size)
+      var baseLs = Math.min(baseLines.length, 3)
+      var baseBodyH = baseLs * T.BODY_SM.lh
+      s.push({ name: 'baseline', y: cy - T.SECTION.lh, h: T.SECTION.lh + baseBodyH + SP.SECTION_GAP })
+      cy += baseBodyH + SP.SECTION_GAP
+
+      // 3. Action section: label + badge + repair
+      setFont(ctx, T.SECTION)
+      cy += T.SECTION.lh
+      var badgeText = currentIndex + ' → ' + projectedIndex
+      setFont(ctx, T.BADGE)
+      var badgeW = ctx.measureText(badgeText).width + 14
+      var actionBodyH = BADGE_H + SP.ITEM_GAP + T.BODY_SM.lh
+      s.push({ name: 'action', y: cy - T.SECTION.lh, h: T.SECTION.lh + actionBodyH + SP.SECTION_GAP })
+      cy += actionBodyH + SP.SECTION_GAP
+
+      // Divider 2
+      cy += SP.ITEM_GAP
+      s.push({ name: 'divider2', y: cy, h: SP.SECTION_GAP })
+      cy += SP.SECTION_GAP
+
+      // 4. Key variable: label + body
+      setFont(ctx, T.SECTION)
+      cy += T.SECTION.lh
+      setFont(ctx, T.BODY_SM)
+      var kvLines = splitLines(ctx, keyVariable, contentWidth - SP.BODY_INSET, T.BODY_SM.size)
+      var kvLs = Math.min(kvLines.length, 3)
+      var kvBodyH = kvLs * T.BODY_SM.lh
+      s.push({ name: 'keyVariable', y: cy - T.SECTION.lh, h: T.SECTION.lh + kvBodyH + SP.SECTION_GAP })
+      cy += kvBodyH + SP.SECTION_GAP
+
+      // 5. Turning points — each as independent row with absolute Y
+      var tpCount = turningPoints.length > 0 ? Math.min(turningPoints.length, 3) : 0
+      var tpStart = cy
+      var tpItems = []  // pre-measured items with absolute Y
+
+      if (tpCount > 0) {
+        setFont(ctx, T.SECTION)
+        cy += T.SECTION.lh + SP.ITEM_GAP
+        for (var tp = 0; tp < tpCount; tp++) {
+          var tpDay = 'DAY ' + turningPoints[tp].day
+          var tpLabel = turningPoints[tp].label || ''
+          setFont(ctx, T.BADGE)
+          var dayW = ctx.measureText(tpDay).width + 14
+          setFont(ctx, T.CAPTION)
+          var textW = contentWidth - SP.BODY_INSET - dayW - 10
+          var tpLines = splitLines(ctx, tpLabel, textW, T.CAPTION.size)
+          var itemH = Math.max(BADGE_H, tpLines.length * T.CAPTION.lh)
+          tpItems.push({
+            day: tpDay, label: tpLabel, dayW: dayW,
+            lines: tpLines, itemH: itemH, y: cy
+          })
+          cy += itemH + (tp < tpCount - 1 ? SP.ITEM_GAP : 0)
+        }
+      }
+      if (tpCount > 0) {
+        s.push({ name: 'turningPoints', y: tpStart, h: cy - tpStart, items: tpItems })
+        // No trailing SECTION_GAP — card pad bottom handles whitespace
+      }
+
+      return { sections: s, totalContentH: cy, baseLines: baseLines, baseLs: baseLs, kvLines: kvLines, kvLs: kvLs, tpCount: tpCount }
     }
 
     cards.forEach(function(item, index) {
       if (item.type === 'destiny') {
-        // RC6.0 05: 命运模拟器 — per-section accumulated
-        var dY = CARD_PAD_TOP + TITLE_H + 6
-        // Score: "63分 · 中等"
-        dY += 36
-        // Baseline label
-        dY += 28
-        ctx.font = '22px sans-serif'
-        var baseLs = Math.min(splitLines(ctx, baselineOutcome, contentWidth - 16, 22).length, 3)
-        dY += baseLs * 30
-        dY += 14
-        // Action label
-        dY += 28
-        // Index change: "63 → 79"
-        dY += 40
-        // Repair cycle
-        dY += 34
-        // "关键变量" label
-        dY += 28
-        ctx.font = '21px sans-serif'
-        var kvLs = Math.min(splitLines(ctx, keyVariable, contentWidth - 16, 21).length, 3)
-        dY += kvLs * 30
-        dY += 14
-        // "关键转折点" label + points line-by-line
-        if (turningPoints.length > 0) {
-          dY += 28  // label
-          var tpCount = Math.min(turningPoints.length, 3)
-          ctx.font = '19px sans-serif'
-          for (var tp = 0; tp < tpCount; tp++) {
-            var tpText = '第' + turningPoints[tp].day + '天：' + (turningPoints[tp].label || '')
-            var tpLines = splitLines(ctx, tpText, contentWidth - 16, 19)
-            dY += tpLines.length * 27 + 8
-          }
-        }
-        dY += CARD_PAD_BOT
-        item._heightMeasured = Math.max(CARD_MIN_H.destiny, dY)
-        item._baseLines = baseLs
-        item._kvLines = kvLs
-        item._tpCount = turningPoints.length > 0 ? Math.min(turningPoints.length, 3) : 0
+        var layout = layoutCard05Sections(ctx, 0) // measured from card top=0
+        item._heightMeasured = Math.max(CM.destiny, SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY + layout.totalContentH + SP.CARD_PAD_BOT)
+        item._card05Layout = layout
+        item._baseLines = layout.baseLs; item._kvLines = layout.kvLs
+        item._tpCount = layout.tpCount
+        // 审计：console.error + JSON.stringify 保证真机输出
+        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
+        var _padB = SP.CARD_PAD_BOT
+        var _cH = layout.totalContentH
+        console.error('[PosterRC6][CARD05_MEASURE]', JSON.stringify({
+          totalContentH: _cH,
+          paddingTop: _padT,
+          paddingBottom: _padB,
+          calculatedHeight: _padT + _cH + _padB,
+          finalHeight: item._heightMeasured,
+          sections: layout.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
+        }))
       } else if (item.type === 'cogVerdict') {
-        // RC6.0 06: 认知宣判 — compact
-        ctx.font = '24px sans-serif'
-        var stLs = Math.min(splitLines(ctx, cogStatement, contentWidth - 8, 24).length, 4)
-        ctx.font = '22px sans-serif'
-        var aaLs = Math.min(splitLines(ctx, cogActionAnchor, contentWidth - 16, 22).length, 3)
-        var cogH = CARD_PAD_TOP + TITLE_H + 18 + stLs * 34 + 18 + 26 + aaLs * 31 + CARD_PAD_BOT
-        item._heightMeasured = Math.max(CARD_MIN_H.cogVerdict, cogH)
-        item._stLines = stLs
-        item._aaLines = aaLs
+        // Single-source Card06 layout (compact statement → divider → action anchor)
+        var l06 = (function() {
+          var cy = 0
+          var ss = []
+          // Statement — lighter font (weight 500, size 23)
+          setFont(ctx, { size: 23, weight: '500' })
+          var stLines = splitLines(ctx, cogStatement, contentWidth, 23)
+          var stLs = Math.min(stLines.length, 4)
+          if (stLines.length > stLs) stLines = stLines.slice(0, stLs)
+          var stH = stLs * 34
+          ss.push({ name: 'statement', y: cy, h: stH, lines: stLines })
+          cy += stH + 16  // 16px gap before divider
+          // Divider
+          ss.push({ name: 'divider', y: cy, h: 14 })
+          cy += 14  // divider region
+          // Action: label + body
+          var actY = cy
+          setFont(ctx, { size: 18, weight: '600' })
+          var lblH = 24
+          setFont(ctx, { size: 21, weight: '400' })
+          var aaLines = splitLines(ctx, cogActionAnchor, contentWidth, 21)
+          var aaLs = Math.min(aaLines.length, 3)
+          if (aaLines.length > aaLs) aaLines = aaLines.slice(0, aaLs)
+          var aaBodyH = aaLs * 31
+          ss.push({ name: 'action', y: actY, h: lblH + 6 + aaBodyH, lines: aaLines })
+          cy += lblH + 6 + aaBodyH
+          return { sections: ss, totalContentH: cy, stLines: stLines, stLs: stLs, aaLines: aaLines, aaLs: aaLs }
+        })()
+        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
+        item._heightMeasured = Math.max(CM.cogVerdict, _padT + l06.totalContentH + SP.CARD_PAD_BOT)
+        item._card06Layout = l06
+        item._stLines = l06.stLs; item._aaLines = l06.aaLs
+
+        console.error('[PosterRC6][CARD06_MEASURE]', JSON.stringify({
+          totalContentH: l06.totalContentH,
+          paddingTop: _padT,
+          paddingBottom: SP.CARD_PAD_BOT,
+          calculatedHeight: _padT + l06.totalContentH + SP.CARD_PAD_BOT,
+          finalHeight: item._heightMeasured
+        }))
+        console.error('[PosterRC6][CARD06_LAYOUT]', JSON.stringify({
+          sections: l06.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
+        }))
       } else {
-        // Cards 01-04 — compact dynamic height
-        ctx.font = '26px sans-serif'
-        item._lines = splitLines(ctx, item.text || '', contentWidth, 26)
-        var minH = CARD_MIN_H[item.no] || 142
-        item._heightMeasured = Math.max(minH, CARD_PAD_TOP + TITLE_H + 12 + item._lines.length * 34 + CARD_PAD_BOT)
+        setFont(ctx, T.BODY)
+        item._lines = splitLines(ctx, item.text || '', contentWidth, T.BODY.size)
+        var minH = CM[item.no] || 140
+        item._heightMeasured = Math.max(minH, SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY + item._lines.length * T.BODY.lh + SP.CARD_PAD_BOT)
       }
       console.log('[PosterRC6][MEASURE] Card' + (index + 1) + ' height=' + item._heightMeasured)
     })
 
-    var headerH = 180
-    var cardsH = cards.reduce(function(sum, item) { return sum + item._heightMeasured }, 0) + GAP * (cards.length - 1)
-    var ctaH = 150
-    var footerH = 80
-    var H = headerH + cardsH + 60 + ctaH + footerH
+    var headerH = L.HEADER_H; var ctaH = L.CTA_H; var footerH = L.FOOTER_H
+    var cardsH = cards.reduce(function(sum, item) { return sum + item._heightMeasured }, 0) + SP.CARD_GAP * (cards.length - 1)
+    var H = headerH + cardsH + SP.QR_GAP + SP.QR_GAP + ctaH + footerH
 
     // Re-init canvas with correct height
     canvas.width = Math.round(W * dpr)
@@ -881,283 +1091,320 @@ Page({
     renderState.background = true
     console.log('[PosterRC6][P9] background ok')
 
-    drawGlow(160, 120, 220, '#7b3cff', 0.26)
-    drawGlow(620, 120, 240, '#ff2d75', 0.18)
-    drawGlow(375, H - 220, 300, '#2d6bff', 0.18)
+    drawGlow(160, 120, 220, C.GLOW_1, L.GLOW_ALPHA + 0.04)
+    drawGlow(620, 120, 240, C.GLOW_2, L.GLOW_ALPHA - 0.04)
+    drawGlow(375, H - 220, 300, C.GLOW_3, L.GLOW_ALPHA - 0.04)
 
     // 标题
-    ctx.textAlign = ('center')
-    ctx.font = '42px sans-serif'
-    ctx.fillStyle = ('#ffffff')
-    ctx.fillText('珠澳小事哥 · 认知翻身策略', W / 2, 76)
-
-    ctx.font = '26px sans-serif'
-    ctx.fillStyle = ('#ff5ca8')
-    ctx.fillText('🧠 认知教练视角已激活', W / 2, 122)
-
-    ctx.strokeStyle = ('rgba(255,92,168,0.45)')
-    ctx.lineWidth = (1)
-    ctx.beginPath()
-    ctx.moveTo(70, 145)
-    ctx.lineTo(680, 145)
-    ctx.stroke()
-
+    ctx.textAlign = 'center'
+    setFont(ctx, T.PLATE); setColor(ctx, C.TEXT_WHITE)
+    ctx.fillText('珠澳小事哥 · 认知翻身策略', W / 2, headerH / 2 - 14)
+    setFont(ctx, T.PLATE_SUB); setColor(ctx, C.TEXT_ACCENT)
+    ctx.fillText('🧠 认知教练视角已激活', W / 2, headerH / 2 + 28)
+    ctx.strokeStyle = C.RULE; ctx.lineWidth = 1
+    ctx.beginPath(); ctx.moveTo(70, headerH - 35); ctx.lineTo(680, headerH - 35); ctx.stroke()
     renderState.header = true
     console.log('[PosterRC6][P10] header done')
 
     // 卡片
-    var cardY = 180
+    var cardY = headerH
     var cardCount = cards.length
 
     for (var ci = 0; ci < cardCount; ci++) {
-      var item = cards[ci]
-      var index = ci
-      var h = item._heightMeasured
-
-      console.log('[PosterRC6][P11] Card' + (index + 1) + ' start', { title: (item.label||item.title||'card' + (index+1)), cardY: cardY, height: h })
-
+      var item = cards[ci]; var index = ci; var h = item._heightMeasured
+      console.log('[PosterRC6][P11] Card' + (index + 1) + ' start', { title: item.title, cardY: cardY, height: h })
       ctx.save()
 
       // ── Card background ──
-      roundRect(safeX, cardY, cardW, h, 16)
-      ctx.fillStyle = ('rgba(8,14,32,0.88)')
-      ctx.fill()
-      ctx.strokeStyle = (item.color)
-      ctx.lineWidth = (1.5)
-      ctx.stroke()
+      roundRect(safeX, cardY, cardW, h, L.CARD_R)
+      ctx.fillStyle = C.CARD_BG; ctx.fill()
+      ctx.strokeStyle = item.color; ctx.lineWidth = L.CARD_BORDER; ctx.stroke()
+      ctx.globalAlpha = 0.16; ctx.fillStyle = item.color
+      ctx.fillRect(safeX, cardY, leftW, h); ctx.globalAlpha = 1
 
-      // Left accent bar
-      ctx.globalAlpha = (0.16)
-      ctx.fillStyle = (item.color)
-      ctx.fillRect(safeX, cardY, leftW, h)
-      ctx.globalAlpha = (1)
-
-      // Card number + icon (centered in left bar)
-      ctx.textAlign = ('center')
-      ctx.font = '52px sans-serif'
-      ctx.fillStyle = (item.color)
-      ctx.fillText(item.no, safeX + leftW / 2, cardY + 62)
-      ctx.font = '40px sans-serif'
-      ctx.fillText(item.icon, safeX + leftW / 2, cardY + 112)
+      // Card number + icon
+      ctx.textAlign = 'center'
+      setFont(ctx, T.CARD_NO); setColor(ctx, item.color)
+      ctx.fillText(item.no, safeX + leftW / 2, cardY + SP.CARD_PAD_TOP + 18)
+      setFont(ctx, T.CARD_ICON)
+      ctx.fillText(item.icon, safeX + leftW / 2, cardY + SP.CARD_PAD_TOP + 52)
 
       // Card title
-      ctx.textAlign = ('left')
-      ctx.font = '30px sans-serif'
-      ctx.fillStyle = (item.color)
-      ctx.fillText(item.icon + ' ' + item.title, contentX, cardY + 46)
+      ctx.textAlign = 'left'
+      setFont(ctx, T.CARD_TITLE); setColor(ctx, item.color)
+      ctx.fillText(item.icon + ' ' + item.title, contentX, cardY + SP.CARD_PAD_TOP + TITLE_H / 2 + 6)
 
-      var lastTextY = cardY + 46
+      var lastTextY = cardY + SP.CARD_PAD_TOP + TITLE_H / 2
 
       if (item.type === 'destiny') {
-        // ── RC6.0 05: 命运模拟器 ──
-        var dy = cardY + CARD_PAD_TOP + TITLE_H + 6
+        // ═══ Soft card clip — protects card rounded corners ═══
+        ctx.save()
+        ctx.beginPath()
+        roundRect(safeX + 2, cardY + 2, cardW - 4, h - 4, L.CARD_R)
+        ctx.clip()
+        ctx.save()  // inner save for section-level clip restore
 
-        // 评分: "63分 · 中等"
-        ctx.font = '29px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        var scoreStr = currentIndex + '分'
-        ctx.fillText(scoreStr, contentX, dy)
-        var scoreW = ctx.measureText(scoreStr).width
-        ctx.font = '22px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        ctx.fillText(' · ' + currentLevelLabel, contentX + scoreW, dy)
-        dy += 36
+        // ═══ 05 命运模拟器 — unified content origin ═══
+        var l = item._card05Layout
+        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
+        var originY = cardY + _padT  // content area top
+        // Reset text state
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
 
-        // A 路径 — 保持现状
-        ctx.font = '21px sans-serif'
-        ctx.fillStyle = ('#8EA0B5')
-        ctx.fillText('▸ 保持现状', contentX, dy)
-        dy += 28
-
-        console.log('[PosterRC6][FONT_CALL]', { section: 'card05-baseline', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof baselineOutcome, fontSize: 22 })
-        ctx.font = '22px sans-serif'
-        ctx.fillStyle = ('#8899B0')
-        var baseLs = item._baseLines || 3
-        for (var bi = 0; bi < baseLs; bi++) {
-          var bl = splitLines(ctx, baselineOutcome, contentWidth - 16, 22)[bi] || ''
-          ctx.fillText(bl, contentX + 16, dy)
-          dy += 30
-        }
-        dy += 14
-
-        // B 路径 — 执行方案
-        ctx.font = '21px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        ctx.fillText('▸ 执行方案', contentX, dy)
-        dy += 28
-
-        // 指数变化: "63 → 79"
-        ctx.font = '28px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        var fromStr = currentIndex + ''
-        ctx.fillText(fromStr, contentX + 16, dy)
-        var fromW = ctx.measureText(fromStr).width
-        ctx.font = '24px sans-serif'
-        ctx.fillText(' → ', contentX + 16 + fromW, dy)
-        var arrowW = ctx.measureText(' → ').width
-        ctx.font = '28px sans-serif'
-        ctx.fillText(projectedIndex + '', contentX + 16 + fromW + arrowW, dy)
-        dy += 40
-
-        // 修复周期
-        ctx.font = '20px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        ctx.fillText('预计结构修复周期：' + repairCycleDays + '天', contentX + 16, dy)
-        dy += 34
-
-        // ── 关键变量 (独立区块) ──
-        ctx.font = '19px sans-serif'
-        ctx.fillStyle = ('#8EA0B5')
-        ctx.fillText('关键变量', contentX, dy)
-        dy += 28
-
-        ctx.font = '21px sans-serif'
-        ctx.fillStyle = ('#2B4258')
-        var kvLines = splitLines(ctx, keyVariable, contentWidth - 16, 21)
-        var kvLs = item._kvLines || kvLines.length
-        if (kvLines.length > kvLs) kvLines = kvLines.slice(0, kvLs)
-        for (var ki = 0; ki < kvLines.length; ki++) {
-          ctx.fillText(kvLines[ki], contentX + 16, dy)
-          dy += 30
-        }
-        dy += 14
-
-        // ── 关键转折点 (逐条换行) ──
-        if (turningPoints.length > 0) {
-          ctx.font = '19px sans-serif'
-          ctx.fillStyle = ('#8EA0B5')
-          ctx.fillText('关键转折点', contentX, dy)
-          dy += 28
-
-          var tpCount = Math.min(turningPoints.length, 3)
-          ctx.font = '19px sans-serif'
-          ctx.fillStyle = ('#90B0C5')
-          for (var tp = 0; tp < tpCount; tp++) {
-            var pointLabel = '第' + turningPoints[tp].day + '天：' + (turningPoints[tp].label || '')
-            var pointLines = splitLines(ctx, pointLabel, contentWidth - 16, 19)
-            for (var pl = 0; pl < pointLines.length; pl++) {
-              ctx.fillText(pointLines[pl], contentX + 16, dy)
-              dy += 27
-            }
-            dy += 8
+        function assert05X(name, x, w, textAlign) {
+          w = w || 0
+          var align = textAlign || ctx.textAlign || 'left'
+          var realLeft = x
+          if (align === 'center') realLeft = x - w / 2
+          else if (align === 'right') realLeft = x - w
+          var realRight = realLeft + w
+          if (realLeft < contentX || realRight > contentRight) {
+            console.error('[PosterRC6][CARD05_TEXT_X_OVERFLOW]', JSON.stringify({
+              name: name, x: x, w: w, textAlign: align,
+              realLeft: realLeft, realRight: realRight,
+              contentX: contentX, contentRight: contentRight
+            }))
           }
         }
 
-        lastTextY = dy
-        console.log('[PosterRC6][LAYOUT]', { card: '05', cardY: cardY, cardHeight: h, cardBottom: cardY + h, lastTextY: lastTextY })
-        if (lastTextY > cardY + h - CARD_PAD_BOT) {
-          throw new Error('POSTER_CARD_CONTENT_OVERFLOW:05')
+        // Score
+        setFont(ctx, T.SCORE); setColor(ctx, C.DESTINY_ACCENT)
+        var scoreStr = currentIndex + '分'
+        assert05X('score', contentX, ctx.measureText(scoreStr).width)
+        ctx.fillText(scoreStr, contentX, originY + l.sections[0].y)
+        var scoreW = ctx.measureText(scoreStr).width
+        setFont(ctx, T.SCORE_LABEL)
+        ctx.fillText(' · ' + currentLevelLabel, contentX + scoreW, originY + l.sections[0].y)
+
+        // Divider 1
+        var div1y = originY + l.sections[1].y
+        assert05X('divider1', contentX, contentWidth)
+        drawDivider(ctx, contentX, div1y, contentWidth)
+
+        // A 路径: label at section y, body indented
+        var aSec = l.sections[2]
+        var ay = originY + aSec.y
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+        setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_LABEL
+        ctx.fillText('▶ 保持现状', contentX, ay)
+        setFont(ctx, T.BODY_SM); setColor(ctx, C.DESTINY_BODY)
+        for (var bi = 0; bi < l.baseLines.length && bi < (item._baseLines || 3); bi++) {
+          ctx.fillText(l.baseLines[bi], contentX + SP.BODY_INSET, ay + T.SECTION.lh + bi * T.BODY_SM.lh)
         }
+
+        // B 路径: label + badge + repair
+        var actSec = l.sections[3]
+        var actY = originY + actSec.y
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+        setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_ACCENT
+        ctx.fillText('▶ 执行方案', contentX, actY)
+        // Badge
+        var badgeText = currentIndex + ' → ' + projectedIndex
+        var badgeAY = actY + T.SECTION.lh
+        drawBadge(ctx, contentX + SP.BODY_INSET, badgeAY, badgeText, 'green')
+        ctx.textAlign = 'left'
+        // Repair text — aligned to contentX + BODY_INSET (same as badge start)
+        assert05X('repairCycle', contentX + SP.BODY_INSET, ctx.measureText('预计结构修复周期：' + repairCycleDays + '天').width)
+        setFont(ctx, T.BODY_SM); setColor(ctx, C.DESTINY_ACCENT)
+        ctx.fillText('预计结构修复周期：' + repairCycleDays + '天', contentX + SP.BODY_INSET, badgeAY + BADGE_H + SP.ITEM_GAP)
+
+        // Divider 2
+        var div2y = originY + l.sections[4].y
+        assert05X('divider2', contentX, contentWidth)
+        drawDivider(ctx, contentX, div2y, contentWidth)
+
+        // 🔑 关键变量
+        var kvSec = l.sections[5]
+        var kvY = originY + kvSec.y
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+        setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_LABEL
+        ctx.fillText('🔑 关键变量', contentX, kvY)
+        setFont(ctx, T.BODY_SM); setColor(ctx, C.DESTINY_KV)
+        for (var ki = 0; ki < l.kvLines.length && ki < (item._kvLines || 3); ki++) {
+          ctx.fillText(l.kvLines[ki], contentX + SP.BODY_INSET, kvY + T.SECTION.lh + ki * T.BODY_SM.lh)
+        }
+
+        // 📍 关键转折点 — absolute Y from pre-measured items
+        if (item._tpCount > 0) {
+          var tpSec = l.sections[6]
+          var tpY = originY + tpSec.y
+          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+          setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_LABEL
+          ctx.fillText('📍 关键转折点', contentX, tpY)
+
+          var tpItems = tpSec.items
+          for (var tp = 0; tp < tpItems.length; tp++) {
+            var tpi = tpItems[tp]
+            var itemY = originY + tpi.y
+            // Badge
+            assert05X('tpBadge_' + tp, contentX + SP.BODY_INSET, tpi.dayW)
+            drawBadge(ctx, contentX + SP.BODY_INSET, itemY, tpi.day, 'blue')
+            // Text to right of badge — use light color for contrast
+            ctx.textAlign = 'left'
+            setFont(ctx, T.CAPTION); setColor(ctx, '#E2E8F0')
+            var textX = contentX + SP.BODY_INSET + tpi.dayW + 8
+            assert05X('tpText_' + tp, textX, contentWidth - SP.BODY_INSET - tpi.dayW - 8)
+            for (var tl = 0; tl < tpi.lines.length; tl++) {
+              ctx.fillText(tpi.lines[tl], textX, itemY + BADGE_H / 2 + 6 + tl * T.CAPTION.lh)
+            }
+            console.log('[PosterRC6][TP_DRAW] item ' + tp + ': itemY=' + itemY + ' day=' + tpi.day)
+          }
+        }
+
+        // ── Compute real content bottom (no redraw — bg drawn before content) ──
+        lastTextY = cardY + _padT + l.totalContentH
+        console.error('[PosterRC6][CARD05_DIVIDER_CHECK]', JSON.stringify({
+          dividerCount: 2,
+          divider1: { y: l.sections[1].y, h: l.sections[1].h },
+          divider2: { y: l.sections[4].y, h: l.sections[4].h },
+          totalContentH: l.totalContentH,
+          cardHeight: h,
+          lastTextY: lastTextY
+        }))
+
+        // ── Audit logs ──
+        var lastSection = l.sections[l.sections.length - 1]
+        var expectedContentBottom = cardY + _padT + l.totalContentH
+        var lastDrawYCalc = cardY + _padT + lastSection.y + lastSection.h
+        var delta05 = lastDrawYCalc - expectedContentBottom
+
+        console.error('[PosterRC6][CARD05_LAYOUT_ID]', JSON.stringify({
+          measuredLayoutTotal: (item._card05Layout ? item._card05Layout.totalContentH : null),
+          drawLayoutTotal: l.totalContentH,
+          sameReference: item._card05Layout === l
+        }))
+        console.error('[PosterRC6][CARD05_VISUAL_LAYOUT]', JSON.stringify({
+          cardY: cardY, cardHeight: h,
+          contentOriginX: contentX,
+          contentWidth: contentWidth,
+          sections: l.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
+        }))
+        console.error('[PosterRC6][CARD05_FINAL_METRICS]', JSON.stringify({
+          cardY: cardY,
+          expectedContentBottom: expectedContentBottom,
+          lastDrawY: lastDrawYCalc,
+          delta: delta05,
+          lastSectionType: lastSection ? lastSection.name : null,
+          lastSectionY: lastSection ? lastSection.y : null,
+          lastSectionH: lastSection ? lastSection.h : null,
+          trailingGapApplied: false
+        }))
+        console.error('[PosterRC6][CARD05_HEIGHT]', JSON.stringify({
+          card05StartY: cardY,
+          card05ContentBottomY: expectedContentBottom,
+          card05Height: h,
+          contentBottom: expectedContentBottom,
+          safeContentBottom: cardY + h - SP.CARD_PAD_BOT,
+          padBottom: SP.CARD_PAD_BOT
+        }))
+
+        if (delta05 > 4) throw new Error('POSTER_CARD_CONTENT_OVERFLOW:05')
+
+        // ── Release clip ──
+        ctx.restore()  // inner save
+        ctx.restore()  // outer save (card clip)
 
       } else if (item.type === 'cogVerdict') {
-        // ── RC6.0 06: 认知宣判 ──
-        var cy = cardY + CARD_PAD_TOP + TITLE_H + 18
+        // ═══ 06 认知宣判 — compact visual hierarchy ═══
+        var l06 = item._card06Layout
+        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
+        var baseY = cardY + _padT
 
-        // 核心宣判
-        console.log('[PosterRC6][FONT_CALL]', { section: 'card06-statement', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof cogStatement, fontSize: 24 })
-        cy += drawWrappedText(ctx, cogStatement, contentX, cy, {
-          maxWidth: contentWidth - 8, lineHeight: 32, fontSize: 24,
-          color: '#D9C5FF', maxLines: 4, ellipsis: '…',
-        }).height + 16
-
-        // 行动锚点 label
-        ctx.font = '20px sans-serif'
-        ctx.fillStyle = ('#A68FCE')
-        ctx.fillText('行动锚点', contentX, cy)
-        cy += 26
-
-        console.log('[PosterRC6][FONT_CALL]', { section: 'card06-anchor', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof cogActionAnchor, fontSize: 22 })
-        drawWrappedText(ctx, cogActionAnchor, contentX + 16, cy, {
-          maxWidth: contentWidth - 16, lineHeight: 28, fontSize: 22,
-          color: '#D9C5FF', maxLines: 3, ellipsis: '…',
-        })
-
-        lastTextY = cy + (item._aaLines || 2) * 28
-        console.log('[PosterRC6][LAYOUT]', { card: '06', cardY: cardY, cardHeight: h, cardBottom: cardY + h, lastTextY: lastTextY })
-        if (lastTextY > cardY + h - CARD_PAD_BOT) {
-          throw new Error('POSTER_CARD_CONTENT_OVERFLOW:06')
+        // Statement — lighter weight for readability
+        var stSec = l06.sections[0]
+        setFont(ctx, { size: 23, weight: '500' }); setColor(ctx, C.COG_STATEMENT)
+        for (var si = 0; si < stSec.lines.length; si++) {
+          ctx.fillText(stSec.lines[si], contentX, baseY + stSec.y + si * 34)
         }
 
+        // Divider
+        var divSec = l06.sections[1]
+        drawDivider(ctx, contentX, baseY + divSec.y + 4, contentWidth)
+
+        // Action: label + body
+        var actSec = l06.sections[2]
+        setFont(ctx, { size: 18, weight: '600' }); setColor(ctx, C.COG_LABEL)
+        ctx.fillText('行动锚点', contentX, baseY + actSec.y)
+        setFont(ctx, { size: 21, weight: '400' }); setColor(ctx, C.COG_STATEMENT)
+        for (var ai = 0; ai < actSec.lines.length; ai++) {
+          ctx.fillText(actSec.lines[ai], contentX, baseY + actSec.y + 24 + 6 + ai * 31)
+        }
+
+        // lastDrawY from single-source layout
+        var expectedContentBottom = cardY + _padT + l06.totalContentH
+        var lastDrawYCalc = cardY + _padT + actSec.y + actSec.h
+        var delta06 = lastDrawYCalc - expectedContentBottom
+
+        console.error('[PosterRC6][CARD06_VISUAL_LAYOUT]', JSON.stringify({
+          cardY: cardY, cardHeight: h,
+          contentOriginX: contentX,
+          contentWidth: contentWidth,
+          sections: l06.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
+        }))
+        console.error('[PosterRC6][CARD06_OVERFLOW]', JSON.stringify({
+          cardY: cardY, cardHeight: h, cardBottom: cardY + h,
+          totalContentH: l06.totalContentH,
+          expectedContentBottom: expectedContentBottom,
+          lastDrawY: lastDrawYCalc,
+          delta: delta06
+        }))
+
+        if (delta06 > 4) throw new Error('POSTER_CARD_CONTENT_OVERFLOW:06')
+
       } else {
-        // ── Cards 01-04 ──
-        console.log('[PosterRC6][FONT_CALL]', { section: 'card' + item.no + '-body', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof item.text, fontSize: 26 })
-        drawWrappedLines(ctx, item._lines, contentX, cardY + CARD_PAD_TOP + TITLE_H + 12, 34, '#eaf0ff', 26)
-        lastTextY = cardY + CARD_PAD_TOP + TITLE_H + 12 + item._lines.length * 34
+        // ═══ Cards 01-04 ═══
+        setFont(ctx, T.BODY); setColor(ctx, C.BODY)
+        drawWrappedLines(ctx, item._lines, contentX, cardY + SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY, T.BODY.lh, C.BODY, T.BODY.size)
+        lastTextY = cardY + SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY + item._lines.length * T.BODY.lh
       }
 
       ctx.restore()
-
       console.log('[PosterRC6][P11] Card' + (index + 1) + ' OK')
       renderState.cards += 1
-      cardY += h + GAP
+      cardY += h + SP.CARD_GAP
     }
 
     var y = cardY
 
-    // CTA (dynamic position from last card)
-    var ctaY = y + 36
+    // ═══ CTA ═══
+    var ctaY = y + SP.QR_GAP
 
-    roundRect(safeX, ctaY, cardW, ctaH, 24)
-    ctx.fillStyle = ('rgba(10,12,40,0.94)')
-    ctx.fill()
-    ctx.strokeStyle = ('#7b5cff')
-    ctx.lineWidth = (2)
-    ctx.stroke()
+    roundRect(safeX, ctaY, cardW, ctaH, L.CTA_R)
+    ctx.fillStyle = C.CTA_BG; ctx.fill()
+    ctx.strokeStyle = C.CTA_BD; ctx.lineWidth = C.CTA_BD_W; ctx.stroke()
 
-    roundRect(safeX + 20, ctaY + 20, 110, 110, 18)
-    ctx.fillStyle = ('#ffffff')
-    ctx.fill()
-    console.log('[PosterRC6][P12] QR section start', { qrPath: qrPath })
-    // QR image via Canvas 2D createImage
+    roundRect(safeX + L.QR_PAD, ctaY + L.QR_PAD, L.QR_SIZE + 16, L.QR_SIZE + 16, L.QR_R)
+    ctx.fillStyle = C.TEXT_WHITE; ctx.fill()
+
     var qrImage = null
-    try {
-      qrImage = await self._loadPosterCanvasImage(canvas, qrPath)
-    } catch (e) {
-      console.error('[PosterRC6][2D] QR_IMAGE_LOAD_FAILED', { message: e && e.message, qrPath: qrPath })
-    }
-    if (qrImage) {
-      console.log('[PosterRC6][P14] drawImage QR', { qrX: safeX + 28, qrY: ctaY + 28, qrSize: 94 })
-      ctx.drawImage(qrImage, safeX + 28, ctaY + 28, 94, 94)
-    } else {
-      // QR fallback: draw placeholder rect
-      ctx.fillStyle = '#1a1a3a'
-      ctx.fillRect(safeX + 28, ctaY + 28, 94, 94)
-      ctx.font = '12px sans-serif'
-      ctx.fillStyle = '#555'
-      ctx.textAlign = 'center'
-      ctx.fillText('扫码查看', safeX + 75, ctaY + 80)
-    }
+    try { qrImage = await self._loadPosterCanvasImage(canvas, qrPath) }
+    catch (e) { console.error('[PosterRC6][2D] QR_IMAGE_LOAD_FAILED', { message: e && e.message }) }
+    if (qrImage) { ctx.drawImage(qrImage, safeX + L.QR_PAD + 8, ctaY + L.QR_PAD + 8, L.QR_SIZE, L.QR_SIZE) }
+    else { ctx.fillStyle = '#1a1a3a'; ctx.fillRect(safeX + L.QR_PAD + 8, ctaY + L.QR_PAD + 8, L.QR_SIZE, L.QR_SIZE) }
 
-    ctx.textAlign = ('left')
-    ctx.font = '34px sans-serif'
-    ctx.fillStyle = ('#ff45c8')
-    ctx.fillText('扫码测试你的翻身策略', safeX + 150, ctaY + 58)
+    ctx.textAlign = 'left'
+    var qrTextX = safeX + L.QR_PAD + L.QR_SIZE + 30
+    setFont(ctx, T.QR_TITLE); setColor(ctx, C.QR_TITLE)
+    ctx.fillText('扫码测试你的翻身策略', qrTextX, ctaY + 58)
+    setFont(ctx, T.QR_SUB); setColor(ctx, C.TEXT_WHITE)
+    ctx.fillText('看看你的认知在什么段位', qrTextX, ctaY + 96)
 
-    ctx.font = '28px sans-serif'
-    ctx.fillStyle = ('#ffffff')
-    ctx.fillText('看看你的认知在什么段位', safeX + 150, ctaY + 96)
-
-    const tags = ['🧠 认知诊断', '📈 策略分析', '🎯 破局建议']
-    tags.forEach((tag, i) => {
-      const tx = safeX + 150 + i * 142
+    var tags = ['🧠 认知诊断', '📈 策略分析', '🎯 破局建议']
+    tags.forEach(function(tag, i) {
+      var tx = qrTextX + i * 142
       roundRect(tx, ctaY + 111, 124, 25, 11)
-      ctx.fillStyle = ('rgba(123,92,255,0.14)')
-      ctx.fill()
-      ctx.strokeStyle = ('rgba(180,130,255,0.7)')
-      ctx.stroke()
-      ctx.font = '15px sans-serif'
-      ctx.fillStyle = ('#d9d6ff')
-      ctx.textAlign = ('center')
+      ctx.fillStyle = C.QR_TAG_BG; ctx.fill()
+      ctx.strokeStyle = C.QR_TAG_BD; ctx.stroke()
+      ctx.textAlign = 'center'
+      setFont(ctx, T.QR_TAG); setColor(ctx, C.QR_TAG_TEXT)
       ctx.fillText(tag, tx + 62, ctaY + 129)
     })
 
     renderState.qrSection = true
 
-    ctx.textAlign = ('center')
-    ctx.font = '22px sans-serif'
-    ctx.fillStyle = ('#7b6dff')
+    ctx.textAlign = 'center'
+    setFont(ctx, T.FOOTER); setColor(ctx, C.FOOTER)
     ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, H - 30)
-
     renderState.footer = true
     console.log('[PosterRC6][P15] footer done')
 
