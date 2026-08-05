@@ -622,11 +622,11 @@ Page({
         CARD_PAD_TOP:    28,
         CARD_PAD_BOT:    32,
         TITLE_TO_BODY:   14,
-        SECTION_GAP:     18,
+        SECTION_GAP:     16,
         PARAGRAPH_GAP:   14,
-        ITEM_GAP:        10,
-        CARD_GAP:        16,
-        QR_GAP:          36,
+        ITEM_GAP:        8,
+        CARD_GAP:        14,
+        QR_GAP:          30,
         FOOTER_GAP:      18,
         DIVIDER_INSET:   0,
         BODY_INSET:      16,
@@ -635,14 +635,14 @@ Page({
       L: {
         W: 750, SAFE: 40, CARD_W: 670, LEFT_W: 112,
         CARD_R: 16, CARD_BORDER: 1.5,
-        HEADER_H: 180, CTA_H: 150, FOOTER_H: 80,
+        HEADER_H: 180, CTA_H: 140, FOOTER_H: 80,
         QR_SIZE: 94, QR_R: 18, QR_PAD: 20,
         CTA_R: 24, GLOW_ALPHA: 0.22,
       },
       // ── Card Minimum Heights ──
       CARD_MIN: {
         '01': 140, '02': 150, '03': 150, '04': 140,
-        'destiny': 420, 'cogVerdict': 180,
+        'destiny': 420, 'cogVerdict': 170,
       },
       // ── Colors ──
       CLR: {
@@ -652,7 +652,7 @@ Page({
         TEXT_WHITE:   '#ffffff',
         TEXT_ACCENT:  '#ff5ca8',
         RULE:         'rgba(255,92,168,0.45)',
-        DIVIDER:      'rgba(255,255,255,0.08)',
+        DIVIDER:      'rgba(255,255,255,0.14)',
         BODY:         '#eaf0ff',
         FOOTER:       '#7b6dff',
         QR_TITLE:     '#ff45c8',
@@ -699,7 +699,7 @@ Page({
         yellow: { bg: 'rgba(255,193,7,0.18)', bd: '#ffc107', fg: '#ffc107' },
         green:  { bg: 'rgba(16,140,89,0.18)',  bd: '#108C59', fg: '#108C59' },
         purple: { bg: 'rgba(123,60,255,0.18)', bd: '#7b3cff', fg: '#b07cff' },
-        blue:   { bg: 'rgba(45,107,255,0.18)', bd: '#2d6bff', fg: '#5a9cff' },
+        blue:   { bg: 'rgba(45,107,255,0.12)', bd: '#2d6bff', fg: '#5a9cff' },
         red:    { bg: 'rgba(255,45,85,0.18)',  bd: '#ff2d55', fg: '#ff6b81' },
       }
       var b = badges[type] || badges.yellow
@@ -1035,8 +1035,8 @@ Page({
           ss.push({ name: 'statement', y: cy, h: stH, lines: stLines })
           cy += stH + 16  // 16px gap before divider
           // Divider
-          ss.push({ name: 'divider', y: cy, h: 14 })
-          cy += 14  // divider region
+          ss.push({ name: 'divider', y: cy, h: 12 })
+          cy += 12  // divider region
           // Action: label + body
           var actY = cy
           setFont(ctx, { size: 18, weight: '600' })
@@ -1045,9 +1045,9 @@ Page({
           var aaLines = splitLines(ctx, cogActionAnchor, contentWidth, 21)
           var aaLs = Math.min(aaLines.length, 3)
           if (aaLines.length > aaLs) aaLines = aaLines.slice(0, aaLs)
-          var aaBodyH = aaLs * 31
-          ss.push({ name: 'action', y: actY, h: lblH + 6 + aaBodyH, lines: aaLines })
-          cy += lblH + 6 + aaBodyH
+          var aaBodyH = aaLs * 29
+          ss.push({ name: 'action', y: actY, h: lblH + 4 + aaBodyH, lines: aaLines })
+          cy += lblH + 4 + aaBodyH
           return { sections: ss, totalContentH: cy, stLines: stLines, stLs: stLs, aaLines: aaLines, aaLs: aaLs }
         })()
         var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
@@ -1327,7 +1327,7 @@ Page({
         ctx.fillText('行动锚点', contentX, baseY + actSec.y)
         setFont(ctx, { size: 21, weight: '400' }); setColor(ctx, C.COG_STATEMENT)
         for (var ai = 0; ai < actSec.lines.length; ai++) {
-          ctx.fillText(actSec.lines[ai], contentX, baseY + actSec.y + 24 + 6 + ai * 31)
+          ctx.fillText(actSec.lines[ai], contentX, baseY + actSec.y + 24 + 4 + ai * 29)
         }
 
         // lastDrawY from single-source layout
