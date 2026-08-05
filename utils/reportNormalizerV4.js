@@ -517,18 +517,64 @@ function buildDiagnosticV4ViewModel(report) {
 
 function mapDiagnosticV4ToPoster(vm) {
   var bestPath = vm.primaryWealthPath || (vm.wealthPaths.length > 0 ? vm.wealthPaths[0] : null)
+  var fd = vm.fatalDiagnosis || {}
+
+  // RC6.0 card body resolution (order matters: pick first full statement)
+  function resolveFirstValid() {
+    var candidates = Array.prototype.slice.call(arguments)
+    for (var i = 0; i < candidates.length; i++) {
+      if (typeof candidates[i] === 'string' && candidates[i].trim().length >= 8) {
+        return candidates[i].trim()
+      }
+    }
+    return ''
+  }
+
+  // 01 命运判决
+  var verdictBody = resolveFirstValid(
+    (vm.finalStrike && vm.finalStrike.sentence) || '',
+    fd.mainProblem || '',
+    vm.hero.title || ''
+  )
+  if (!verdictBody) verdictBody = '认知数据加载中，请重新生成报告。'
+
+  // 02 核心矛盾
+  var conflictBody = resolveFirstValid(
+    fd.reason || '',
+    (vm.systemLeaks && vm.systemLeaks.length > 0 ? vm.systemLeaks.map(function(r) { return r.why || r.description }).join(' | ') : ''),
+    (vm.identity && vm.identity.gap) || ''
+  )
+  if (!conflictBody) conflictBody = '系统识别到一条结构性矛盾，需要进一步诊断。'
+
+  // 03 唯一决策 — must differ from 02
+  var decisionBody = resolveFirstValid(
+    (vm.stopDoing && vm.stopDoing.length > 0 ? '停止：' + vm.stopDoing[0] : ''),
+    (bestPath && bestPath.name) || ''
+  )
+  if (!decisionBody || decisionBody === conflictBody || decisionBody.includes(conflictBody)) {
+    decisionBody = '排除低概率路径，集中资源验证唯一可行的方向。'
+  }
+
+  // 04 第一行动 — must be a complete action (>8 chars and not ending with dash)
+  var firstActionBody = resolveFirstValid(
+    (vm.actionTimeline && vm.actionTimeline.length > 0 ? buildDaySummary(vm.actionTimeline[0]) : ''),
+    (bestPath && bestPath.description) || ''
+  )
+  if (!firstActionBody) {
+    firstActionBody = '在24小时内完成一个可验证的最小行动。'
+  } else if (/[—\-：:]$/.test(firstActionBody.trim()) || firstActionBody.trim().length < 8) {
+    console.error('[PosterRC6] FIRST_ACTION_INCOMPLETE', { raw: firstActionBody })
+    firstActionBody = resolveFirstValid(
+      (bestPath && bestPath.description) || '',
+      '在24小时内完成一个可验证的最小行动。'
+    )
+  }
+
   return {
-    fatalSentence: vm.hero.title || '',
-    coreProblem: (vm.fatalDiagnosis && vm.fatalDiagnosis.reason) || (vm.fatalDiagnosis && vm.fatalDiagnosis.mainProblem) || '',
-    systemTrap: (vm.systemLeaks || []).map(function(r) { return r.title + ': ' + r.description }).join(' | '),
-    strategyPath: bestPath
-      ? bestPath.name + ' (' + bestPath.statusLabel + ') — ' + bestPath.description
-      : '',
-    advice: [
-      buildDaySummary(vm.actionTimeline[0]),
-      buildDaySummary(vm.actionTimeline[2]),
-      buildDaySummary(vm.actionTimeline[4]),
-    ].filter(Boolean),
+    verdict: verdictBody,
+    coreConflict: conflictBody,
+    decision: decisionBody,
+    firstAction: firstActionBody,
 
     // RC6.0: destiny + cognitive to poster
     destinySimulator: vm.destinySimulator || null,

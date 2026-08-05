@@ -345,6 +345,7 @@ Page({
      Canvas 2D 底座 (Stage B1)
      ═══════════════════════════════════ */
   _setPosterCanvasSize(width, height) {
+    console.log('[PosterRC6][P3] _setPosterCanvasSize', { width: width, height: height })
     return new Promise(resolve => {
       this.setData({
         posterCanvasWidth: width,
@@ -355,7 +356,10 @@ Page({
 
   _waitNextTick() {
     return new Promise(resolve => {
-      wx.nextTick(resolve)
+      wx.nextTick(function () {
+        console.log('[PosterRC6][P4] _waitNextTick finished')
+        resolve()
+      })
     })
   },
 
@@ -370,6 +374,12 @@ Page({
         })
         .exec(result => {
           var target = result && result[0]
+          console.log('[PosterRC6][P5] _getPosterCanvasNode', {
+            hasCanvas: !!(target && target.node),
+            cssWidth: target ? Number(target.width) || 0 : 0,
+            cssHeight: target ? Number(target.height) || 0 : 0,
+            canvasType: target && target.node ? typeof target.node : 'N/A'
+          })
           if (!target || !target.node) {
             reject(new Error('POSTER_CANVAS_NODE_NOT_FOUND'))
             return
@@ -392,7 +402,11 @@ Page({
     } catch (e) {
       console.warn('[PosterRC6][2D] get window info failed', e)
     }
-    return Math.max(1, Number(info && info.pixelRatio) || 2)
+    var dpr = Math.max(1, Number(info && info.pixelRatio) || 2)
+    console.log('[PosterRC6][P7] _getPosterDpr', {
+      pixelRatio: dpr
+    })
+    return dpr
   },
 
   _initPosterCanvas2D(arg) {
@@ -421,16 +435,20 @@ Page({
     var cssWidth = result.cssWidth
     var cssHeight = result.cssHeight
     var ctx = canvas.getContext('2d')
+    console.log('[PosterRC6][P6] getContext("2d")', {
+      hasCtx: !!ctx,
+      ctxType: typeof ctx
+    })
     if (!ctx) {
       throw new Error('POSTER_2D_CONTEXT_NOT_AVAILABLE')
     }
     var dpr = this._getPosterDpr()
     this._initPosterCanvas2D({ canvas: canvas, ctx: ctx, width: width, height: height, dpr: dpr })
-    console.log('[PosterRC6][2D] probe pass', {
-      cssWidth: cssWidth,
-      cssHeight: cssHeight,
-      width: width,
-      height: height,
+    console.log('[PosterRC6][P8] Canvas init complete', {
+      logicalWidth: width,
+      logicalHeight: height,
+      pixelWidth: canvas.width,
+      pixelHeight: canvas.height,
       dpr: dpr
     })
     return { canvas: canvas, ctx: ctx, cssWidth: cssWidth, cssHeight: cssHeight, width: width, height: height, dpr: dpr }
@@ -438,13 +456,18 @@ Page({
 
   _loadPosterCanvasImage(canvas, src) {
     return new Promise((resolve, reject) => {
+      console.log('[PosterRC6][P13] canvas.createImage start', { src: src })
       if (!src) { reject(new Error('POSTER_IMAGE_SOURCE_EMPTY')); return }
       if (!canvas || typeof canvas.createImage !== 'function') {
         reject(new Error('POSTER_CANVAS_CREATE_IMAGE_UNAVAILABLE')); return
       }
       var image = canvas.createImage()
-      image.onload = function () { resolve(image) }
+      image.onload = function () {
+        console.log('[PosterRC6][P13] image loaded', { width: image.width, height: image.height })
+        resolve(image)
+      }
       image.onerror = function (e) {
+        console.error('[PosterRC6][P13] image error', { message: e && e.errMsg || src })
         reject(new Error('POSTER_IMAGE_LOAD_FAILED:' + (e && e.errMsg || src)))
       }
       image.src = src
@@ -454,15 +477,27 @@ Page({
   _waitPosterCanvasFrame(canvas) {
     return new Promise(function (resolve) {
       if (canvas && typeof canvas.requestAnimationFrame === 'function') {
-        canvas.requestAnimationFrame(function () { resolve() })
+        canvas.requestAnimationFrame(function () {
+          console.log('[PosterRC6][P17] waitPosterCanvasFrame finished')
+          resolve()
+        })
         return
       }
-      setTimeout(resolve, 80)
+      setTimeout(function () {
+        console.log('[PosterRC6][P17] waitPosterCanvasFrame finished (timeout fallback)')
+        resolve()
+      }, 80)
     })
   },
 
   _exportPosterCanvas2D(arg) {
     var self = this
+    console.log('[PosterRC6][P18] canvasToTempFilePath args', {
+      x: 0, y: 0,
+      width: arg.width, height: arg.height,
+      destWidth: Math.round(arg.width * arg.dpr),
+      destHeight: Math.round(arg.height * arg.dpr)
+    })
     return new Promise(function (resolve, reject) {
       wx.canvasToTempFilePath({
         canvas: arg.canvas,
@@ -473,6 +508,7 @@ Page({
         fileType: 'png', quality: 1,
         success: function (result) {
           if (!result || !result.tempFilePath) { reject(new Error('POSTER_EXPORT_PATH_EMPTY')); return }
+          console.log('[PosterRC6][P19] export success', { tempFilePath: result.tempFilePath })
           resolve(result.tempFilePath)
         },
         fail: function (error) {
@@ -489,6 +525,14 @@ Page({
     if (this.data.posterGenerating) return
     var self = this
     this.setData({ posterGenerating: true })
+
+    console.log('[PosterRC6][P1] generatePoster start', {
+      posterGenerating: this.data.posterGenerating,
+      reportGenerating: this.data.reportGenerating,
+      timestamp: Date.now(),
+      timeStr: new Date().toISOString()
+    })
+
     wx.showLoading({ title: '正在生成海报...', mask: true })
 
     // Build poster data from current viewModel or V3 sections
@@ -506,6 +550,14 @@ Page({
       }
     }
 
+    console.log('[PosterRC6][P2] posterData built', {
+      cardsLength: posterData.cards ? posterData.cards.length : 'N/A',
+      hasHeader: !!posterData.header,
+      hasFooter: !!posterData.footer,
+      qrPath: this.data.qrPath || '/images/qrcode.png',
+      posterHeight: this.data.posterCanvasHeight
+    })
+
     // Async Canvas 2D workflow
     this._buildAndExportPoster(posterData)
       .then(function (tempFilePath) {
@@ -518,7 +570,7 @@ Page({
         self._saveToAlbum(tempFilePath)
       })
       .catch(function (error) {
-        console.error('[PosterRC6][2D] GENERATE_FATAL', {
+        console.error('[PosterRC6][FATAL] GENERATE_FATAL', {
           message: error && error.message,
           stack: error && error.stack,
           error: error
@@ -527,7 +579,7 @@ Page({
         self.setData({ posterGenerating: false })
         wx.showModal({
           title: '海报生成失败',
-          content: '绘制过程中出现异常，请重新生成。',
+          content: (error && error.message) || '绘制过程中出现异常，请重新生成。',
           showCancel: false
         })
       })
@@ -542,8 +594,9 @@ Page({
     var safeX = 40
     var cardW = 670
     var leftW = 112
-    var textX = safeX + leftW + 28
-    var textMaxW = cardW - leftW - 52
+    var contentX = safeX + leftW + 28
+    var contentRight = safeX + cardW - 28
+    var contentWidth = contentRight - contentX
     var qrPath = self.data.qrPath || '/images/qrcode.png'
 
     // ── Get V6 fields with safe fallback ──
@@ -572,20 +625,26 @@ Page({
     var cogStatement = cog.statement || '你的翻身条件已在积累，但仍被一个关键缺口限制。'
     var cogActionAnchor = cog.actionAnchor || '把能量集中到一条有验证的方向。'
 
-    var fatalSentence = pd.fatalSentence || ''
-    var coreProblem = pd.coreProblem || ''
-    var systemTrap = pd.systemTrap || ''
-    var strategyPath = pd.strategyPath || ''
-    var advice = pd.advice || ''
+    // ── RC6 card body text (new schema from mapper) ──
+    var verdict = pd.verdict || ''
+    var coreConflict = pd.coreConflict || ''
+    var decision = pd.decision || ''
+    var firstAction = pd.firstAction || ''
 
-    var hasDestiny = (currentIndex > 0) || (projectedIndex > 0)
-    var hasCogVerdict = (cogStatement && cogStatement.length > 5) || (cogActionAnchor && cogActionAnchor.length > 5)
+    // ── Cards 01-04 body assertions ──
+    var requiredBodies = [verdict, coreConflict, decision, firstAction]
+    var requiredNames = ['verdict', 'coreConflict', 'decision', 'firstAction']
+    for (var rb = 0; rb < requiredBodies.length; rb++) {
+      if (!requiredBodies[rb] || String(requiredBodies[rb]).trim().length < 8) {
+        console.error('[PosterRC6] CARD_BODY_INVALID:' + (rb + 1), { field: requiredNames[rb], value: requiredBodies[rb] })
+      }
+    }
 
     var cards = [
-      { no: '01', icon: '📍', title: '致命一句话', color: '#ff2d55', text: fatalSentence || '' },
-      { no: '02', icon: '🔍', title: '核心问题',   color: '#ff3b3b', text: coreProblem || '' },
-      { no: '03', icon: '🚫', title: '系统困局',   color: '#ff6b6b', text: systemTrap || '' },
-      { no: '04', icon: '🚀', title: '翻身路径',   color: '#ff9f1a', text: strategyPath || '' },
+      { no: '01', icon: '📍', title: '命运判决', color: '#ff2d55', text: verdict || '' },
+      { no: '02', icon: '🔍', title: '核心矛盾', color: '#ff3b3b', text: coreConflict || '' },
+      { no: '03', icon: '🚫', title: '唯一决策', color: '#ff6b6b', text: decision || '' },
+      { no: '04', icon: '🚀', title: '第一行动', color: '#ff9f1a', text: firstAction || '' },
       { no: '05', icon: '🧭', title: '命运模拟器', color: '#108C59', text: '', type: 'destiny' },
       { no: '06', icon: '💥', title: '认知宣判',   color: '#7B3CFF', text: '', type: 'cogVerdict' },
     ]
@@ -604,14 +663,19 @@ Page({
       ctx.closePath()
     }
 
-    function splitLines(text, maxWidth, size) {
-      ctx.font = size + 'px sans-serif'
+    function splitLines(ctx, text, maxWidth, size) {
+      var safeText = text == null ? '' : String(text)
+      var realCtx = ctx
+      if (realCtx && typeof realCtx.measureText === 'function') {
+        realCtx.font = size + 'px sans-serif'
+      }
       var chars = String(text || '').replace(/\n/g, ' ').split('')
       var line = ''
       var lines = []
       for (var i = 0; i < chars.length; i++) {
         var test = line + chars[i]
-        if (ctx.measureText(test).width > maxWidth && line) {
+        var charW = realCtx && typeof realCtx.measureText === 'function' ? realCtx.measureText(test).width : test.length * size * 0.6
+        if (charW > maxWidth && line) {
           lines.push(line)
           line = chars[i]
         } else {
@@ -627,21 +691,25 @@ Page({
      * options: { maxWidth, lineHeight, fontSize, color, maxLines, ellipsis }
      * Returns: { height: number, lines: number }
      */
-    function drawWrappedText(text, x, y, options) {
+    function drawWrappedText(ctx, text, x, y, options) {
+      if (!ctx || typeof ctx.measureText !== 'function') {
+        throw new Error('POSTER_TEXT_CONTEXT_MISSING')
+      }
       var opts = options || {}
-      var maxW = opts.maxWidth || textMaxW
+      var maxW = opts.maxWidth || contentWidth
       var lh = opts.lineHeight || 28
       var size = opts.fontSize || 24
       var color = opts.color || '#eaf0ff'
       var maxLines = opts.maxLines || 99
       var ellipsis = opts.ellipsis || ''
+      var safeText = text == null ? '' : String(text)
 
       ctx.font = size + 'px sans-serif'
       ctx.fillStyle = (color)
       ctx.textAlign = ('left')
 
       var lines = []
-      var chars = String(text || '').replace(/\n/g, ' ').split('')
+      var chars = safeText.replace(/\n/g, ' ').split('')
       var line = ''
       for (var i = 0; i < chars.length; i++) {
         var test = line + chars[i]
@@ -671,7 +739,10 @@ Page({
       return { height: lines.length * lh, lines: lines.length }
     }
 
-    function drawWrappedLines(lines, x, y, lineHeight, color, size) {
+    function drawWrappedLines(ctx, lines, x, y, lineHeight, color, size) {
+      if (!ctx || typeof ctx.measureText !== 'function') {
+        throw new Error('POSTER_TEXT_CONTEXT_MISSING')
+      }
       ctx.textAlign = ('left')
       ctx.font = size + 'px sans-serif'
       ctx.fillStyle = (color)
@@ -680,8 +751,21 @@ Page({
       })
     }
 
+    function createPosterRadialGradient(targetCtx, centerX, centerY, radius) {
+      if (!targetCtx || typeof targetCtx.createRadialGradient !== 'function') {
+        throw new Error('POSTER_RADIAL_GRADIENT_UNAVAILABLE')
+      }
+      var safeRadius = Math.max(1, Number(radius) || 1)
+      var gradient = targetCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, safeRadius)
+      if (!gradient || typeof gradient.addColorStop !== 'function') {
+        throw new Error('POSTER_GRADIENT_CREATE_FAILED')
+      }
+      return gradient
+    }
+
     function drawGlow(x, y, r, color, alpha) {
-      const g = ctx.createRadialGradient(x, y, r)
+      console.log('[PosterRC6][GRADIENT]', { section: 'drawGlow', x: x, y: y, r: r, hasCtx: !!ctx, hasCreateRadial: !!ctx && typeof ctx.createRadialGradient === 'function' })
+      var g = createPosterRadialGradient(ctx, x, y, r)
       g.addColorStop(0, color)
       g.addColorStop(1, 'rgba(0,0,0,0)')
       ctx.globalAlpha = (alpha)
@@ -690,60 +774,101 @@ Page({
       ctx.globalAlpha = (1)
     }
 
-    // ══════════════════════════════════════════════
-    //  预计算每张卡片真实高度
-    // ══════════════════════════════════════════════
-    cards.forEach(function(item, index) {
-      if (item.type === 'destiny') {
-        // RC6.0 05: 命运模拟器压缩版
-        var partsH = 0
-        // Score line: "62分 · 中等"
-        partsH += 32
-        // Baseline outcome (max 3 lines @ 26px)
-        ctx.font = '22px sans-serif'
-        partsH += Math.min(splitLines(baselineOutcome, textMaxW - 4, 22).length, 3) * 28
-        // Action projected: "62 → 81"
-        partsH += 30
-        // Repair cycle
-        partsH += 28
-        // Key variable (max 2 lines @ 22px)
-        ctx.font = '22px sans-serif'
-        partsH += Math.min(splitLines(keyVariable, textMaxW - 4, 22).length, 2) * 26
-        // Turning points condensed (1 line)
-        partsH += 22
-        // Gap between sections
-        partsH += 16
-        item._height = Math.max(260, 95 + partsH + 24)
-      } else if (item.type === 'cogVerdict') {
-        // RC6.0 06: 认知宣判压缩版
-        var cogH = 0
-        // Statement (max 3 lines @ 24px)
-        ctx.font = '24px sans-serif'
-        var stLines = Math.min(splitLines(cogStatement, textMaxW - 4, 24).length, 3)
-        cogH += stLines * 32
-        // Action anchor (max 2 lines @ 22px)
-        ctx.font = '22px sans-serif'
-        var aaLines = Math.min(splitLines(cogActionAnchor, textMaxW - 4, 22).length, 2)
-        cogH += aaLines * 28 + 20
-        item._height = Math.max(200, 95 + cogH + 40)
-      } else {
-        item._lines = splitLines(item.text, textMaxW, 26)
-        item._height = Math.max(145, 95 + item._lines.length * 34 + 28)
-      }
-    })
-
-    const headerH = 180
-    const gap = 14
-    const cardsH = cards.reduce((sum, item) => sum + item._height, 0) + gap * (cards.length - 1)
-    const ctaH = 150
-    const footerH = 80
-    const H = headerH + cardsH + 60 + ctaH + footerH
-
-    // ═══ Canvas 2D init (must happen after H is computed) ═══
+    // ═══ Canvas 2D init ═══
+    // Use a generous initial height (re-measured after layout)
     var probeResult = await self._probePosterCanvas2D()
     var canvas = probeResult.canvas
     var ctx = probeResult.ctx
     var dpr = probeResult.dpr
+    // Set initial larger canvas; true height computed below
+    canvas.width = Math.round(W * dpr)
+    canvas.height = Math.round(2800 * dpr)
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.scale(dpr, dpr)
+
+    // ══════════════════════════════════════════════
+    //  用真实 ctx 重新计算所有卡片高度
+    // ══════════════════════════════════════════════
+    var CARD_PAD_TOP = 40
+    var CARD_PAD_BOT = 28
+    var TITLE_H = 38
+    var GAP = 16  // card gap
+    var CARD_MIN_H = {
+      '01': 142,
+      '02': 155,
+      '03': 155,
+      '04': 142,
+      'destiny': 300,
+      'cogVerdict': 205
+    }
+
+    cards.forEach(function(item, index) {
+      if (item.type === 'destiny') {
+        // RC6.0 05: 命运模拟器 — per-section accumulated
+        var dY = CARD_PAD_TOP + TITLE_H + 6
+        // Score: "63分 · 中等"
+        dY += 36
+        // Baseline label
+        dY += 28
+        ctx.font = '22px sans-serif'
+        var baseLs = Math.min(splitLines(ctx, baselineOutcome, contentWidth - 16, 22).length, 3)
+        dY += baseLs * 30
+        dY += 14
+        // Action label
+        dY += 28
+        // Index change: "63 → 79"
+        dY += 40
+        // Repair cycle
+        dY += 34
+        // "关键变量" label
+        dY += 28
+        ctx.font = '21px sans-serif'
+        var kvLs = Math.min(splitLines(ctx, keyVariable, contentWidth - 16, 21).length, 3)
+        dY += kvLs * 30
+        dY += 14
+        // "关键转折点" label + points line-by-line
+        if (turningPoints.length > 0) {
+          dY += 28  // label
+          var tpCount = Math.min(turningPoints.length, 3)
+          ctx.font = '19px sans-serif'
+          for (var tp = 0; tp < tpCount; tp++) {
+            var tpText = '第' + turningPoints[tp].day + '天：' + (turningPoints[tp].label || '')
+            var tpLines = splitLines(ctx, tpText, contentWidth - 16, 19)
+            dY += tpLines.length * 27 + 8
+          }
+        }
+        dY += CARD_PAD_BOT
+        item._heightMeasured = Math.max(CARD_MIN_H.destiny, dY)
+        item._baseLines = baseLs
+        item._kvLines = kvLs
+        item._tpCount = turningPoints.length > 0 ? Math.min(turningPoints.length, 3) : 0
+      } else if (item.type === 'cogVerdict') {
+        // RC6.0 06: 认知宣判 — compact
+        ctx.font = '24px sans-serif'
+        var stLs = Math.min(splitLines(ctx, cogStatement, contentWidth - 8, 24).length, 4)
+        ctx.font = '22px sans-serif'
+        var aaLs = Math.min(splitLines(ctx, cogActionAnchor, contentWidth - 16, 22).length, 3)
+        var cogH = CARD_PAD_TOP + TITLE_H + 18 + stLs * 34 + 18 + 26 + aaLs * 31 + CARD_PAD_BOT
+        item._heightMeasured = Math.max(CARD_MIN_H.cogVerdict, cogH)
+        item._stLines = stLs
+        item._aaLines = aaLs
+      } else {
+        // Cards 01-04 — compact dynamic height
+        ctx.font = '26px sans-serif'
+        item._lines = splitLines(ctx, item.text || '', contentWidth, 26)
+        var minH = CARD_MIN_H[item.no] || 142
+        item._heightMeasured = Math.max(minH, CARD_PAD_TOP + TITLE_H + 12 + item._lines.length * 34 + CARD_PAD_BOT)
+      }
+      console.log('[PosterRC6][MEASURE] Card' + (index + 1) + ' height=' + item._heightMeasured)
+    })
+
+    var headerH = 180
+    var cardsH = cards.reduce(function(sum, item) { return sum + item._heightMeasured }, 0) + GAP * (cards.length - 1)
+    var ctaH = 150
+    var footerH = 80
+    var H = headerH + cardsH + 60 + ctaH + footerH
+
+    // Re-init canvas with correct height
     canvas.width = Math.round(W * dpr)
     canvas.height = Math.round(H * dpr)
     ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -754,6 +879,7 @@ Page({
     // 背景
     ctx.fillRect(0, 0, W, H)
     renderState.background = true
+    console.log('[PosterRC6][P9] background ok')
 
     drawGlow(160, 120, 220, '#7b3cff', 0.26)
     drawGlow(620, 120, 240, '#ff2d75', 0.18)
@@ -777,149 +903,199 @@ Page({
     ctx.stroke()
 
     renderState.header = true
+    console.log('[PosterRC6][P10] header done')
 
     // 卡片
-    let y = 180
+    var cardY = 180
+    var cardCount = cards.length
 
-    cards.forEach(function(item, index) {
-      var h = item._height
+    for (var ci = 0; ci < cardCount; ci++) {
+      var item = cards[ci]
+      var index = ci
+      var h = item._heightMeasured
 
-      roundRect(safeX, y, cardW, h, 16)
+      console.log('[PosterRC6][P11] Card' + (index + 1) + ' start', { title: (item.label||item.title||'card' + (index+1)), cardY: cardY, height: h })
+
+      ctx.save()
+
+      // ── Card background ──
+      roundRect(safeX, cardY, cardW, h, 16)
       ctx.fillStyle = ('rgba(8,14,32,0.88)')
       ctx.fill()
       ctx.strokeStyle = (item.color)
       ctx.lineWidth = (1.5)
       ctx.stroke()
 
+      // Left accent bar
       ctx.globalAlpha = (0.16)
       ctx.fillStyle = (item.color)
-      ctx.fillRect(safeX, y, leftW, h)
+      ctx.fillRect(safeX, cardY, leftW, h)
       ctx.globalAlpha = (1)
 
+      // Card number + icon (centered in left bar)
       ctx.textAlign = ('center')
       ctx.font = '52px sans-serif'
       ctx.fillStyle = (item.color)
-      ctx.fillText(item.no, safeX + leftW / 2, y + 62)
-
+      ctx.fillText(item.no, safeX + leftW / 2, cardY + 62)
       ctx.font = '40px sans-serif'
-      ctx.fillText(item.icon, safeX + leftW / 2, y + 112)
+      ctx.fillText(item.icon, safeX + leftW / 2, cardY + 112)
 
+      // Card title
       ctx.textAlign = ('left')
       ctx.font = '30px sans-serif'
       ctx.fillStyle = (item.color)
-      ctx.fillText(item.icon + ' ' + item.title, textX, y + 46)
+      ctx.fillText(item.icon + ' ' + item.title, contentX, cardY + 46)
+
+      var lastTextY = cardY + 46
 
       if (item.type === 'destiny') {
         // ── RC6.0 05: 命运模拟器 ──
-        var dy = y + 88
+        var dy = cardY + CARD_PAD_TOP + TITLE_H + 6
 
-        // 当前指数: "62分 · 中等"
-        ctx.font = '36px sans-serif'
+        // 评分: "63分 · 中等"
+        ctx.font = '29px sans-serif'
         ctx.fillStyle = ('#108C59')
-        ctx.fillText(currentIndex + '分', textX, dy)
+        var scoreStr = currentIndex + '分'
+        ctx.fillText(scoreStr, contentX, dy)
+        var scoreW = ctx.measureText(scoreStr).width
         ctx.font = '22px sans-serif'
         ctx.fillStyle = ('#108C59')
-        ctx.fillText(' · ' + currentLevelLabel, textX + ctx.measureText(currentIndex + '分').width, dy)
-        dy += 34
+        ctx.fillText(' · ' + currentLevelLabel, contentX + scoreW, dy)
+        dy += 36
 
         // A 路径 — 保持现状
-        ctx.font = '20px sans-serif'
+        ctx.font = '21px sans-serif'
         ctx.fillStyle = ('#8EA0B5')
-        ctx.fillText('▸ 保持现状', textX, dy)
-        dy += 26
-
-        var baseLines = splitLines(baselineOutcome, textMaxW - 4, 22)
-        if (baseLines.length > 3) baseLines = baseLines.slice(0, 3)
-        ctx.font = '22px sans-serif'
-        ctx.fillStyle = ('#8899B0')
-        for (var bi = 0; bi < baseLines.length; bi++) {
-          ctx.fillText(baseLines[bi], textX + 16, dy)
-          dy += 28
-        }
-        dy += 10
-
-        // B 路径 — 执行方案 + 指数变化
-        ctx.font = '20px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        ctx.fillText('▸ 执行方案', textX, dy)
+        ctx.fillText('▸ 保持现状', contentX, dy)
         dy += 28
 
-        ctx.font = '32px sans-serif'
+        console.log('[PosterRC6][FONT_CALL]', { section: 'card05-baseline', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof baselineOutcome, fontSize: 22 })
+        ctx.font = '22px sans-serif'
+        ctx.fillStyle = ('#8899B0')
+        var baseLs = item._baseLines || 3
+        for (var bi = 0; bi < baseLs; bi++) {
+          var bl = splitLines(ctx, baselineOutcome, contentWidth - 16, 22)[bi] || ''
+          ctx.fillText(bl, contentX + 16, dy)
+          dy += 30
+        }
+        dy += 14
+
+        // B 路径 — 执行方案
+        ctx.font = '21px sans-serif'
         ctx.fillStyle = ('#108C59')
-        ctx.fillText(currentIndex + '', textX + 16, dy)
-        var arrW = ctx.measureText(currentIndex + '').width
+        ctx.fillText('▸ 执行方案', contentX, dy)
+        dy += 28
+
+        // 指数变化: "63 → 79"
+        ctx.font = '28px sans-serif'
+        ctx.fillStyle = ('#108C59')
+        var fromStr = currentIndex + ''
+        ctx.fillText(fromStr, contentX + 16, dy)
+        var fromW = ctx.measureText(fromStr).width
         ctx.font = '24px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        ctx.fillText(' → ', textX + 16 + arrW, dy)
+        ctx.fillText(' → ', contentX + 16 + fromW, dy)
         var arrowW = ctx.measureText(' → ').width
-        ctx.font = '38px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        ctx.fillText(projectedIndex + '', textX + 16 + arrW + arrowW, dy)
-        dy += 38
+        ctx.font = '28px sans-serif'
+        ctx.fillText(projectedIndex + '', contentX + 16 + fromW + arrowW, dy)
+        dy += 40
 
         // 修复周期
-        ctx.font = '22px sans-serif'
-        ctx.fillStyle = ('#108C59')
-        ctx.fillText('预计结构修复周期：' + repairCycleDays + '天', textX + 16, dy)
-        dy += 32
-
-        // 关键变量
         ctx.font = '20px sans-serif'
-        ctx.fillStyle = ('#8EA0B5')
-        ctx.fillText('关键变量', textX, dy)
-        dy += 26
+        ctx.fillStyle = ('#108C59')
+        ctx.fillText('预计结构修复周期：' + repairCycleDays + '天', contentX + 16, dy)
+        dy += 34
 
-        ctx.font = '22px sans-serif'
+        // ── 关键变量 (独立区块) ──
+        ctx.font = '19px sans-serif'
+        ctx.fillStyle = ('#8EA0B5')
+        ctx.fillText('关键变量', contentX, dy)
+        dy += 28
+
+        ctx.font = '21px sans-serif'
         ctx.fillStyle = ('#2B4258')
-        var kvLines = splitLines(keyVariable, textMaxW - 4, 22)
-        if (kvLines.length > 2) kvLines = kvLines.slice(0, 2)
+        var kvLines = splitLines(ctx, keyVariable, contentWidth - 16, 21)
+        var kvLs = item._kvLines || kvLines.length
+        if (kvLines.length > kvLs) kvLines = kvLines.slice(0, kvLs)
         for (var ki = 0; ki < kvLines.length; ki++) {
-          ctx.fillText(kvLines[ki], textX + 16, dy)
-          dy += 26
+          ctx.fillText(kvLines[ki], contentX + 16, dy)
+          dy += 30
+        }
+        dy += 14
+
+        // ── 关键转折点 (逐条换行) ──
+        if (turningPoints.length > 0) {
+          ctx.font = '19px sans-serif'
+          ctx.fillStyle = ('#8EA0B5')
+          ctx.fillText('关键转折点', contentX, dy)
+          dy += 28
+
+          var tpCount = Math.min(turningPoints.length, 3)
+          ctx.font = '19px sans-serif'
+          ctx.fillStyle = ('#90B0C5')
+          for (var tp = 0; tp < tpCount; tp++) {
+            var pointLabel = '第' + turningPoints[tp].day + '天：' + (turningPoints[tp].label || '')
+            var pointLines = splitLines(ctx, pointLabel, contentWidth - 16, 19)
+            for (var pl = 0; pl < pointLines.length; pl++) {
+              ctx.fillText(pointLines[pl], contentX + 16, dy)
+              dy += 27
+            }
+            dy += 8
+          }
         }
 
-        // 转折点压缩版（1行）
-        if (turningPoints.length > 0) {
-          dy += 4
-          ctx.font = '18px sans-serif'
-          ctx.fillStyle = ('#90B0C5')
-          var tpText = turningPoints.map(function(t) { return '第' + t.day + '天:' + (t.label || '').slice(0, 8) }).join(' · ')
-          var tpLines = splitLines(tpText, textMaxW, 18)
-          if (tpLines.length > 1) tpText = tpLines[0] + '…'
-          ctx.fillText(tpText, textX + 16, dy)
+        lastTextY = dy
+        console.log('[PosterRC6][LAYOUT]', { card: '05', cardY: cardY, cardHeight: h, cardBottom: cardY + h, lastTextY: lastTextY })
+        if (lastTextY > cardY + h - CARD_PAD_BOT) {
+          throw new Error('POSTER_CARD_CONTENT_OVERFLOW:05')
         }
 
       } else if (item.type === 'cogVerdict') {
         // ── RC6.0 06: 认知宣判 ──
-        var cy = y + 86
+        var cy = cardY + CARD_PAD_TOP + TITLE_H + 18
 
-        // 核心宣判 (max 3 lines)
-        cy += drawWrappedText(cogStatement, textX, cy, {
-          maxWidth: textMaxW - 4, lineHeight: 32, fontSize: 24,
-          color: '#D9C5FF', maxLines: 3, ellipsis: '…',
+        // 核心宣判
+        console.log('[PosterRC6][FONT_CALL]', { section: 'card06-statement', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof cogStatement, fontSize: 24 })
+        cy += drawWrappedText(ctx, cogStatement, contentX, cy, {
+          maxWidth: contentWidth - 8, lineHeight: 32, fontSize: 24,
+          color: '#D9C5FF', maxLines: 4, ellipsis: '…',
         }).height + 16
 
-        // 行动锚点 (max 2 lines)
+        // 行动锚点 label
         ctx.font = '20px sans-serif'
         ctx.fillStyle = ('#A68FCE')
-        ctx.fillText('行动锚点', textX, cy)
+        ctx.fillText('行动锚点', contentX, cy)
         cy += 26
 
-        drawWrappedText(cogActionAnchor, textX + 16, cy, {
-          maxWidth: textMaxW - 4, lineHeight: 28, fontSize: 22,
-          color: '#D9C5FF', maxLines: 2, ellipsis: '…',
+        console.log('[PosterRC6][FONT_CALL]', { section: 'card06-anchor', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof cogActionAnchor, fontSize: 22 })
+        drawWrappedText(ctx, cogActionAnchor, contentX + 16, cy, {
+          maxWidth: contentWidth - 16, lineHeight: 28, fontSize: 22,
+          color: '#D9C5FF', maxLines: 3, ellipsis: '…',
         })
 
+        lastTextY = cy + (item._aaLines || 2) * 28
+        console.log('[PosterRC6][LAYOUT]', { card: '06', cardY: cardY, cardHeight: h, cardBottom: cardY + h, lastTextY: lastTextY })
+        if (lastTextY > cardY + h - CARD_PAD_BOT) {
+          throw new Error('POSTER_CARD_CONTENT_OVERFLOW:06')
+        }
+
       } else {
-        drawWrappedLines(item._lines, textX, y + 86, 34, '#eaf0ff', 26)
+        // ── Cards 01-04 ──
+        console.log('[PosterRC6][FONT_CALL]', { section: 'card' + item.no + '-body', hasCtx: !!ctx, ctxType: typeof ctx, hasMeasureText: !!ctx && typeof ctx.measureText === 'function', textType: typeof item.text, fontSize: 26 })
+        drawWrappedLines(ctx, item._lines, contentX, cardY + CARD_PAD_TOP + TITLE_H + 12, 34, '#eaf0ff', 26)
+        lastTextY = cardY + CARD_PAD_TOP + TITLE_H + 12 + item._lines.length * 34
       }
 
-      renderState.cards += 1
-      y += h + gap
-    })
+      ctx.restore()
 
-    // CTA
-    const ctaY = y + 48
+      console.log('[PosterRC6][P11] Card' + (index + 1) + ' OK')
+      renderState.cards += 1
+      cardY += h + GAP
+    }
+
+    var y = cardY
+
+    // CTA (dynamic position from last card)
+    var ctaY = y + 36
 
     roundRect(safeX, ctaY, cardW, ctaH, 24)
     ctx.fillStyle = ('rgba(10,12,40,0.94)')
@@ -931,6 +1107,7 @@ Page({
     roundRect(safeX + 20, ctaY + 20, 110, 110, 18)
     ctx.fillStyle = ('#ffffff')
     ctx.fill()
+    console.log('[PosterRC6][P12] QR section start', { qrPath: qrPath })
     // QR image via Canvas 2D createImage
     var qrImage = null
     try {
@@ -939,6 +1116,7 @@ Page({
       console.error('[PosterRC6][2D] QR_IMAGE_LOAD_FAILED', { message: e && e.message, qrPath: qrPath })
     }
     if (qrImage) {
+      console.log('[PosterRC6][P14] drawImage QR', { qrX: safeX + 28, qrY: ctaY + 28, qrSize: 94 })
       ctx.drawImage(qrImage, safeX + 28, ctaY + 28, 94, 94)
     } else {
       // QR fallback: draw placeholder rect
@@ -981,6 +1159,15 @@ Page({
     ctx.fillText('»»» 长按识别小程序码 · 开启你的认知翻身之路 «««', W / 2, H - 30)
 
     renderState.footer = true
+    console.log('[PosterRC6][P15] footer done')
+
+    console.log('[PosterRC6][P16] renderState', {
+      background: renderState.background,
+      header: renderState.header,
+      cards: renderState.cards,
+      qrSection: renderState.qrSection,
+      footer: renderState.footer
+    })
 
     // ═══ Render state sentinel ═══
     if (!renderState.background || !renderState.header || renderState.cards !== 6 || !renderState.qrSection || !renderState.footer) {
@@ -995,13 +1182,16 @@ Page({
   },
 
   _saveToAlbum(filePath) {
+    console.log('[PosterRC6][P20] _saveToAlbum start', { filePath: filePath })
     wx.saveImageToPhotosAlbum({
       filePath,
       success: () => {
+        console.log('[PosterRC6][P20] save success')
         this.setData({ posterGenerating: false })
         wx.showModal({ title: '保存成功', content: '海报已保存，可发朋友圈裂变', showCancel: false })
       },
       fail: (err) => {
+        console.log('[PosterRC6][P20] save fail', { errMsg: err && err.errMsg })
         this.setData({ posterGenerating: false })
         if (err.errMsg.includes('auth deny')) {
           wx.showModal({ title: '授权提示', content: '请允许开启相册写入权限', success: (res) => { if (res.confirm) wx.openSetting() } })
