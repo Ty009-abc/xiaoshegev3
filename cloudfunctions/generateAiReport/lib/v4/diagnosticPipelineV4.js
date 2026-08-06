@@ -270,6 +270,26 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 
   if (!parsedAI.ok) {
     var parseCode = parsedAI.code || 'V4_AI_JSON_PARSE_FAILED'
+
+    // ── RC8.2: Hard assertion — diagnosis MUST be available at parse failure ──
+    if (!diagnosis) {
+      console.error('[RC8][DIAGNOSIS_CONTEXT_LOST]', JSON.stringify({
+        traceId: 'V4_' + (baseContract ? baseContract.reportId : 'UNKNOWN'),
+        stage: 'STEP_7_PARSE_AI',
+        parseCode: parseCode,
+        diagnosisCreatedEarlier: false,
+        diagnosisVariableType: typeof diagnosis,
+      }))
+    } else {
+      console.log('[RC8][DIAGNOSIS_AVAILABLE_AT_PARSE_FAIL]', JSON.stringify({
+        traceId: 'V4_' + (baseContract ? baseContract.reportId : 'UNKNOWN'),
+        stage: 'STEP_7_PARSE_AI',
+        parseCode: parseCode,
+        bottleneck: diagnosis.bottleneck ? diagnosis.bottleneck.id : 'NONE',
+        strategy: diagnosis.strategy ? diagnosis.strategy.id : 'NONE',
+      }))
+    }
+
     return routeFinalFallback({
       diagnosis, baseContract, stages,
       stage: 'STEP_7_PARSE_AI',
@@ -379,7 +399,8 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
       diagnosisTrace: finalReport.diagnosisTrace || null,
       diagnosticSnapshot: finalReport.diagnosticSnapshot || null,
       fallbackRouterTrace: null,
-      aiParseTrace: null,
+      aiParseTrace: parsedAI ? parsedAI.parseTrace : null,
+      providerTrace: aiResult ? aiResult.providerTrace : null,
       fallbackSource: null,
       fallbackReasonCode: null,
       legacyFallbackInvoked: false,

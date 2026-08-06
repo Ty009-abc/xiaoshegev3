@@ -90,29 +90,14 @@ function extractJSON(rawText, aiMeta) {
   if (firstBrace >= 0 && lastBrace > firstBrace) {
     var balancedCandidate = trimmed.slice(firstBrace, lastBrace + 1)
 
-    // CRITICAL: If output was truncated by token limit and closing brace is
-    // the result of our repair (not original), it means the JSON is incomplete.
-    // Check: is the balanced candidate missing expected keys?
-    var isClosingBraceOriginal = trimmed.trim().endsWith('}')
-    if (aiMeta.responseTruncated && !isClosingBraceOriginal) {
-      parseTrace.parseErrorCode = 'V4_AI_OUTPUT_TRUNCATED'
-      parseTrace.parseErrorMessage = 'AI output was truncated (finishReason=' + (aiMeta.finishReason || 'unknown') + '), closing brace might be from previous content'
-      return {
-        ok: false,
-        code: 'V4_AI_OUTPUT_TRUNCATED',
-        reason: 'AI output truncated before JSON completion — closing brace not at end of output',
-        rawLength: trimmed.length,
-        parseTrace: parseTrace,
-      }
-    }
-
+    // Try parsing the balanced candidate first
     try {
       var obj3 = JSON.parse(balancedCandidate)
       parseTrace.extractionMethod = 'BALANCED_OBJECT'
 
-      // Even if parse succeeds, mark truncated if output was cut off
+      // After successful parse: check if explicitly truncated (finishReason=length)
+      // but DON'T reject the parse — just mark it in the trace
       if (aiMeta.responseTruncated) {
-        // Parse succeeded but output was truncated — warn in trace
         parseTrace.parseWarning = 'TRUNCATED_BUT_PARSEABLE'
       }
 
@@ -120,6 +105,23 @@ function extractJSON(rawText, aiMeta) {
     } catch (e3) {
       parseTrace.parseErrorCode = 'BALANCED_PARSE_FAILED'
       parseTrace.parseErrorMessage = safeErrorMessage(e3)
+
+      // Only classify as truncated IF:
+      // 1. finishReason === 'length' (token limit)
+      // 2. closing-brace position doesn't work (tried above and failed)
+      // 3. OR: braces are unbalanced
+      var unbalanced = (balancedCandidate.match(/{/g) || []).length !== (balancedCandidate.match(/}/g) || []).length
+      if (unbalanced && (aiMeta.responseTruncated || aiMeta.finishReason === 'length')) {
+        parseTrace.parseErrorCode = 'V4_AI_OUTPUT_TRUNCATED'
+        parseTrace.parseErrorMessage = 'AI output was truncated (finishReason=' + (aiMeta.finishReason || 'unknown') + '), braces unbalanced'
+        return {
+          ok: false,
+          code: 'V4_AI_OUTPUT_TRUNCATED',
+          reason: 'AI output truncated before JSON completion — braces unbalanced',
+          rawLength: trimmed.length,
+          parseTrace: parseTrace,
+        }
+      }
 
       // Strategy 4: Controlled JSON repair on balanced candidate
       parseTrace.parseAttempts++
@@ -129,6 +131,9 @@ function extractJSON(rawText, aiMeta) {
         var obj4 = JSON.parse(repaired)
         parseTrace.extractionMethod = 'REPAIRED_JSON'
         parseTrace.repairSucceeded = true
+        if (aiMeta.responseTruncated) {
+          parseTrace.parseWarning = 'TRUNCATED_BUT_REPAIRED'
+        }
         return { ok: true, data: obj4, rawLength: trimmed.length, parseTrace: parseTrace }
       } catch (e4) {
         parseTrace.parseErrorCode = 'REPAIR_PARSE_FAILED'

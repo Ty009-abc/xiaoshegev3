@@ -249,6 +249,8 @@ Page({
 
     // ═══ V4 E2E Start ═══
     const isV4 = answers.diagnosticVersion === 'v4'
+    var clientDiagnosis = null
+
     if (isV4) {
       const answerKeys = answers.answers ? Object.keys(answers.answers) : Object.keys(answers).filter(k => !['diagnosticVersion'].includes(k))
       console.log('[DiagnosticV4E2EStart]', {
@@ -256,6 +258,22 @@ Page({
         answerKeyCount: answerKeys.length,
         missingKeys: '',
       })
+
+      // ── RC8.2: Run diagnosis BEFORE cloud call so event.diagnosis is available for fallback router ──
+      try {
+        const dp = require('../../engine/diagnosisPipeline')
+        clientDiagnosis = dp.runDiagnosis(normalizedAnswers, { primaryGoal: normalizedAnswers.primaryGoal || '' })
+        console.log('[DSN][CLIENT_DIAGNOSIS_READY]', {
+          tags: (clientDiagnosis.behaviorTags || []).length,
+          archetype: (clientDiagnosis.wealthProfile || {}).primary,
+          bottleneck: (clientDiagnosis.bottleneck || {}).id,
+          strategy: (clientDiagnosis.strategy || {}).id,
+          rInc001Status: clientDiagnosis.rInc001Status,
+        })
+      } catch (e) {
+        console.error('[DSN][CLIENT_DIAGNOSIS_FAILED]', e.message)
+        clientDiagnosis = null
+      }
     }
 
     try {
@@ -264,6 +282,7 @@ Page({
         personality: (p && p.name) || '',
         personalityEmoji: (p && p.emoji) || '',
         personalityStyle: (p && p.style) || '',
+        diagnosis: clientDiagnosis,
       })
 
       if (isV4) {
