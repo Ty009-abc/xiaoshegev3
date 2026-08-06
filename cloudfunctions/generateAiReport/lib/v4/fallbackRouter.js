@@ -72,6 +72,14 @@ function routeFinalFallback(params) {
   if (diagnosis) {
     routerTrace.legacyAllowed = false
 
+    // Validate diagnosis contract first
+    var contractResult = reportBuilder.validateDiagnosisContract(diagnosis)
+    routerTrace.diagnosisContractValid = contractResult.valid
+    if (!contractResult.valid) {
+      console.warn('[routeFinalFallback] Diagnosis contract violation:', contractResult.reason)
+      // Still proceed — contract violations downgrade to warnings, not blocks
+    }
+
     // Try full diagnosis report first (richer output)
     try {
       diagReport = reportBuilder.buildReportFromDiagnosis(diagnosis, baseContract, 'diagnosis_fallback')
@@ -83,7 +91,6 @@ function routeFinalFallback(params) {
         var csResult = contentSafety.contentSafetyGate(
           diagReport.report,
           function() {
-            // If full report fails safety, use safe_minimal
             routerTrace.selectedFallback = 'SAFE_MINIMAL_DIAGNOSIS'
             return reportBuilder.buildSafeMinimalFromDiagnosis(diagnosis)
           },
@@ -92,11 +99,12 @@ function routeFinalFallback(params) {
 
         diagReport.report = csResult.report
         diagReport.report.contentValidation = csResult.validation
-
         routerTrace.diagnosisReportValidated = csResult.validation.finalPass
 
+        // ── RC8.2: Quality validation gate ──
+        routerTrace.qualityValidation = reportBuilder.validateFallbackQuality(diagReport, diagnosis)
+
         if (!csResult.validation.finalPass && csResult.validation.fallbackUsed) {
-          // Full report failed safety → safe_minimal
           routerTrace.selectedFallback = 'SAFE_MINIMAL_DIAGNOSIS'
           routerTrace.finalSource = 'SAFE_MINIMAL_DIAGNOSIS'
           routerTrace.safeMinimalBuilt = true
@@ -104,7 +112,6 @@ function routeFinalFallback(params) {
           renderSource = 'safe_minimal_diagnosis'
           diagReport._fallbackSource = 'SAFE_MINIMAL_DIAGNOSIS'
         } else {
-          // Full report passed safety — use it
           routerTrace.selectedFallback = 'diagnosis_fallback'
           routerTrace.finalSource = 'diagnosis_fallback'
           renderSource = 'diagnosis_fallback'
@@ -122,6 +129,7 @@ function routeFinalFallback(params) {
         // Validate safe_minimal too (should always pass)
         var smValidation = contentSafety.validateFullReport(diagReport.report, {})
         routerTrace.safeMinimalValidated = smValidation.passed
+        routerTrace.qualityValidation = reportBuilder.validateFallbackQuality(diagReport, diagnosis)
         if (!smValidation.passed) {
           console.error('[routeFinalFallback] CRITICAL: safe_minimal template failed validation!', smValidation.violations)
           // Still use it — it's the best we have
