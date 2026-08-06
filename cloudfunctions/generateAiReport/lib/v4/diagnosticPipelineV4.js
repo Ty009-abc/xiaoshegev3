@@ -135,6 +135,81 @@ function mapV4ToLegacyFields(report) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Diagnosis Trace — captures full decision chain
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * RC8.2: Extract full diagnosis trace from diagnosis object.
+ * Captures: behavior tags → archetype → bottleneck → strategy → diagnosis
+ */
+function extractDiagnosisTrace(diagnosis) {
+  if (!diagnosis) return { available: false, reason: 'diagnosis object is null/undefined' }
+
+  var trace = {
+    available: true,
+    engineVersion: diagnosis.engineVersion || 'unknown',
+    primaryGoal: diagnosis.primaryGoal || null,
+    rInc001Status: diagnosis.rInc001Status || 'UNKNOWN',
+
+    // Layer 1: behavior tags
+    behaviorTags: {
+      total: (diagnosis.behaviorTags || []).length,
+      categories: {},
+      topSignals: [],
+    },
+
+    // Layer 2: archetype
+    archetype: {
+      primary: (diagnosis.wealthProfile || {}).primary || 'UNDETERMINED',
+      primaryTitle: (diagnosis.wealthProfile || {}).primaryTitle || '',
+      secondary: (diagnosis.wealthProfile || {}).secondary || 'UNDETERMINED',
+      confidence: (diagnosis.wealthProfile || {}).confidence || 0,
+    },
+
+    // Layer 3: bottleneck
+    bottleneck: {
+      id: (diagnosis.bottleneck || {}).id || 'UNKNOWN',
+      label: (diagnosis.bottleneck || {}).label || '',
+      confidence: (diagnosis.bottleneck || {}).confidence || 0,
+      suppressedSingleIncome: diagnosis.rInc001Status === 'BACKGROUND_ONLY',
+    },
+
+    // Layer 4: strategy
+    strategy: {
+      id: (diagnosis.strategy || {}).id || 'UNKNOWN',
+      label: (diagnosis.strategy || {}).strategyLabel || '',
+      confidence: (diagnosis.strategy || {}).confidence || 0,
+      day1Mission: (diagnosis.strategy || {}).day1Mission || '',
+      milestones: (diagnosis.strategy || {}).milestones || [],
+    },
+  }
+
+  // Compute category breakdown
+  var tags = diagnosis.behaviorTags || []
+  tags.forEach(function(t) {
+    var cat = t.category || 'OTHER'
+    trace.behaviorTags.categories[cat] = (trace.behaviorTags.categories[cat] || 0) + 1
+  })
+
+  // Top 5 highest-weight signals
+  var sorted = [].concat(tags)
+    .sort(function(a, b) { return (b.weight || 0) - (a.weight || 0) })
+    .slice(0, 5)
+    .map(function(t) {
+      return {
+        id: t.id,
+        label: t.label || t.id,
+        weight: t.weight || 0,
+        category: t.category || 'OTHER',
+        signal: t.signal || 'NEUTRAL',
+      }
+    })
+  trace.behaviorTags.topSignals = sorted
+
+  return trace
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 主管线
 // ═══════════════════════════════════════════════════════════════
 
@@ -197,7 +272,6 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     log('STEP_4_VALIDATE_CONTRACT', true)
   } catch (e) {
     log('STEP_4_VALIDATE_CONTRACT', false, { error: e.message })
-    // Contract 无效 → 使用诊断 fallback
     return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_4_VALIDATE_CONTRACT')
   }
 
@@ -290,7 +364,6 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     context
   )
 
-  // Merge the validated report back
   mergedResult.data.report = safetyResult.report
   mergedResult.data.contentValidation = safetyResult.validation
 
@@ -308,6 +381,7 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 
   // ── STEP 10: 成功返回 ──
   const finalReport = mergedResult.data
+  finalReport.diagnosisTrace = extractDiagnosisTrace(diagnosis)
   const legacy = mapV4ToLegacyFields(finalReport.report)
   log('STEP_10_COMPLETE', true, { renderSource: 'ai_rendered' })
 
@@ -320,25 +394,18 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 辅助
+// Fallback
 // ═══════════════════════════════════════════════════════════════
 
 /**
  * RC8.2: Diagnosis-driven fallback. Uses RC8 diagnosis object (NOT legacy rule engine fatalRules)
  * to build the report. Falls back to legacy rule_fallback ONLY when diagnosis is absent/invalid.
- *
- * @param {Object|null} diagnosis — RC8 diagnosis object from client
- * @param {Object} baseContract — legacy contract (used only for supporting evidence)
- * @param {Array} stages — pipeline stage log
- * @param {string} reason — failure reason
- * @returns {Object} pipeline result with _fallbackSource: 'diagnosis' | 'legacy'
  */
 function diagnosisFallback(diagnosis, baseContract, stages, reason) {
   var reportBuilder = require('./diagnosisReportBuilder')
 
-  // Attempt diagnosis-driven report first
   var diagReport = null
-  var fallbackSource = 'legacy' // default
+  var fallbackSource = 'legacy'
 
   if (diagnosis) {
     try {
@@ -356,7 +423,6 @@ function diagnosisFallback(diagnosis, baseContract, stages, reason) {
     }
   }
 
-  // Fall back to legacy ONLY if diagnosis not available/invalid
   if (!diagReport) {
     console.warn('[diagnosisFallback] No valid diagnosis — using legacy rule_fallback (source=legacy)')
     var legacyFallback = generateFallbackReport(baseContract)
@@ -369,8 +435,16 @@ function diagnosisFallback(diagnosis, baseContract, stages, reason) {
     diagReport.report._fallbackReason = reason
   }
 
-  // Build legacy mapping from the final report (always available)
   var legacy = mapV4ToLegacyFields(diagReport.report)
+
+  // Build diagnosis trace with fallback metadata
+  var trace = extractDiagnosisTrace(diagnosis)
+  if (trace) {
+    trace.fallbackSource = fallbackSource
+    trace.fallbackReason = reason
+    trace.fallbackReportSource = diagReport.report ? diagReport.report._fallbackSource : null
+  }
+  diagReport.diagnosisTrace = trace
 
   stages.push({
     stage: 'FALLBACK',
@@ -399,6 +473,7 @@ function goFallback(baseContract, stages, reason) {
   if (reason && fallback.report) {
     fallback.report._fallbackReason = reason
   }
+  fallback.diagnosisTrace = { available: false, reason: 'goFallback (deprecated) — no diagnosis object' }
   var legacy = mapV4ToLegacyFields(fallback.report)
   stages.push({ stage: 'FALLBACK', ok: false, timestamp: Date.now(), renderSource: 'rule_fallback', fallbackSource: 'legacy', reason })
   return {
@@ -410,6 +485,10 @@ function goFallback(baseContract, stages, reason) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 响应构建
+// ═══════════════════════════════════════════════════════════════
+
 function buildV4Response(contract, legacy, renderSource) {
   return {
     reportId: contract.reportId,
@@ -420,7 +499,8 @@ function buildV4Response(contract, legacy, renderSource) {
     report: contract.report,
     legacy,
     contentValidation: contract.contentValidation || null,
-    answersSnapshot: null, // 由调用方填充
+    diagnosisTrace: contract.diagnosisTrace || null,
+    answersSnapshot: null,
   }
 }
 
@@ -429,5 +509,6 @@ module.exports = {
   validateV4Answers,
   normalizeV4Input,
   mapV4ToLegacyFields,
+  extractDiagnosisTrace,
   REQUIRED_V4_KEYS,
 }
