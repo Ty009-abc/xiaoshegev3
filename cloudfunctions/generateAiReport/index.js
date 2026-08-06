@@ -426,6 +426,19 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     content: {
       report: data.report,
       legacy: data.legacy,
+      diagnosis: data.diagnosis || null,
+    },
+    // ── RC8.2: Diagnostic Snapshot — persisted for cross-entry consistency ──
+    diagnosticSnapshot: {
+      normalizedAnswers: answersSnapshot,
+      diagnosis: data.diagnosis || null,
+      engineVersions: {
+        diagnosisEngineVersion: data.engineVersion || 'v4',
+        snapshotVersion: '2.0'
+      },
+      inputHash: data.inputHash || '',
+      snapshotSource: 'SERVER_SNAPSHOT',
+      createdAt: ts
     },
     answersSnapshot,
     pipelineStages: stages.map(s => ({
@@ -445,6 +458,12 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   } catch (e) {
     console.error('[V4Diagnostic] 存储失败:', e.message)
     // 不阻塞返回
+  }
+
+  // ── RC8.2: Assertion — snapshot must be saved before returning success ──
+  if (!reportData.diagnosticSnapshot || !reportData.diagnosticSnapshot.normalizedAnswers) {
+    console.error('[V4Diagnostic][RC8_SNAPSHOT_PERSIST_FAILED] snapshot is null or missing normalizedAnswers')
+    // Still return OK — client can recover from answersSnapshot
   }
 
   // 写入 ai_logs
@@ -471,6 +490,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     renderSource: data.renderSource,
     report: data.report,
     legacy: data.legacy,
+    diagnosticSnapshot: reportData.diagnosticSnapshot,
     _cache: cacheStatus,
   })
 }

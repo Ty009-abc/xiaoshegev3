@@ -302,7 +302,7 @@ function computeCashflowScore(data) {
   if (db.level === 'high') score -= 25
   else if (db.level === 'none') score += 10
 
-  return Math.max(0, Math.min(100, score))
+  return Math.max(0, Math.min(90, score))
 }
 
 function computeSkillScore(data) {
@@ -318,7 +318,7 @@ function computeSkillScore(data) {
   if (ms_.level === 'none') score -= 15
   else if (ms_.level === 'technical' || ms_.level === 'sales') score += 10
 
-  return Math.max(0, Math.min(100, score))
+  return Math.max(0, Math.min(90, score))
 }
 
 function computeExecutionScore(data) {
@@ -334,7 +334,7 @@ function computeExecutionScore(data) {
   else if (pa.level === 'small_sales') score += 10
   else if (pa.level === 'stable_side') score += 25
 
-  return Math.max(0, Math.min(100, score))
+  return Math.max(0, Math.min(90, score))
 }
 
 function computeTimeScore(data) {
@@ -346,7 +346,7 @@ function computeTimeScore(data) {
   else if (wt.level === 'high') score += 25
   else if (wt.level === 'moderate') score += 15
 
-  return Math.max(0, Math.min(100, score))
+  return Math.max(0, Math.min(90, score))
 }
 
 function computeRiskScore(data) {
@@ -361,7 +361,7 @@ function computeRiskScore(data) {
   else if (fr.level === 'add_money') score -= 20
   else if (fr.level === 'review_optimize') score += 15
 
-  return Math.max(0, Math.min(100, score))
+  return Math.max(0, Math.min(90, score))
 }
 
 function deriveLabels(data, matchedRules) {
@@ -425,7 +425,7 @@ function determineLevels(data, matchedRules) {
   else if (fatalCount >= 1) wealthProbability -= 10
   if (advantageCount >= 3) wealthProbability += 20
   else if (advantageCount >= 1) wealthProbability += 10
-  wealthProbability = Math.max(0, Math.min(100, wealthProbability))
+  wealthProbability = Math.max(0, Math.min(90, wealthProbability))
 
   return { riskLevel, opportunityLevel, wealthProbability }
 }

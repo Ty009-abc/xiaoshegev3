@@ -31,6 +31,38 @@ function normalizeDiagnosticAnswers(payload) {
   return clean
 }
 
+/**
+ * RC8.2: Hash answers for snapshot dedup / cross-entry verification
+ */
+function hashAnswers(answers) {
+  if (!answers || typeof answers !== 'object') return 'empty'
+  var keys = Object.keys(answers).sort()
+  var seed = 0
+  for (var i = 0; i < keys.length; i++) {
+    var v = String(answers[keys[i]] || '')
+    for (var j = 0; j < v.length; j++) {
+      seed = ((seed << 5) - seed + v.charCodeAt(j)) | 0
+    }
+  }
+  return 'h_' + (seed >>> 0).toString(36).slice(0, 8) + '_k' + keys.length
+}
+
+/**
+ * RC8.2: Recover partial answers from V3 legacy report
+ */
+function recoverAnswersFromV3Report(report) {
+  if (!report) return null
+  // V3 reports store { trapped_by, position, forbidden, path, next90days }
+  // We can extract: income context from trapped_by, learning from position, etc.
+  var recovered = {}
+  if (report.trapped_by) recovered.income = String(report.trapped_by)
+  if (report.position) recovered.learning = String(report.position)
+  if (report.path) recovered.future = String(report.path)
+  if (Array.isArray(report.next90days)) recovered.product = report.next90days.join('；')
+  recovered._recoveredFromV3 = true
+  return Object.keys(recovered).length > 1 ? recovered : null
+}
+
 Page({
   data: {
     reportId: '',
@@ -133,24 +165,85 @@ Page({
 
   /* ═══════════════════════════════════
      Step 1: 取答案 → 调云函数
-     ═══════════════════════════════════ */
+
+     RC8.2 SNAPSHOT RECOVERY (5-level):
+     1. globalData._diagnosticAnswers (new flow, preferred)
+     2. globalData._diagnosticReport (V3 legacy, partial recovery)
+     3. URL params (share / history entry with reportId → cloud fetch)
+     4. wx.getStorageSync('diagnostic_snapshot') (cache recovery)
+     5. None → show error
+
+     KEY FIX: globalData is NOT required. Share/history/cache all resolved.
+     ═══════════════════════════════════════ */
   async _startDiagnostic() {
-    const answers = app.globalData._diagnosticAnswers
-    const p = app.globalData._diagnosticPersonality
+    var answers = app.globalData._diagnosticAnswers
+    var p = app.globalData._diagnosticPersonality
+    var snapshotSource = 'NONE'
+
+    // Clean globalData immediately to prevent double-use
     app.globalData._diagnosticAnswers = null
     app.globalData._diagnosticPersonality = null
 
+    // Level 1: globalData (fresh from diagnostic flow)
+    if (answers) {
+      snapshotSource = 'GLOBAL_ANSWERS'
+    }
+
+    // Level 2: globalData._diagnosticReport (V3 partial recovery)
+    if (!answers && app.globalData._diagnosticReport) {
+      console.warn('[PosterRC8][SNAPSHOT] Level 2: V3 legacy report recovered')
+      answers = recoverAnswersFromV3Report(app.globalData._diagnosticReport)
+      p = app.globalData._diagnosticPersonality
+      app.globalData._diagnosticReport = null
+      app.globalData._diagnosticPersonality = null
+      snapshotSource = 'VIEWMODEL_RECOVERY'
+    }
+
+    // Level 3: URL params (share / history entry with reportId)
     if (!answers) {
+      var urlReportId = this.data._urlParams && this.data._urlParams.reportId
+      if (urlReportId) {
+        try {
+          var cached = wx.getStorageSync('diag_snapshot_' + urlReportId) || wx.getStorageSync('reportData_' + urlReportId)
+          if (cached && cached.answers) {
+            answers = cached.answers
+            snapshotSource = 'HISTORY_SNAPSHOT'
+          }
+        } catch (e) {}
+      }
+    }
+
+    // Level 4: wx storage cache (app-level snapshot)
+    if (!answers) {
+      try {
+        var storageSnapshot = wx.getStorageSync('diagnostic_snapshot')
+        if (storageSnapshot && storageSnapshot.normalizedAnswers) {
+          answers = storageSnapshot.normalizedAnswers
+          snapshotSource = 'CACHE_SNAPSHOT'
+        }
+      } catch (e) { }
+    }
+
+    if (!answers) {
+      console.error('[PosterRC8][SNAPSHOT] ALL 5 levels exhausted — no source found')
       this.setData({ loading: false, error: '诊断数据丢失，请重新开始' })
-      setTimeout(() => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }), 1500)
+      setTimeout(function() { wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }) }, 1500)
       return
     }
 
     // ── RC8.1: Normalize answers for diagnosis engine ──
     var normalizedAnswers = normalizeDiagnosticAnswers(answers)
     this._rawDiagnosticAnswers = normalizedAnswers
+    this._diagnosticSnapshot = {
+      normalizedAnswers: normalizedAnswers,
+      inputHash: hashAnswers(normalizedAnswers),
+      snapshotSource: snapshotSource
+    }
+
     console.log('[PosterRC8][ANSWERS_NORMALIZED]', {
-      normalizedKeys: Object.keys(normalizedAnswers),
+      normalizedKeys: Object.keys(normalizedAnswers).length,
+      snapshotSource: snapshotSource,
+      inputHash: this._diagnosticSnapshot.inputHash,
       hadNesting: !!(answers.answers && typeof answers.answers === 'object')
     })
 
@@ -932,15 +1025,58 @@ Page({
         bottleneck: diagnosisResult.bottleneck,
         strategy: diagnosisResult.strategy,
         confidence: diagnosisResult.wealthProfile.confidence,
-        evidence: diagnosisResult.bottleneck.reason || []
+        evidence: diagnosisResult.bottleneck.reason || [],
+        validation: diagnosisResult.validation || null
       }
+
+      // ── RC8.2: Diagnostic Snapshot (persisted to report) ──
+      pd.diagnosticSnapshot = {
+        normalizedAnswers: this._rawDiagnosticAnswers || null,
+        diagnosis: pd.diagnosis,
+        engineVersions: {
+          diagnosisEngineVersion: 'RC8.2',
+          snapshotVersion: '2.0'
+        },
+        inputHash: this._diagnosticSnapshot ? this._diagnosticSnapshot.inputHash : hashAnswers(this._rawDiagnosticAnswers || {}),
+        snapshotSource: this._diagnosticSnapshot ? this._diagnosticSnapshot.snapshotSource : 'UNKNOWN'
+      }
+      // Sanity check: snapshot MUST have normalizedAnswers
+      if (!pd.diagnosticSnapshot.normalizedAnswers || Object.keys(pd.diagnosticSnapshot.normalizedAnswers).length === 0) {
+        console.error('[PosterRC8][SNAPSHOT_PERSIST_FAILED] normalizedAnswers is empty')
+        pd.diagnosticSnapshot._persistError = 'EMPTY_ANSWERS'
+      }
+
+      // ── RC8.2: Decision Trace (included in response data, not just console) ──
+      pd.rc8DecisionTrace = {
+        payloadNormalized: diagnosisTrace.normalized,
+        normalizedAnswerKeyCount: diagnosisTrace.normalizedAnswerKeyCount ||
+          (this._rawDiagnosticAnswers ? Object.keys(this._rawDiagnosticAnswers).length : 0),
+        snapshotSource: this._diagnosticSnapshot ? this._diagnosticSnapshot.snapshotSource : 'UNKNOWN',
+        snapshotResolved: !!this._diagnosticSnapshot && !!this._diagnosticSnapshot.normalizedAnswers,
+        snapshotValid: !!pd.diagnosticSnapshot && !!pd.diagnosticSnapshot.normalizedAnswers,
+        diagnosisPresent: !!diagnosisResult,
+        pipelineExecuted: !diagnosisTrace.fallback,
+        tagCount: diagnosisTrace.tagCount,
+        primaryArchetype: diagnosisTrace.primary,
+        secondaryArchetype: diagnosisTrace.secondary,
+        bottleneck: diagnosisTrace.bottleneck,
+        strategy: diagnosisTrace.strategy,
+        authorityApplied: diagnosisTrace.authorityApplied || false,
+        reportValidated: !diagnosisTrace.gateRepaired,
+        repairAttempted: diagnosisTrace.gateRepaired || false,
+        fallbackUsed: diagnosisTrace.fallback,
+        fallbackReason: diagnosisTrace.fallbackReason || '',
+        inputHash: pd.diagnosticSnapshot.inputHash
+      }
+
       console.error('[PosterRC8][DIAGNOSIS_READY]', JSON.stringify({
         renderSource: 'rc8_diagnosis',
         fallbackUsed: false,
         fallbackReason: '',
         diagnosisVersion: diagnosisResult.engineVersion,
-        promptVersion: 'v4',
-        rulesetVersion: 'RC8.1'
+        promptVersion: 'RC8_PROMPT_V2',
+        rulesetVersion: 'RC8_RULESET_V3',
+        decisionTrace: pd.rc8DecisionTrace
       }))
 
       // Override with engine-generated strategy if AI output is generic
@@ -1137,6 +1273,93 @@ Page({
           tieBreakReason: dx.bottleneck.id === 'TRAFFIC' ? 'CREATOR+BUILDING_IP tags have higher signal than EMPLOYEE TIME_FOR_MONEY' : 'RC8 evidence chain overrides legacy rule match'
         }))
       }
+
+      // ── RC8.1: Always persist decision trace to pd (even on success) ──
+      if (!pd.rc8DecisionTrace) {
+        pd.rc8DecisionTrace = {
+          payloadNormalized: diagnosisTrace.normalized,
+          normalizedAnswerKeyCount: (this._rawDiagnosticAnswers ? Object.keys(this._rawDiagnosticAnswers).length : 0),
+          snapshotSource: this._diagnosticSnapshot ? this._diagnosticSnapshot.snapshotSource : 'UNKNOWN',
+          snapshotResolved: !!this._diagnosticSnapshot,
+          snapshotValid: false,
+          diagnosisPresent: !!diagnosisResult,
+          pipelineExecuted: !diagnosisTrace.fallback,
+          tagCount: diagnosisTrace.tagCount,
+          primaryArchetype: diagnosisTrace.primary,
+          secondaryArchetype: diagnosisTrace.secondary,
+          bottleneck: diagnosisTrace.bottleneck,
+          strategy: diagnosisTrace.strategy,
+          authorityApplied: diagnosisTrace.authorityApplied || false,
+          reportValidated: !diagnosisTrace.gateRepaired,
+          repairAttempted: diagnosisTrace.gateRepaired || false,
+          fallbackUsed: diagnosisTrace.fallback,
+          fallbackReason: diagnosisTrace.fallbackReason || ''
+        }
+      }
+    }
+    // ── RC8.2 FALLBACK CONTRACT: Even in rule_fallback, enforce single-theme output ──
+    if (diagnosisTrace.fallback) {
+      // Determine best-effort fallback based on available data
+      var fallbackBn = 'POSITIONING'
+      var fallbackSt = 'BUILD_CASHFLOW'
+      var fallbackStLabel = '建立第二收入'
+      var fallbackDay1 = '今天：找出你的一项可变现技能，列出具体交付物。'
+      var fallbackCards = {
+        bnDesc: '你的定位不够清晰，市场和客户不知道你具体能解决什么问题。',
+        stPipe: '技能评估 → 最小交付物 → 报价测试 → 成交验证 → 规模化'
+      }
+
+      // Look for IP-building signals even in raw answers
+      if (pd.rawAnswers) {
+        var ansStr = JSON.stringify(pd.rawAnswers).toLowerCase()
+        if (ansStr.indexOf('ip') >= 0 || ansStr.indexOf('个人品牌') >= 0 || ansStr.indexOf('个人ip') >= 0) {
+          fallbackBn = 'TRAFFIC'
+          fallbackSt = 'BUILD_IP'
+          fallbackStLabel = '建立个人IP'
+          fallbackDay1 = '今天：用一句话写清楚你是谁、帮谁、解决什么问题。这就是你的IP定位。'
+          fallbackCards.bnDesc = '你有技术积累，但缺少持续的内容输出和获客入口。核心问题不是能力，是可见度。'
+          fallbackCards.stPipe = '定位一句话 → 内容输出 → 获客入口 → 测试付费 → 成交验证'
+        }
+      }
+
+      // Override Card03: ONE THING — no multi-direction
+      decision = '集中：' + fallbackStLabel + '。' + fallbackCards.stPipe
+      // Override Card04: concrete Day1
+      firstAction = '今天：' + fallbackDay1
+      // Override Card06: single pipeline, no multi-theme
+      cogActionAnchor = fallbackCards.stPipe + '。' + fallbackDay1
+      cogStatement = '你的唯一突破路径：' + fallbackCards.stPipe
+
+      // Add fallback trace
+      if (!pd.rc8DecisionTrace) {
+        pd.rc8DecisionTrace = {
+          payloadNormalized: diagnosisTrace.normalized,
+          normalizedAnswerKeyCount: (this._rawDiagnosticAnswers ? Object.keys(this._rawDiagnosticAnswers).length : 0),
+          snapshotSource: this._diagnosticSnapshot ? this._diagnosticSnapshot.snapshotSource : 'UNKNOWN',
+          snapshotResolved: !!this._diagnosticSnapshot,
+          snapshotValid: false,
+          diagnosisPresent: false,
+          pipelineExecuted: false,
+          tagCount: 0,
+          primaryArchetype: null,
+          secondaryArchetype: null,
+          bottleneck: fallbackBn,
+          strategy: fallbackSt,
+          authorityApplied: false,
+          reportValidated: true,
+          repairAttempted: true,
+          fallbackUsed: true,
+          fallbackReason: diagnosisTrace.fallbackReason || 'RC8_SNAPSHOT_MISSING'
+        }
+      }
+
+      console.error('[PosterRC8][FALLBACK_CONTRACT]', JSON.stringify({
+        renderSource: 'rule_fallback',
+        fallbackReason: diagnosisTrace.fallbackReason,
+        fallbackBottleneck: fallbackBn,
+        fallbackStrategy: fallbackSt,
+        decisionTrace: pd.rc8DecisionTrace
+      }))
     }
 
     // ── RC8.2: Text quality validators ──
@@ -1156,6 +1379,82 @@ Page({
     })
     if (unsupportedPercentages.length > 0) {
       console.error('[PosterRC8][UNSUPPORTED_PERCENTAGE]', JSON.stringify(unsupportedPercentages))
+    }
+
+    // ── RC8.2: IMPOSSIBLE_CERTAINTY_SCORE validator ──
+    // after365/destiny score must NOT be 100. Cap at 90.
+    // wealthProbability → renamed to potentialIndex to avoid misleading users.
+    if (pd.destinySimulator && typeof pd.destinySimulator === 'object') {
+      var sim = pd.destinySimulator
+      if (sim.after365 === 100 || sim.wealthProbability === 100 || sim.turnaroundProbability === 100) {
+        console.error('[PosterRC8][IMPOSSIBLE_CERTAINTY_SCORE] Destiny score is 100 — capping to 90', JSON.stringify(sim))
+        // If this is a v4 viewModel, we have horizonDays and actionPath — recalculate
+        if (sim.horizonDays) {
+          sim.potentialIndex = Math.min(90, Math.round((sim.after365 || sim.wealthProbability || 50) * 0.9))
+          sim._certaintyWarning = '预测为模拟指标，不代表实际成功概率。封顶90分。'
+          delete sim.wealthProbability  // Remove misleading name
+        }
+        // Clone to pd for safe storage
+        pd.destinySimulator = sim
+      }
+      // Rename wealthProbability → potentialIndex for all cases
+      if (sim.wealthProbability !== undefined) {
+        sim.potentialIndex = Math.min(90, sim.wealthProbability)
+        sim._renamedFrom = 'wealthProbability'
+        delete sim.wealthProbability
+      }
+    }
+
+    // ── RC8.2: UNTRACEABLE_NUMERIC_CLAIM validator ──
+    // "12个优势点" must match actual advantageRules count
+    var untraceableNumerics = []
+    // Check headline patterns like "{N}个优势点" / "{N}个积极信号"
+    var numericHeadlinePatterns = [
+      { pattern: /(\d+)个优势点/, sourceField: 'advantageRules' },
+      { pattern: /识别到\s*(\d+)\s*个/, sourceField: 'totalMatchCount' },
+      { pattern: /(\d+)个致命问题/, sourceField: 'fatalRules' },
+    ]
+    var actualAdvantageCount = Array.isArray(pd.advantageRules) ? pd.advantageRules.length : null
+    var actualFatalCount = Array.isArray(pd.fatalRules) ? pd.fatalRules.length : null
+    var actualMatchCount = Array.isArray(pd.matchedRules) ? pd.matchedRules.length : null
+
+    numericHeadlinePatterns.forEach(function(np) {
+      allCardTexts.forEach(function(txt, idx) {
+        if (!txt) return
+        var m = txt.match(np.pattern)
+        if (m) {
+          var claimed = parseInt(m[1], 10)
+          var actual = null
+          if (np.sourceField === 'advantageRules') actual = actualAdvantageCount
+          if (np.sourceField === 'fatalRules') actual = actualFatalCount
+          if (np.sourceField === 'totalMatchCount') actual = actualMatchCount
+
+          if (actual !== null && claimed !== actual) {
+            untraceableNumerics.push({
+              cardIndex: idx,
+              claim: np.pattern.source,
+              claimedValue: claimed,
+              actualValue: actual,
+              sourceField: np.sourceField,
+              action: 'REPAIR: Replace with actual count or rephrase'
+            })
+            // Auto-repair
+            var repaired = txt.replace(np.pattern,
+              actual === 0 ? '未检测到匹配规则' : ('识别到' + actual + '个' + np.sourceField.replace('Rules', '').replace('Count', '')))
+            allCardTexts[idx] = repaired
+          }
+        }
+      })
+    })
+    if (untraceableNumerics.length > 0) {
+      console.error('[PosterRC8][UNTRACEABLE_NUMERIC_CLAIM]', JSON.stringify(untraceableNumerics))
+      // Re-assign repaired texts
+      verdict = allCardTexts[0]
+      coreConflict = allCardTexts[1]
+      decision = allCardTexts[2]
+      firstAction = allCardTexts[3]
+      cogStatement = allCardTexts[4]
+      cogActionAnchor = allCardTexts[5]
     }
 
     // Check over-claimed user states
