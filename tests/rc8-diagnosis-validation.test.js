@@ -579,6 +579,24 @@ var GOLDEN = [
     description: '极简输入',
     labels: { archetype: 'UNDETERMINED', bottleneck: 'UNKNOWN', strategy: 'DISCIPLINE_FIRST' },
     answers: { income: '上班', learning: '看书', selling: '不会', decision: '没想好', product: '没有', future: '不知道' }
+  },
+  // Case 33 — Courier with content skills, small wins, wants IP
+  {
+    id: 'GOLDEN_033',
+    description: '快递员/内容创作/已有成交/想建IP',
+    labels: {
+      archetype: 'CREATOR',
+      bottleneck: 'TRAFFIC',
+      strategy: 'BUILD_IP'
+    },
+    answers: {
+      income: '快递员，固定工资5000，月结余1000以下，已有6-12个月安全垫存款',
+      learning: '每天拿出时间学习内容创作，有内容创作能力',
+      selling: '已有少数成交量，在尝试卖东西',
+      decision: '想建立个人IP，做内容方向',
+      product: '有内容创作能力但还没有成熟产品',
+      future: '每周有20小时以上，执行稳定，小步尝试，小规模试错，想做IP'
+    }
   }
 ]
 

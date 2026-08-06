@@ -7,6 +7,30 @@ const n4 = require('../../utils/reportNormalizerV4.js')
 const app = getApp()
 const REVEAL_DELAYS = [200, 500, 900, 1300, 1700, 2100, 2500, 2900]
 
+// ══════════════════════════════════════════════
+// RC8.1: Payload Normalizer — flatten nested answers
+// ══════════════════════════════════════════════
+function normalizeDiagnosticAnswers(payload) {
+  if (!payload || typeof payload !== 'object') return {}
+
+  var answers = payload.answers || payload
+
+  // Handle double-nesting: { diagnosticVersion, answers: { answers: {...} } }
+  if (answers && answers.answers && typeof answers.answers === 'object') {
+    answers = answers.answers
+  }
+
+  // Remove metadata keys
+  var clean = {}
+  Object.keys(answers).forEach(function(k) {
+    if (k !== 'diagnosticVersion' && k !== 'personality' && k !== 'personalityEmoji' && k !== 'personalityStyle') {
+      clean[k] = answers[k]
+    }
+  })
+
+  return clean
+}
+
 Page({
   data: {
     reportId: '',
@@ -121,6 +145,14 @@ Page({
       setTimeout(() => wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }), 1500)
       return
     }
+
+    // ── RC8.1: Normalize answers for diagnosis engine ──
+    var normalizedAnswers = normalizeDiagnosticAnswers(answers)
+    this._rawDiagnosticAnswers = normalizedAnswers
+    console.log('[PosterRC8][ANSWERS_NORMALIZED]', {
+      normalizedKeys: Object.keys(normalizedAnswers),
+      hadNesting: !!(answers.answers && typeof answers.answers === 'object')
+    })
 
     // ═══ V4 E2E Start ═══
     const isV4 = answers.diagnosticVersion === 'v4'
@@ -550,6 +582,9 @@ Page({
       }
     }
 
+    // ── RC8.1: Inject raw answers for diagnosis enrichment ──
+    posterData.rawAnswers = this._rawDiagnosticAnswers || null
+
     console.log('[PosterRC6][P2] posterData built', {
       cardsLength: posterData.cards ? posterData.cards.length : 'N/A',
       hasHeader: !!posterData.header,
@@ -761,8 +796,79 @@ Page({
     var cogStatement = cog.statement || '你的翻身条件已在积累，但仍被一个关键缺口限制。'
     var cogActionAnchor = cog.actionAnchor || '把能量集中到一条有验证的方向。'
 
+    // ── RC8.1: Run Cognitive Diagnosis if available ──
+    var diagnosisResult = null
+    try {
+      var rawAnswers = pd.rawAnswers
+      // Ensure no double-nesting
+      if (rawAnswers && rawAnswers.answers && typeof rawAnswers.answers === 'object' && Object.keys(rawAnswers.answers).length > Object.keys(rawAnswers).length - 1) {
+        rawAnswers = rawAnswers.answers
+      }
+      if (rawAnswers && Object.keys(rawAnswers).length > 0) {
+        var diagEngine = require('../../engine/diagnosisPipeline')
+        if (typeof diagEngine.runDiagnosis === 'function') {
+          diagnosisResult = diagEngine.runDiagnosis(rawAnswers)
+          console.error('[PosterRC8][DIAGNOSIS]', JSON.stringify({
+            version: diagnosisResult.engineVersion,
+            tags: diagnosisResult.tagStats.totalTags,
+            archetype: diagnosisResult.wealthProfile.primary,
+            bottleneck: diagnosisResult.bottleneck.id,
+            strategy: diagnosisResult.strategy.id,
+            behaviorTagIds: diagnosisResult.behaviorTags.map(function(t) { return t.id })
+          }))
+        }
+      } else {
+        console.error('[PosterRC8][FALLBACK]', JSON.stringify({
+          renderSource: 'rule_fallback',
+          fallbackUsed: true,
+          fallbackReason: 'RC8_INVALID_INPUT',
+          diagnosisVersion: 'RC8.1',
+          promptVersion: 'v4',
+          rulesetVersion: 'RC8.1',
+          normalizedAnswerKeys: rawAnswers ? Object.keys(rawAnswers) : [],
+          tagCount: 0,
+          bottleneck: null,
+          strategy: null,
+          errorMessage: 'Empty or missing rawAnswers'
+        }))
+      }
+    } catch (e) {
+      console.error('[PosterRC8][FALLBACK]', JSON.stringify({
+        renderSource: 'rule_fallback',
+        fallbackUsed: true,
+        fallbackReason: 'RC8_PIPELINE_THROW',
+        diagnosisVersion: 'RC8.1',
+        promptVersion: 'v4',
+        rulesetVersion: 'RC8.1',
+        normalizedAnswerKeys: pd.rawAnswers ? Object.keys(pd.rawAnswers) : [],
+        tagCount: 0,
+        bottleneck: null,
+        strategy: null,
+        errorMessage: e.message
+      }))
+    }
+
     // RC8.1: Enrich with diagnosis engine if available
     if (diagnosisResult) {
+      // Inject diagnosis into poster data for card rendering
+      pd.diagnosis = {
+        behaviorTags: diagnosisResult.behaviorTags,
+        tagStats: diagnosisResult.tagStats,
+        wealthProfile: diagnosisResult.wealthProfile,
+        bottleneck: diagnosisResult.bottleneck,
+        strategy: diagnosisResult.strategy,
+        confidence: diagnosisResult.wealthProfile.confidence,
+        evidence: diagnosisResult.bottleneck.reason || []
+      }
+      console.error('[PosterRC8][DIAGNOSIS_READY]', JSON.stringify({
+        renderSource: 'rc8_diagnosis',
+        fallbackUsed: false,
+        fallbackReason: '',
+        diagnosisVersion: diagnosisResult.engineVersion,
+        promptVersion: 'v4',
+        rulesetVersion: 'RC8.1'
+      }))
+
       // Override with engine-generated strategy if AI output is generic
       if (!cogActionAnchor || cogActionAnchor.length < 30) {
         cogActionAnchor = diagnosisResult.strategy.description || cogActionAnchor
@@ -770,27 +876,33 @@ Page({
       if (!cogStatement || cogStatement.length < 30) {
         cogStatement = '你的财富人格: ' +
           (diagnosisResult.wealthProfile.primaryTitle || '待评估') + ' — ' +
-          (diagnosisResult.strategy.strategyTagline || '')
+          (diagnosisResult.strategy.tagline || '')
       }
       console.error('[PosterRC8][ENRICH] Cards enriched with diagnosis engine')
-    }
 
-    // ── RC8.1: Run Cognitive Diagnosis if available ──
-    var diagnosisResult = null
-    try {
-      var diagEngine = require('../../engine/diagnosisPipeline')
-      if (pd.rawAnswers && typeof diagEngine.runDiagnosis === 'function') {
-        diagnosisResult = diagEngine.runDiagnosis(pd.rawAnswers)
-        console.error('[PosterRC8][DIAGNOSIS]', JSON.stringify({
-          version: diagnosisResult.engineVersion,
-          tags: diagnosisResult.tagStats.totalTags,
-          archetype: diagnosisResult.wealthProfile.primary,
-          bottleneck: diagnosisResult.bottleneck.id,
-          strategy: diagnosisResult.strategy.id
-        }))
+      // ── RC8: Single-strategy validation ──
+      var strategyId = diagnosisResult.strategy.id
+      if (cogActionAnchor && cogActionAnchor.length > 0) {
+        // Ensure card 06 reflects only the ONE strategy
+        var multiThemeCheck = cogActionAnchor.indexOf('content') >= 0 && cogActionAnchor.indexOf('freelance') >= 0
+        if (multiThemeCheck) {
+          console.error('[PosterRC8][MULTI_THEME_WARNING] Strategy=' + strategyId + ' but text contains multiple themes')
+        }
       }
-    } catch (e) {
-      console.error('[PosterRC8][DIAGNOSIS_DISABLED]', e.message)
+    } else {
+      console.error('[PosterRC8][FALLBACK]', JSON.stringify({
+        renderSource: 'rule_fallback',
+        fallbackUsed: true,
+        fallbackReason: 'RC8_DISABLED',
+        diagnosisVersion: 'RC8.1',
+        promptVersion: 'v4',
+        rulesetVersion: 'RC8.1',
+        normalizedAnswerKeys: pd.rawAnswers ? Object.keys(pd.rawAnswers) : [],
+        tagCount: 0,
+        bottleneck: null,
+        strategy: null,
+        errorMessage: 'diagnosisResult is null'
+      }))
     }
 
     // ── RC6 card body text (new schema from mapper) ──

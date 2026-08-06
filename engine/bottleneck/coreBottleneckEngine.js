@@ -15,8 +15,8 @@ var BOTTLENECKS = {
     id: 'TRAFFIC',
     label: '获客',
     description: '流量不足，无法触达目标用户',
-    indicatorTags: ['NO_AUDIENCE','NO_DIRECTION','SCATTERED','WAITING','NO_VERIFICATION'],
-    archetypeBias: { EMPLOYEE: 0.3, COLLECTOR: 0.25, CREATOR: 0.25, OPERATOR: 0.2 },
+    indicatorTags: ['NO_AUDIENCE','NO_DIRECTION','SCATTERED','WAITING','NO_VERIFICATION','CONTENT_CREATOR','BUILDING_IP'],
+    archetypeBias: { EMPLOYEE: 0.3, COLLECTOR: 0.25, CREATOR: 0.45, OPERATOR: 0.2 },
     solutionDirection: '建立稳定的获客渠道：内容获客 > 付费投放 > 私域转化'
   },
   SELLING: {

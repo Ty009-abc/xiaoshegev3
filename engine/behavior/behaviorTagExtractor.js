@@ -65,6 +65,8 @@ const TAG_TAXONOMY = {
       LOW_SELF_VALUE:      { keywords: ['不值钱','不自信','不够好','配不上','不敢要价','不好意思','有底气','胆量','不敢' ] },
       HESITANT_PRICING:    { keywords: ['不知道怎么定价','怕贵了','怕便宜了','报价纠结'] },
       NO_AUDIENCE:         { keywords: ['没有流量','没人关注','不知道怎么获客','没有影响力'] },
+      CONTENT_CREATOR:     { keywords: ['内容创作','做内容','写文章','拍视频','写公众号','小红书','短视频','自媒体','内容能力'] },
+      BUILDING_IP:         { keywords: ['个人IP','个人品牌','建立IP','打造IP','做IP','知识IP','影响力变现'] },
     }
   },
   strategy: {

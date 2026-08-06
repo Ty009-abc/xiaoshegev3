@@ -59,7 +59,7 @@ var ARCHETYPES = {
       weaknesses: ['可能不会卖','可能不善于商业变现','执行力可能是短板','容易陷入完美主义'],
       coreNeed: '需要商业变现能力'
     },
-    positiveTags: ['SELF_INVESTMENT','LONG_TERM','NO_PRODUCT','PERFECTIONISM','SYSTEM_THINKING','ASSET_AWARE','NO_AUDIENCE'],
+    positiveTags: ['SELF_INVESTMENT','LONG_TERM','NO_PRODUCT','PERFECTIONISM','SYSTEM_THINKING','ASSET_AWARE','NO_AUDIENCE','CONTENT_CREATOR','BUILDING_IP'],
     negativeTags: ['NO_SELLING','NO_VERIFICATION','LOW_EXECUTION','HIGH_RISK']
   },
 
@@ -73,7 +73,7 @@ var ARCHETYPES = {
       coreNeed: '需要突破安全区，建立独立收入来源'
     },
     positiveTags: ['TIME_FOR_MONEY','SINGLE_INCOME','SAFE_FIRST','RISK_AVOIDANCE','LOW_INCOME'],
-    negativeTags: ['PASSIVE_INCOME','MULTIPLE_INCOME','ACTION_FIRST','HIGH_RISK']
+    negativeTags: ['PASSIVE_INCOME','MULTIPLE_INCOME','ACTION_FIRST','HIGH_RISK','CONTENT_CREATOR','BUILDING_IP','SALES_ORIENTED']
   },
 
   COLLECTOR: {
