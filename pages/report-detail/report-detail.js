@@ -905,11 +905,166 @@ Page({
       }))
     }
 
-    // ── RC6 card body text (new schema from mapper) ──
+    // ── Card body text from mapper (may be overridden by RC8 below) ──
     var verdict = pd.verdict || ''
     var coreConflict = pd.coreConflict || ''
     var decision = pd.decision || ''
     var firstAction = pd.firstAction || ''
+
+    // ── RC8.2: Authority override — RC8 diagnosis MUST drive cards, not old rules ──
+    var legacyOverrideDetected = false
+    var overclaimViolations = []
+    var unsupportedPercentages = []
+    var duplicateMeaningFlag = false
+
+    if (diagnosisResult) {
+      var dx = diagnosisResult
+      var bnLabel = dx.bottleneck.label || ''
+      var stLabel = dx.strategy.label || ''
+      var arLabel = dx.wealthProfile.primaryTitle || ''
+      var stTagline = dx.strategy.tagline || ''
+      var stMilestones = dx.strategy.milestones || []
+      var day1Mission = dx.strategy.day1Mission || ''
+      var bnDescription = dx.bottleneck.description || ''
+      var bnSolution = dx.bottleneck.solution || ''
+
+      // ── Card01: Verdikt → bottleneck-driven ──
+      // R_INC_001 ("单工资依赖") must NOT override RC8 bottleneck
+      var rc8Verdict = '你的核心瓶颈：' + bnLabel + '。' + bnDescription
+      if (verdict.indexOf('单工资依赖') >= 0 || verdict.indexOf('单一工资') >= 0 || verdict.indexOf('R_INC') >= 0) {
+        legacyOverrideDetected = true
+        verdict = rc8Verdict
+        console.error('[PosterRC8][OVERRIDE] Card01: R_INC_001 legacy rule replaced by RC8 bottleneck: ' + bnLabel)
+      } else if (verdict.length < 20 || (!diagnosisResult && verdict.length < 20)) {
+        verdict = rc8Verdict + ' ' + bnSolution
+      }
+
+      // ── Card02: Core conflict → strategy-driven ──
+      var rc8Conflict = arLabel + '的突破路径：' + stLabel + '。' + stTagline
+      if (coreConflict.indexOf('单工资') >= 0 || coreConflict.indexOf('R_INC') >= 0) {
+        legacyOverrideDetected = true
+        coreConflict = rc8Conflict
+        console.error('[PosterRC8][OVERRIDE] Card02: Legacy rule replaced by RC8 strategy')
+      } else if (coreConflict.length < 15) {
+        var evidenceTags = dx.bottleneck.reason || []
+        coreConflict = rc8Conflict + '（基于' + evidenceTags.length + '个行为标签）'
+      }
+
+      // ── Card03: Decision → strategy single-path ──
+      var rc8Decision = 'ONE THING: ' + stLabel + '。' + stTagline
+      if (decision.indexOf('停止') >= 0 || decision.indexOf('排除') >= 0) {
+        // Legacy "stop" decision is OK — keep it but append RC8 focus
+        decision = decision + ' | 集中：' + stLabel
+      } else {
+        decision = rc8Decision
+      }
+
+      // ── Card04: First action → Day1 mission ──
+      if (day1Mission && day1Mission.length > 0) {
+        firstAction = day1Mission
+      }
+
+      // ── Card06 (cognitive verdict): strategy-driven with single theme ──
+      var ipAnchor = ''
+      var ipFallthrough = ''
+
+      if (dx.strategy.id === 'BUILD_IP') {
+        // Single-theme enforcement for BUILD_IP
+        ipAnchor = '定位 → 内容输出 → 获客入口 → 标准化产品 → 成交验证'
+        ipFallthrough = '销售和产品化是IP路径的执行环节，不是独立方向。'
+
+        // Block multi-theme contamination in Card06
+        var forbiddenThemes = ['自由职业','副业方向','AI副业','多个方向','投资','创业','多种收入']
+        forbiddenThemes.forEach(function(theme) {
+          if (cogActionAnchor.indexOf(theme) >= 0) {
+            cogActionAnchor = cogActionAnchor.replace(new RegExp('[^^。]*?' + theme + '[^。]*?[。]?', 'g'), '')
+            console.error('[PosterRC8][THEME_PURGE] Removed forbidden theme from Card06: ' + theme)
+          }
+        })
+        if (cogStatement.indexOf('自由职业') >= 0 || cogStatement.indexOf('多个方向') >= 0) {
+          cogStatement = arLabel + '的唯一突破路径：' + ipAnchor
+        }
+        if (cogActionAnchor.indexOf('定位') < 0 && cogActionAnchor.indexOf('内容输出') < 0) {
+          cogActionAnchor = ipAnchor + '。' + ipFallthrough + ' | ' + day1Mission
+        }
+      } else if (dx.strategy.id === 'BUILD_CASHFLOW') {
+        ipAnchor = '第二收入来源 → 稳定现金流 → 解放时间 → 规模化'
+      } else if (dx.strategy.id === 'SELL_FIRST') {
+        ipAnchor = '报价 → 成交 → 记录 → 涨价 → 系统化'
+      } else if (dx.strategy.id === 'BUILD_SYSTEM') {
+        ipAnchor = '流程文档化 → 工具化 → 半自动化 → 全自动化'
+      } else if (dx.strategy.id === 'BUILD_ACQUISITION_SYSTEM') {
+        ipAnchor = '免费钩子 → 内容获客 → 私域沉淀 → 裂变放大'
+      } else if (dx.strategy.id === 'DISCIPLINE_FIRST') {
+        ipAnchor = '最小行动单元 → 每日输出 → 外部问责 → 反馈闭环'
+      } else if (dx.strategy.id === 'BUILD_PRODUCT') {
+        ipAnchor = '知识产品化 → MVP验证 → 迭代 → 标准化'
+      }
+
+      if (ipAnchor && cogActionAnchor.indexOf('定位') < 0 && cogActionAnchor.indexOf('内容输出') < 0) {
+        cogActionAnchor = ipAnchor + '。' + day1Mission
+      }
+
+      // ── R_INC_001 override logging ──
+      if (legacyOverrideDetected) {
+        console.error('[PosterRC8][LEGACY_OVERRIDDEN]', JSON.stringify({
+          winningRule: 'RC8 bottleneck: ' + dx.bottleneck.id,
+          losingRule: 'R_INC_001 / legacy fatalRules',
+          archetypeBias: dx.wealthProfile.primary,
+          evidenceScores: JSON.stringify(dx._raw ? {
+            archetype: dx._raw.archetype.scores,
+            bottleneck: dx._raw.bottleneck.candidates
+          } : 'N/A'),
+          tieBreakReason: dx.bottleneck.id === 'TRAFFIC' ? 'CREATOR+BUILDING_IP tags have higher signal than EMPLOYEE TIME_FOR_MONEY' : 'RC8 evidence chain overrides legacy rule match'
+        }))
+      }
+    }
+
+    // ── RC8.2: Text quality validators ──
+    // Check unsupported percentages
+    var allCardTexts = [verdict, coreConflict, decision, firstAction, cogStatement, cogActionAnchor]
+    var percentPatterns = [/比\d+%的人/, /超过了?\d+%/, /\%的人/, /\d+%都不具备/, /超过绝大多数/, /比99%/]
+    allCardTexts.forEach(function(txt, idx) {
+      percentPatterns.forEach(function(pat) {
+        if (txt && pat.test(txt)) {
+          unsupportedPercentages.push({
+            cardIndex: idx,
+            pattern: String(pat),
+            match: txt.match(pat)[0]
+          })
+        }
+      })
+    })
+    if (unsupportedPercentages.length > 0) {
+      console.error('[PosterRC8][UNSUPPORTED_PERCENTAGE]', JSON.stringify(unsupportedPercentages))
+    }
+
+    // Check over-claimed user states
+    var overclaimPatterns = [
+      { pattern: /不敢停/, category: 'EXAGGERATED_INSECURITY' },
+      { pattern: /不敢病/, category: 'EXAGGERATED_INSECURITY' },
+      { pattern: /不敢想/, category: 'EXAGGERATED_INSECURITY' },
+      { pattern: /收入.*归零/, category: 'CATASTROPHIZING' },
+      { pattern: /全部.*来自.*电动车/, category: 'OVERPERSONIFIED' },
+    ]
+    allCardTexts.forEach(function(txt, idx) {
+      overclaimPatterns.forEach(function(op) {
+        if (txt && op.pattern.test(txt)) {
+          overclaimViolations.push({
+            cardIndex: idx,
+            category: op.category,
+            match: txt.match(op.pattern)[0],
+            suggestion: 'Use evidence-based expression: 现金流依赖工作时间, 缺少第二支撑, 抗波动能力有限'
+          })
+        }
+      })
+    })
+    if (overclaimViolations.length > 0) {
+      console.error('[PosterRC8][OVERCLAIMED_USER_STATE]', JSON.stringify(overclaimViolations))
+    }
+
+    // ── RC6 card body text (new schema from mapper) ──
+    // (verdict/coreConflict/decision/firstAction already set above, overridden by RC8 if needed)
 
     // ── Cards 01-04 body assertions ──
     var requiredBodies = [verdict, coreConflict, decision, firstAction]
