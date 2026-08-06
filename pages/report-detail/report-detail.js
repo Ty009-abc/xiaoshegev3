@@ -603,7 +603,6 @@ Page({
         SCORE:       { size: 30, weight: '700', lh: 36 },
         SCORE_LABEL: { size: 20, weight: '600', lh: 26 },
         SECTION:     { size: 20, weight: '600', lh: 28 },
-        SECTION:     { size: 20, weight: '600', lh: 28 },
         BODY:        { size: 22, weight: '400', lh: 33 },
         BODY_SM:     { size: 20, weight: '400', lh: 30 },
         LABEL:       { size: 18, weight: '600', lh: 24 },
@@ -616,20 +615,32 @@ Page({
         QR_TAG:      { size: 15, weight: '400', lh: 20 },
         FOOTER:      { size: 22, weight: '600', lh: 28 },
         HEADER_RULE: { size: 26, weight: '600', lh: 32 },
+        // RC7 Hero tokens
+        SCORE_HERO:  { size: 48, weight: '800', lh: 52 },
+        KPI_VALUE:   { size: 24, weight: '700', lh: 30 },
+        KPI_LABEL:   { size: 16, weight: '500', lh: 20 },
+        TIMELINE_NO: { size: 28, weight: '700', lh: 32 },
+        VERDICT:     { size: 20, weight: '700', lh: 28 },
+        VERDICT_ANCHOR: { size: 18, weight: '600', lh: 26 },
       },
       // ── Spacing Tokens ──
       S: {
         CARD_PAD_TOP:    28,
         CARD_PAD_BOT:    32,
         TITLE_TO_BODY:   14,
-        SECTION_GAP:     16,
-        PARAGRAPH_GAP:   14,
+        TITLE_BODY_GAP:  10,  // unified title→body gap for 01-04 & 06
+        NUMBER_ICON_GAP: 10,  // unified number→icon gap for all cards
+        SECTION_GAP:     12,
+        PARAGRAPH_GAP:   10,
         ITEM_GAP:        8,
         CARD_GAP:        14,
         QR_GAP:          30,
         FOOTER_GAP:      18,
         DIVIDER_INSET:   0,
         BODY_INSET:      16,
+        // RC7 compact for 01-04
+        COMPACT_PAD_TOP: 18,
+        COMPACT_PAD_BOT: 18,
       },
       // ── Layout ──
       L: {
@@ -641,8 +652,8 @@ Page({
       },
       // ── Card Minimum Heights ──
       CARD_MIN: {
-        '01': 140, '02': 150, '03': 150, '04': 140,
-        'destiny': 420, 'cogVerdict': 170,
+        '01': 110, '02': 120, '03': 120, '04': 110,
+        'destiny': 440, 'cogVerdict': 220,
       },
       // ── Colors ──
       CLR: {
@@ -669,8 +680,10 @@ Page({
         DESTINY_KV:      'rgba(210,225,218,0.88)',
         DESTINY_TP:      '#E2E8F0',
         // 06 colors
-        COG_STATEMENT:   'rgba(225,210,255,0.92)',
-        COG_LABEL:       '#B8A5E0',
+        COG_STATEMENT:   'rgba(255,220,180,0.95)',
+        COG_LABEL:       '#D4AF37',
+        COG_BG:          'rgba(70,40,0,0.35)',
+        COG_BD:          'rgba(180,130,40,0.6)',
         // Glow colors
         GLOW_1:          '#7b3cff',
         GLOW_2:          '#ff2d75',
@@ -921,72 +934,72 @@ Page({
     var BADGE_H = T.BADGE.lh + 10  // badge visual height
 
     function layoutCard05Sections(ctx, cardY) {
-      // Returns sections with y relative to CONTENT AREA TOP (after paddingTop + title)
-      // Each section: { name, y, h } — drawing uses baseY + section.y
+      // RC7: Score Hero integrated within KPI Grid center column → A/B mini → Timeline
       var cy = 0
       var s = []
 
-      // 1. Score
-      s.push({ name: 'score', y: cy, h: T.SCORE.lh + SP.ITEM_GAP })
-      cy += s[s.length - 1].h
+      // ═══ 1-2. KPI Grid (2 rows × 3 cols) + Score Hero integrated in center ═══
+      // Score Hero height must fit within grid or extend it
+      var kpiGridTop = cy  // absolute top for drawing reference
+      var kpiRowH = T.KPI_VALUE.lh + T.KPI_LABEL.lh + 8
+      var scoreHeroH = T.SCORE_HERO.lh + T.SCORE_LABEL.lh + 12  // hero occupies center column
+      var gridH = Math.max(2 * kpiRowH, scoreHeroH)
+      s.push({ name: 'kpiGrid', y: kpiGridTop, h: gridH, rows: [
+        { col1: { value: projectedIndex + '', label: '预测指数', color: C.DESTINY_ACCENT },
+          col3: { value: repairCycleDays + '天', label: '修复周期', color: '#5a9cff' } },
+        { col1: { value: (projectedIndex > currentIndex ? '+' : '') + (projectedIndex - currentIndex), label: '提升幅度', color: '#5a9cff' },
+          col3: { value: projectedIndex > currentIndex ? '低' : '中', label: '风险等级', color: projectedIndex > currentIndex ? '#ffc107' : '#ff6b81' } }
+      ] })
+      cy += gridH + SP.SECTION_GAP
 
       // Divider 1
       cy += SP.ITEM_GAP
       s.push({ name: 'divider1', y: cy, h: SP.SECTION_GAP })
       cy += SP.SECTION_GAP
 
-      // 2. Baseline section: label + body
-      setFont(ctx, T.SECTION)
-      cy += T.SECTION.lh
+      // ═══ 3. A/B Mini paths (compact) ═══
       setFont(ctx, T.BODY_SM)
-      var baseLines = splitLines(ctx, baselineOutcome, contentWidth - SP.BODY_INSET, T.BODY_SM.size)
-      var baseLs = Math.min(baseLines.length, 3)
-      var baseBodyH = baseLs * T.BODY_SM.lh
-      s.push({ name: 'baseline', y: cy - T.SECTION.lh, h: T.SECTION.lh + baseBodyH + SP.SECTION_GAP })
-      cy += baseBodyH + SP.SECTION_GAP
-
-      // 3. Action section: label + badge + repair
-      setFont(ctx, T.SECTION)
-      cy += T.SECTION.lh
-      var badgeText = currentIndex + ' → ' + projectedIndex
-      setFont(ctx, T.BADGE)
-      var badgeW = ctx.measureText(badgeText).width + 14
-      var actionBodyH = BADGE_H + SP.ITEM_GAP + T.BODY_SM.lh
-      s.push({ name: 'action', y: cy - T.SECTION.lh, h: T.SECTION.lh + actionBodyH + SP.SECTION_GAP })
-      cy += actionBodyH + SP.SECTION_GAP
+      var baseLines = splitLines(ctx, baselineOutcome, contentWidth, T.BODY_SM.size)
+      var baseLs = Math.min(baseLines.length, 2)
+      var baseH = T.SCORE_LABEL.lh + baseLs * T.BODY_SM.lh
+      // Action
+      var actLines = splitLines(ctx, '预计结构修复周期：' + repairCycleDays + '天', contentWidth, T.BODY_SM.size)
+      var actH = T.SCORE_LABEL.lh + T.BODY_SM.lh + SP.ITEM_GAP + actLines.length * T.BODY_SM.lh
+      s.push({ name: 'abPaths', y: cy, h: baseH + actH + SP.SECTION_GAP })
+      cy += baseH + actH + SP.SECTION_GAP
 
       // Divider 2
       cy += SP.ITEM_GAP
       s.push({ name: 'divider2', y: cy, h: SP.SECTION_GAP })
       cy += SP.SECTION_GAP
 
-      // 4. Key variable: label + body
-      setFont(ctx, T.SECTION)
-      cy += T.SECTION.lh
+      // ═══ 4. Key variable (compact) ═══
       setFont(ctx, T.BODY_SM)
-      var kvLines = splitLines(ctx, keyVariable, contentWidth - SP.BODY_INSET, T.BODY_SM.size)
-      var kvLs = Math.min(kvLines.length, 3)
-      var kvBodyH = kvLs * T.BODY_SM.lh
-      s.push({ name: 'keyVariable', y: cy - T.SECTION.lh, h: T.SECTION.lh + kvBodyH + SP.SECTION_GAP })
-      cy += kvBodyH + SP.SECTION_GAP
+      var kvLines = splitLines(ctx, keyVariable, contentWidth, T.BODY_SM.size)
+      var kvLs = Math.min(kvLines.length, 2)
+      var kvH = T.SCORE_LABEL.lh + kvLs * T.BODY_SM.lh + SP.SECTION_GAP
+      s.push({ name: 'keyVariable', y: cy, h: kvH })
+      cy += kvH
 
-      // 5. Turning points — each as independent row with absolute Y
+      // ═══ 5. Timeline (turning points) ═══
       var tpCount = turningPoints.length > 0 ? Math.min(turningPoints.length, 3) : 0
       var tpStart = cy
-      var tpItems = []  // pre-measured items with absolute Y
-
+      var tpItems = []
       if (tpCount > 0) {
-        setFont(ctx, T.SECTION)
-        cy += T.SECTION.lh + SP.ITEM_GAP
+        setFont(ctx, T.TIMELINE_NO)
+        var timelineLabelH = T.SECTION.lh + SP.ITEM_GAP
+        cy += timelineLabelH
         for (var tp = 0; tp < tpCount; tp++) {
-          var tpDay = 'DAY ' + turningPoints[tp].day
+          var tpDay = turningPoints[tp].day
           var tpLabel = turningPoints[tp].label || ''
+          // Timeline node: DAY badge + text
+          var dayStr = 'DAY ' + tpDay
           setFont(ctx, T.BADGE)
-          var dayW = ctx.measureText(tpDay).width + 14
+          var dayW = ctx.measureText(dayStr).width + 14
           setFont(ctx, T.CAPTION)
           var textW = contentWidth - SP.BODY_INSET - dayW - 10
           var tpLines = splitLines(ctx, tpLabel, textW, T.CAPTION.size)
-          var itemH = Math.max(BADGE_H, tpLines.length * T.CAPTION.lh)
+          var itemH = Math.max(BADGE_H, tpLines.length * T.CAPTION.lh) + 8  // +8 timeline spacing
           tpItems.push({
             day: tpDay, label: tpLabel, dayW: dayW,
             lines: tpLines, itemH: itemH, y: cy
@@ -995,83 +1008,92 @@ Page({
         }
       }
       if (tpCount > 0) {
-        s.push({ name: 'turningPoints', y: tpStart, h: cy - tpStart, items: tpItems })
-        // No trailing SECTION_GAP — card pad bottom handles whitespace
+        s.push({ name: 'timeline', y: tpStart, h: cy - tpStart, items: tpItems })
       }
 
-      return { sections: s, totalContentH: cy, baseLines: baseLines, baseLs: baseLs, kvLines: kvLines, kvLs: kvLs, tpCount: tpCount }
+      return { sections: s, totalContentH: cy, baseLines: baseLines, baseLs: baseLs, kvLines: kvLines, kvLs: kvLs, tpCount: tpCount, actLines: actLines }
     }
 
     cards.forEach(function(item, index) {
+      // Determine titlePadTop at measure time — single source for draw
+      item._titlePadTop = (item.type === 'destiny' || item.type === 'cogVerdict') ? SP.CARD_PAD_TOP : SP.COMPACT_PAD_TOP
       if (item.type === 'destiny') {
-        var layout = layoutCard05Sections(ctx, 0) // measured from card top=0
+        var layout = layoutCard05Sections(ctx, 0)
         item._heightMeasured = Math.max(CM.destiny, SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY + layout.totalContentH + SP.CARD_PAD_BOT)
         item._card05Layout = layout
         item._baseLines = layout.baseLs; item._kvLines = layout.kvLs
         item._tpCount = layout.tpCount
-        // 审计：console.error + JSON.stringify 保证真机输出
         var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
-        var _padB = SP.CARD_PAD_BOT
         var _cH = layout.totalContentH
-        console.error('[PosterRC6][CARD05_MEASURE]', JSON.stringify({
+        console.error('[PosterRC7][CARD05_MEASURE]', JSON.stringify({
           totalContentH: _cH,
           paddingTop: _padT,
-          paddingBottom: _padB,
-          calculatedHeight: _padT + _cH + _padB,
+          calculatedHeight: _padT + _cH + SP.CARD_PAD_BOT,
           finalHeight: item._heightMeasured,
-          sections: layout.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
+          sectionNames: layout.sections.map(function(s) { return s.name })
         }))
       } else if (item.type === 'cogVerdict') {
-        // Single-source Card06 layout (compact statement → divider → action anchor)
+        // ═══ RC7 Card06 — Final Verdict ═══
+        // Sections: 0=statement, 1=divider, 2=action-label, 3=action-card, 4=ending
         var l06 = (function() {
           var cy = 0
           var ss = []
-          // Statement — lighter font (weight 500, size 23)
-          setFont(ctx, { size: 23, weight: '500' })
-          var stLines = splitLines(ctx, cogStatement, contentWidth, 23)
+
+          // Section 0: Statement (no box)
+          var STMT_PAD_TOP = 12   // breathing room above statement text
+          setFont(ctx, T.VERDICT)
+          var stLines = splitLines(ctx, cogStatement, contentWidth, T.VERDICT.size)
           var stLs = Math.min(stLines.length, 4)
           if (stLines.length > stLs) stLines = stLines.slice(0, stLs)
-          var stH = stLs * 34
+          var stH = stLs * T.VERDICT.lh
+          cy += STMT_PAD_TOP
           ss.push({ name: 'statement', y: cy, h: stH, lines: stLines })
-          cy += stH + 16  // 16px gap before divider
-          // Divider
-          ss.push({ name: 'divider', y: cy, h: 12 })
-          cy += 12  // divider region
-          // Action: label + body
-          var actY = cy
-          setFont(ctx, { size: 18, weight: '600' })
-          var lblH = 24
-          setFont(ctx, { size: 21, weight: '400' })
-          var aaLines = splitLines(ctx, cogActionAnchor, contentWidth, 21)
+          cy += stH + 14  // statement-end gap
+
+          // Section 1: Divider
+          ss.push({ name: 'divider', y: cy, h: 10 })
+          cy += 14
+
+          // Section 2: Action anchor label
+          setFont(ctx, T.VERDICT_ANCHOR)
+          var lblH = T.VERDICT_ANCHOR.lh + 8  // label + 8px gap before card
+          ss.push({ name: 'actionLabel', y: cy, h: lblH })
+          cy += lblH
+
+          // Section 3: Recommendation card
+          setFont(ctx, T.BODY_SM)
+          var REC_CARD_PAD_H = 16  // horizontal padding
+          var REC_CARD_PAD_V = 14  // vertical padding inside card
+          var recTextW = contentWidth - REC_CARD_PAD_H * 2
+          var aaLines = splitLines(ctx, cogActionAnchor, recTextW, T.BODY_SM.size)
           var aaLs = Math.min(aaLines.length, 3)
           if (aaLines.length > aaLs) aaLines = aaLines.slice(0, aaLs)
-          var aaBodyH = aaLs * 29
-          ss.push({ name: 'action', y: actY, h: lblH + 4 + aaBodyH, lines: aaLines })
-          cy += lblH + 4 + aaBodyH
+          var recTextH = aaLs * T.BODY_SM.lh
+          var recCardH = Math.max(52, recTextH + REC_CARD_PAD_V * 2)
+          ss.push({ name: 'actionCard', y: cy, h: recCardH, lines: aaLines, textH: recTextH })
+          cy += recCardH + 12
+
+          // Section 4: Ending (oracle-style closing)
+          setFont(ctx, T.BODY_SM)
+          var endLines = ['今天开始执行。', '180 天后回来验证。']
+          var endLineH = T.BODY_SM.lh + 2
+          var endTotalH = endLines.length * endLineH + 12  // top/bottom padding
+          ss.push({ name: 'ending', y: cy, h: endTotalH, lines: endLines })
+          cy += endTotalH
+
           return { sections: ss, totalContentH: cy, stLines: stLines, stLs: stLs, aaLines: aaLines, aaLs: aaLs }
         })()
-        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
+        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_BODY_GAP
         item._heightMeasured = Math.max(CM.cogVerdict, _padT + l06.totalContentH + SP.CARD_PAD_BOT)
         item._card06Layout = l06
         item._stLines = l06.stLs; item._aaLines = l06.aaLs
-
-        console.error('[PosterRC6][CARD06_MEASURE]', JSON.stringify({
-          totalContentH: l06.totalContentH,
-          paddingTop: _padT,
-          paddingBottom: SP.CARD_PAD_BOT,
-          calculatedHeight: _padT + l06.totalContentH + SP.CARD_PAD_BOT,
-          finalHeight: item._heightMeasured
-        }))
-        console.error('[PosterRC6][CARD06_LAYOUT]', JSON.stringify({
-          sections: l06.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
-        }))
       } else {
         setFont(ctx, T.BODY)
         item._lines = splitLines(ctx, item.text || '', contentWidth, T.BODY.size)
-        var minH = CM[item.no] || 140
-        item._heightMeasured = Math.max(minH, SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY + item._lines.length * T.BODY.lh + SP.CARD_PAD_BOT)
+        var minH = CM[item.no] || 110
+        item._heightMeasured = Math.max(minH, SP.COMPACT_PAD_TOP + TITLE_H + SP.TITLE_BODY_GAP + item._lines.length * T.BODY.lh + SP.COMPACT_PAD_BOT)
       }
-      console.log('[PosterRC6][MEASURE] Card' + (index + 1) + ' height=' + item._heightMeasured)
+      console.log('[PosterRC6][MEASURE] Card' + (index + 1) + ' height=' + item._heightMeasured + ' titlePadTop=' + item._titlePadTop)
     })
 
     var headerH = L.HEADER_H; var ctaH = L.CTA_H; var footerH = L.FOOTER_H
@@ -1122,240 +1144,227 @@ Page({
       ctx.globalAlpha = 0.16; ctx.fillStyle = item.color
       ctx.fillRect(safeX, cardY, leftW, h); ctx.globalAlpha = 1
 
-      // Card number + icon
+      // Card number + icon — read titlePadTop from layout metadata (single source)
+      var titlePadTop = item._titlePadTop || SP.COMPACT_PAD_TOP
+      var numberY = cardY + titlePadTop
+      var numberBottom = numberY + T.CARD_NO.size  // approximate cap-height baseline
+      var iconY = numberBottom + SP.NUMBER_ICON_GAP
       ctx.textAlign = 'center'
       setFont(ctx, T.CARD_NO); setColor(ctx, item.color)
-      ctx.fillText(item.no, safeX + leftW / 2, cardY + SP.CARD_PAD_TOP + 18)
+      ctx.fillText(item.no, safeX + leftW / 2, numberY + 18)
       setFont(ctx, T.CARD_ICON)
-      ctx.fillText(item.icon, safeX + leftW / 2, cardY + SP.CARD_PAD_TOP + 52)
-
-      // Card title
+      ctx.fillText(item.icon, safeX + leftW / 2, iconY + 16)
       ctx.textAlign = 'left'
       setFont(ctx, T.CARD_TITLE); setColor(ctx, item.color)
-      ctx.fillText(item.icon + ' ' + item.title, contentX, cardY + SP.CARD_PAD_TOP + TITLE_H / 2 + 6)
+      ctx.fillText(item.icon + ' ' + item.title, contentX, cardY + titlePadTop + TITLE_H / 2 + 6)
 
-      var lastTextY = cardY + SP.CARD_PAD_TOP + TITLE_H / 2
+      // lastTextY will be overwritten per card type below; safe default
+      var lastTextY = cardY + titlePadTop + TITLE_H / 2
 
       if (item.type === 'destiny') {
-        // ═══ Soft card clip — protects card rounded corners ═══
+        // ═══ RC7 05 Score Hero + KPI Grid + Timeline ═══
         ctx.save()
         ctx.beginPath()
         roundRect(safeX + 2, cardY + 2, cardW - 4, h - 4, L.CARD_R)
         ctx.clip()
-        ctx.save()  // inner save for section-level clip restore
+        ctx.save()
 
-        // ═══ 05 命运模拟器 — unified content origin ═══
         var l = item._card05Layout
         var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
-        var originY = cardY + _padT  // content area top
-        // Reset text state
+        var originY = cardY + _padT
         ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
 
-        function assert05X(name, x, w, textAlign) {
-          w = w || 0
-          var align = textAlign || ctx.textAlign || 'left'
-          var realLeft = x
-          if (align === 'center') realLeft = x - w / 2
-          else if (align === 'right') realLeft = x - w
-          var realRight = realLeft + w
-          if (realLeft < contentX || realRight > contentRight) {
-            console.error('[PosterRC6][CARD05_TEXT_X_OVERFLOW]', JSON.stringify({
-              name: name, x: x, w: w, textAlign: align,
-              realLeft: realLeft, realRight: realRight,
-              contentX: contentX, contentRight: contentRight
-            }))
-          }
+        // ═══ 2. KPI Grid — ABSOLUTE coordinates (no cursorY) ═══
+        // Three-column layout: left KPI | center Score Hero | right KPI
+        var kpiS = l.sections[0]
+        var gridTop = originY + kpiS.y
+        var kpiRowH = T.KPI_VALUE.lh + T.KPI_LABEL.lh + 8  // must match layoutCard05Sections
+        var colLeft  = contentX + 6                          // left column X
+        var colCenter = contentX + contentWidth / 2          // center column X (textAlign=center)
+        var colRight = contentX + contentWidth - 6           // right column X
+
+        // Helper: draw one KPI cell (textAlign=center for colCenter, left/right for others)
+        function drawKpiCell(x, y, value, label, vColor, align) {
+          ctx.textAlign = align || 'left'
+          setFont(ctx, T.KPI_VALUE); ctx.fillStyle = vColor
+          ctx.fillText(value, x, y)
+          setFont(ctx, T.KPI_LABEL); ctx.fillStyle = C.DESTINY_LABEL
+          ctx.fillText(label, x, y + T.KPI_VALUE.lh + 2)
         }
 
-        // Score
-        setFont(ctx, T.SCORE); setColor(ctx, C.DESTINY_ACCENT)
-        var scoreStr = currentIndex + '分'
-        assert05X('score', contentX, ctx.measureText(scoreStr).width)
-        ctx.fillText(scoreStr, contentX, originY + l.sections[0].y)
-        var scoreW = ctx.measureText(scoreStr).width
-        setFont(ctx, T.SCORE_LABEL)
-        ctx.fillText(' · ' + currentLevelLabel, contentX + scoreW, originY + l.sections[0].y)
+        var rows = kpiS.rows
+        // Row 0: left KPI (prediction rate) | center Score Hero | right KPI (repair days)
+        drawKpiCell(colLeft,  gridTop, rows[0].col1.value, rows[0].col1.label, rows[0].col1.color, 'left')
+        drawKpiCell(colRight, gridTop, rows[0].col3.value, rows[0].col3.label, rows[0].col3.color, 'right')
+        // Row 1
+        var row1Y = gridTop + kpiRowH
+        drawKpiCell(colLeft,  row1Y, rows[1].col1.value, rows[1].col1.label, rows[1].col1.color, 'left')
+        drawKpiCell(colRight, row1Y, rows[1].col3.value, rows[1].col3.label, rows[1].col3.color, 'right')
+
+        // Score Hero in center column (re-draw over Grid after KPI text)
+        setFont(ctx, T.SCORE_HERO); ctx.fillStyle = C.DESTINY_ACCENT; ctx.textAlign = 'center'
+        ctx.fillText(currentIndex, colCenter, gridTop + T.SCORE_HERO.lh)
+        setFont(ctx, T.SCORE_LABEL); ctx.fillStyle = C.DESTINY_ACCENT
+        ctx.fillText('🟢 ' + currentLevelLabel, colCenter, gridTop + T.SCORE_HERO.lh + T.SCORE_LABEL.lh + 4)
+        ctx.textAlign = 'left'
 
         // Divider 1
         var div1y = originY + l.sections[1].y
-        assert05X('divider1', contentX, contentWidth)
         drawDivider(ctx, contentX, div1y, contentWidth)
 
-        // A 路径: label at section y, body indented
-        var aSec = l.sections[2]
-        var ay = originY + aSec.y
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
-        setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_LABEL
-        ctx.fillText('▶ 保持现状', contentX, ay)
-        setFont(ctx, T.BODY_SM); setColor(ctx, C.DESTINY_BODY)
-        for (var bi = 0; bi < l.baseLines.length && bi < (item._baseLines || 3); bi++) {
-          ctx.fillText(l.baseLines[bi], contentX + SP.BODY_INSET, ay + T.SECTION.lh + bi * T.BODY_SM.lh)
+        // ═══ 3. A/B Paths (compact) ═══
+        var abS = l.sections[2]
+        var aby = originY + abS.y
+        setFont(ctx, T.SCORE_LABEL); ctx.fillStyle = C.DESTINY_LABEL
+        ctx.fillText('▶ 保持现状', contentX, aby)
+        setFont(ctx, T.BODY_SM); ctx.fillStyle = C.DESTINY_BODY
+        for (var bi = 0; bi < l.baseLines.length && bi < Math.min(l.baseLs, 2); bi++) {
+          ctx.fillText(l.baseLines[bi], contentX, aby + T.SCORE_LABEL.lh + bi * T.BODY_SM.lh)
         }
-
-        // B 路径: label + badge + repair
-        var actSec = l.sections[3]
-        var actY = originY + actSec.y
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
-        setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_ACCENT
-        ctx.fillText('▶ 执行方案', contentX, actY)
-        // Badge
-        var badgeText = currentIndex + ' → ' + projectedIndex
-        var badgeAY = actY + T.SECTION.lh
-        drawBadge(ctx, contentX + SP.BODY_INSET, badgeAY, badgeText, 'green')
-        ctx.textAlign = 'left'
-        // Repair text — aligned to contentX + BODY_INSET (same as badge start)
-        assert05X('repairCycle', contentX + SP.BODY_INSET, ctx.measureText('预计结构修复周期：' + repairCycleDays + '天').width)
-        setFont(ctx, T.BODY_SM); setColor(ctx, C.DESTINY_ACCENT)
-        ctx.fillText('预计结构修复周期：' + repairCycleDays + '天', contentX + SP.BODY_INSET, badgeAY + BADGE_H + SP.ITEM_GAP)
+        var actAY = aby + T.SCORE_LABEL.lh + Math.min(l.baseLs, 2) * T.BODY_SM.lh + SP.ITEM_GAP
+        setFont(ctx, T.SCORE_LABEL); ctx.fillStyle = C.DESTINY_ACCENT
+        ctx.fillText('▶ 执行方案', contentX, actAY)
+        setFont(ctx, T.BODY_SM); ctx.fillStyle = C.DESTINY_ACCENT
+        var _05al = l.actLines || []
+        for (var ai = 0; ai < _05al.length; ai++) {
+          ctx.fillText(_05al[ai], contentX, actAY + T.BODY_SM.lh + ai * T.BODY_SM.lh)
+        }
 
         // Divider 2
-        var div2y = originY + l.sections[4].y
-        assert05X('divider2', contentX, contentWidth)
+        var div2y = originY + l.sections[3].y
         drawDivider(ctx, contentX, div2y, contentWidth)
 
-        // 🔑 关键变量
-        var kvSec = l.sections[5]
-        var kvY = originY + kvSec.y
-        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
-        setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_LABEL
+        // ═══ 4. Key Variable (compact) ═══
+        var kvS = l.sections[4]
+        var kvY = originY + kvS.y
+        setFont(ctx, T.SCORE_LABEL); ctx.fillStyle = C.DESTINY_LABEL
         ctx.fillText('🔑 关键变量', contentX, kvY)
-        setFont(ctx, T.BODY_SM); setColor(ctx, C.DESTINY_KV)
-        for (var ki = 0; ki < l.kvLines.length && ki < (item._kvLines || 3); ki++) {
-          ctx.fillText(l.kvLines[ki], contentX + SP.BODY_INSET, kvY + T.SECTION.lh + ki * T.BODY_SM.lh)
+        setFont(ctx, T.BODY_SM); ctx.fillStyle = C.DESTINY_KV
+        for (var ki = 0; ki < l.kvLines.length && ki < Math.min(l.kvLs, 2); ki++) {
+          ctx.fillText(l.kvLines[ki], contentX, kvY + T.SCORE_LABEL.lh + ki * T.BODY_SM.lh)
         }
 
-        // 📍 关键转折点 — absolute Y from pre-measured items
+        // ═══ 5. Timeline ═══
         if (item._tpCount > 0) {
-          var tpSec = l.sections[6]
-          var tpY = originY + tpSec.y
-          ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'
+          var tlS = l.sections[5]
+          var tly = originY + tlS.y
           setFont(ctx, T.SECTION); ctx.fillStyle = C.DESTINY_LABEL
-          ctx.fillText('📍 关键转折点', contentX, tpY)
+          ctx.fillText('📍 关键转折点', contentX, tly)
 
-          var tpItems = tpSec.items
-          for (var tp = 0; tp < tpItems.length; tp++) {
-            var tpi = tpItems[tp]
+          var tlItems = tlS.items
+          // Vertical timeline connector
+          if (tlItems.length >= 2) {
+            var badgeCX = contentX + SP.BODY_INSET + 42  // center of badge area
+            var firstBadgeCY = originY + tlItems[0].y + BADGE_H / 2 + 6
+            var lastBadgeCY = originY + tlItems[tlItems.length - 1].y + BADGE_H / 2 + 6
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)'
+            ctx.lineWidth = 1.5
+            ctx.setLineDash([4, 6])
+            ctx.beginPath()
+            ctx.moveTo(badgeCX, firstBadgeCY + BADGE_H)
+            ctx.lineTo(badgeCX, lastBadgeCY - 4)
+            ctx.stroke()
+            ctx.setLineDash([])
+          }
+
+          for (var tp = 0; tp < tlItems.length; tp++) {
+            var tpi = tlItems[tp]
             var itemY = originY + tpi.y
-            // Badge
-            assert05X('tpBadge_' + tp, contentX + SP.BODY_INSET, tpi.dayW)
-            drawBadge(ctx, contentX + SP.BODY_INSET, itemY, tpi.day, 'blue')
-            // Text to right of badge — use light color for contrast
+            var badgeType = tp === 2 ? 'purple' : 'blue'
+            drawBadge(ctx, contentX + SP.BODY_INSET, itemY, tpi.day, badgeType)
             ctx.textAlign = 'left'
-            setFont(ctx, T.CAPTION); setColor(ctx, '#E2E8F0')
+            setFont(ctx, T.CAPTION); ctx.fillStyle = '#E2E8F0'
             var textX = contentX + SP.BODY_INSET + tpi.dayW + 8
-            assert05X('tpText_' + tp, textX, contentWidth - SP.BODY_INSET - tpi.dayW - 8)
             for (var tl = 0; tl < tpi.lines.length; tl++) {
               ctx.fillText(tpi.lines[tl], textX, itemY + BADGE_H / 2 + 6 + tl * T.CAPTION.lh)
             }
-            console.log('[PosterRC6][TP_DRAW] item ' + tp + ': itemY=' + itemY + ' day=' + tpi.day)
           }
         }
 
-        // ── Compute real content bottom (no redraw — bg drawn before content) ──
         lastTextY = cardY + _padT + l.totalContentH
-        console.error('[PosterRC6][CARD05_DIVIDER_CHECK]', JSON.stringify({
-          dividerCount: 2,
-          divider1: { y: l.sections[1].y, h: l.sections[1].h },
-          divider2: { y: l.sections[4].y, h: l.sections[4].h },
-          totalContentH: l.totalContentH,
-          cardHeight: h,
-          lastTextY: lastTextY
-        }))
-
-        // ── Audit logs ──
+        var delta05 = 0
         var lastSection = l.sections[l.sections.length - 1]
-        var expectedContentBottom = cardY + _padT + l.totalContentH
-        var lastDrawYCalc = cardY + _padT + lastSection.y + lastSection.h
-        var delta05 = lastDrawYCalc - expectedContentBottom
+        if (lastSection) {
+          var expectedContentBottom = cardY + _padT + l.totalContentH
+          var lastDrawYCalc = cardY + _padT + (lastSection.y + lastSection.h)
+          delta05 = lastDrawYCalc - expectedContentBottom
+        }
 
-        console.error('[PosterRC6][CARD05_LAYOUT_ID]', JSON.stringify({
-          measuredLayoutTotal: (item._card05Layout ? item._card05Layout.totalContentH : null),
-          drawLayoutTotal: l.totalContentH,
-          sameReference: item._card05Layout === l
-        }))
-        console.error('[PosterRC6][CARD05_VISUAL_LAYOUT]', JSON.stringify({
-          cardY: cardY, cardHeight: h,
-          contentOriginX: contentX,
-          contentWidth: contentWidth,
-          sections: l.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
-        }))
-        console.error('[PosterRC6][CARD05_FINAL_METRICS]', JSON.stringify({
-          cardY: cardY,
-          expectedContentBottom: expectedContentBottom,
-          lastDrawY: lastDrawYCalc,
-          delta: delta05,
-          lastSectionType: lastSection ? lastSection.name : null,
-          lastSectionY: lastSection ? lastSection.y : null,
-          lastSectionH: lastSection ? lastSection.h : null,
-          trailingGapApplied: false
-        }))
-        console.error('[PosterRC6][CARD05_HEIGHT]', JSON.stringify({
-          card05StartY: cardY,
-          card05ContentBottomY: expectedContentBottom,
-          card05Height: h,
-          contentBottom: expectedContentBottom,
-          safeContentBottom: cardY + h - SP.CARD_PAD_BOT,
-          padBottom: SP.CARD_PAD_BOT
+        console.error('[PosterRC7][CARD05_HERO]', JSON.stringify({
+          sections: l.sections.map(function(s) { return s.name }),
+          totalContentH: l.totalContentH,
+          height: h,
+          delta: delta05
         }))
 
         if (delta05 > 4) throw new Error('POSTER_CARD_CONTENT_OVERFLOW:05')
 
-        // ── Release clip ──
-        ctx.restore()  // inner save
-        ctx.restore()  // outer save (card clip)
+        ctx.restore()  // inner clip save
+        ctx.restore()  // outer clip save
 
       } else if (item.type === 'cogVerdict') {
-        // ═══ 06 认知宣判 — compact visual hierarchy ═══
+        // ═══ RC7 Card06 — Final Verdict ═══
         var l06 = item._card06Layout
-        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY
+        var _padT = SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_BODY_GAP
         var baseY = cardY + _padT
 
-        // Statement — lighter weight for readability
+        // Section 0 — Statement (gold body text, no box)
         var stSec = l06.sections[0]
-        setFont(ctx, { size: 23, weight: '500' }); setColor(ctx, C.COG_STATEMENT)
+        setFont(ctx, T.VERDICT); ctx.fillStyle = C.COG_STATEMENT
         for (var si = 0; si < stSec.lines.length; si++) {
-          ctx.fillText(stSec.lines[si], contentX, baseY + stSec.y + si * 34)
+          ctx.fillText(stSec.lines[si], contentX, baseY + stSec.y + si * T.VERDICT.lh)
         }
 
-        // Divider
+        // Section 1 — Divider
         var divSec = l06.sections[1]
-        drawDivider(ctx, contentX, baseY + divSec.y + 4, contentWidth)
+        drawDivider(ctx, contentX, baseY + divSec.y + 2, contentWidth)
 
-        // Action: label + body
-        var actSec = l06.sections[2]
-        setFont(ctx, { size: 18, weight: '600' }); setColor(ctx, C.COG_LABEL)
-        ctx.fillText('行动锚点', contentX, baseY + actSec.y)
-        setFont(ctx, { size: 21, weight: '400' }); setColor(ctx, C.COG_STATEMENT)
-        for (var ai = 0; ai < actSec.lines.length; ai++) {
-          ctx.fillText(actSec.lines[ai], contentX, baseY + actSec.y + 24 + 4 + ai * 29)
+        // Section 2 — Action anchor label
+        var lblSec = l06.sections[2]
+        setFont(ctx, T.VERDICT_ANCHOR); ctx.fillStyle = '#FF8C00'  // accent orange
+        ctx.fillText('📌 行动锚点', contentX, baseY + lblSec.y)
+
+        // Section 3 — Recommendation card (dark glass)
+        var cardSec = l06.sections[3]
+        var cardY06 = baseY + cardSec.y
+        var cardH = cardSec.h
+        roundRect(contentX, cardY06, contentWidth, cardH, L.CARD_R)
+        ctx.fillStyle = 'rgba(70,40,0,0.25)'; ctx.fill()
+        ctx.strokeStyle = 'rgba(180,130,40,0.35)'; ctx.lineWidth = 1; ctx.stroke()
+
+        // Card content (vertically centered)
+        var textStartY = cardY06 + (cardH - cardSec.textH) / 2 + T.BODY_SM.lh - 4
+        setFont(ctx, T.BODY_SM); ctx.fillStyle = 'rgba(255,230,200,0.88)'
+        for (var ai = 0; ai < cardSec.lines.length; ai++) {
+          ctx.fillText(cardSec.lines[ai], contentX + 16, textStartY + ai * T.BODY_SM.lh)
         }
 
-        // lastDrawY from single-source layout
+        // Section 4 — Ending (oracle-style closing)
+        var endSec = l06.sections[4]
+        var endY = baseY + endSec.y
+        var endW = 120
+        var endX = contentX + (contentWidth - endW) / 2
+        // Oracle lines
+        ctx.strokeStyle = 'rgba(150,150,160,0.35)'; ctx.lineWidth = 0.8
+        ctx.beginPath(); ctx.moveTo(endX, endY); ctx.lineTo(endX + endW, endY); ctx.stroke()
+        setFont(ctx, T.BODY_SM); ctx.fillStyle = 'rgba(160,160,170,0.65)'; ctx.textAlign = 'center'
+        var endTextY = endY + T.BODY_SM.lh + 4
+        for (var ei = 0; ei < endSec.lines.length; ei++) {
+          ctx.fillText(endSec.lines[ei], contentX + contentWidth / 2, endTextY + ei * (T.BODY_SM.lh + 2))
+        }
+        ctx.textAlign = 'left'
+
+        // Overflow guard
         var expectedContentBottom = cardY + _padT + l06.totalContentH
-        var lastDrawYCalc = cardY + _padT + actSec.y + actSec.h
+        var lastDrawYCalc = endY + endSec.h
         var delta06 = lastDrawYCalc - expectedContentBottom
-
-        console.error('[PosterRC6][CARD06_VISUAL_LAYOUT]', JSON.stringify({
-          cardY: cardY, cardHeight: h,
-          contentOriginX: contentX,
-          contentWidth: contentWidth,
-          sections: l06.sections.map(function(s) { return { type: s.name, y: s.y, h: s.h, bottom: s.y + s.h } })
-        }))
-        console.error('[PosterRC6][CARD06_OVERFLOW]', JSON.stringify({
-          cardY: cardY, cardHeight: h, cardBottom: cardY + h,
-          totalContentH: l06.totalContentH,
-          expectedContentBottom: expectedContentBottom,
-          lastDrawY: lastDrawYCalc,
-          delta: delta06
-        }))
-
-        if (delta06 > 4) throw new Error('POSTER_CARD_CONTENT_OVERFLOW:06')
+        if (delta06 > 6) throw new Error('POSTER_CARD_CONTENT_OVERFLOW:06')
 
       } else {
-        // ═══ Cards 01-04 ═══
+        // ═══ Cards 01-04 (RC7 compact) ═══
         setFont(ctx, T.BODY); setColor(ctx, C.BODY)
-        drawWrappedLines(ctx, item._lines, contentX, cardY + SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY, T.BODY.lh, C.BODY, T.BODY.size)
-        lastTextY = cardY + SP.CARD_PAD_TOP + TITLE_H + SP.TITLE_TO_BODY + item._lines.length * T.BODY.lh
+        drawWrappedLines(ctx, item._lines, contentX, cardY + SP.COMPACT_PAD_TOP + TITLE_H + SP.TITLE_BODY_GAP, T.BODY.lh, C.BODY, T.BODY.size)
+        lastTextY = cardY + SP.COMPACT_PAD_TOP + TITLE_H + SP.TITLE_BODY_GAP + item._lines.length * T.BODY.lh
       }
 
       ctx.restore()
