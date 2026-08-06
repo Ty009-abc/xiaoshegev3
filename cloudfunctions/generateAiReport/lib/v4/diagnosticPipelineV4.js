@@ -273,7 +273,7 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     return goFallback(baseContract, stages, 'STEP_8_MERGE_VIOLATIONS: ' + mergeViolations)
   }
 
-  // ── STEP 9: 守卫报告 ──
+  // ── STEP 9: 守卫报告（结构契约） ──
   let guardResult
   try {
     guardResult = guardReportV4(baseContract, mergedResult.data)
@@ -288,6 +288,31 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
   if (!guardResult.ok) {
     const guardViolations = (guardResult.violations || []).join('; ')
     return goFallback(baseContract, stages, 'STEP_9_GUARD_VIOLATIONS: ' + guardViolations)
+  }
+
+  // ── STEP 9.5: 内容安全门禁（硬阻断） ──
+  var contentSafety = require('../config/contentSafetyGate')
+  var context = { strategyId: baseContract.report?._strategyId || null }
+  var safetyResult = contentSafety.contentSafetyGate(
+    mergedResult.data.report,
+    function() { return generateFallbackReport(baseContract).report },
+    context
+  )
+
+  // Merge the validated report back
+  mergedResult.data.report = safetyResult.report
+  mergedResult.data.contentValidation = safetyResult.validation
+
+  log('STEP_9_5_CONTENT_SAFETY', safetyResult.validation.initialPass, {
+    initialErrors: safetyResult.validation.initialErrors,
+    repairAttempted: safetyResult.validation.repairAttempted,
+    repairedPass: safetyResult.validation.repairedPass,
+    fallbackUsed: safetyResult.validation.fallbackUsed,
+    finalErrors: safetyResult.validation.finalErrors,
+  })
+
+  if (safetyResult.validation.fallbackUsed) {
+    return goFallback(baseContract, stages, 'STEP_9_5_CONTENT_SAFETY: repaired text still had violations')
   }
 
   // ── STEP 10: 成功返回 ──
@@ -332,6 +357,7 @@ function buildV4Response(contract, legacy, renderSource) {
     renderSource,
     report: contract.report,
     legacy,
+    contentValidation: contract.contentValidation || null,
     answersSnapshot: null, // 由调用方填充
   }
 }
