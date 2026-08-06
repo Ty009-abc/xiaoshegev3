@@ -241,7 +241,7 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     log('STEP_4_VALIDATE_CONTRACT', true)
   } catch (e) {
     log('STEP_4_VALIDATE_CONTRACT', false, { error: e.message })
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_4_VALIDATE_CONTRACT', reasonCode: 'REPORT_CONTRACT_INVALID', reason: e.message, guardErrors: [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_4_VALIDATE_CONTRACT', reasonCode: 'REPORT_CONTRACT_INVALID', reason: e.message })
   }
 
   // ── STEP 5 ──
@@ -253,33 +253,65 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     log('STEP_5_BUILD_PROMPT', true)
   } catch (e) {
     log('STEP_5_BUILD_PROMPT', false, { error: e.message })
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_5_BUILD_PROMPT', reasonCode: 'PROMPT_BUILD_FAILED', reason: e.message, guardErrors: [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_5_BUILD_PROMPT', reasonCode: 'PROMPT_BUILD_FAILED', reason: e.message })
   }
 
   // ── STEP 6 ──
   let aiResult
   try {
     aiResult = await callAI({ systemPrompt, userMessage })
-    log('STEP_6_CALL_AI', aiResult.success, { tokens: aiResult.tokens || 0 })
+    log('STEP_6_CALL_AI', aiResult.success, {
+      tokens: aiResult.tokens || 0,
+      finishReason: aiResult.finishReason || null,
+      outputLength: aiResult.content ? aiResult.content.length : 0,
+    })
   } catch (e) {
     log('STEP_6_CALL_AI', false, { error: e.message })
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_EXCEPTION', reason: e.message, guardErrors: [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_EXCEPTION', reason: e.message })
   }
   if (!aiResult.success) {
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_NON_SUCCESS', reason: aiResult.error || 'AI returned non-success', guardErrors: [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_NON_SUCCESS', reason: aiResult.error || 'AI returned non-success' })
   }
 
   // ── STEP 7 ──
   let parsedAI
+  var aiMeta = {
+    finishReason: aiResult.finishReason || null,
+    responseTruncated: aiResult.finishReason === 'length' || aiResult.truncated === true,
+    maxTokens: aiResult.maxTokens || null,
+  }
   try {
-    parsedAI = parseAIOutput(aiResult.content || '')
-    log('STEP_7_PARSE_AI_OUTPUT', parsedAI.ok, { rawLength: parsedAI.rawLength || 0 })
+    parsedAI = parseAIOutput(aiResult.content || '', aiMeta)
+    log('STEP_7_PARSE_AI_OUTPUT', parsedAI.ok, {
+      rawLength: parsedAI.rawLength || 0,
+      extractionMethod: parsedAI.parseTrace ? parsedAI.parseTrace.extractionMethod : 'UNKNOWN',
+      parseAttempts: parsedAI.parseTrace ? parsedAI.parseTrace.parseAttempts : 0,
+      repairAttempted: parsedAI.parseTrace ? parsedAI.parseTrace.repairAttempted : false,
+      repairSucceeded: parsedAI.parseTrace ? parsedAI.parseTrace.repairSucceeded : false,
+      responseTruncated: aiMeta.responseTruncated,
+    })
   } catch (e) {
     log('STEP_7_PARSE_AI_OUTPUT', false, { error: e.message })
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_7_PARSE_AI', reasonCode: 'AI_PARSE_EXCEPTION', reason: e.message, guardErrors: [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_7_PARSE_AI', reasonCode: 'AI_PARSE_EXCEPTION', reason: e.message })
   }
+
+  // Attach parse trace to stages for observability
+  if (parsedAI.parseTrace) {
+    parsedAI.parseTrace.finishReason = aiMeta.finishReason
+    parsedAI.parseTrace.responseTruncated = aiMeta.responseTruncated
+    stages[stages.length - 1].aiParseTrace = parsedAI.parseTrace
+  }
+
   if (!parsedAI.ok) {
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_7_PARSE_AI', reasonCode: 'AI_PARSE_FAILED', reason: (parsedAI.code || '') + ' — ' + (parsedAI.reason || ''), guardErrors: [] } })
+    var parseCode = parsedAI.code || 'V4_AI_JSON_PARSE_FAILED'
+    return routeFallback({
+      diagnosis, baseContract, stages,
+      stage: 'STEP_7_PARSE_AI',
+      reasonCode: parseCode,
+      reason: (parsedAI.reason || '') + ' | extractionMethod=' + (parsedAI.parseTrace ? parsedAI.parseTrace.extractionMethod : 'NONE'),
+      guardErrors: [],
+      aiParseTrace: parsedAI.parseTrace || null,
+    })
   }
 
   // ── STEP 8 ──
@@ -289,10 +321,10 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     log('STEP_8_MERGE_REPORT', mergedResult.ok, { violations: mergedResult.ok ? undefined : (mergedResult.violations || []).length })
   } catch (e) {
     log('STEP_8_MERGE_REPORT', false, { error: e.message })
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_8_MERGE', reasonCode: 'REPORT_MERGE_EXCEPTION', reason: e.message, guardErrors: [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_8_MERGE', reasonCode: 'REPORT_MERGE_EXCEPTION', reason: e.message })
   }
   if (!mergedResult.ok) {
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_8_MERGE', reasonCode: 'REPORT_MERGE_VIOLATION', reason: (mergedResult.violations || []).join('; '), guardErrors: mergedResult.violations || [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_8_MERGE', reasonCode: 'REPORT_MERGE_VIOLATION', reason: (mergedResult.violations || []).join('; '), guardErrors: mergedResult.violations || [] })
   }
 
   // ── STEP 9 ──
@@ -302,10 +334,10 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     log('STEP_9_GUARD_REPORT', guardResult.ok, { violations: guardResult.ok ? undefined : (guardResult.violations || []).length })
   } catch (e) {
     log('STEP_9_GUARD_REPORT', false, { error: e.message })
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_9_GUARD', reasonCode: 'REPORT_CONTRACT_EXCEPTION', reason: e.message, guardErrors: [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_9_GUARD', reasonCode: 'REPORT_CONTRACT_EXCEPTION', reason: e.message })
   }
   if (!guardResult.ok) {
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_9_GUARD', reasonCode: 'REPORT_CONTRACT_FAILED', reason: (guardResult.violations || []).join('; '), guardErrors: guardResult.violations || [] } })
+    return routeFallback({ diagnosis, baseContract, stages, stage: 'STEP_9_GUARD', reasonCode: 'REPORT_CONTRACT_FAILED', reason: (guardResult.violations || []).join('; '), guardErrors: guardResult.violations || [] })
   }
 
   // ── STEP 9.5 ──
@@ -349,12 +381,12 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     var safetyErrors = (safetyResult.validation.initialViolations || []).map(function(v) { return v.code + '(' + v.path + '): ' + v.matchedText })
     // Fallback source: if diagnosis existed, it was SAFE_MINIMAL_DIAGNOSIS; else legacy
     var fbSource = diagnosis ? 'SAFE_MINIMAL_DIAGNOSIS' : 'legacy_fallback'
-    return fallback({ diagnosis, baseContract, stages, err: {
+    return routeFallback({ diagnosis, baseContract, stages,
       stage: 'STEP_9_5_CONTENT_SAFETY',
       reasonCode: 'CONTENT_SAFETY_VIOLATION',
       reason: 'Unrecoverable: ' + safetyResult.validation.initialErrors + ' AI violations → fallback to ' + fbSource,
       guardErrors: safetyErrors,
-    }})
+    })
   }
 
   // ── STEP 10: success ──
@@ -363,19 +395,22 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
   if (finalReport.diagnosisTrace) {
     finalReport.diagnosisTrace.fallbackSource = 'none'
   }
-  const legacy = mapV4ToLegacyFields(finalReport.report)
+  var legacy = mapV4ToLegacyFields(finalReport.report)
   log('STEP_10_COMPLETE', true, { renderSource: 'ai_rendered' })
 
   return {
     code: 0,
     message: 'success',
-    data: buildV4Response(finalReport, legacy, 'ai_rendered'),
+    data: buildV4Response(finalReport, legacy, 'ai_rendered', null, null),
     stages,
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Fallback (diagnosis-first, safe_minimal if diagnosis fails)
+// Unified Fallback Router
+//
+// ALL failure paths must route through here. No individual catch
+// block may decide its own fallback type.
 //
 // FALLBACK CHAIN:
 //   1. diagnosis exists + full report builds clean → diagnosis_fallback
@@ -387,22 +422,24 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 // The safe_minimal template is pre-validated and cannot trigger content safety.
 // ═══════════════════════════════════════════════════════════════
 
-function fallback({ diagnosis, baseContract, stages, err }) {
+function routeFallback({ diagnosis, baseContract, stages, stage, reasonCode, reason, guardErrors, aiParseTrace }) {
+  guardErrors = guardErrors || []
   var reportBuilder = require('./diagnosisReportBuilder')
   var contentSafety = require('../config/contentSafetyGate')
 
   // ── Build fallback trace ──
   var fallbackTrace = {
-    stage: (err && err.stage) || 'UNKNOWN',
-    reasonCode: (err && err.reasonCode) || 'UNKNOWN',
-    reason: (err && err.reason) || '',
-    guardErrors: (err && err.guardErrors) || [],
+    stage: stage || 'UNKNOWN',
+    reasonCode: reasonCode || 'UNKNOWN',
+    reason: reason || '',
+    guardErrors: guardErrors,
     diagnosisAvailable: !!diagnosis,
     diagnosisFallbackBuilt: false,
     diagnosisFallbackValidated: false,
     legacyFallbackInvoked: false,
     sourceAttempted: diagnosis ? 'diagnosis_fallback' : 'legacy_fallback',
     finalSource: 'UNKNOWN',
+    aiParseTrace: aiParseTrace || null,
   }
 
   var diagReport = null
@@ -412,29 +449,23 @@ function fallback({ diagnosis, baseContract, stages, err }) {
   if (diagnosis) {
     fallbackTrace.sourceAttempted = 'diagnosis_fallback'
 
-    // Try full diagnosis report first
     try {
       diagReport = reportBuilder.buildReportFromDiagnosis(diagnosis, baseContract, 'diagnosis_fallback')
       var assert = reportBuilder.assertDiagnosisReport(diagReport)
       if (assert.ok) {
-        // Full report built — now run safety on it
         var csResult = contentSafety.contentSafetyGate(
           diagReport.report,
           function() {
-            // SAFETY FAIL on diagReport → fall through to safe_minimal, NOT legacy
-            // This function is only called if diagReport itself violates safety
             return reportBuilder.buildSafeMinimalFromDiagnosis(diagnosis)
           },
           { strategyId: (diagnosis.strategy || {}).id || null }
         )
 
         if (csResult.validation.fallbackUsed) {
-          // Full report violated safety → use safe_minimal (from the fallback generator above)
-          // The fallback generator already returned buildSafeMinimalFromDiagnosis
           diagReport.report = csResult.report
           diagReport.report.contentValidation = csResult.validation
           fallbackTrace.diagnosisFallbackBuilt = true
-          fallbackTrace.diagnosisFallbackValidated = false // full report failed safety
+          fallbackTrace.diagnosisFallbackValidated = false
           fallbackTrace.finalSource = 'SAFE_MINIMAL_DIAGNOSIS'
           renderSource = 'safe_minimal_diagnosis'
           diagReport._fallbackSource = 'SAFE_MINIMAL_DIAGNOSIS'
@@ -446,11 +477,9 @@ function fallback({ diagnosis, baseContract, stages, err }) {
           diagReport._fallbackSource = 'diagnosis'
         }
 
-        // Attach content validation to report
         diagReport.report.contentValidation = csResult.validation
       } else {
-        // Full report assertion failed (structural) → safe_minimal directly
-        console.warn('[fallback] Diagnosis report structural assertion failed:', assert.errors)
+        console.warn('[routeFallback] Diagnosis report structural assertion failed:', assert.errors)
         fallbackTrace.diagnosisFallbackBuilt = true
         fallbackTrace.diagnosisFallbackValidated = false
 
@@ -460,8 +489,7 @@ function fallback({ diagnosis, baseContract, stages, err }) {
         diagReport._fallbackSource = 'SAFE_MINIMAL_DIAGNOSIS'
       }
     } catch (e) {
-      // Exception building full report → safe_minimal
-      console.error('[fallback] Diagnosis report build exception:', e.message)
+      console.error('[routeFallback] Diagnosis report build exception:', e.message)
       fallbackTrace.diagnosisFallbackBuilt = false
 
       diagReport = reportBuilder.buildSafeMinimalFromDiagnosis(diagnosis)
@@ -473,14 +501,13 @@ function fallback({ diagnosis, baseContract, stages, err }) {
 
   // ── PATH B: No diagnosis → legacy fallback (compatibility only) ──
   if (!diagReport) {
-    console.warn('[fallback] No diagnosis available — using legacy rule_fallback (source=legacy)')
+    console.warn('[routeFallback] No diagnosis available — using legacy rule_fallback (source=legacy)')
     if (fallbackTrace.diagnosisAvailable) {
-      // Should not happen: diagnosis claimed available but couldn't build even safe_minimal
-      console.error('[fallback] DIAGNOSIS AVAILABLE but couldn\'t build even safe_minimal — falling to legacy')
+      console.error('[routeFallback] DIAGNOSIS AVAILABLE but couldn\'t build even safe_minimal — falling to legacy')
     }
     var lf = generateFallbackReport(baseContract)
-    if (err && err.reason && lf.report) {
-      lf.report._fallbackReason = err.reason
+    if (reason && lf.report) {
+      lf.report._fallbackReason = reason
     }
     diagReport = lf
     fallbackTrace.legacyFallbackInvoked = true
@@ -489,8 +516,8 @@ function fallback({ diagnosis, baseContract, stages, err }) {
   }
 
   // ── Attach fallback metadata to report ──
-  if (err && err.reason && diagReport.report) {
-    diagReport.report._fallbackReason = err.reason
+  if (reason && diagReport.report) {
+    diagReport.report._fallbackReason = reason
   }
   diagReport.report._fallbackSource = diagReport.report._fallbackSource || fallbackTrace.finalSource
 
@@ -508,8 +535,6 @@ function fallback({ diagnosis, baseContract, stages, err }) {
     trace.contentValidation = diagReport.report ? diagReport.report.contentValidation : null
   }
   diagReport.diagnosisTrace = trace
-
-  // Inject fallback trace into response
   diagReport.fallbackTrace = fallbackTrace
 
   stages.push({
@@ -523,17 +548,33 @@ function fallback({ diagnosis, baseContract, stages, err }) {
   return {
     code: 0,
     message: 'success',
-    data: buildV4Response(diagReport, legacyFields, renderSource, fallbackTrace),
+    data: buildV4Response(diagReport, legacyFields, renderSource, fallbackTrace, aiParseTrace),
     stages,
     _fallbackSource: fallbackTrace.finalSource,
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Backward-compat: fallback() delegates to routeFallback()
+// ═══════════════════════════════════════════════════════════════
+
+function fallback({ diagnosis, baseContract, stages, err }) {
+  return routeFallback({
+    diagnosis: diagnosis,
+    baseContract: baseContract,
+    stages: stages,
+    stage: (err && err.stage) || 'UNKNOWN',
+    reasonCode: (err && err.reasonCode) || 'UNKNOWN',
+    reason: (err && err.reason) || '',
+    guardErrors: (err && err.guardErrors) || [],
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Response builder
 // ═══════════════════════════════════════════════════════════════
 
-function buildV4Response(contract, legacy, renderSource, fallbackTrace) {
+function buildV4Response(contract, legacy, renderSource, fallbackTrace, aiParseTrace) {
   return {
     reportId: contract.reportId,
     reportType: 'diagnostic_v4',
@@ -544,8 +585,12 @@ function buildV4Response(contract, legacy, renderSource, fallbackTrace) {
     legacy: legacy,
     contentValidation: contract.report ? contract.report.contentValidation : (contract.contentValidation || null),
     diagnosisTrace: contract.diagnosisTrace || null,
+    diagnosticSnapshot: contract.diagnosticSnapshot || null,
     fallbackTrace: fallbackTrace || contract.fallbackTrace || null,
+    aiParseTrace: aiParseTrace || contract.aiParseTrace || (contract.report ? contract.report.aiParseTrace : null) || null,
     fallbackSource: contract._fallbackSource || (contract.report ? contract.report._fallbackSource : null),
+    fallbackReasonCode: fallbackTrace ? fallbackTrace.reasonCode : null,
+    legacyFallbackInvoked: fallbackTrace ? fallbackTrace.legacyFallbackInvoked : false,
     answersSnapshot: null,
   }
 }
@@ -556,5 +601,8 @@ module.exports = {
   normalizeV4Input,
   mapV4ToLegacyFields,
   extractDiagnosisTrace,
+  routeFallback,
+  fallback,
+  buildV4Response,
   REQUIRED_V4_KEYS,
 }
