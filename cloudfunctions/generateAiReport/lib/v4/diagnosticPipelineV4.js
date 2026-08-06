@@ -310,10 +310,22 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 
   // ── STEP 9.5 ──
   var contentSafety = require('../config/contentSafetyGate')
-  var csCtx = { strategyId: baseContract.report && baseContract.report._strategyId || null }
+  var reportBuilder = require('./diagnosisReportBuilder')
+  var csCtx = {
+    strategyId: baseContract.report && baseContract.report._strategyId || (diagnosis && diagnosis.strategy && diagnosis.strategy.id) || null,
+  }
+
+  // On AI output content safety fail, fall back to diagnosis (NOT legacy)
   var safetyResult = contentSafety.contentSafetyGate(
     mergedResult.data.report,
-    function() { return generateFallbackReport(baseContract).report },
+    function() {
+      // SAFE MINIMAL from diagnosis — NEVER goes to legacy rule_fallback
+      if (diagnosis) {
+        return reportBuilder.buildSafeMinimalFromDiagnosis(diagnosis)
+      }
+      // Only when diagnosis truly absent, use legacy as last resort
+      return generateFallbackReport(baseContract)
+    },
     csCtx
   )
   mergedResult.data.report = safetyResult.report
@@ -321,15 +333,28 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 
   log('STEP_9_5_CONTENT_SAFETY', safetyResult.validation.initialPass, {
     initialErrors: safetyResult.validation.initialErrors,
+    initialViolations: safetyResult.validation.initialViolations,
     repairAttempted: safetyResult.validation.repairAttempted,
+    repairViolations: safetyResult.validation.repairViolations,
     repairedPass: safetyResult.validation.repairedPass,
+    fallbackAttempted: safetyResult.validation.fallbackAttempted,
+    fallbackValidationViolations: safetyResult.validation.fallbackValidationViolations,
     fallbackUsed: safetyResult.validation.fallbackUsed,
+    finalPass: safetyResult.validation.finalPass,
     finalErrors: safetyResult.validation.finalErrors,
+    finalViolations: safetyResult.validation.finalViolations,
   })
 
   if (safetyResult.validation.fallbackUsed) {
-    var safetyErrors = (safetyResult.validation.initialViolations || []).map(function(v) { return v.type + ': ' + v.match })
-    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_9_5_CONTENT_SAFETY', reasonCode: 'CONTENT_SAFETY_VIOLATION', reason: 'Unrecoverable: ' + safetyResult.validation.initialErrors + ' violations', guardErrors: safetyErrors } })
+    var safetyErrors = (safetyResult.validation.initialViolations || []).map(function(v) { return v.code + '(' + v.path + '): ' + v.matchedText })
+    // Fallback source: if diagnosis existed, it was SAFE_MINIMAL_DIAGNOSIS; else legacy
+    var fbSource = diagnosis ? 'SAFE_MINIMAL_DIAGNOSIS' : 'legacy_fallback'
+    return fallback({ diagnosis, baseContract, stages, err: {
+      stage: 'STEP_9_5_CONTENT_SAFETY',
+      reasonCode: 'CONTENT_SAFETY_VIOLATION',
+      reason: 'Unrecoverable: ' + safetyResult.validation.initialErrors + ' AI violations → fallback to ' + fbSource,
+      guardErrors: safetyErrors,
+    }})
   }
 
   // ── STEP 10: success ──
@@ -350,75 +375,157 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Fallback (diagnosis-first, legacy-fallback)
+// Fallback (diagnosis-first, safe_minimal if diagnosis fails)
+//
+// FALLBACK CHAIN:
+//   1. diagnosis exists + full report builds clean → diagnosis_fallback
+//   2. diagnosis exists + full report fails safety → safe_minimal_diagnosis (NEVER legacy)
+//   3. diagnosis exists + full report assertion fails → safe_minimal_diagnosis
+//   4. diagnosis absent → legacy compatibility (rule_fallback) — LAST RESORT
+//
+// CRITICAL: When diagnosisTrace.available=true, we NEVER call legacy fallback.
+// The safe_minimal template is pre-validated and cannot trigger content safety.
 // ═══════════════════════════════════════════════════════════════
 
 function fallback({ diagnosis, baseContract, stages, err }) {
   var reportBuilder = require('./diagnosisReportBuilder')
+  var contentSafety = require('../config/contentSafetyGate')
+
+  // ── Build fallback trace ──
+  var fallbackTrace = {
+    stage: (err && err.stage) || 'UNKNOWN',
+    reasonCode: (err && err.reasonCode) || 'UNKNOWN',
+    reason: (err && err.reason) || '',
+    guardErrors: (err && err.guardErrors) || [],
+    diagnosisAvailable: !!diagnosis,
+    diagnosisFallbackBuilt: false,
+    diagnosisFallbackValidated: false,
+    legacyFallbackInvoked: false,
+    sourceAttempted: diagnosis ? 'diagnosis_fallback' : 'legacy_fallback',
+    finalSource: 'UNKNOWN',
+  }
 
   var diagReport = null
-  var fallbackSourceVal = 'legacy'
+  var renderSource = 'legacy_fallback'
 
+  // ── PATH A: Diagnosis exists → try full report first, then safe_minimal ──
   if (diagnosis) {
+    fallbackTrace.sourceAttempted = 'diagnosis_fallback'
+
+    // Try full diagnosis report first
     try {
       diagReport = reportBuilder.buildReportFromDiagnosis(diagnosis, baseContract, 'diagnosis_fallback')
       var assert = reportBuilder.assertDiagnosisReport(diagReport)
       if (assert.ok) {
-        fallbackSourceVal = 'diagnosis'
+        // Full report built — now run safety on it
+        var csResult = contentSafety.contentSafetyGate(
+          diagReport.report,
+          function() {
+            // SAFETY FAIL on diagReport → fall through to safe_minimal, NOT legacy
+            // This function is only called if diagReport itself violates safety
+            return reportBuilder.buildSafeMinimalFromDiagnosis(diagnosis)
+          },
+          { strategyId: (diagnosis.strategy || {}).id || null }
+        )
+
+        if (csResult.validation.fallbackUsed) {
+          // Full report violated safety → use safe_minimal (from the fallback generator above)
+          // The fallback generator already returned buildSafeMinimalFromDiagnosis
+          diagReport.report = csResult.report
+          diagReport.report.contentValidation = csResult.validation
+          fallbackTrace.diagnosisFallbackBuilt = true
+          fallbackTrace.diagnosisFallbackValidated = false // full report failed safety
+          fallbackTrace.finalSource = 'SAFE_MINIMAL_DIAGNOSIS'
+          renderSource = 'safe_minimal_diagnosis'
+          diagReport._fallbackSource = 'SAFE_MINIMAL_DIAGNOSIS'
+        } else {
+          fallbackTrace.diagnosisFallbackBuilt = true
+          fallbackTrace.diagnosisFallbackValidated = true
+          fallbackTrace.finalSource = 'diagnosis_fallback'
+          renderSource = 'diagnosis_fallback'
+          diagReport._fallbackSource = 'diagnosis'
+        }
+
+        // Attach content validation to report
+        diagReport.report.contentValidation = csResult.validation
       } else {
-        console.warn('[fallback] Diagnosis report assertion failed:', assert.errors)
-        diagReport = null
+        // Full report assertion failed (structural) → safe_minimal directly
+        console.warn('[fallback] Diagnosis report structural assertion failed:', assert.errors)
+        fallbackTrace.diagnosisFallbackBuilt = true
+        fallbackTrace.diagnosisFallbackValidated = false
+
+        diagReport = reportBuilder.buildSafeMinimalFromDiagnosis(diagnosis)
+        fallbackTrace.finalSource = 'SAFE_MINIMAL_DIAGNOSIS'
+        renderSource = 'safe_minimal_diagnosis'
+        diagReport._fallbackSource = 'SAFE_MINIMAL_DIAGNOSIS'
       }
     } catch (e) {
-      console.error('[fallback] Diagnosis report build failed:', e.message)
-      diagReport = null
+      // Exception building full report → safe_minimal
+      console.error('[fallback] Diagnosis report build exception:', e.message)
+      fallbackTrace.diagnosisFallbackBuilt = false
+
+      diagReport = reportBuilder.buildSafeMinimalFromDiagnosis(diagnosis)
+      fallbackTrace.finalSource = 'SAFE_MINIMAL_DIAGNOSIS'
+      renderSource = 'safe_minimal_diagnosis'
+      diagReport._fallbackSource = 'SAFE_MINIMAL_DIAGNOSIS'
     }
   }
 
+  // ── PATH B: No diagnosis → legacy fallback (compatibility only) ──
   if (!diagReport) {
-    console.warn('[fallback] No valid diagnosis — using legacy rule_fallback (source=legacy)')
+    console.warn('[fallback] No diagnosis available — using legacy rule_fallback (source=legacy)')
+    if (fallbackTrace.diagnosisAvailable) {
+      // Should not happen: diagnosis claimed available but couldn't build even safe_minimal
+      console.error('[fallback] DIAGNOSIS AVAILABLE but couldn\'t build even safe_minimal — falling to legacy')
+    }
     var lf = generateFallbackReport(baseContract)
     if (err && err.reason && lf.report) {
       lf.report._fallbackReason = err.reason
     }
     diagReport = lf
-    fallbackSourceVal = 'legacy'
-  } else if (err && err.reason && diagReport.report) {
+    fallbackTrace.legacyFallbackInvoked = true
+    fallbackTrace.finalSource = 'legacy_fallback'
+    renderSource = 'legacy_fallback'
+  }
+
+  // ── Attach fallback metadata to report ──
+  if (err && err.reason && diagReport.report) {
     diagReport.report._fallbackReason = err.reason
   }
+  diagReport.report._fallbackSource = diagReport.report._fallbackSource || fallbackTrace.finalSource
 
   var legacyFields = mapV4ToLegacyFields(diagReport.report)
 
-  // Full diagnosis trace with structured fallback metadata
+  // Full diagnosis trace with fallback metadata
   var trace = extractDiagnosisTrace(diagnosis)
   if (trace) {
-    trace.fallbackSource = fallbackSourceVal
-    trace.fallbackStage = (err && err.stage) || 'UNKNOWN'
-    trace.fallbackReasonCode = (err && err.reasonCode) || 'UNKNOWN'
-    trace.fallbackReason = (err && err.reason) || ''
-    trace.fallbackGuardErrors = (err && err.guardErrors) || []
+    trace.fallbackSource = fallbackTrace.finalSource
+    trace.fallbackStage = fallbackTrace.stage
+    trace.fallbackReasonCode = fallbackTrace.reasonCode
+    trace.fallbackReason = fallbackTrace.reason
+    trace.fallbackGuardErrors = fallbackTrace.guardErrors
     trace.fallbackReportSource = diagReport.report ? diagReport.report._fallbackSource : null
+    trace.contentValidation = diagReport.report ? diagReport.report.contentValidation : null
   }
   diagReport.diagnosisTrace = trace
 
+  // Inject fallback trace into response
+  diagReport.fallbackTrace = fallbackTrace
+
   stages.push({
     stage: 'FALLBACK',
-    ok: fallbackSourceVal === 'diagnosis',
+    ok: renderSource !== 'legacy_fallback',
     timestamp: Date.now(),
-    renderSource: fallbackSourceVal === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback',
-    fallbackSource: fallbackSourceVal,
-    fallbackStage: (err && err.stage) || 'UNKNOWN',
-    fallbackReasonCode: (err && err.reasonCode) || 'UNKNOWN',
-    fallbackReason: (err && err.reason) || '',
-    guardErrors: (err && err.guardErrors) || [],
+    renderSource: renderSource,
+    fallbackTrace: fallbackTrace,
   })
 
   return {
     code: 0,
     message: 'success',
-    data: buildV4Response(diagReport, legacyFields, fallbackSourceVal === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback'),
+    data: buildV4Response(diagReport, legacyFields, renderSource, fallbackTrace),
     stages,
-    _fallbackSource: fallbackSourceVal,
+    _fallbackSource: fallbackTrace.finalSource,
   }
 }
 
@@ -426,17 +533,19 @@ function fallback({ diagnosis, baseContract, stages, err }) {
 // Response builder
 // ═══════════════════════════════════════════════════════════════
 
-function buildV4Response(contract, legacy, renderSource) {
+function buildV4Response(contract, legacy, renderSource, fallbackTrace) {
   return {
     reportId: contract.reportId,
     reportType: 'diagnostic_v4',
     diagnosticVersion: 'v4',
     engineVersion: contract.engineVersion,
-    renderSource,
+    renderSource: renderSource,
     report: contract.report,
-    legacy,
-    contentValidation: contract.contentValidation || null,
+    legacy: legacy,
+    contentValidation: contract.report ? contract.report.contentValidation : (contract.contentValidation || null),
     diagnosisTrace: contract.diagnosisTrace || null,
+    fallbackTrace: fallbackTrace || contract.fallbackTrace || null,
+    fallbackSource: contract._fallbackSource || (contract.report ? contract.report._fallbackSource : null),
     answersSnapshot: null,
   }
 }

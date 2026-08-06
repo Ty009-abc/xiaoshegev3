@@ -19,6 +19,27 @@ var VIOLATION_TYPES = {
   DUPLICATE_MEANING: 'DUPLICATE_MEANING',
 }
 
+// Distinction between unsupported statistical claims vs action-instruction percentages
+// CRITICAL: numbers in action directives ("24小时", "90天", "3个") are NOT violations.
+// Only context-free statistical claims about populations ("80%的人", "99%不具备") are violations.
+var STATISTICAL_PERCENTAGE_PATTERNS = [
+  /(\d+%)\s*的人/,
+  /(\d+%)\s*不具备/,
+  /超过\d+%的人/,
+  /只有\d+%的人/,
+  /不到\d+%的人/,
+  /比\d+%的人/,
+]
+
+var ACTION_DIRECTIVE_WHITELIST = [
+  '24小时', '48小时', '72小时',
+  '1天', '3天', '7天', '15天', '30天', '60天', '90天',
+  '1周', '2周', '3周', '4周',
+  '1月', '2月', '3月', '6月', '12月',
+  '1个', '2个', '3个', '5个', '10个',
+  '第1步', '第2步', '第3步',
+]
+
 // Patterns that indicate the LLM made up facts about the user
 var OVERCLAIM_PSYCHOLOGY_PATTERNS = [
   '麻痹自己', '躺平', '不敢想', '害怕成功', '用学习逃避', '假装努力',
@@ -44,8 +65,14 @@ var UNSAFE_METAPHOR_PATTERNS = [
   '把命交给', '等着救赎', '救你',
 ]
 
-var PERCENTAGE_CLAIM_PATTERNS = [
-  '比99%', '超过绝大多数', '不到1%', '只有1%', '比90%',
+var UNSAFE_ABSOLUTE_PATTERNS = [
+  '一定成功', '必须辞职', '绝无可能', '无可避免',
+  '注定失败', '必然', '永远无法', '再无机会',
+]
+
+var UNSAFE_MULTIPLIER_PATTERNS = [
+  /(10倍|20倍|100倍|1000倍)\s*投入/,
+  /投入.*(10倍|20倍|100倍|1000倍)/,
 ]
 
 var FORBIDDEN_MULTI_THEME_KEYWORDS = [
@@ -84,76 +111,98 @@ function findRegexViolation(text, patterns) {
 }
 
 /**
- * Scan a single text field.
+ * Scan a single text field. Returns violations with code, path, matchedText, message.
  */
 function scanTextField(value, fieldPath, strategyId) {
   var violations = []
   if (!value || typeof value !== 'string') return violations
 
-  // Unsafe metaphors
+  // --- 1. Unsafe metaphors ---
   var m = findViolation(value, UNSAFE_METAPHOR_PATTERNS)
   if (m) {
     violations.push({
-      type: VIOLATION_TYPES.UNSAFE_EXTREME_METAPHOR,
-      field: fieldPath,
-      match: m.pattern,
-      suggestion: 'Use neutral structural description. Avoid violence/death/dependency metaphors.',
+      code: VIOLATION_TYPES.UNSAFE_EXTREME_METAPHOR,
+      path: fieldPath,
+      matchedText: m.pattern,
+      message: '禁用暴力/死亡/依赖隐喻。当前文本包含: "' + m.pattern + '"',
     })
   }
 
-  // Overclaimed psychology
+  // --- 2. Overclaimed psychology ---
   m = findViolation(value, OVERCLAIM_PSYCHOLOGY_PATTERNS)
   if (m) {
     violations.push({
-      type: VIOLATION_TYPES.OVERCLAIMED_USER_PSYCHOLOGY,
-      field: fieldPath,
-      match: m.pattern,
-      suggestion: 'Do not invent user psychology. Only state what evidence supports.',
+      code: VIOLATION_TYPES.OVERCLAIMED_USER_PSYCHOLOGY,
+      path: fieldPath,
+      matchedText: m.pattern,
+      message: '不得虚构用户心理状态。当前文本包含: "' + m.pattern + '"',
     })
   }
 
-  // Overclaimed behavior
+  // --- 3. Overclaimed behavior ---
   m = findViolation(value, OVERCLAIM_BEHAVIOR_PATTERNS)
   if (m) {
     violations.push({
-      type: VIOLATION_TYPES.OVERCLAIMED_USER_BEHAVIOR,
-      field: fieldPath,
-      match: m.pattern,
-      suggestion: 'Do not invent user behaviors. Use "现有数据未显示" not "你在做X".',
+      code: VIOLATION_TYPES.OVERCLAIMED_USER_BEHAVIOR,
+      path: fieldPath,
+      matchedText: m.pattern,
+      message: '不得虚构用户行为。当前文本包含: "' + m.pattern + '"',
     })
   }
 
-  // Overclaimed outcomes
+  // --- 4. Overclaimed outcomes ---
   m = findRegexViolation(value, OVERCLAIM_OUTCOME_PATTERNS.map(function(p) { return new RegExp(p) }))
   if (m) {
     violations.push({
-      type: VIOLATION_TYPES.OVERCLAIMED_OUTCOME,
-      field: fieldPath,
-      match: m.match,
-      suggestion: 'Describe structural risk, not deterministic catastrophe.',
+      code: VIOLATION_TYPES.OVERCLAIMED_OUTCOME,
+      path: fieldPath,
+      matchedText: m.match,
+      message: '不得断言必然结果。当前文本包含: "' + m.match + '"',
     })
   }
 
-  // Percentage claims
-  m = findViolation(value, PERCENTAGE_CLAIM_PATTERNS)
+  // --- 5. Unsupported statistical percentage (NOT action-directive numbers) ---
+  var statMatch = findRegexViolation(value, STATISTICAL_PERCENTAGE_PATTERNS)
+  if (statMatch) {
+    violations.push({
+      code: VIOLATION_TYPES.UNSUPPORTED_PERCENTAGE_CLAIM,
+      path: fieldPath,
+      matchedText: statMatch.match,
+      message: '无依据统计比例。当前文本包含: "' + statMatch.match + '"',
+    })
+  }
+
+  // --- 5b. Unsafe absolute claims ---
+  m = findViolation(value, UNSAFE_ABSOLUTE_PATTERNS)
   if (m) {
     violations.push({
-      type: VIOLATION_TYPES.UNSUPPORTED_PERCENTAGE_CLAIM,
-      field: fieldPath,
-      match: m.pattern,
-      suggestion: 'Remove unsupported statistic.',
+      code: VIOLATION_TYPES.OVERCLAIMED_OUTCOME,
+      path: fieldPath,
+      matchedText: m.pattern,
+      message: '不得使用绝对化断言。当前文本包含: "' + m.pattern + '"',
     })
   }
 
-  // Multi-theme contamination
-  if (strategyId === 'BUILD_IP') {
+  // --- 5c. Unsafe multiplier claims ---
+  var multMatch = findRegexViolation(value, UNSAFE_MULTIPLIER_PATTERNS)
+  if (multMatch) {
+    violations.push({
+      code: 'UNSUPPORTED_MULTIPLIER_CLAIM',
+      path: fieldPath,
+      matchedText: multMatch.match,
+      message: '无依据倍数承诺。当前文本包含: "' + multMatch.match + '"',
+    })
+  }
+
+  // --- 6. Multi-theme contamination ---
+  if (strategyId === 'BUILD_IP' || strategyId === 'BUILD_PRODUCT') {
     m = findViolation(value, FORBIDDEN_MULTI_THEME_KEYWORDS)
     if (m) {
       violations.push({
-        type: VIOLATION_TYPES.MULTI_THEME_CONTAMINATION,
-        field: fieldPath,
-        match: m.pattern,
-        suggestion: 'BUILD_IP only allows: 定位, 内容输出, 获客, 产品化, 成交验证, 信任积累.',
+        code: VIOLATION_TYPES.MULTI_THEME_CONTAMINATION,
+        path: fieldPath,
+        matchedText: m.pattern,
+        message: '报告只能包含一个核心方向。当前文本包含: "' + m.pattern + '"',
       })
     }
   }
@@ -352,12 +401,16 @@ function repairFullReport(report) {
  *   validation: {
  *     initialPass: boolean,
  *     initialErrors: number,
+ *     initialViolations: Array<{code, path, matchedText, message}>,
  *     repairAttempted: boolean,
+ *     repairViolations: Array<{code, path, matchedText, message}>,
  *     repairedPass: boolean,
+ *     fallbackAttempted: boolean,
+ *     fallbackValidationViolations: Array<{code, path, matchedText, message}>,
  *     fallbackUsed: boolean,
+ *     finalPass: boolean,
  *     finalErrors: number,
- *     initialViolations: Array,
- *     finalViolations: Array,
+ *     finalViolations: Array<{code, path, matchedText, message}>,
  *   }
  * }}
  */
@@ -367,18 +420,22 @@ function contentSafetyGate(report, fallbackGenerator, context) {
   // Step 1: Initial validation
   var initial = validateFullReport(report, context)
 
-  // Step 2: If clean, return as-is
+  // Step 2: If clean, return as-is (still include empty violations for observability)
   if (initial.passed) {
     return {
       report: report,
       validation: {
         initialPass: true,
         initialErrors: 0,
-        repairAttempted: false,
-        repairedPass: true,
-        fallbackUsed: false,
-        finalErrors: 0,
         initialViolations: [],
+        repairAttempted: false,
+        repairViolations: [],
+        repairedPass: true,
+        fallbackAttempted: false,
+        fallbackValidationViolations: [],
+        fallbackUsed: false,
+        finalPass: true,
+        finalErrors: 0,
         finalViolations: [],
       }
     }
@@ -396,22 +453,29 @@ function contentSafetyGate(report, fallbackGenerator, context) {
       validation: {
         initialPass: false,
         initialErrors: initial.errorCount,
-        repairAttempted: true,
-        repairedPass: true,
-        fallbackUsed: false,
-        finalErrors: 0,
         initialViolations: initial.violations,
-        finalViolations: afterRepair.violations,
+        repairAttempted: true,
+        repairViolations: [],
+        repairedPass: true,
+        fallbackAttempted: false,
+        fallbackValidationViolations: [],
+        fallbackUsed: false,
+        finalPass: true,
+        finalErrors: 0,
+        finalViolations: [],
       }
     }
   }
 
   // Step 5: Deterministic fallback
   var fallback = fallbackGenerator()
-  // Re-run safety on fallback too
+
+  // Record the repair-stage violations (what failed after repair)
+  var repairViolations = afterRepair.violations
+
+  // Step 6: Validate fallback itself
   var fallbackValidation = validateFullReport(fallback.report, context)
   if (!fallbackValidation.passed) {
-    // Strip offending fields from fallback too
     fallback.report = repairFullReport(fallback.report)
     fallbackValidation = validateFullReport(fallback.report, context)
   }
@@ -421,11 +485,15 @@ function contentSafetyGate(report, fallbackGenerator, context) {
     validation: {
       initialPass: false,
       initialErrors: initial.errorCount,
-      repairAttempted: true,
-      repairedPass: false,
-      fallbackUsed: true,
-      finalErrors: fallbackValidation.errorCount,
       initialViolations: initial.violations,
+      repairAttempted: true,
+      repairViolations: repairViolations,
+      repairedPass: false,
+      fallbackAttempted: true,
+      fallbackValidationViolations: fallbackValidation.violations,
+      fallbackUsed: true,
+      finalPass: fallbackValidation.passed,
+      finalErrors: fallbackValidation.errorCount,
       finalViolations: fallbackValidation.violations,
     }
   }
@@ -443,4 +511,6 @@ module.exports = {
   OVERCLAIM_PSYCHOLOGY_PATTERNS: OVERCLAIM_PSYCHOLOGY_PATTERNS,
   OVERCLAIM_BEHAVIOR_PATTERNS: OVERCLAIM_BEHAVIOR_PATTERNS,
   OVERCLAIM_OUTCOME_PATTERNS: OVERCLAIM_OUTCOME_PATTERNS,
+  STATISTICAL_PERCENTAGE_PATTERNS: STATISTICAL_PERCENTAGE_PATTERNS,
+  UNSAFE_MULTIPLIER_PATTERNS: UNSAFE_MULTIPLIER_PATTERNS,
 }
