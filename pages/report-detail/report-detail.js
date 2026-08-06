@@ -263,11 +263,17 @@ Page({
       try {
         const dp = require('../../engine/diagnosisPipeline')
         clientDiagnosis = dp.runDiagnosis(normalizedAnswers, { primaryGoal: normalizedAnswers.primaryGoal || '' })
+        // Attach input hash for server-side validation
+        clientDiagnosis.inputHash = hashAnswers(normalizedAnswers)
         console.log('[DSN][CLIENT_DIAGNOSIS_READY]', {
           tags: (clientDiagnosis.behaviorTags || []).length,
-          archetype: (clientDiagnosis.wealthProfile || {}).primary,
+          primary: (clientDiagnosis.wealthProfile || {}).primary,
+          secondary: (clientDiagnosis.wealthProfile || {}).secondary,
           bottleneck: (clientDiagnosis.bottleneck || {}).id,
           strategy: (clientDiagnosis.strategy || {}).id,
+          diagnosisVersion: clientDiagnosis.engineVersion,
+          rulesetVersion: clientDiagnosis.rulesetVersion || 'RC8.2',
+          inputHash: clientDiagnosis.inputHash,
           rInc001Status: clientDiagnosis.rInc001Status,
         })
       } catch (e) {
@@ -319,6 +325,7 @@ Page({
             contentValidation: r && r.data && r.data.contentValidation,
             diagnosisTraceAvailable: r && r.data && r.data.diagnosisTrace && r.data.diagnosisTrace.available,
             providerTraceHttpStatus: r && r.data && r.data.providerTrace && r.data.providerTrace.httpStatus,
+            diagnosisHandoffTrace: r && r.data && r.data.diagnosisHandoffTrace,
             clientBuildSha: '94ceca4',
           }))
         } else {

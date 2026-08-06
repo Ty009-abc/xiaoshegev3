@@ -477,10 +477,91 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   }
 
   // 运行 V4 管线
+  // ── RC8.2: Server-side diagnosis handoff validation ──
+
+  function hashAnswers(ans) {
+    if (!ans || typeof ans !== 'object') return 'empty'
+    var keys = Object.keys(ans).sort()
+    var seed = 0
+    for (var i = 0; i < keys.length; i++) {
+      var v = String(ans[keys[i]] || '')
+      for (var j = 0; j < v.length; j++) {
+        seed = ((seed << 5) - seed + v.charCodeAt(j)) | 0
+      }
+    }
+    return 'h_' + (seed >>> 0).toString(36).slice(0, 8) + '_k' + keys.length
+  }
+
+  var handoffTrace = {
+    clientDiagnosisReceived: false,
+    schemaValid: false,
+    inputHashMatched: false,
+    versionCompatible: false,
+    acceptedSource: 'NONE',
+    rejectedReason: null,
+    clientDiagnosisVersion: null,
+    clientDiagnosisEngineVersion: null,
+    clientDiagnosisInputHash: null,
+  }
+
+  var acceptedDiagnosis = null
+  var clientDiagnosis = event.diagnosis
+
+  if (clientDiagnosis && typeof clientDiagnosis === 'object') {
+    handoffTrace.clientDiagnosisReceived = true
+    handoffTrace.clientDiagnosisEngineVersion = clientDiagnosis.engineVersion || null
+
+    // Validate: has minimum required fields
+    var hasFields = (
+      clientDiagnosis.behaviorTags &&
+      clientDiagnosis.wealthProfile &&
+      clientDiagnosis.bottleneck &&
+      clientDiagnosis.strategy
+    )
+    handoffTrace.schemaValid = !!hasFields
+
+    // Validate: version compatibility
+    var versionMatch = (
+      clientDiagnosis.engineVersion === 'RC8.1' ||
+      clientDiagnosis.engineVersion === 'RC8.2'
+    )
+    handoffTrace.versionCompatible = !!versionMatch
+
+    // Validate: input hash consistency (if present)
+    if (clientDiagnosis.inputHash) {
+      var computedHash = hashAnswers(answers)
+      handoffTrace.clientDiagnosisInputHash = clientDiagnosis.inputHash
+      handoffTrace.inputHashMatched = (clientDiagnosis.inputHash === computedHash)
+      handoffTrace.computedInputHash = computedHash
+    } else {
+      // No input hash → accept if schema is valid
+      handoffTrace.inputHashMatched = true
+    }
+
+    if (handoffTrace.schemaValid && handoffTrace.versionCompatible && handoffTrace.inputHashMatched) {
+      handoffTrace.acceptedSource = 'CLIENT_VERIFIED'
+      acceptedDiagnosis = clientDiagnosis
+      console.log('[RC8][DIAGNOSIS_HANDOFF]', JSON.stringify({
+        source: 'CLIENT',
+        tags: (clientDiagnosis.behaviorTags || []).length,
+        archetype: (clientDiagnosis.wealthProfile || {}).primary,
+        bottleneck: (clientDiagnosis.bottleneck || {}).id,
+        strategy: (clientDiagnosis.strategy || {}).id,
+      }))
+    } else {
+      handoffTrace.rejectedReason = 'SCHEMA_INVALID_OR_VERSION_MISMATCH'
+      console.error('[RC8][DIAGNOSIS_HANDOFF_REJECTED]', JSON.stringify(handoffTrace))
+      // Fall through — will be null → pipeline falls back to legacy
+    }
+  } else {
+    handoffTrace.rejectedReason = 'NOT_PROVIDED_BY_CLIENT'
+    console.log('[RC8][DIAGNOSIS_HANDOFF]', JSON.stringify(handoffTrace))
+  }
+
   const pipelineResult = await runDiagnosticV4({
     answers,
     userContext: { openid, recordId },
-    diagnosis: event.diagnosis || null,
+    diagnosis: acceptedDiagnosis,
     callAI: async (opts) => {
       return await callAI({
         systemPrompt: opts.systemPrompt,
@@ -638,5 +719,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       cloudBuildSha: '94ceca4',
       deploymentEnvId: 'fanshex-d2g0adgv7dfbc9bdc',
     },
+    // ── RC8.2: Diagnosis Handoff Trace ──
+    diagnosisHandoffTrace: handoffTrace || { acceptedSource: 'NONE', rejectedReason: 'HANDOFF_NOT_INITIALIZED' },
   })
 }
