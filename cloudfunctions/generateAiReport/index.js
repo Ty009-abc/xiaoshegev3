@@ -327,9 +327,10 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
 
   // 🔖 版本标记：每次部署必须递增
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-  console.log('[V4Diagnostic] CLOUD FUNCTION VERSION: v3.2-fallback-reason-fix')
-  console.log('[V4Diagnostic] Deploy time check: 2026-07-18 19:00 CST')
-  console.log('[V4Diagnostic] Changes: parser relax, fallback reason injection')
+  console.log('[V4Diagnostic] CLOUD FUNCTION VERSION: v4.0-rc8-router-audit')
+  console.log('[V4Diagnostic] Deploy/build SHA: 94ceca4')
+  console.log('[V4Diagnostic] Router version: RC8.2 | fallbackRouterVersion: 2.0')
+  console.log('[V4Diagnostic] Engine version: RC8.2 | diagnosis version: 2.0')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
   // 归一化输入
@@ -341,9 +342,36 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   // 幂等检查
   const recordId = event.recordId || ''
   const forceRegenerate = event.forceRegenerate === true
+  const skipCache = event.skipCache === true || event.debug?.skipCache === true
+  const requestNonce = event.requestNonce || event.debug?.requestNonce || ''
   let cacheStatus = 'GENERATED_NEW'
 
-  if (recordId && !forceRegenerate) {
+  // ── RC8.2: Version-aware cache key ──
+  var CURRENT_CACHE_VERSION = {
+    diagnosticVersion: 'v4',
+    diagnosisEngineVersion: 'RC8.2',
+    rulesetVersion: 'RC8.2',
+    promptVersion: 'RC8.2',
+    fallbackRouterVersion: '2.0',
+  }
+
+  // ── RC8.2: skipCache + stale-cache-migration ──
+  console.log('[V4Diagnostic] skipCache=' + skipCache + ' nonce=' + (requestNonce ? 'present' : 'none') + ' recordId=' + recordId)
+  if (skipCache) {
+    console.log('[V4Diagnostic] CACHE_SKIPPED by client request')
+    cacheStatus = 'SKIPPED_BY_REQUEST'
+  }
+  if (requestNonce && !skipCache) {
+    console.log('[V4Diagnostic] NONCE_SEEN but skipCache=false, cache may be used')
+  }
+
+  var cachedReportCreatedAt = null
+  var cachedRenderSource = null
+  var cachedCloudBuild = null
+  var cachedDiagnosisPresent = false
+  var cachedSnapshotVersion = null
+
+  if (recordId && !forceRegenerate && !skipCache) {
     try {
       const existing = await db.collection('ai_reports')
         .where({ recordId, openid, type: 'diagnostic_v4' })
@@ -353,42 +381,91 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       if (existing.data.length > 0) {
         console.log('[V4Diagnostic] CACHE_HIT for recordId=' + recordId)
         cacheStatus = 'CACHE_HIT'
-        var cachedContent = existing.data[0].content
-        // ── RC8.2: Normalize old cache with after365=100 → clamp to 90 ──
-        try {
-          var normalizeFn = require('./lib/config/reportUtils').normalizePotentialIndex
-          if (cachedContent.report && cachedContent.report.wealthProbability) {
-            var rawWp = cachedContent.report.wealthProbability
-            if (rawWp.after365 > 90 || rawWp.today > 90) {
-              console.warn('[V4Diagnostic][CACHE_NORMALIZE] legacy wealthProbability had value >90, clamping')
-              cachedContent.report.wealthProbability = normalizeFn(rawWp)
-              // Also maintain legacy alias
-              if (cachedContent.report.potentialIndex) {
-                cachedContent.report.potentialIndex = normalizeFn(cachedContent.report.potentialIndex)
-              }
+
+        var cachedDoc = existing.data[0]
+        var cachedContent = cachedDoc.content
+
+        // ── RC8.2: Record cache metadata ──
+        cachedReportCreatedAt = cachedDoc.createdAt || null
+        cachedRenderSource = cachedDoc.renderSource || null
+        cachedCloudBuild = cachedDoc.cloudBuildSha || null
+        cachedDiagnosisPresent = !!(cachedContent && cachedContent.diagnosis)
+        cachedSnapshotVersion = (cachedDoc.diagnosticSnapshot && cachedDoc.diagnosticSnapshot.engineVersions)
+          ? cachedDoc.diagnosticSnapshot.engineVersions.snapshotVersion
+          : null
+
+        console.log('[V4Diagnostic][CACHE_META]', JSON.stringify({
+          createdAt: cachedReportCreatedAt,
+          cloudBuildSha: cachedCloudBuild,
+          renderSource: cachedRenderSource,
+          diagnosisPresent: cachedDiagnosisPresent,
+          snapshotVersion: cachedSnapshotVersion,
+        }))
+
+        // ── RC8.2: Version-aware cache invalidation ──
+        var cachedVersion = cachedDoc.cacheVersion || null
+        var versionMismatch = false
+        if (cachedVersion) {
+          var cv = JSON.parse(typeof cachedVersion === 'string' ? cachedVersion : JSON.stringify(cachedVersion))
+          for (var vk in CURRENT_CACHE_VERSION) {
+            if (cv[vk] !== CURRENT_CACHE_VERSION[vk]) {
+              versionMismatch = true
+              console.log('[V4Diagnostic][CACHE_STALE] Version mismatch: ' + vk + ' cached=' + cv[vk] + ' current=' + CURRENT_CACHE_VERSION[vk])
             }
           }
-        } catch (e) {
-          console.error('[V4Diagnostic][CACHE_NORMALIZE_FAILED]', e.message)
+        } else {
+          // No cacheVersion field → pre-router era → definitely stale
+          versionMismatch = true
+          console.log('[V4Diagnostic][CACHE_STALE] No cacheVersion field → pre-router cache, forced invalidation')
         }
-        return ok({
-          ...cachedContent,
-          _cache: cacheStatus,
-          // ── RC8.2 Runtime Architecture Trace (cache hit path) ──
-          runtimeArchitectureTrace: {
-            traceId: 'CACHE_' + recordId + '_' + Date.now(),
-            stagesVisited: ['CACHE_HIT'],
-            firstFailedStage: null,
-            routerEntered: false,
-            routerDecision: 'NOT_ENTERED_CACHE_BYPASS',
-            finalReturnId: 'RETURN_17_CACHE_HIT',
-            finalRenderSource: cachedContent.renderSource || 'UNDEFINED_CACHE',
-            diagnosisAvailableAtReturn: !!(cachedContent.diagnosis),
-            cacheHit: true,
-            cloudBuildSha: '667c3fc',
-            deploymentEnvId: 'fanshex-d2g0adgv7dfbc9bdc',
-          },
-        })
+
+        if (versionMismatch) {
+          console.log('[V4Diagnostic][CACHE_INVALIDATED] Version mismatch — regenerating')
+          cacheStatus = 'REGENERATED_STALE_CACHE'
+          // Fall through to fresh generation (don't return from cache)
+        } else {
+          // Cache is valid — serve it
+          // ── RC8.2: Normalize old cache with after365=100 → clamp to 90 ──
+          try {
+            var normalizeFn = require('./lib/config/reportUtils').normalizePotentialIndex
+            if (cachedContent.report && cachedContent.report.wealthProbability) {
+              var rawWp = cachedContent.report.wealthProbability
+              if (rawWp.after365 > 90 || rawWp.today > 90) {
+                console.warn('[V4Diagnostic][CACHE_NORMALIZE] legacy wealthProbability had value >90, clamping')
+                cachedContent.report.wealthProbability = normalizeFn(rawWp)
+                // Also maintain legacy alias
+                if (cachedContent.report.potentialIndex) {
+                  cachedContent.report.potentialIndex = normalizeFn(cachedContent.report.potentialIndex)
+                }
+              }
+            }
+          } catch (e) {
+            console.error('[V4Diagnostic][CACHE_NORMALIZE_FAILED]', e.message)
+          }
+          return ok({
+            ...cachedContent,
+            _cache: cacheStatus,
+            // ── RC8.2 Runtime Architecture Trace (cache hit path) ──
+            runtimeArchitectureTrace: {
+              traceId: 'CACHE_' + recordId + '_' + Date.now(),
+              stagesVisited: ['CACHE_HIT'],
+              firstFailedStage: null,
+              routerEntered: false,
+              routerDecision: 'NOT_ENTERED_CACHE_BYPASS',
+              finalReturnId: 'RETURN_17_CACHE_HIT',
+              finalRenderSource: cachedRenderSource || 'UNDEFINED_CACHE',
+              diagnosisAvailableAtReturn: cachedDiagnosisPresent,
+              cacheHit: true,
+              cloudBuildSha: '94ceca4',
+              deploymentEnvId: 'fanshex-d2g0adgv7dfbc9bdc',
+              cachedReportCreatedAt: cachedReportCreatedAt,
+              cachedRenderSource: cachedRenderSource,
+              cachedCloudBuildSha: cachedCloudBuild,
+              cachedDiagnosisPresent: cachedDiagnosisPresent,
+              cachedSnapshotVersion: cachedSnapshotVersion,
+            },
+          })
+        }
       }
     } catch (e) {
       console.log('[V4Diagnostic] 缓存查询失败，继续生成:', e.message)
@@ -484,6 +561,15 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     })),
     createdAt: ts,
     updatedAt: ts,
+    // ── RC8.2: Version-aware cache key — pre-router records will lack this field ──
+    cacheVersion: {
+      diagnosticVersion: 'v4',
+      diagnosisEngineVersion: 'RC8.2',
+      rulesetVersion: 'RC8.2',
+      promptVersion: 'RC8.2',
+      fallbackRouterVersion: '2.0',
+    },
+    cloudBuildSha: '94ceca4',
   }
 
   try {
@@ -549,7 +635,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       finalRenderSource: data.renderSource,
       diagnosisAvailableAtReturn: !!(data.diagnosisTrace && data.diagnosisTrace.available),
       cacheHit: cacheStatus === 'CACHE_HIT',
-      cloudBuildSha: '667c3fc',
+      cloudBuildSha: '94ceca4',
       deploymentEnvId: 'fanshex-d2g0adgv7dfbc9bdc',
     },
   })

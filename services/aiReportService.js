@@ -26,7 +26,7 @@ function getAiReport(reportId) {
 }
 
 /** 诊断模式：传入答案 + 人格，返回诊断报告（V4/V3 兼容） */
-function generateDiagnosticReport({ answers, personality, personalityEmoji, personalityStyle }) {
+function generateDiagnosticReport({ answers, personality, personalityEmoji, personalityStyle, skipCache, requestNonce }) {
   const diagnosticVersion = answers.diagnosticVersion || 'v3'
   return call('generateAiReport', {
     type: 'diagnostic',
@@ -35,6 +35,8 @@ function generateDiagnosticReport({ answers, personality, personalityEmoji, pers
     personality,
     personalityEmoji,
     personalityStyle,
+    skipCache: skipCache === true,
+    requestNonce: requestNonce || '',
   })
 }
 

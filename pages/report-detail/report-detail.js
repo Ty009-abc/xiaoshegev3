@@ -273,6 +273,44 @@ Page({
           reportType: r && r.data && r.data.reportType || '',
           renderSource: r && r.data && r.data.renderSource || '',
         })
+
+        // ── RC8.2: Runtime Architecture Trace logging (device proof) ──
+        var archTrace = r && r.data && r.data.runtimeArchitectureTrace
+        if (archTrace) {
+          console.error('[DSN][ARCHITECTURE_TRACE]', JSON.stringify({
+            traceId: archTrace.traceId,
+            stagesVisited: archTrace.stagesVisited,
+            firstFailedStage: archTrace.firstFailedStage,
+            routerEntered: archTrace.routerEntered,
+            routerDecision: archTrace.routerDecision,
+            finalReturnId: archTrace.finalReturnId,
+            finalRenderSource: archTrace.finalRenderSource,
+            diagnosisAvailableAtReturn: archTrace.diagnosisAvailableAtReturn,
+            cacheHit: archTrace.cacheHit,
+            cloudBuildSha: archTrace.cloudBuildSha,
+            deploymentEnvId: archTrace.deploymentEnvId,
+            cachedReportCreatedAt: archTrace.cachedReportCreatedAt,
+            cachedRenderSource: archTrace.cachedRenderSource,
+            cachedCloudBuildSha: archTrace.cachedCloudBuildSha,
+            cachedDiagnosisPresent: archTrace.cachedDiagnosisPresent,
+            cachedSnapshotVersion: archTrace.cachedSnapshotVersion,
+            // Extra from data
+            fallbackSource: r && r.data && r.data.fallbackSource,
+            fallbackReasonCode: r && r.data && r.data.fallbackReasonCode,
+            contentValidation: r && r.data && r.data.contentValidation,
+            diagnosisTraceAvailable: r && r.data && r.data.diagnosisTrace && r.data.diagnosisTrace.available,
+            providerTraceHttpStatus: r && r.data && r.data.providerTrace && r.data.providerTrace.httpStatus,
+            clientBuildSha: '94ceca4',
+          }))
+        } else {
+          console.error('[DSN][ARCHITECTURE_TRACE]', JSON.stringify({
+            error: 'NO runtimeArchitectureTrace in response',
+            renderSource: r && r.data && r.data.renderSource || '',
+            fallbackSource: r && r.data && r.data.fallbackSource || '',
+            dataKeys: r && r.data ? Object.keys(r.data).join(',') : 'NO_DATA',
+            clientBuildSha: '94ceca4',
+          }))
+        }
       }
 
       // 解包 V4 响应
