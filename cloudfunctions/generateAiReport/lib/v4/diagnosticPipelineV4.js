@@ -210,19 +210,33 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 
   // ── STEP 6 ──
   let aiResult
+  var providerTrace = null
   try {
     aiResult = await callAI({ systemPrompt, userMessage })
+    providerTrace = aiResult.providerTrace || null
     log('STEP_6_CALL_AI', aiResult.success, {
       tokens: aiResult.tokens || 0,
       finishReason: aiResult.finishReason || null,
       outputLength: aiResult.content ? aiResult.content.length : 0,
+      httpStatus: aiResult.httpStatus || null,
+      providerErrorCode: aiResult.providerErrorCode || null,
+      truncated: aiResult.truncated || false,
     })
   } catch (e) {
     log('STEP_6_CALL_AI', false, { error: e.message })
-    return routeFinalFallback({ diagnosis, baseContract, stages, stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_EXCEPTION', reason: e.message })
+    return routeFinalFallback({ diagnosis, baseContract, stages, stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_EXCEPTION', reason: e.message, guardErrors: [], providerTrace: null })
   }
   if (!aiResult.success) {
-    return routeFinalFallback({ diagnosis, baseContract, stages, stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_NON_SUCCESS', reason: aiResult.error || 'AI returned non-success' })
+    // ── RC8.2: Classified provider error → structured fallback ──
+    var pCode = aiResult.providerErrorCode || 'AI_PROVIDER_ERROR'
+    return routeFinalFallback({
+      diagnosis, baseContract, stages,
+      stage: 'STEP_6_CALL_AI',
+      reasonCode: pCode,
+      reason: (aiResult.error || 'AI returned non-success') + ' | httpStatus=' + (aiResult.httpStatus || 'N/A'),
+      guardErrors: [],
+      providerTrace: providerTrace,
+    })
   }
 
   // ── STEP 7 ──

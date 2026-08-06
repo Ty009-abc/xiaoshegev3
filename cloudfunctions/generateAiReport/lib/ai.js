@@ -7,12 +7,20 @@
  * ⚠️ 部署前必须设置环境变量：
  *   - AI_API_KEY        DeepSeek API Key
  *   - AI_API_BASE_URL   API 地址 (如 https://api.deepseek.com/v1)
- *   - AI_MODEL_FLASH    轻量模型 (如 v4-flash)
+ *   - AI_MODEL_FLASH    轻量模型 (如 deepseek-chat)
  *
  * ── v3.12 人格注入架构 ──
- *   buildCoachingPrompt() 支持 6 种 AI 人格随机注入，
- *   每种人格携带独特的视角（赌场庄家/现实拆解者/流量猎人/AI军师/资本视角/认知教练）
- *   每轮回复末尾强制输出 ☠️ fatal_sentence
+ *   buildCoachingPrompt() 支持 6 种 AI 人格随机注入
+ *
+ * ── RC8.2 Provider Error Classification ──
+ *   HTTP status codes now mapped to structured providerError objects:
+ *   - 401 → AI_PROVIDER_UNAUTHORIZED
+ *   - 402 → AI_PROVIDER_INSUFFICIENT_BALANCE
+ *   - 403 → AI_PROVIDER_FORBIDDEN
+ *   - 429 → AI_PROVIDER_RATE_LIMITED
+ *   - 5xx → AI_PROVIDER_UNAVAILABLE
+ *   - timeout → AI_PROVIDER_TIMEOUT
+ *   - network → AI_PROVIDER_NETWORK_ERROR
  */
 
 let httpModule
@@ -90,8 +98,63 @@ function getPersonalityInject(personalityName) {
   return getRandomPersonality()
 }
 
+// ═══════════════════════════════════════════════════════════════
+// RC8.2: Provider Error Classification
+// ═══════════════════════════════════════════════════════════════
+
+const PROVIDER_ERROR_MAP = {
+  400: 'AI_PROVIDER_BAD_REQUEST',
+  401: 'AI_PROVIDER_UNAUTHORIZED',
+  402: 'AI_PROVIDER_INSUFFICIENT_BALANCE',
+  403: 'AI_PROVIDER_FORBIDDEN',
+  429: 'AI_PROVIDER_RATE_LIMITED',
+}
+
+function classifyProviderError(statusCode) {
+  if (!statusCode) return 'AI_PROVIDER_NETWORK_ERROR'
+  if (PROVIDER_ERROR_MAP[statusCode]) return PROVIDER_ERROR_MAP[statusCode]
+  if (statusCode >= 500) return 'AI_PROVIDER_UNAVAILABLE'
+  return 'AI_PROVIDER_ERROR_' + statusCode
+}
+
+function redactKey(apiKey) {
+  if (!apiKey) return 'NOT_CONFIGURED'
+  if (apiKey.length <= 8) return '***SHORT_KEY'
+  return '***' + apiKey.slice(-4)
+}
+
+/**
+ * 构建 providerTrace — structured, never leaks raw key/full response
+ */
+function buildProviderTrace(apiKey, model, httpStatus, requestAttempted, errorDetail) {
+  return {
+    provider: 'DeepSeek',
+    model: model || 'unknown',
+    keySource: 'env.AI_API_KEY',
+    keyRedacted: redactKey(apiKey),
+    requestAttempted: requestAttempted === true,
+    httpStatus: httpStatus || null,
+    providerErrorCode: classifyProviderError(httpStatus),
+    retryAttempted: false,
+    retryResult: null,
+  }
+}
+
 /**
  * 调用 AI 接口
+ *
+ * Returns: {
+ *   success: boolean,
+ *   content?: string,
+ *   tokens?: number,
+ *   error?: string,            // Redacted error message (NO raw key/body)
+ *   providerErrorCode?: string, // Classified provider error code
+ *   httpStatus?: number,
+ *   providerTrace?: object,
+ *   finishReason?: string,
+ *   truncated?: boolean,
+ *   maxTokens?: number,
+ * }
  */
 async function callAI(options) {
   const {
@@ -109,12 +172,23 @@ async function callAI(options) {
     || process.env.AI_MODEL
     || 'deepseek-chat'
 
+  var requestAttempted = false
+
   if (!apiKey) {
-    return { success: false, error: 'AI_API_KEY 未配置' }
+    var traceNoKey = buildProviderTrace(apiKey, model, null, false, 'AI_API_KEY not configured')
+    return {
+      success: false,
+      error: 'AI_API_KEY 未配置',
+      providerErrorCode: 'AI_PROVIDER_NO_KEY',
+      httpStatus: null,
+      providerTrace: traceNoKey,
+    }
   }
 
   try {
+    requestAttempted = true
     let response
+
     if (httpModule) {
       response = await httpModule({
         method: 'POST',
@@ -152,26 +226,87 @@ async function callAI(options) {
           temperature,
         }),
       })
-      response = { data: await res.json() }
+      response = { data: await res.json(), status: res.status }
+    }
+
+    const httpStatus = response.status || 200
+    if (httpStatus >= 400) {
+      var httpTrace = buildProviderTrace(apiKey, model, httpStatus, true, 'HTTP ' + httpStatus)
+      var errorCode = classifyProviderError(httpStatus)
+      // NEVER include raw response body in error message
+      var redactedMsg = 'AI provider error: HTTP ' + httpStatus + ', reason: ' + errorCode
+      console.error('[AI] ' + redactedMsg)
+      return {
+        success: false,
+        error: redactedMsg,
+        providerErrorCode: errorCode,
+        httpStatus: httpStatus,
+        providerTrace: httpTrace,
+      }
     }
 
     const choice = (response.data.choices || [])[0]
     if (!choice) {
-      return { success: false, error: 'AI 返回空内容: ' + JSON.stringify(response.data) }
+      var emptyTrace = buildProviderTrace(apiKey, model, httpStatus, true, 'Empty response body')
+      return {
+        success: false,
+        error: 'AI 返回空内容',
+        providerErrorCode: 'AI_PROVIDER_EMPTY_RESPONSE',
+        httpStatus: httpStatus,
+        providerTrace: emptyTrace,
+      }
     }
+
+    var finishReason = (choice.finish_reason || 'stop')
+    var truncated = (finishReason === 'length')
+    var successTrace = buildProviderTrace(apiKey, model, httpStatus, true, null)
 
     return {
       success: true,
       content: choice.message?.content || '',
       tokens: response.data.usage?.total_tokens || 0,
+      finishReason: finishReason,
+      truncated: truncated,
+      maxTokens: maxTokens,
+      httpStatus: httpStatus,
+      providerErrorCode: null,
+      providerTrace: successTrace,
     }
   } catch (err) {
     console.error('[AI] 调用失败:', err.message)
+
+    var errorHttpStatus = null
+    var errorCode = 'AI_PROVIDER_NETWORK_ERROR'
+    var errorDetail = err.message
+
     if (err.response) {
-      console.error('[AI] HTTP状态:', err.response.status)
-      console.error('[AI] 响应体:', JSON.stringify(err.response.data).substring(0, 500))
+      errorHttpStatus = err.response.status
+      errorCode = classifyProviderError(errorHttpStatus)
+      errorDetail = 'HTTP ' + errorHttpStatus
+      console.error('[AI] HTTP状态:', errorHttpStatus)
+      // NEVER log full response body — could contain API key/credential data
+      if (errorHttpStatus === 402) {
+        console.error('[AI] 402 = insufficient balance — provider rejected request')
+      }
+    } else if (err.code === 'ECONNABORTED' || err.message.indexOf('timeout') >= 0) {
+      errorCode = 'AI_PROVIDER_TIMEOUT'
+      errorDetail = 'Request timed out after 60s'
+    } else if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
+      errorCode = 'AI_PROVIDER_NETWORK_ERROR'
+      errorDetail = err.code + ': ' + err.message
     }
-    return { success: false, error: err.message + (err.response ? ' | HTTP ' + err.response.status + ': ' + JSON.stringify(err.response.data).substring(0, 200) : '') }
+
+    var exceptionTrace = buildProviderTrace(apiKey, model, errorHttpStatus, requestAttempted, errorDetail)
+    // Redacted — never include raw error stack in client-facing error
+    var redactedErr = errorCode + ' | detail: ' + (errorDetail || 'unknown').substring(0, 100)
+
+    return {
+      success: false,
+      error: redactedErr,
+      providerErrorCode: errorCode,
+      httpStatus: errorHttpStatus,
+      providerTrace: exceptionTrace,
+    }
   }
 }
 
@@ -179,9 +314,8 @@ async function callAI(options) {
  * 构造认知报告 prompt
  */
 function buildReportPrompt(scores, tags, choicesSummary) {
-  // 随机人格注入
   const pMeta = getRandomPersonality()
-
+  // ... same as before
   const systemPrompt = `你是"珠澳小事哥"，一个犀利、现实、懂概率、懂人性、懂普通人翻身逻辑的 AI 认知教练。
 
 ========================================
@@ -290,8 +424,6 @@ ${pMeta.inject}
 
 /**
  * 构造 5 字段诊断报告 prompt（v3 决策引擎驱动）
- * 输入：用户 10 题答案 + 约束分析结果 + 人格
- * 输出：strict JSON {position, trapped_by, forbidden, path, next90days}
  */
 function buildDiagnosticPrompt(answers, personalityName, personalityStyle) {
   let pMeta
@@ -301,7 +433,6 @@ function buildDiagnosticPrompt(answers, personalityName, personalityStyle) {
     pMeta = getRandomPersonality()
   }
 
-  // 引入规则引擎
   const { analyzeProfile } = require('./turnaroundEngine.js')
   const engineResult = analyzeProfile(answers)
   const { normalizedProfile, constraintAnalysis, allowedPaths, restrictedPaths, forbiddenPaths } = engineResult
@@ -354,7 +485,6 @@ next90days:    「接下来90天具体做什么？」字符串数组，3-5条。
 
 ⚠️ 总字数严格控制在 600 字以内，确保快速输出 JSON。`
 
-  // 组装用户消息：包含原始答案 + 约束分析结果
   const userMessage = `=== 用户原始数据 ===
 年龄：${normalizedProfile.ageGroup}（${answers.age || ''}岁）
 职业分类：${normalizedProfile.occupationCategory}
@@ -407,4 +537,7 @@ module.exports = {
   getRandomPersonality,
   PERSONALITY_MODES,
   PERSONALITY_NAMES,
+  classifyProviderError,
+  buildProviderTrace,
+  redactKey,
 }

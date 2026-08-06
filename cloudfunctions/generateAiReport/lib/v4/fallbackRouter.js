@@ -32,6 +32,7 @@ var { generateFallbackReport } = require('../prompt-v4/reportGuardV4')
  *   reason: string,      // human-readable reason
  *   guardErrors: Array<string>,
  *   aiParseTrace: Object|null,
+ *   providerTrace: Object|null,
  * }} params
  * @returns pipeline result object
  */
@@ -44,6 +45,7 @@ function routeFinalFallback(params) {
   var reason = params.reason || ''
   var guardErrors = params.guardErrors || []
   var aiParseTrace = params.aiParseTrace || null
+  var providerTrace = params.providerTrace || null
 
   // ── Router trace (diagnostic metadata) ──
   var routerTrace = {
@@ -195,6 +197,9 @@ function routeFinalFallback(params) {
     diagReport.report._fallbackReason = reason
   }
   diagReport.report._fallbackSource = diagReport.report._fallbackSource || routerTrace.finalSource
+
+  // ── RC8.2: providerTrace injected at router level ──
+  routerTrace.providerTrace = providerTrace
 
   // ── Build legacy field mapping (for backward compat) ──
   var legacyFields = mapV4ToLegacyFields(diagReport.report)
@@ -348,6 +353,7 @@ function buildV4Response(contract, legacy, renderSource, routerTrace, aiParseTra
     fallbackTrace: contract.fallbackTrace || null,
     fallbackRouterTrace: routerTrace || null,
     aiParseTrace: aiParseTrace || contract.aiParseTrace || (contract.report ? contract.report.aiParseTrace : null) || null,
+    providerTrace: routerTrace ? routerTrace.providerTrace : null,
     fallbackSource: contract._fallbackSource || (contract.report ? contract.report._fallbackSource : renderSource),
     fallbackReasonCode: routerTrace ? routerTrace.reasonCode : null,
     legacyFallbackInvoked: routerTrace ? routerTrace.legacyFallbackInvoked : false,
