@@ -63,19 +63,12 @@ function validateV4Answers(answers) {
   }
 }
 
-/**
- * 归一化输入 answers — 支持嵌套和扁平
- */
 function normalizeV4Input(event) {
-  // 嵌套优先: event = { diagnosticVersion:'v4', answers:{ lifeStage:..., ... } }
   if (event.answers && typeof event.answers === 'object') {
-    // 检查是 event.diagnosticVersion === 'v4' 还是 event.answers.diagnosticVersion === 'v4'
     if (event.diagnosticVersion === 'v4' || event.answers.diagnosticVersion === 'v4') {
-      // event.answers 里的字段就是 answers（或可能有嵌套 answers.answers）
       return event.answers.answers || event.answers
     }
   }
-  // 扁平结构: event = { diagnosticVersion:'v4', lifeStage:..., ... }
   if (event.diagnosticVersion === 'v4') {
     return event
   }
@@ -96,7 +89,6 @@ function mapV4ToLegacyFields(report) {
   const wpSorted = [...wps].sort((a, b) => b.score - a.score)
   const bestPath = wpSorted[0]
 
-  // 融合 headline 和 wealthStage
   const stageLabelMap = {
     SURVIVAL: '生存模式',
     STABLE: '稳定模式',
@@ -135,13 +127,9 @@ function mapV4ToLegacyFields(report) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Diagnosis Trace — captures full decision chain
+// Diagnosis Trace
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * RC8.2: Extract full diagnosis trace from diagnosis object.
- * Captures: behavior tags → archetype → bottleneck → strategy → diagnosis
- */
 function extractDiagnosisTrace(diagnosis) {
   if (!diagnosis) return { available: false, reason: 'diagnosis object is null/undefined' }
 
@@ -151,14 +139,12 @@ function extractDiagnosisTrace(diagnosis) {
     primaryGoal: diagnosis.primaryGoal || null,
     rInc001Status: diagnosis.rInc001Status || 'UNKNOWN',
 
-    // Layer 1: behavior tags
     behaviorTags: {
       total: (diagnosis.behaviorTags || []).length,
       categories: {},
       topSignals: [],
     },
 
-    // Layer 2: archetype
     archetype: {
       primary: (diagnosis.wealthProfile || {}).primary || 'UNDETERMINED',
       primaryTitle: (diagnosis.wealthProfile || {}).primaryTitle || '',
@@ -166,7 +152,6 @@ function extractDiagnosisTrace(diagnosis) {
       confidence: (diagnosis.wealthProfile || {}).confidence || 0,
     },
 
-    // Layer 3: bottleneck
     bottleneck: {
       id: (diagnosis.bottleneck || {}).id || 'UNKNOWN',
       label: (diagnosis.bottleneck || {}).label || '',
@@ -174,7 +159,6 @@ function extractDiagnosisTrace(diagnosis) {
       suppressedSingleIncome: diagnosis.rInc001Status === 'BACKGROUND_ONLY',
     },
 
-    // Layer 4: strategy
     strategy: {
       id: (diagnosis.strategy || {}).id || 'UNKNOWN',
       label: (diagnosis.strategy || {}).strategyLabel || '',
@@ -184,14 +168,12 @@ function extractDiagnosisTrace(diagnosis) {
     },
   }
 
-  // Compute category breakdown
   var tags = diagnosis.behaviorTags || []
   tags.forEach(function(t) {
     var cat = t.category || 'OTHER'
     trace.behaviorTags.categories[cat] = (trace.behaviorTags.categories[cat] || 0) + 1
   })
 
-  // Top 5 highest-weight signals
   var sorted = [].concat(tags)
     .sort(function(a, b) { return (b.weight || 0) - (a.weight || 0) })
     .slice(0, 5)
@@ -213,34 +195,21 @@ function extractDiagnosisTrace(diagnosis) {
 // 主管线
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * @param {Object} options
- * @param {Object} options.answers — 归一化后的 15-key answers
- * @param {Object} options.userContext — { openid, recordId }
- * @param {Object} options.diagnosis — RC8 diagnosis object (from client engine/diagnosisPipeline)
- * @param {Function} options.callAI — (systemPrompt, userMessage) => AI result
- * @returns {Object} pipeline result
- */
 async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI }) {
   const stages = []
   const log = (stage, ok, extra = {}) => {
     stages.push({ stage, ok, timestamp: Date.now(), ...extra })
   }
 
-  // ── STEP 1: 验证输入 ──
+  // ── STEP 1 ──
   const validation = validateV4Answers(answers)
   if (!validation.valid) {
     log('STEP_1_VALIDATE_INPUT', false, { missingKeys: validation.missingKeys })
-    return {
-      code: 4004,
-      message: 'V4_DIAGNOSTIC_INPUT_INVALID',
-      data: { missingKeys: validation.missingKeys },
-      stages,
-    }
+    return { code: 4004, message: 'V4_DIAGNOSTIC_INPUT_INVALID', data: { missingKeys: validation.missingKeys }, stages }
   }
   log('STEP_1_VALIDATE_INPUT', true)
 
-  // ── STEP 2: 运行引擎 ──
+  // ── STEP 2 ──
   let engineResult
   try {
     engineResult = analyze(answers)
@@ -255,7 +224,7 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     return { code: 5000, message: 'V4_ENGINE_ERROR', data: { error: e.message }, stages }
   }
 
-  // ── STEP 3: 映射 Contract ──
+  // ── STEP 3 ──
   let baseContract
   try {
     const skeleton = mapEngineToReport(engineResult)
@@ -266,16 +235,16 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     return { code: 5001, message: 'V4_CONTRACT_MAP_ERROR', data: { error: e.message }, stages }
   }
 
-  // ── STEP 4: 验证 Contract ──
+  // ── STEP 4 ──
   try {
     assertValid(baseContract)
     log('STEP_4_VALIDATE_CONTRACT', true)
   } catch (e) {
     log('STEP_4_VALIDATE_CONTRACT', false, { error: e.message })
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_4_VALIDATE_CONTRACT')
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_4_VALIDATE_CONTRACT', reasonCode: 'REPORT_CONTRACT_INVALID', reason: e.message, guardErrors: [] } })
   }
 
-  // ── STEP 5: 构建 Prompt ──
+  // ── STEP 5 ──
   let payload, systemPrompt, userMessage
   try {
     payload = buildPromptPayload(baseContract, engineResult)
@@ -284,86 +253,69 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
     log('STEP_5_BUILD_PROMPT', true)
   } catch (e) {
     log('STEP_5_BUILD_PROMPT', false, { error: e.message })
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_5_BUILD_PROMPT: ' + e.message)
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_5_BUILD_PROMPT', reasonCode: 'PROMPT_BUILD_FAILED', reason: e.message, guardErrors: [] } })
   }
 
-  // ── STEP 6: 调用 AI ──
+  // ── STEP 6 ──
   let aiResult
   try {
     aiResult = await callAI({ systemPrompt, userMessage })
-    log('STEP_6_CALL_AI', aiResult.success, {
-      tokens: aiResult.tokens || 0,
-      errorCode: aiResult.error ? 'AI_ERROR' : undefined,
-    })
+    log('STEP_6_CALL_AI', aiResult.success, { tokens: aiResult.tokens || 0 })
   } catch (e) {
     log('STEP_6_CALL_AI', false, { error: e.message })
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_6_CALL_AI: ' + e.message)
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_EXCEPTION', reason: e.message, guardErrors: [] } })
   }
-
   if (!aiResult.success) {
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_6_CALL_AI: ' + (aiResult.error || 'AI returned non-success'))
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_6_CALL_AI', reasonCode: 'AI_CALL_NON_SUCCESS', reason: aiResult.error || 'AI returned non-success', guardErrors: [] } })
   }
 
-  // ── STEP 7: 解析 AI 输出 ──
+  // ── STEP 7 ──
   let parsedAI
   try {
     parsedAI = parseAIOutput(aiResult.content || '')
-    log('STEP_7_PARSE_AI_OUTPUT', parsedAI.ok, {
-      rawLength: parsedAI.rawLength || 0,
-      errorCode: parsedAI.ok ? undefined : parsedAI.code,
-    })
+    log('STEP_7_PARSE_AI_OUTPUT', parsedAI.ok, { rawLength: parsedAI.rawLength || 0 })
   } catch (e) {
     log('STEP_7_PARSE_AI_OUTPUT', false, { error: e.message })
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_7_PARSE_AI: ' + e.message)
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_7_PARSE_AI', reasonCode: 'AI_PARSE_EXCEPTION', reason: e.message, guardErrors: [] } })
   }
-
   if (!parsedAI.ok) {
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_7_PARSE_AI: ' + (parsedAI.code || '') + ' — ' + (parsedAI.reason || ''))
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_7_PARSE_AI', reasonCode: 'AI_PARSE_FAILED', reason: (parsedAI.code || '') + ' — ' + (parsedAI.reason || ''), guardErrors: [] } })
   }
 
-  // ── STEP 8: 合并报告 ──
+  // ── STEP 8 ──
   let mergedResult
   try {
     mergedResult = mergeReportV4(baseContract, parsedAI.data)
-    log('STEP_8_MERGE_REPORT', mergedResult.ok, {
-      violations: mergedResult.ok ? undefined : (mergedResult.violations || []).length,
-    })
+    log('STEP_8_MERGE_REPORT', mergedResult.ok, { violations: mergedResult.ok ? undefined : (mergedResult.violations || []).length })
   } catch (e) {
     log('STEP_8_MERGE_REPORT', false, { error: e.message })
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_8_MERGE: ' + e.message)
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_8_MERGE', reasonCode: 'REPORT_MERGE_EXCEPTION', reason: e.message, guardErrors: [] } })
   }
-
   if (!mergedResult.ok) {
-    const mergeViolations = (mergedResult.violations || []).join('; ')
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_8_MERGE_VIOLATIONS: ' + mergeViolations)
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_8_MERGE', reasonCode: 'REPORT_MERGE_VIOLATION', reason: (mergedResult.violations || []).join('; '), guardErrors: mergedResult.violations || [] } })
   }
 
-  // ── STEP 9: 守卫报告（结构契约） ──
+  // ── STEP 9 ──
   let guardResult
   try {
     guardResult = guardReportV4(baseContract, mergedResult.data)
-    log('STEP_9_GUARD_REPORT', guardResult.ok, {
-      violations: guardResult.ok ? undefined : (guardResult.violations || []).length,
-    })
+    log('STEP_9_GUARD_REPORT', guardResult.ok, { violations: guardResult.ok ? undefined : (guardResult.violations || []).length })
   } catch (e) {
     log('STEP_9_GUARD_REPORT', false, { error: e.message })
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_9_GUARD: ' + e.message)
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_9_GUARD', reasonCode: 'REPORT_CONTRACT_EXCEPTION', reason: e.message, guardErrors: [] } })
   }
-
   if (!guardResult.ok) {
-    const guardViolations = (guardResult.violations || []).join('; ')
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_9_GUARD_VIOLATIONS: ' + guardViolations)
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_9_GUARD', reasonCode: 'REPORT_CONTRACT_FAILED', reason: (guardResult.violations || []).join('; '), guardErrors: guardResult.violations || [] } })
   }
 
-  // ── STEP 9.5: 内容安全门禁（硬阻断） ──
+  // ── STEP 9.5 ──
   var contentSafety = require('../config/contentSafetyGate')
-  var context = { strategyId: baseContract.report?._strategyId || null }
+  var csCtx = { strategyId: baseContract.report && baseContract.report._strategyId || null }
   var safetyResult = contentSafety.contentSafetyGate(
     mergedResult.data.report,
     function() { return generateFallbackReport(baseContract).report },
-    context
+    csCtx
   )
-
   mergedResult.data.report = safetyResult.report
   mergedResult.data.contentValidation = safetyResult.validation
 
@@ -376,12 +328,16 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
   })
 
   if (safetyResult.validation.fallbackUsed) {
-    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_9_5_CONTENT_SAFETY: content violations unrecoverable')
+    var safetyErrors = (safetyResult.validation.initialViolations || []).map(function(v) { return v.type + ': ' + v.match })
+    return fallback({ diagnosis, baseContract, stages, err: { stage: 'STEP_9_5_CONTENT_SAFETY', reasonCode: 'CONTENT_SAFETY_VIOLATION', reason: 'Unrecoverable: ' + safetyResult.validation.initialErrors + ' violations', guardErrors: safetyErrors } })
   }
 
-  // ── STEP 10: 成功返回 ──
+  // ── STEP 10: success ──
   const finalReport = mergedResult.data
   finalReport.diagnosisTrace = extractDiagnosisTrace(diagnosis)
+  if (finalReport.diagnosisTrace) {
+    finalReport.diagnosisTrace.fallbackSource = 'none'
+  }
   const legacy = mapV4ToLegacyFields(finalReport.report)
   log('STEP_10_COMPLETE', true, { renderSource: 'ai_rendered' })
 
@@ -394,99 +350,80 @@ async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI })
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Fallback
+// Fallback (diagnosis-first, legacy-fallback)
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * RC8.2: Diagnosis-driven fallback. Uses RC8 diagnosis object (NOT legacy rule engine fatalRules)
- * to build the report. Falls back to legacy rule_fallback ONLY when diagnosis is absent/invalid.
- */
-function diagnosisFallback(diagnosis, baseContract, stages, reason) {
+function fallback({ diagnosis, baseContract, stages, err }) {
   var reportBuilder = require('./diagnosisReportBuilder')
 
   var diagReport = null
-  var fallbackSource = 'legacy'
+  var fallbackSourceVal = 'legacy'
 
   if (diagnosis) {
     try {
       diagReport = reportBuilder.buildReportFromDiagnosis(diagnosis, baseContract, 'diagnosis_fallback')
       var assert = reportBuilder.assertDiagnosisReport(diagReport)
       if (assert.ok) {
-        fallbackSource = 'diagnosis'
+        fallbackSourceVal = 'diagnosis'
       } else {
-        console.warn('[diagnosisFallback] Diagnosis report assertion failed:', assert.errors)
+        console.warn('[fallback] Diagnosis report assertion failed:', assert.errors)
         diagReport = null
       }
     } catch (e) {
-      console.error('[diagnosisFallback] Failed to build diagnosis report:', e.message)
+      console.error('[fallback] Diagnosis report build failed:', e.message)
       diagReport = null
     }
   }
 
   if (!diagReport) {
-    console.warn('[diagnosisFallback] No valid diagnosis — using legacy rule_fallback (source=legacy)')
-    var legacyFallback = generateFallbackReport(baseContract)
-    if (reason && legacyFallback.report) {
-      legacyFallback.report._fallbackReason = reason
+    console.warn('[fallback] No valid diagnosis — using legacy rule_fallback (source=legacy)')
+    var lf = generateFallbackReport(baseContract)
+    if (err && err.reason && lf.report) {
+      lf.report._fallbackReason = err.reason
     }
-    diagReport = legacyFallback
-    fallbackSource = 'legacy'
-  } else if (reason && diagReport.report) {
-    diagReport.report._fallbackReason = reason
+    diagReport = lf
+    fallbackSourceVal = 'legacy'
+  } else if (err && err.reason && diagReport.report) {
+    diagReport.report._fallbackReason = err.reason
   }
 
-  var legacy = mapV4ToLegacyFields(diagReport.report)
+  var legacyFields = mapV4ToLegacyFields(diagReport.report)
 
-  // Build diagnosis trace with fallback metadata
+  // Full diagnosis trace with structured fallback metadata
   var trace = extractDiagnosisTrace(diagnosis)
   if (trace) {
-    trace.fallbackSource = fallbackSource
-    trace.fallbackReason = reason
+    trace.fallbackSource = fallbackSourceVal
+    trace.fallbackStage = (err && err.stage) || 'UNKNOWN'
+    trace.fallbackReasonCode = (err && err.reasonCode) || 'UNKNOWN'
+    trace.fallbackReason = (err && err.reason) || ''
+    trace.fallbackGuardErrors = (err && err.guardErrors) || []
     trace.fallbackReportSource = diagReport.report ? diagReport.report._fallbackSource : null
   }
   diagReport.diagnosisTrace = trace
 
   stages.push({
     stage: 'FALLBACK',
-    ok: fallbackSource === 'diagnosis',
+    ok: fallbackSourceVal === 'diagnosis',
     timestamp: Date.now(),
-    renderSource: fallbackSource === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback',
-    fallbackSource: fallbackSource,
-    reason: reason,
+    renderSource: fallbackSourceVal === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback',
+    fallbackSource: fallbackSourceVal,
+    fallbackStage: (err && err.stage) || 'UNKNOWN',
+    fallbackReasonCode: (err && err.reasonCode) || 'UNKNOWN',
+    fallbackReason: (err && err.reason) || '',
+    guardErrors: (err && err.guardErrors) || [],
   })
 
   return {
     code: 0,
     message: 'success',
-    data: buildV4Response(diagReport, legacy, fallbackSource === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback'),
+    data: buildV4Response(diagReport, legacyFields, fallbackSourceVal === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback'),
     stages,
-    _fallbackSource: fallbackSource,
-  }
-}
-
-/**
- * @deprecated — Use diagnosisFallback instead. Kept for backward compat.
- */
-function goFallback(baseContract, stages, reason) {
-  console.warn('[goFallback] DEPRECATED — use diagnosisFallback instead')
-  var fallback = generateFallbackReport(baseContract)
-  if (reason && fallback.report) {
-    fallback.report._fallbackReason = reason
-  }
-  fallback.diagnosisTrace = { available: false, reason: 'goFallback (deprecated) — no diagnosis object' }
-  var legacy = mapV4ToLegacyFields(fallback.report)
-  stages.push({ stage: 'FALLBACK', ok: false, timestamp: Date.now(), renderSource: 'rule_fallback', fallbackSource: 'legacy', reason })
-  return {
-    code: 0,
-    message: 'success',
-    data: buildV4Response(fallback, legacy, 'rule_fallback'),
-    stages,
-    _fallbackSource: 'legacy',
+    _fallbackSource: fallbackSourceVal,
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 响应构建
+// Response builder
 // ═══════════════════════════════════════════════════════════════
 
 function buildV4Response(contract, legacy, renderSource) {
