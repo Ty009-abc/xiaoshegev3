@@ -820,7 +820,10 @@ Page({
         diagnosisTrace.normalized = true
         var diagEngine = require('../../engine/diagnosisPipeline')
         if (typeof diagEngine.runDiagnosis === 'function') {
-          diagnosisResult = diagEngine.runDiagnosis(rawAnswers)
+          // Pass primaryGoal from poster data for strategy/bottleneck bias
+          var diagOptions = {}
+          if (pd.primaryGoal) diagOptions.primaryGoal = pd.primaryGoal
+          diagnosisResult = diagEngine.runDiagnosis(rawAnswers, diagOptions)
           diagnosisTrace.tagCount = diagnosisResult.tagStats ? diagnosisResult.tagStats.totalTags : 0
           diagnosisTrace.primary = diagnosisResult.wealthProfile ? diagnosisResult.wealthProfile.primary : null
           diagnosisTrace.secondary = diagnosisResult.wealthProfile ? diagnosisResult.wealthProfile.secondary : null
@@ -902,7 +905,10 @@ Page({
       STEP5_strategy: diagnosisTrace.strategy ? 'PASS' : 'FAIL',
       STEP6_authority: diagnosisTrace.authorityApplied ? 'PASS' : 'SKIP',
       STEP7_render: !diagnosisTrace.fallback ? 'PASS' : 'FAIL',
+      STEP8_gate: diagnosisTrace.gateRepaired ? 'REPAIRED' : (diagnosisTrace.gateBlocked === false ? 'PASS' : 'SKIP'),
       reasonCode: diagnosisTrace.fallbackReason,
+      diagnosisAuthorityApplied: diagnosisTrace.authorityApplied,
+      legacyRuleUsedAsBackground: legacyOverrideDetected,
       diagnosisTrace: {
         normalized: diagnosisTrace.normalized,
         tagCount: diagnosisTrace.tagCount,
@@ -910,7 +916,9 @@ Page({
         bottleneck: diagnosisTrace.bottleneck,
         strategy: diagnosisTrace.strategy,
         authorityApplied: diagnosisTrace.authorityApplied,
-        fallback: diagnosisTrace.fallback
+        fallback: diagnosisTrace.fallback,
+        gateBlocked: diagnosisTrace.gateBlocked || false,
+        gateRepaired: diagnosisTrace.gateRepaired || false
       }
     }))
 
@@ -1172,6 +1180,78 @@ Page({
     })
     if (overclaimViolations.length > 0) {
       console.error('[PosterRC8][OVERCLAIMED_USER_STATE]', JSON.stringify(overclaimViolations))
+    }
+
+    // ── RC8.2: Post-validation gate — BLOCK content that violates RC8 constraints ──
+    // This is NOT just logging; violations trigger repair or deterministic fallback.
+    var cardTexts = [verdict, coreConflict, decision, firstAction, cogStatement, cogActionAnchor]
+    var gateContext = {
+      strategyId: diagnosisResult ? diagnosisResult.strategy.id : null,
+      primaryArchetype: diagnosisResult ? diagnosisResult.wealthProfile.primary : null,
+      tagIds: diagnosisResult ? diagnosisResult.behaviorTags.map(function(t) { return t.id }) : []
+    }
+
+    // Use the post-validation gate (loaded at top of file)
+    var gateResult = null
+    try {
+      var pvg = require('../../engine/validation/postValidationGate')
+      gateResult = pvg.validateCards(cardTexts, gateContext)
+    } catch (e) {
+      console.error('[PosterRC8][GATE_LOAD_FAILED]', e.message)
+    }
+
+    if (gateResult && !gateResult.passed) {
+      console.error('[PosterRC8][GATE_BLOCKED]', JSON.stringify({
+        blocked: true,
+        violationCount: gateResult.cardViolations.length,
+        violations: gateResult.cardViolations.map(function(cv) {
+          return {
+            card: cv.cardIndex,
+            types: cv.violations.map(function(v) { return v.type }).join(',')
+          }
+        })
+      }))
+
+      // Repair: replace violating cards with deterministic fallback content
+      gateResult.cardViolations.forEach(function(cv) {
+        var idx = cv.cardIndex - 1
+        var fallback = ''
+        try {
+          fallback = pvg.generateFallbackCard(gateContext.strategyId || 'BUILD_CASHFLOW', idx)
+        } catch (e) {
+          fallback = '请重新生成诊断报告以获得更精确的建议。'
+        }
+        // Replace the violating text
+        if (idx >= 0 && idx < cardTexts.length) {
+          cardTexts[idx] = fallback
+        }
+        console.error('[PosterRC8][GATE_REPAIR] Card' + cv.cardIndex + ': replaced with fallback')
+      })
+
+      // Re-assign repaired texts back to card variables
+      verdict = cardTexts[0]
+      coreConflict = cardTexts[1]
+      decision = cardTexts[2]
+      firstAction = cardTexts[3]
+      if (cardTexts.length > 4) cogStatement = cardTexts[4]
+      if (cardTexts.length > 5) cogActionAnchor = cardTexts[5]
+
+      // Update pd.diagnosis with gate result
+      if (diagnosisResult) {
+        diagnosisResult.validation = {
+          passed: false,
+          repaired: true,
+          violations: gateResult.cardViolations
+        }
+      }
+      diagnosisTrace.gateBlocked = true
+      diagnosisTrace.gateRepaired = true
+    } else if (gateResult && gateResult.passed) {
+      diagnosisTrace.gateBlocked = false
+      diagnosisTrace.gateRepaired = false
+      if (diagnosisResult) {
+        diagnosisResult.validation = { passed: true, repaired: false, violations: [] }
+      }
     }
 
     // ── RC6 card body text (new schema from mapper) ──

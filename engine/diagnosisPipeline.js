@@ -14,6 +14,8 @@ var behaviorExtractor = require('./behavior/behaviorTagExtractor')
 var wealthEngine = require('./wealth/wealthArchetypeEngine')
 var bottleneckEngine = require('./bottleneck/coreBottleneckEngine')
 var strategyEngine = require('./strategy/oneStrategyEngine')
+var goalInjector = require('./validation/primaryGoalInjector')
+var postGate = require('./validation/postValidationGate')
 
 /**
  * Run full diagnosis pipeline on raw questionnaire answers.
@@ -22,6 +24,7 @@ var strategyEngine = require('./strategy/oneStrategyEngine')
  * @param {Object} [options]
  * @param {number} [options.minTagWeight=0.3]
  * @param {number} [options.maxTags=50]
+ * @param {string} [options.primaryGoal] - user's explicit goal: BUILD_IP, BUILD_BUSINESS, etc.
  * @returns {Object} diagnosisResult - unified output for poster renderer
  */
 function runDiagnosis(answers, options) {
@@ -36,24 +39,53 @@ function runDiagnosis(answers, options) {
   // ─── Layer 2: Wealth Archetype ───
   var archetypeResult = wealthEngine.identifyArchetype(behaviorResult.tags)
 
+  // ─── Pre-3: Compute goal influence ───
+  var primaryGoal = options.primaryGoal || null
+  var goalInfluence = goalInjector.computeGoalInfluence(primaryGoal)
+  var tagIds = behaviorResult.tags.map(function(t) { return t.id })
+  var rInc001Suppressed = goalInjector.shouldSuppressSingleIncomeBottleneck(tagIds, primaryGoal)
+  var strategyModifiers = goalInjector.computeStrategyModifiers(primaryGoal)
+
+  // ─── Pre-2.5: Apply primaryGoal archetype bias ───
+  // When user explicitly says BUILD_IP, boost CREATOR > BUILDER archetype scores
+  if (primaryGoal === 'BUILD_IP' && archetypeResult.scores) {
+    archetypeResult.scores.CREATOR = (archetypeResult.scores.CREATOR || 0) + 0.15
+    archetypeResult.scores.BUILDER = (archetypeResult.scores.BUILDER || 0) + 0.08
+    // Re-rank
+    var reRanked = []
+    Object.keys(archetypeResult.scores).forEach(function(k) {
+      reRanked.push({ id: k, score: archetypeResult.scores[k] })
+    })
+    reRanked.sort(function(a, b) { return b.score - a.score })
+    archetypeResult.primary = reRanked[0].id
+    archetypeResult.secondary = reRanked.length > 1 ? reRanked[1].id : 'UNDETERMINED'
+    archetypeResult.primaryTitle = (require('./wealth/wealthArchetypeEngine').ARCHETYPES[archetypeResult.primary] || {}).title || archetypeResult.primary
+    archetypeResult.secondaryTitle = (require('./wealth/wealthArchetypeEngine').ARCHETYPES[archetypeResult.secondary] || {}).title || archetypeResult.secondary
+    archetypeResult.confidence = Math.max(0.5, reRanked[0].score)
+  }
+
   // ─── Layer 3: Core Bottleneck ───
   var bottleneckResult = bottleneckEngine.identifyBottleneck(
     behaviorResult.tags,
-    archetypeResult
+    archetypeResult,
+    { goalInfluence: goalInfluence, suppressSingleIncome: rInc001Suppressed }
   )
 
-  // ─── Layer 4: One Strategy ───
+  // ─── Layer 4: One Strategy (with primaryGoal modifiers) ───
   var strategyResult = strategyEngine.determineStrategy(
     bottleneckResult,
     archetypeResult,
-    behaviorResult.tags
+    behaviorResult.tags,
+    { strategyModifiers: strategyModifiers }
   )
 
   // ─── Assemble Unified Diagnosis ───
   var diagnosis = {
     // Metadata
-    engineVersion: 'RC8.1',
+    engineVersion: 'RC8.2',
     timestamp: new Date().toISOString(),
+    primaryGoal: primaryGoal,
+    rInc001Status: rInc001Suppressed ? 'BACKGROUND_ONLY' : 'ACTIVE',
 
     // Layer outputs
     behaviorTags: behaviorResult.tags,
@@ -74,7 +106,9 @@ function runDiagnosis(answers, options) {
       reason: bottleneckResult.reason,
       confidence: bottleneckResult.confidence,
       solution: bottleneckResult.solution,
-      candidates: bottleneckResult.candidates
+      candidates: bottleneckResult.candidates,
+      evidenceIds: bottleneckResult.reason || [],
+      score: bottleneckResult.score || 0
     },
     strategy: {
       id: strategyResult.strategy,
@@ -85,8 +119,13 @@ function runDiagnosis(answers, options) {
       milestones: strategyResult.milestones,
       day1Mission: strategyResult.day1Mission,
       confidence: strategyResult.confidence,
-      alternatives: strategyResult.alternatives
+      alternatives: strategyResult.alternatives,
+      evidenceIds: strategyResult.evidenceIds || [],
+      score: strategyResult.score || 0
     },
+
+    // Post-validation gate result
+    validation: null,
 
     // Summary for prompt injection
     summaryText: buildSummary(behaviorResult, archetypeResult, bottleneckResult, strategyResult),

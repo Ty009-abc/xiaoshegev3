@@ -128,9 +128,12 @@ var STRATEGIES = {
  * @param {Object} bottleneck - { bottleneck, label, confidence, reason }
  * @param {Object} archetype - { primary, secondary, primaryTraits }
  * @param {Array} tags - behavior tags (for context enrichment)
+ * @param {Object} [options] - { strategyModifiers: { boostedStrategies, suppressedStrategies } }
  * @returns {Object} { strategy, strategyDef, milestone, day1Mission, confidence, summary }
  */
-function determineStrategy(bottleneck, archetype, tags) {
+function determineStrategy(bottleneck, archetype, tags, options) {
+  options = options || {}
+  var modifiers = options.strategyModifiers || { boostedStrategies: {}, suppressedStrategies: {} }
   var candidates = []
 
   Object.keys(STRATEGIES).forEach(function(stId) {
@@ -170,6 +173,16 @@ function determineStrategy(bottleneck, archetype, tags) {
   }
 
   candidates.sort(function(a, b) { return b.score - a.score })
+
+  // Apply strategy modifiers from primaryGoal to ALL candidates
+  candidates.forEach(function(c) {
+    var boosted = modifiers.boostedStrategies[c.id] || 0
+    var suppressed = modifiers.suppressedStrategies[c.id] || 0
+    c.score = c.score + boosted + suppressed
+  })
+
+  // Re-sort after modifiers
+  candidates.sort(function(a, b) { return b.score - a.score })
   var selected = candidates[0]
   var stDef = STRATEGIES[selected.id]
 
@@ -184,6 +197,7 @@ function determineStrategy(bottleneck, archetype, tags) {
     milestones: stDef.milestones,
     day1Mission: stDef.day1Mission,
     confidence: Math.round(confidence * 100) / 100,
+    score: selected.score,
     alternatives: candidates.slice(1, 3).map(function(c) { return c.label }),
     summary: '唯一战略: ' + stDef.label + ' — ' + stDef.tagline + '\n' +
              '描述: ' + stDef.description + '\n' +

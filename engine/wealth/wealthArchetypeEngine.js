@@ -33,7 +33,7 @@ var ARCHETYPES = {
       weaknesses: ['系统弱','可能低效重复','缺乏长远规划','容易陷入事务','需要方向引导'],
       coreNeed: '需要一个明确的战略方向'
     },
-    positiveTags: ['ACTION_FIRST','LOW_EXECUTION','RESOURCE_DRIVEN','MULTIPLE_INCOME'],
+    positiveTags: ['ACTION_FIRST','LOW_EXECUTION','RESOURCE_DRIVEN','MULTIPLE_INCOME','CASHFLOW_AWARE','SALES_ORIENTED'],
     negativeTags: ['NO_PLAN','SYSTEM_THINKING','LONG_TERM','NO_DIRECTION']
   },
 
@@ -73,7 +73,8 @@ var ARCHETYPES = {
       coreNeed: '需要突破安全区，建立独立收入来源'
     },
     positiveTags: ['TIME_FOR_MONEY','SINGLE_INCOME','SAFE_FIRST','RISK_AVOIDANCE','LOW_INCOME'],
-    negativeTags: ['PASSIVE_INCOME','MULTIPLE_INCOME','ACTION_FIRST','HIGH_RISK','CONTENT_CREATOR','BUILDING_IP','SALES_ORIENTED']
+    negativeTags: ['PASSIVE_INCOME','MULTIPLE_INCOME','ACTION_FIRST','HIGH_RISK','CONTENT_CREATOR','BUILDING_IP','SALES_ORIENTED','LONG_TERM','NO_AUDIENCE'],
+    negativeMultiplier: 1.2
   },
 
   COLLECTOR: {
@@ -139,12 +140,13 @@ function identifyArchetype(tags) {
     })
 
     // Negative tags that are PRESENT decrease score (paradoxical overlap)
+    var negMultiplier = arch.negativeMultiplier || 0.5
     arch.negativeTags.forEach(function(tagId) {
-      if (tagWeightMap[tagId]) score -= tagWeightMap[tagId] * 0.5
+      if (tagWeightMap[tagId]) score -= tagWeightMap[tagId] * negMultiplier
     })
 
-    // Normalize
-    scores[archId] = Math.max(0, Math.min(score / (arch.positiveTags.length * 0.5 + 1), 1.0))
+    // Normalize: score cap at 6.0 then scale to [0, 1]
+    scores[archId] = Math.max(0, Math.min(score / 4.0, 1.0))
   })
 
   // Rank

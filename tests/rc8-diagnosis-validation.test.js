@@ -817,9 +817,9 @@ test('Day1 mission is never empty', function() {
   })
 })
 
-test('Diagnosis version is RC8.1', function() {
+test('Diagnosis version is RC8.2', function() {
   var result = pipeline.runDiagnosis(GOLDEN[0].answers)
-  assertEqual(result.engineVersion, 'RC8.1')
+  assertEqual(result.engineVersion, 'RC8.2')
 })
 
 // ═══════════════════════════════════════════════

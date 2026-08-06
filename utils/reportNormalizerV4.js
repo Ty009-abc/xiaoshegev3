@@ -575,6 +575,7 @@ function mapDiagnosticV4ToPoster(vm) {
     coreConflict: conflictBody,
     decision: decisionBody,
     firstAction: firstActionBody,
+    primaryGoal: (vm.primaryGoal) || null,
 
     // RC6.0: destiny + cognitive to poster
     destinySimulator: vm.destinySimulator || null,
