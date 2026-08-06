@@ -798,6 +798,18 @@ Page({
 
     // ── RC8.1: Run Cognitive Diagnosis if available ──
     var diagnosisResult = null
+    var diagnosisTrace = {
+      normalized: false,
+      tagCount: 0,
+      primary: null,
+      secondary: null,
+      bottleneck: null,
+      strategy: null,
+      authorityApplied: false,
+      fallback: true,
+      fallbackReason: 'RC8_NOT_STARTED'
+    }
+
     try {
       var rawAnswers = pd.rawAnswers
       // Ensure no double-nesting
@@ -805,23 +817,37 @@ Page({
         rawAnswers = rawAnswers.answers
       }
       if (rawAnswers && Object.keys(rawAnswers).length > 0) {
+        diagnosisTrace.normalized = true
         var diagEngine = require('../../engine/diagnosisPipeline')
         if (typeof diagEngine.runDiagnosis === 'function') {
           diagnosisResult = diagEngine.runDiagnosis(rawAnswers)
+          diagnosisTrace.tagCount = diagnosisResult.tagStats ? diagnosisResult.tagStats.totalTags : 0
+          diagnosisTrace.primary = diagnosisResult.wealthProfile ? diagnosisResult.wealthProfile.primary : null
+          diagnosisTrace.secondary = diagnosisResult.wealthProfile ? diagnosisResult.wealthProfile.secondary : null
+          diagnosisTrace.bottleneck = diagnosisResult.bottleneck ? diagnosisResult.bottleneck.id : null
+          diagnosisTrace.strategy = diagnosisResult.strategy ? diagnosisResult.strategy.id : null
+          diagnosisTrace.fallback = false
+          diagnosisTrace.fallbackReason = ''
+
           console.error('[PosterRC8][DIAGNOSIS]', JSON.stringify({
             version: diagnosisResult.engineVersion,
-            tags: diagnosisResult.tagStats.totalTags,
-            archetype: diagnosisResult.wealthProfile.primary,
-            bottleneck: diagnosisResult.bottleneck.id,
-            strategy: diagnosisResult.strategy.id,
+            tags: diagnosisTrace.tagCount,
+            archetype: diagnosisTrace.primary,
+            bottleneck: diagnosisTrace.bottleneck,
+            strategy: diagnosisTrace.strategy,
             behaviorTagIds: diagnosisResult.behaviorTags.map(function(t) { return t.id })
           }))
+        } else {
+          diagnosisTrace.fallbackReason = 'RC8_REQUIRE_FAILED'
+          diagnosisTrace.fallback = true
         }
       } else {
+        diagnosisTrace.fallbackReason = 'RC8_INVALID_INPUT'
+        diagnosisTrace.fallback = true
         console.error('[PosterRC8][FALLBACK]', JSON.stringify({
           renderSource: 'rule_fallback',
           fallbackUsed: true,
-          fallbackReason: 'RC8_INVALID_INPUT',
+          fallbackReason: diagnosisTrace.fallbackReason,
           diagnosisVersion: 'RC8.1',
           promptVersion: 'v4',
           rulesetVersion: 'RC8.1',
@@ -832,21 +858,61 @@ Page({
           errorMessage: 'Empty or missing rawAnswers'
         }))
       }
+
+      // Validate RC8 output integrity
+      if (!diagnosisTrace.fallback) {
+        if (diagnosisTrace.tagCount === 0) {
+          diagnosisTrace.fallbackReason = 'RC8_EMPTY_TAGS'
+          diagnosisTrace.fallback = true
+        } else if (!diagnosisTrace.primary) {
+          diagnosisTrace.fallbackReason = 'RC8_VALIDATION_FAILED'
+          diagnosisTrace.fallback = true
+        } else if (!diagnosisTrace.bottleneck || diagnosisTrace.bottleneck === 'UNKNOWN') {
+          diagnosisTrace.fallbackReason = 'RC8_NO_BOTTLENECK'
+          diagnosisTrace.fallback = true
+        } else if (!diagnosisTrace.strategy) {
+          diagnosisTrace.fallbackReason = 'RC8_NO_STRATEGY'
+          diagnosisTrace.fallback = true
+        }
+      }
     } catch (e) {
+      diagnosisTrace.fallback = true
+      diagnosisTrace.fallbackReason = 'RC8_PIPELINE_THROW'
       console.error('[PosterRC8][FALLBACK]', JSON.stringify({
         renderSource: 'rule_fallback',
         fallbackUsed: true,
-        fallbackReason: 'RC8_PIPELINE_THROW',
+        fallbackReason: diagnosisTrace.fallbackReason,
         diagnosisVersion: 'RC8.1',
         promptVersion: 'v4',
         rulesetVersion: 'RC8.1',
         normalizedAnswerKeys: pd.rawAnswers ? Object.keys(pd.rawAnswers) : [],
-        tagCount: 0,
-        bottleneck: null,
-        strategy: null,
+        tagCount: diagnosisTrace.tagCount,
+        bottleneck: diagnosisTrace.bottleneck,
+        strategy: diagnosisTrace.strategy,
         errorMessage: e.message
       }))
     }
+
+    // ── RC8 DECISION TRACE (always output) ──
+    console.error('[PosterRC8][DECISION_TRACE]', JSON.stringify({
+      STEP1_normalize: diagnosisTrace.normalized ? 'PASS' : 'FAIL',
+      STEP2_tags: diagnosisTrace.tagCount > 0 ? 'PASS' : 'FAIL',
+      STEP3_archetype: diagnosisTrace.primary ? 'PASS' : 'FAIL',
+      STEP4_bottleneck: (diagnosisTrace.bottleneck && diagnosisTrace.bottleneck !== 'UNKNOWN') ? 'PASS' : 'FAIL',
+      STEP5_strategy: diagnosisTrace.strategy ? 'PASS' : 'FAIL',
+      STEP6_authority: diagnosisTrace.authorityApplied ? 'PASS' : 'SKIP',
+      STEP7_render: !diagnosisTrace.fallback ? 'PASS' : 'FAIL',
+      reasonCode: diagnosisTrace.fallbackReason,
+      diagnosisTrace: {
+        normalized: diagnosisTrace.normalized,
+        tagCount: diagnosisTrace.tagCount,
+        primary: diagnosisTrace.primary,
+        bottleneck: diagnosisTrace.bottleneck,
+        strategy: diagnosisTrace.strategy,
+        authorityApplied: diagnosisTrace.authorityApplied,
+        fallback: diagnosisTrace.fallback
+      }
+    }))
 
     // RC8.1: Enrich with diagnosis engine if available
     if (diagnosisResult) {
@@ -889,18 +955,23 @@ Page({
           console.error('[PosterRC8][MULTI_THEME_WARNING] Strategy=' + strategyId + ' but text contains multiple themes')
         }
       }
+
+      // Mark authority override as applied
+      diagnosisTrace.authorityApplied = true
     } else {
+      diagnosisTrace.fallbackReason = 'RC8_DISABLED'
+      diagnosisTrace.fallback = true
       console.error('[PosterRC8][FALLBACK]', JSON.stringify({
         renderSource: 'rule_fallback',
         fallbackUsed: true,
-        fallbackReason: 'RC8_DISABLED',
+        fallbackReason: diagnosisTrace.fallbackReason,
         diagnosisVersion: 'RC8.1',
         promptVersion: 'v4',
         rulesetVersion: 'RC8.1',
         normalizedAnswerKeys: pd.rawAnswers ? Object.keys(pd.rawAnswers) : [],
-        tagCount: 0,
-        bottleneck: null,
-        strategy: null,
+        tagCount: diagnosisTrace.tagCount,
+        bottleneck: diagnosisTrace.bottleneck,
+        strategy: diagnosisTrace.strategy,
         errorMessage: 'diagnosisResult is null'
       }))
     }
@@ -1004,6 +1075,46 @@ Page({
       if (ipAnchor && cogActionAnchor.indexOf('定位') < 0 && cogActionAnchor.indexOf('内容输出') < 0) {
         cogActionAnchor = ipAnchor + '。' + day1Mission
       }
+
+    // ── RULE_PRIORITY_AUDIT: Always output rule scores ──
+    if (diagnosisResult) {
+      var dx2 = diagnosisResult
+      var rawTagWeights = {}
+      if (dx2.behaviorTags) {
+        dx2.behaviorTags.forEach(function(t) { rawTagWeights[t.id] = t.weight })
+      }
+
+      // Simulate legacy rule scores based on tag evidence
+      var ruleScores = []
+      if (rawTagWeights['SINGLE_INCOME'] || rawTagWeights['TIME_FOR_MONEY']) {
+        ruleScores.push({ rule: 'R_INC_001', label: '单工资依赖', score: Math.round((rawTagWeights['SINGLE_INCOME'] || 0) * 100), evidence: 'SINGLE_INCOME=' + (rawTagWeights['SINGLE_INCOME'] || 0) })
+      }
+      if (rawTagWeights['NO_PRODUCT'] || rawTagWeights['HAS_PRODUCT_UNSOLD']) {
+        ruleScores.push({ rule: 'R_EXEC_007', label: '有产品未卖出', score: Math.round((rawTagWeights['NO_PRODUCT'] || rawTagWeights['HAS_PRODUCT_UNSOLD'] || 0) * 100), evidence: 'NO_PRODUCT=' + (rawTagWeights['NO_PRODUCT'] || 0) + ' HAS_PRODUCT_UNSOLD=' + (rawTagWeights['HAS_PRODUCT_UNSOLD'] || 0) })
+      }
+      if (rawTagWeights['NO_EXECUTION'] || rawTagWeights['WAITING']) {
+        ruleScores.push({ rule: 'R_EXEC_004', label: '执行力缺失', score: Math.round((rawTagWeights['NO_EXECUTION'] || rawTagWeights['WAITING'] || 0) * 100), evidence: 'NO_EXECUTION=' + (rawTagWeights['NO_EXECUTION'] || 0) })
+      }
+      if (rawTagWeights['LOW_SELF_VALUE'] || rawTagWeights['HESITANT_PRICING']) {
+        ruleScores.push({ rule: 'R_PRC_002', label: '定价不自洽', score: Math.round((rawTagWeights['LOW_SELF_VALUE'] || rawTagWeights['HESITANT_PRICING'] || 0) * 100), evidence: 'LOW_SELF_VALUE=' + (rawTagWeights['LOW_SELF_VALUE'] || 0) })
+      }
+      if (rawTagWeights['NO_AUDIENCE'] || rawTagWeights['SCATTERED']) {
+        ruleScores.push({ rule: 'R_TRF_003', label: '流量缺失', score: Math.round((rawTagWeights['NO_AUDIENCE'] || rawTagWeights['SCATTERED'] || 0) * 100), evidence: 'NO_AUDIENCE=' + (rawTagWeights['NO_AUDIENCE'] || 0) })
+      }
+
+      ruleScores.sort(function(a, b) { return b.score - a.score })
+      var legacyWinner = ruleScores.length > 0 ? ruleScores[0] : null
+      var rc8Winner = { rule: 'RC8_' + dx2.bottleneck.id, label: dx2.bottleneck.label, score: Math.round(dx2.wealthProfile.confidence * 100), evidence: dx2.behaviorTags ? dx2.behaviorTags.length + ' tags' : 'N/A' }
+
+      console.error('[PosterRC8][RULE_PRIORITY_AUDIT]', JSON.stringify({
+        legacyRules: ruleScores,
+        legacyWinner: legacyWinner,
+        rc8Winner: rc8Winner,
+        authorityOverride: legacyOverrideDetected ? 'RC8_OVERRIDES_LEGACY' : 'LEGACY_PASSES_THROUGH',
+        renderSource: !diagnosisTrace.fallback ? 'rc8_diagnosis' : 'rule_fallback',
+        finalBottleneck: dx2.bottleneck.id
+      }))
+    }
 
       // ── R_INC_001 override logging ──
       if (legacyOverrideDetected) {
