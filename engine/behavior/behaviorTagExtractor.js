@@ -51,7 +51,8 @@ const TAG_TAXONOMY = {
       SYSTEM_THINKING:     { keywords: ['需要系统','自动化','流程','模式','可复制'] },
       RESOURCE_DRIVEN:     { keywords: ['有资源','有流量','有人脉','有渠道','借助'] },
       ASSET_AWARE:         { keywords: ['资产','投资','买房','股票','基金','数字资产'] },
-      CASHFLOW_AWARE:      { keywords: ['现金流','回款','收款','变现','赚钱速度'] },
+      CASHFLOW_AWARE:      { keywords: ['现金流','回款','收款','变现','赚钱速度','收钱','变现能力','成交额','销售','推销','签单','成交'] },
+      SALES_ORIENTED:      { keywords: ['销售出身','做销售','成交','客户','卖东西','销售能力强','会卖','变现能力强'] },
     }
   },
   growth: {
@@ -94,7 +95,7 @@ const TAG_TAXONOMY = {
  */
 function extractTags(answers, options) {
   options = options || {}
-  var minWeight = options.minWeight || 0.3
+  var minWeight = options.minWeight || 0.15
   var maxTags = options.maxTags || 50
 
   var tagMap = {}
@@ -148,6 +149,12 @@ function extractTags(answers, options) {
 
   // Filter by min weight, cap at maxTags
   tags = tags.filter(function(t) { return t.weight >= minWeight })
+  // If too few tags, relax min weight
+  if (tags.length < 5 && minWeight > 0.08) {
+    tags = Object.keys(tagMap).map(function(k) { return tagMap[k] })
+    tags.sort(function(a, b) { return b.weight - a.weight })
+    tags = tags.filter(function(t) { return t.weight >= 0.08 })
+  }
   if (tags.length > maxTags) tags = tags.slice(0, maxTags)
 
   // Stats

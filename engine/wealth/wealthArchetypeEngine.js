@@ -46,7 +46,7 @@ var ARCHETYPES = {
       weaknesses: ['可能缺乏产品深度','可能过度追求变现','长远布局弱','需要好产品支撑'],
       coreNeed: '需要一个好产品作为支撑'
     },
-    positiveTags: ['MULTIPLE_INCOME','CASHFLOW_AWARE','ACTION_FIRST','RESOURCE_DRIVEN','HESITANT_PRICING'],
+    positiveTags: ['MULTIPLE_INCOME','CASHFLOW_AWARE','ACTION_FIRST','RESOURCE_DRIVEN','HESITANT_PRICING','ASSET_AWARE','SALES_ORIENTED'],
     negativeTags: ['NO_SELLING','NO_PRODUCT','LOW_SELF_VALUE','LEARNING_ADDICT']
   },
 
@@ -59,7 +59,7 @@ var ARCHETYPES = {
       weaknesses: ['可能不会卖','可能不善于商业变现','执行力可能是短板','容易陷入完美主义'],
       coreNeed: '需要商业变现能力'
     },
-    positiveTags: ['SELF_INVESTMENT','LONG_TERM','NO_PRODUCT','PERFECTIONISM','SYSTEM_THINKING'],
+    positiveTags: ['SELF_INVESTMENT','LONG_TERM','NO_PRODUCT','PERFECTIONISM','SYSTEM_THINKING','ASSET_AWARE','NO_AUDIENCE'],
     negativeTags: ['NO_SELLING','NO_VERIFICATION','LOW_EXECUTION','HIGH_RISK']
   },
 
