@@ -389,6 +389,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   const pipelineResult = await runDiagnosticV4({
     answers,
     userContext: { openid, recordId },
+    diagnosis: event.diagnosis || null,
     callAI: async (opts) => {
       return await callAI({
         systemPrompt: opts.systemPrompt,

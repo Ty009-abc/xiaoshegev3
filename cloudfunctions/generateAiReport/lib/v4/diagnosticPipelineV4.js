@@ -142,10 +142,11 @@ function mapV4ToLegacyFields(report) {
  * @param {Object} options
  * @param {Object} options.answers — 归一化后的 15-key answers
  * @param {Object} options.userContext — { openid, recordId }
+ * @param {Object} options.diagnosis — RC8 diagnosis object (from client engine/diagnosisPipeline)
  * @param {Function} options.callAI — (systemPrompt, userMessage) => AI result
  * @returns {Object} pipeline result
  */
-async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
+async function runDiagnosticV4({ answers, userContext = {}, diagnosis, callAI }) {
   const stages = []
   const log = (stage, ok, extra = {}) => {
     stages.push({ stage, ok, timestamp: Date.now(), ...extra })
@@ -196,18 +197,8 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     log('STEP_4_VALIDATE_CONTRACT', true)
   } catch (e) {
     log('STEP_4_VALIDATE_CONTRACT', false, { error: e.message })
-    // Contract 无效 → 使用 fallback
-    const fallback = generateFallbackReport(baseContract)
-    if (fallback.report) {
-      fallback.report._fallbackReason = 'STEP_4_VALIDATE_CONTRACT: ' + e.message
-    }
-    const legacy = mapV4ToLegacyFields(fallback.report)
-    return {
-      code: 0,
-      message: 'success',
-      data: buildV4Response(fallback, legacy, 'rule_fallback'),
-      stages,
-    }
+    // Contract 无效 → 使用诊断 fallback
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_4_VALIDATE_CONTRACT')
   }
 
   // ── STEP 5: 构建 Prompt ──
@@ -219,7 +210,7 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     log('STEP_5_BUILD_PROMPT', true)
   } catch (e) {
     log('STEP_5_BUILD_PROMPT', false, { error: e.message })
-    return goFallback(baseContract, stages, 'STEP_5_BUILD_PROMPT: ' + e.message)
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_5_BUILD_PROMPT: ' + e.message)
   }
 
   // ── STEP 6: 调用 AI ──
@@ -232,11 +223,11 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_6_CALL_AI', false, { error: e.message })
-    return goFallback(baseContract, stages, 'STEP_6_CALL_AI: ' + e.message)
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_6_CALL_AI: ' + e.message)
   }
 
   if (!aiResult.success) {
-    return goFallback(baseContract, stages, 'STEP_6_CALL_AI: ' + (aiResult.error || 'AI returned non-success'))
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_6_CALL_AI: ' + (aiResult.error || 'AI returned non-success'))
   }
 
   // ── STEP 7: 解析 AI 输出 ──
@@ -249,11 +240,11 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_7_PARSE_AI_OUTPUT', false, { error: e.message })
-    return goFallback(baseContract, stages, 'STEP_7_PARSE_AI: ' + e.message)
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_7_PARSE_AI: ' + e.message)
   }
 
   if (!parsedAI.ok) {
-    return goFallback(baseContract, stages, 'STEP_7_PARSE_AI: ' + (parsedAI.code || '') + ' — ' + (parsedAI.reason || ''))
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_7_PARSE_AI: ' + (parsedAI.code || '') + ' — ' + (parsedAI.reason || ''))
   }
 
   // ── STEP 8: 合并报告 ──
@@ -265,12 +256,12 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_8_MERGE_REPORT', false, { error: e.message })
-    return goFallback(baseContract, stages, 'STEP_8_MERGE: ' + e.message)
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_8_MERGE: ' + e.message)
   }
 
   if (!mergedResult.ok) {
     const mergeViolations = (mergedResult.violations || []).join('; ')
-    return goFallback(baseContract, stages, 'STEP_8_MERGE_VIOLATIONS: ' + mergeViolations)
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_8_MERGE_VIOLATIONS: ' + mergeViolations)
   }
 
   // ── STEP 9: 守卫报告（结构契约） ──
@@ -282,12 +273,12 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
     })
   } catch (e) {
     log('STEP_9_GUARD_REPORT', false, { error: e.message })
-    return goFallback(baseContract, stages, 'STEP_9_GUARD: ' + e.message)
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_9_GUARD: ' + e.message)
   }
 
   if (!guardResult.ok) {
     const guardViolations = (guardResult.violations || []).join('; ')
-    return goFallback(baseContract, stages, 'STEP_9_GUARD_VIOLATIONS: ' + guardViolations)
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_9_GUARD_VIOLATIONS: ' + guardViolations)
   }
 
   // ── STEP 9.5: 内容安全门禁（硬阻断） ──
@@ -312,7 +303,7 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
   })
 
   if (safetyResult.validation.fallbackUsed) {
-    return goFallback(baseContract, stages, 'STEP_9_5_CONTENT_SAFETY: repaired text still had violations')
+    return diagnosisFallback(diagnosis, baseContract, stages, 'STEP_9_5_CONTENT_SAFETY: content violations unrecoverable')
   }
 
   // ── STEP 10: 成功返回 ──
@@ -332,19 +323,90 @@ async function runDiagnosticV4({ answers, userContext = {}, callAI }) {
 // 辅助
 // ═══════════════════════════════════════════════════════════════
 
-function goFallback(baseContract, stages, reason = '') {
-  const fallback = generateFallbackReport(baseContract)
-  // 把失败原因注入到 fallback report 的 finalStrike 里，方便调试
+/**
+ * RC8.2: Diagnosis-driven fallback. Uses RC8 diagnosis object (NOT legacy rule engine fatalRules)
+ * to build the report. Falls back to legacy rule_fallback ONLY when diagnosis is absent/invalid.
+ *
+ * @param {Object|null} diagnosis — RC8 diagnosis object from client
+ * @param {Object} baseContract — legacy contract (used only for supporting evidence)
+ * @param {Array} stages — pipeline stage log
+ * @param {string} reason — failure reason
+ * @returns {Object} pipeline result with _fallbackSource: 'diagnosis' | 'legacy'
+ */
+function diagnosisFallback(diagnosis, baseContract, stages, reason) {
+  var reportBuilder = require('./diagnosisReportBuilder')
+
+  // Attempt diagnosis-driven report first
+  var diagReport = null
+  var fallbackSource = 'legacy' // default
+
+  if (diagnosis) {
+    try {
+      diagReport = reportBuilder.buildReportFromDiagnosis(diagnosis, baseContract, 'diagnosis_fallback')
+      var assert = reportBuilder.assertDiagnosisReport(diagReport)
+      if (assert.ok) {
+        fallbackSource = 'diagnosis'
+      } else {
+        console.warn('[diagnosisFallback] Diagnosis report assertion failed:', assert.errors)
+        diagReport = null
+      }
+    } catch (e) {
+      console.error('[diagnosisFallback] Failed to build diagnosis report:', e.message)
+      diagReport = null
+    }
+  }
+
+  // Fall back to legacy ONLY if diagnosis not available/invalid
+  if (!diagReport) {
+    console.warn('[diagnosisFallback] No valid diagnosis — using legacy rule_fallback (source=legacy)')
+    var legacyFallback = generateFallbackReport(baseContract)
+    if (reason && legacyFallback.report) {
+      legacyFallback.report._fallbackReason = reason
+    }
+    diagReport = legacyFallback
+    fallbackSource = 'legacy'
+  } else if (reason && diagReport.report) {
+    diagReport.report._fallbackReason = reason
+  }
+
+  // Build legacy mapping from the final report (always available)
+  var legacy = mapV4ToLegacyFields(diagReport.report)
+
+  stages.push({
+    stage: 'FALLBACK',
+    ok: fallbackSource === 'diagnosis',
+    timestamp: Date.now(),
+    renderSource: fallbackSource === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback',
+    fallbackSource: fallbackSource,
+    reason: reason,
+  })
+
+  return {
+    code: 0,
+    message: 'success',
+    data: buildV4Response(diagReport, legacy, fallbackSource === 'diagnosis' ? 'diagnosis_fallback' : 'rule_fallback'),
+    stages,
+    _fallbackSource: fallbackSource,
+  }
+}
+
+/**
+ * @deprecated — Use diagnosisFallback instead. Kept for backward compat.
+ */
+function goFallback(baseContract, stages, reason) {
+  console.warn('[goFallback] DEPRECATED — use diagnosisFallback instead')
+  var fallback = generateFallbackReport(baseContract)
   if (reason && fallback.report) {
     fallback.report._fallbackReason = reason
   }
-  const legacy = mapV4ToLegacyFields(fallback.report)
-  stages.push({ stage: 'FALLBACK', ok: true, timestamp: Date.now(), renderSource: 'rule_fallback', reason })
+  var legacy = mapV4ToLegacyFields(fallback.report)
+  stages.push({ stage: 'FALLBACK', ok: false, timestamp: Date.now(), renderSource: 'rule_fallback', fallbackSource: 'legacy', reason })
   return {
     code: 0,
     message: 'success',
     data: buildV4Response(fallback, legacy, 'rule_fallback'),
     stages,
+    _fallbackSource: 'legacy',
   }
 }
 
