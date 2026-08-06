@@ -37,20 +37,33 @@ function getCogVerdict() {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * 基于当前 wealthProbability，推算 30/90/365 天后的概率。
+ * 基于当前 potentialIndex，推算 30/90/365 天后的场景潜势指数。
  * 公式：base 分数 × 时间衰减系数 × 修正因子
+ *
+ * PC8.2: 统一读取 REPORT_LIMITS.MAX_POTENTIAL_INDEX——不得硬编码 100。
  */
 function projectWealthProbability(baseProbability, enginescores) {
-  const base = Math.max(0, Math.min(100, baseProbability))
+  var LIMITS = require('../config/reportLimits')
+  var MAX_IDX = LIMITS.MAX_POTENTIAL_INDEX
+
+  const base = Math.max(LIMITS.MIN_POTENTIAL_INDEX, Math.min(MAX_IDX, baseProbability))
 
   // 改进系数来自 execution 和 cashflow 分数的平均值
   const improvementFactor = (enginescores.execution + enginescores.cashflow) / 200
 
-  const after30  = Math.round(Math.min(100, base * (1 + 0.15 * improvementFactor)))
-  const after90  = Math.round(Math.min(100, base * (1 + 0.35 * improvementFactor)))
-  const after365 = Math.round(Math.min(100, base * (1 + 0.80 * improvementFactor)))
+  const after30  = Math.round(Math.min(MAX_IDX, base * (1 + 0.15 * improvementFactor)))
+  const after90  = Math.round(Math.min(MAX_IDX, base * (1 + 0.35 * improvementFactor)))
+  const after365 = Math.round(Math.min(MAX_IDX, base * (1 + 0.80 * improvementFactor)))
 
-  return { today: base, after30, after90, after365 }
+  return {
+    today: base,
+    after30,
+    after90,
+    after365,
+    metricType: LIMITS.METRIC_TYPE,
+    isProbability: LIMITS.IS_PROBABILITY,
+    maxValue: MAX_IDX,
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -353,8 +353,26 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       if (existing.data.length > 0) {
         console.log('[V4Diagnostic] CACHE_HIT for recordId=' + recordId)
         cacheStatus = 'CACHE_HIT'
+        var cachedContent = existing.data[0].content
+        // ── RC8.2: Normalize old cache with after365=100 → clamp to 90 ──
+        try {
+          var normalizeFn = require('./lib/config/reportUtils').normalizePotentialIndex
+          if (cachedContent.report && cachedContent.report.wealthProbability) {
+            var rawWp = cachedContent.report.wealthProbability
+            if (rawWp.after365 > 90 || rawWp.today > 90) {
+              console.warn('[V4Diagnostic][CACHE_NORMALIZE] legacy wealthProbability had value >90, clamping')
+              cachedContent.report.wealthProbability = normalizeFn(rawWp)
+              // Also maintain legacy alias
+              if (cachedContent.report.potentialIndex) {
+                cachedContent.report.potentialIndex = normalizeFn(cachedContent.report.potentialIndex)
+              }
+            }
+          }
+        } catch (e) {
+          console.error('[V4Diagnostic][CACHE_NORMALIZE_FAILED]', e.message)
+        }
         return ok({
-          ...existing.data[0].content,
+          ...cachedContent,
           _cache: cacheStatus,
         })
       }
@@ -464,6 +482,19 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   if (!reportData.diagnosticSnapshot || !reportData.diagnosticSnapshot.normalizedAnswers) {
     console.error('[V4Diagnostic][RC8_SNAPSHOT_PERSIST_FAILED] snapshot is null or missing normalizedAnswers')
     // Still return OK — client can recover from answersSnapshot
+  }
+
+  // ── RC8.2: Assertion — potentialIndex must be ≤ MAX_POTENTIAL_INDEX ──
+  const { assertPotentialIndex, normalizePotentialIndex } = require('./lib/config/reportUtils')
+  if (!assertPotentialIndex(data.report?.wealthProbability)) {
+    console.error('[V4Diagnostic][POTENTIAL_INDEX_OUT_OF_RANGE] auto-clamping report.wealthProbability')
+    if (data.report) {
+      data.report.wealthProbability = normalizePotentialIndex(data.report.wealthProbability)
+    }
+  }
+  // ── RC8.2: Always add potentialIndex alias alongside wealthProbability (legacy) ──
+  if (data.report && data.report.wealthProbability && !data.report.potentialIndex) {
+    data.report.potentialIndex = data.report.wealthProbability
   }
 
   // 写入 ai_logs

@@ -420,12 +420,13 @@ function determineLevels(data, matchedRules) {
   else opportunityLevel = 'very_low'
 
   // 翻身概率 (0-100)
-  let wealthProbability = 50
+  var LIMITS = require('../config/reportLimits')
+  var wealthProbability = 50
   if (fatalCount >= 3) wealthProbability -= 20
   else if (fatalCount >= 1) wealthProbability -= 10
   if (advantageCount >= 3) wealthProbability += 20
   else if (advantageCount >= 1) wealthProbability += 10
-  wealthProbability = Math.max(0, Math.min(90, wealthProbability))
+  wealthProbability = Math.max(LIMITS.MIN_POTENTIAL_INDEX, Math.min(LIMITS.MAX_POTENTIAL_INDEX, wealthProbability))
 
   return { riskLevel, opportunityLevel, wealthProbability }
 }
