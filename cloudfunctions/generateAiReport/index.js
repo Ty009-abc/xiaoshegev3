@@ -374,6 +374,20 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
         return ok({
           ...cachedContent,
           _cache: cacheStatus,
+          // ── RC8.2 Runtime Architecture Trace (cache hit path) ──
+          runtimeArchitectureTrace: {
+            traceId: 'CACHE_' + recordId + '_' + Date.now(),
+            stagesVisited: ['CACHE_HIT'],
+            firstFailedStage: null,
+            routerEntered: false,
+            routerDecision: 'NOT_ENTERED_CACHE_BYPASS',
+            finalReturnId: 'RETURN_17_CACHE_HIT',
+            finalRenderSource: cachedContent.renderSource || 'UNDEFINED_CACHE',
+            diagnosisAvailableAtReturn: !!(cachedContent.diagnosis),
+            cacheHit: true,
+            cloudBuildSha: '667c3fc',
+            deploymentEnvId: 'fanshex-d2g0adgv7dfbc9bdc',
+          },
         })
       }
     } catch (e) {
@@ -524,5 +538,19 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     legacy: data.legacy,
     diagnosticSnapshot: reportData.diagnosticSnapshot,
     _cache: cacheStatus,
+    // ── RC8.2 Runtime Architecture Trace (instrumentation only) ──
+    runtimeArchitectureTrace: {
+      traceId: 'V4_' + (data.reportId || 'UNKNOWN') + '_' + Date.now(),
+      stagesVisited: stages.map(function(s) { return s.stage }),
+      firstFailedStage: stages.find(function(s) { return !s.ok }) ? stages.find(function(s) { return !s.ok }).stage : null,
+      routerEntered: stages.some(function(s) { return s.stage === 'FALLBACK_ROUTER' }),
+      routerDecision: data.fallbackRouterTrace ? data.fallbackRouterTrace.finalSource : 'NOT_ENTERED',
+      finalReturnId: data.fallbackRouterTrace ? 'RETURN_02-14_FALLBACK' : 'RETURN_15_SUCCESS',
+      finalRenderSource: data.renderSource,
+      diagnosisAvailableAtReturn: !!(data.diagnosisTrace && data.diagnosisTrace.available),
+      cacheHit: cacheStatus === 'CACHE_HIT',
+      cloudBuildSha: '667c3fc',
+      deploymentEnvId: 'fanshex-d2g0adgv7dfbc9bdc',
+    },
   })
 }
