@@ -761,6 +761,38 @@ Page({
     var cogStatement = cog.statement || '你的翻身条件已在积累，但仍被一个关键缺口限制。'
     var cogActionAnchor = cog.actionAnchor || '把能量集中到一条有验证的方向。'
 
+    // RC8.1: Enrich with diagnosis engine if available
+    if (diagnosisResult) {
+      // Override with engine-generated strategy if AI output is generic
+      if (!cogActionAnchor || cogActionAnchor.length < 30) {
+        cogActionAnchor = diagnosisResult.strategy.description || cogActionAnchor
+      }
+      if (!cogStatement || cogStatement.length < 30) {
+        cogStatement = '你的财富人格: ' +
+          (diagnosisResult.wealthProfile.primaryTitle || '待评估') + ' — ' +
+          (diagnosisResult.strategy.strategyTagline || '')
+      }
+      console.error('[PosterRC8][ENRICH] Cards enriched with diagnosis engine')
+    }
+
+    // ── RC8.1: Run Cognitive Diagnosis if available ──
+    var diagnosisResult = null
+    try {
+      var diagEngine = require('../../engine/diagnosisPipeline')
+      if (pd.rawAnswers && typeof diagEngine.runDiagnosis === 'function') {
+        diagnosisResult = diagEngine.runDiagnosis(pd.rawAnswers)
+        console.error('[PosterRC8][DIAGNOSIS]', JSON.stringify({
+          version: diagnosisResult.engineVersion,
+          tags: diagnosisResult.tagStats.totalTags,
+          archetype: diagnosisResult.wealthProfile.primary,
+          bottleneck: diagnosisResult.bottleneck.id,
+          strategy: diagnosisResult.strategy.id
+        }))
+      }
+    } catch (e) {
+      console.error('[PosterRC8][DIAGNOSIS_DISABLED]', e.message)
+    }
+
     // ── RC6 card body text (new schema from mapper) ──
     var verdict = pd.verdict || ''
     var coreConflict = pd.coreConflict || ''
