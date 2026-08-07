@@ -51,52 +51,46 @@ var SIGNAL_STATE = {
  */
 function scoreFamily(family, secondarySignals) {
   var score = 0
-  var totalWeight = 0
   var supporting = []
   var contradicting = []
 
-  // Build lookup
   var signalMap = {}
-  secondarySignals.forEach(function (s) {
-    signalMap[s.id] = s
-  })
+  secondarySignals.forEach(function (s) { signalMap[s.id] = s })
 
+  var signalCount = family.secondarySignals.length
+  if (signalCount === 0) return { score: 0, supporting: [], contradicting: [], activeCount: 0, suppressedCount: 0 }
+
+  // Each active signal contributes equally: score/100 to family total
+  // No per-signal weight differentiation — all signals equally contribute
   family.secondarySignals.forEach(function (signalId) {
-    var weight = family.signalWeights[signalId] || 0.1
-    totalWeight += weight
-
     var sig = signalMap[signalId]
     if (!sig) return
 
-    if (sig.state === SIGNAL_STATE.ACTIVE) {
-      // Active: positive contribution proportional to weight and signal score
+    if (sig.state === 'ACTIVE') {
       var sigScore = typeof sig.score === 'number' ? sig.score : 50
-      var contribution = weight * (sigScore / 100)
+      var contribution = sigScore / 100 / signalCount
       score += contribution
       supporting.push({
         signalId: signalId,
         state: sig.state,
         score: sig.score,
-        contribution: Math.round(contribution * 100) / 100,
+        contribution: Math.round(contribution * 1000) / 1000,
       })
-    } else if (sig.state === SIGNAL_STATE.SUPPRESSED) {
-      // Suppressed: negative contribution
-      var penalty = weight * 0.5
+    } else if (sig.state === 'SUPPRESSED') {
+      var penalty = 0.5 / signalCount
       score -= penalty
       contradicting.push({
         signalId: signalId,
         state: sig.state,
-        penalty: Math.round(penalty * 100) / 100,
+        penalty: Math.round(penalty * 1000) / 1000,
       })
     }
-    // INSUFFICIENT: no contribution
   })
 
   return {
-    score: Math.max(0, Math.round(score * 100) / 100),
+    score: Math.max(0, Math.round(score * 1000) / 1000),
     supporting: supporting,
     contradicting: contradicting,
-    totalWeight: Math.round(totalWeight * 100) / 100,
     activeCount: supporting.length,
     suppressedCount: contradicting.length,
   }
