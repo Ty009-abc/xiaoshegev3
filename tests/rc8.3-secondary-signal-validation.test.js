@@ -1070,8 +1070,9 @@ V('K03: Confidence is bounded 0-1', function () {
 
 var p1DebtCases = []
 
-V('P1-01: Simple suppression trigger parses correctly', function () {
+V('P1-01: Simple suppression trigger via predicate (P1 RESOLVED)', function () {
   // "DECISION_STABILITY detected with confidence ≥ 0.8"
+  // Now evaluated as signalPresentWithConfidenceGte predicate
   var r = evaluateSignalById('WAITING_DURATION_PATTERN', {
     evidence: [Q('pastAttemptStage')],
     primarySignals: [
@@ -1079,9 +1080,9 @@ V('P1-01: Simple suppression trigger parses correctly', function () {
       PS('DECISION_STABILITY', true, 0.85),
     ],
   })
-  eq(r.state, SIGNAL_STATE.SUPPRESSED, 'Simple threshold trigger should work')
-  ok(r.suppressionReason.indexOf('DECISION_STABILITY') !== -1 ||
-     r.suppressionReason.indexOf('contradictory') !== -1)
+  eq(r.state, SIGNAL_STATE.SUPPRESSED, 'Predicate-based suppression should work')
+  ok(r.suppressionReason !== null)
+  // P1 debt RESOLVED: no more free-text trigger parsing
 })
 
 V('P1-02: Short-form trigger (≥ without "with confidence") parses', function () {

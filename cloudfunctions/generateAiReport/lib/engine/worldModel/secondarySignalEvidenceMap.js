@@ -90,7 +90,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when apparent gap is a measurement artifact rather than genuine distortion",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -158,7 +158,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when switching cost awareness is shallow or self-serving",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -225,9 +225,11 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when domain variance is attributable to domain characteristics rather than cognitive pattern",
-    predicate: and([
-        contradictionCountGte(2),
-        independentEvidenceCountGte(2)
+    predicate: or([
+        and([
+          contradictionCountGte(2),
+          independentEvidenceCountGte(2)
+        ])
       ])
   },
 
@@ -286,7 +288,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when the absence of cross-identity attempts reflects satisfaction rather than constraint",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -353,7 +355,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when latency is attributable to external constraints rather than behavioral pattern",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -421,7 +423,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when switching is rational adaptation rather than time-preference-driven",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -490,7 +492,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when context-specific effort emphasis is rational rather than a cognitive pattern",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -558,7 +560,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when risk attitude change is calibrated rather than distorted",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -626,7 +628,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when calibration assessment is unreliable due to data insufficiency",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -693,7 +695,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when linear explanation is context-appropriate rather than a cognitive gap",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -761,7 +763,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when identity-based exclusion mirrors genuine self-knowledge",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -829,7 +831,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when information source count is high but content is homogeneous",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -897,7 +899,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when single-cause attribution is justified by the situation",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -965,7 +967,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when compounding awareness is theoretical without behavioral follow-through",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1033,7 +1035,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when attribution analysis has insufficient data",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1097,7 +1099,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when the step was coerced or produced no new information",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1165,7 +1167,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when lack of path knowledge is irrelevant to user's situation",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1233,7 +1235,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when reuse is incidental rather than intentional",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1301,7 +1303,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when reflection exists but produces no substantive learning",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1370,7 +1372,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when probabilistic language is superficial rather than substantive",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1439,7 +1441,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when asymmetry reflects genuine domain expertise rather than identity filtering",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1505,7 +1507,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress when discovery history is too limited to assess",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
@@ -1570,7 +1572,7 @@ const SECONDARY_SIGNAL_EVIDENCE_MAP = {
 
     suppressionRule: {
     humanRule: "Suppress this signal when decisions are progressing actively",
-    predicate: and([
+    predicate: or([
         and([
           contradictionCountGte(2),
           independentEvidenceCountGte(2)
