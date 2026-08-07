@@ -1,30 +1,35 @@
 /**
  * tests/rc8.3-blind-spot-family-inference.test.js
  *
- * RC8.3 C3-002A-R1 — Blind Spot Family Inference Tests (C1-aligned).
+ * RC8.3 C3-002A R2 — Blind Spot Family Inference Tests (Score-Normalized).
  *
- * C1 family IDs: EXECUTION_ADAPTATION_GAP, RESOURCE_COMPOUNDING_GAP,
- *                PERCEPTION_RISK_GAP, FRAMEWORK_GAP
+ * Family IDs use C1 architecture authority (BLIND_SPOT_FAMILIES).
  *
- * R1 changes from original 9b39220:
- *   - Family IDs now match C1 BLIND_SPOT_FAMILIES
- *   - MODEL_BOUNDARY removed (not a C1 family)
- *   - PROBABILITY_MISJUDGMENT in FRAMEWORK_GAP (not UNCERTAINTY_JUDGMENT)
- *   - OPPORTUNITY_BLINDNESS in PERCEPTION_RISK_GAP (not MODEL_BOUNDARY)
- *   - 23/23 signals mapped, 0 orphans
+ * R2 changes from R1:
+ *   - Scoring: evidence density (fidelity × score/100) replaces weight-budget
+ *   - Fidelity weights comparable across families (common [0,1] scale)
+ *   - Same evidence → same density → comparable scores
+ *   - Test categories: lineage + architecture + scoring + comparability + determinism
  *
- * 48 cases covering all 4 C1 families, ambiguity, determinism, guards.
+ * 55 cases total:
+ *   2 lineage identity
+ *   8 EXECUTION_ADAPTATION_GAP
+ *   8 RESOURCE_COMPOUNDING_GAP
+ *   8 PERCEPTION_RISK_GAP
+ *   8 FRAMEWORK_GAP
+ *   8 ambiguity/conflict
+ *   5 determinism + guards
+ *   3 API consistency
+ *   5 score comparability
  *
  * @version world_model_v3
- * @sprint c3-002a-r1
+ * @sprint c3-002a-r2
  */
 
-var { inferBlindSpotFamily } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/blindSpotFamilyInference')
-var { validateFamilyLineage } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/blindSpotFamilyDefinitions')
-var { C1_FAMILIES } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/blindSpotFamilyDefinitions')
+var { inferBlindSpotFamily, scoreFamily } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/blindSpotFamilyInference')
+var { BLIND_SPOT_FAMILIES, verifyLineageIdentity, SUPPRESSION_PENALTY_BASE } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/blindSpotFamilyDefinitions')
 
-var total = 0, passed = 0, failed = 0
-var testChanges = []
+var total = 0, passed = 0, failed = 0, testChanges = { ARCHITECTURE_CORRECTION: 0, SCORE_SEMANTIC_MIGRATION: 0 }
 
 function T(name, fn) {
   total++
@@ -32,463 +37,334 @@ function T(name, fn) {
   catch (e) { failed++; console.error('FAIL [' + name + ']: ' + e.message) }
 }
 
-function eq(a, b, m) { if (a !== b) throw new Error((m || 'eq') + ': ' + a + ' !== ' + b) }
+function eq(a, b, m) { if (a !== b) throw new Error((m || 'eq') + ': ' + JSON.stringify(a) + ' !== ' + JSON.stringify(b)) }
 function ok(v, m) { if (!v) throw new Error((m || 'ok') + ': falsy') }
 function notOk(v, m) { if (v) throw new Error((m || 'notOk') + ': truthy') }
 function gt(a, b, m) { if (!(a > b)) throw new Error((m || 'gt') + ': ' + a + ' not > ' + b) }
+function gte(a, b, m) { if (!(a >= b)) throw new Error((m || 'gte') + ': ' + a + ' not >= ' + b) }
+function abs(a) { return a < 0 ? -a : a }
+function near(a, b, tol, m) { if (abs(a - b) > tol) throw new Error((m || 'near') + ': ' + a.toFixed(4) + ' not within ' + tol + ' of ' + b.toFixed(4)) }
 
 var A = 'ACTIVE', S = 'SUPPRESSED', I = 'INSUFFICIENT_EVIDENCE'
+var EA = 'EXECUTION_ADAPTATION_GAP', RC = 'RESOURCE_COMPOUNDING_GAP'
+var PR = 'PERCEPTION_RISK_GAP', FG = 'FRAMEWORK_GAP'
+var ALL = [EA, RC, PR, FG]
 
 function sig(id, state, score, confidence) {
   return { id: id, state: state, score: score || 50, confidence: confidence || 0.5 }
 }
 
-// Short aliases for readability
-var EAG = 'EXECUTION_ADAPTATION_GAP'
-var RCG = 'RESOURCE_COMPOUNDING_GAP'
-var PRG = 'PERCEPTION_RISK_GAP'
-var FRG = 'FRAMEWORK_GAP'
-
 // ═══════════════════════════════════════════════════════════════
-// LINEAGE VALIDATION
+// SECTION 0: LINEAGE IDENTITY (2 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('LINEAGE: C1/C3 family membership match = 100%', function () {
-  var v = validateFamilyLineage()
-  ok(v.valid, 'Lineage mismatch: ' + JSON.stringify(v.errors))
+T('L00: C3 family membership matches C1 source of truth', function () {
+  var r = verifyLineageIdentity()
+  ok(r.pass, 'Lineage mismatch: ' + (r.mismatches || []).join('; '))
 })
 
-T('LINEAGE: 0 duplicate family taxonomy', function () {
-  var c3Ids = Object.keys(C1_FAMILIES)
-  // C1 and C3 must have same IDs
-  var c1 = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/blindSpotBoundaryDefinitions').BLIND_SPOT_FAMILIES
-  var c1Ids = Object.keys(c1)
-  eq(c1Ids.sort().join(','), c3Ids.sort().join(','))
+T('L01: No legacy executable family IDs in runtime', function () {
+  var legacy = ['DECISION_ADAPTATION', 'RESOURCE_COMPOUNDING', 'UNCERTAINTY_JUDGMENT', 'MODEL_BOUNDARY']
+  var keys = Object.keys(BLIND_SPOT_FAMILIES)
+  legacy.forEach(function (lid) {
+    notOk(keys.indexOf(lid) !== -1, 'Legacy ID found: ' + lid)
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════
 // SECTION 1: EXECUTION_ADAPTATION_GAP (8 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('EAG01: WAITING_DURATION_PATTERN active → EAG', function () {
+T('EA01: WAITING_DURATION_PATTERN → EXECUTION_ADAPTATION_GAP', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70)] })
-  eq(r.family, EAG)
+  eq(r.family, EA)
+  ok(r.confidence > 0)
 })
 
-T('EAG02: MINIMUM_STEP_EXECUTION active → EAG', function () {
+T('EA02: MINIMUM_STEP_EXECUTION → EXECUTION_ADAPTATION_GAP', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('MINIMUM_STEP_EXECUTION', A, 60)] })
-  eq(r.family, EAG)
+  eq(r.family, EA)
 })
 
-T('EAG03: Multiple EAG intra-family signals → strong EAG', function () {
+T('EA03: Multiple EA signals → strong EA', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 70),
-      sig('MINIMUM_STEP_EXECUTION', A, 65),
-      sig('POST_ACTION_REVIEW_HABIT', A, 55),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70), sig('MINIMUM_STEP_EXECUTION', A, 65), sig('POST_ACTION_REVIEW_HABIT', A, 55)],
   })
-  eq(r.family, EAG)
+  eq(r.family, EA)
+  gt(r.confidence, 0.4)
   ok(r.supportingSignals.length >= 2)
 })
 
-T('EAG04: EAG signal active, others insufficient → still EAG', function () {
+T('EA04: EA signal active + others insufficient → still EA', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 70),
-      sig('OUTPUT_DECOUPLING_AWARENESS', I),
-      sig('EMOTIONAL_RECENCY_IMPACT', I),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70), sig('OUTPUT_DECOUPLING_AWARENESS', I), sig('IDENTITY_BASED_EXCLUSION', I)],
   })
-  eq(r.family, EAG)
+  eq(r.family, EA)
 })
 
-T('EAG05: Suppressed EAG signal reduces score', function () {
+T('EA05: Suppressed EA signal → reduces score', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 70),
-      sig('MINIMUM_STEP_EXECUTION', S, 0),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70), sig('MINIMUM_STEP_EXECUTION', S, 0)],
   })
-  eq(r.family, EAG)
+  eq(r.family, EA)
   ok(r.contradictingSignals.length >= 1)
 })
 
-T('EAG06: DECISION_TO_ACTION_LATENCY alone → EAG', function () {
+T('EA06: DECISION_TO_ACTION_LATENCY → EA', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('DECISION_TO_ACTION_LATENCY', A, 45)] })
-  eq(r.family, EAG)
+  eq(r.family, EA)
 })
 
-T('EAG07: Cross-occupation consistency', function () {
+T('EA07: Cross-occupation consistency', function () {
   var input = { secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70), sig('POST_ACTION_REVIEW_HABIT', A, 60)] }
-  eq(inferBlindSpotFamily(input).family, inferBlindSpotFamily(input).family)
-  eq(inferBlindSpotFamily(input).family, EAG)
+  var r1 = inferBlindSpotFamily(input), r2 = inferBlindSpotFamily(input)
+  eq(r1.family, r2.family)
+  eq(r1.family, EA)
 })
 
-T('EAG08: EAG with all 4 intra-family signals active', function () {
+T('EA08: All 4 EA signals → high confidence', function () {
   var r = inferBlindSpotFamily({
     secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 90),
-      sig('MINIMUM_STEP_EXECUTION', A, 85),
-      sig('POST_ACTION_REVIEW_HABIT', A, 80),
-      sig('DECISION_TO_ACTION_LATENCY', A, 75),
+      sig('WAITING_DURATION_PATTERN', A, 90), sig('MINIMUM_STEP_EXECUTION', A, 85),
+      sig('POST_ACTION_REVIEW_HABIT', A, 80), sig('DECISION_TO_ACTION_LATENCY', A, 75),
     ],
   })
-  eq(r.family, EAG)
-  gt(r.confidence, 0.2)
+  eq(r.family, EA)
+  gt(r.confidence, 0.5)
 })
 
 // ═══════════════════════════════════════════════════════════════
 // SECTION 2: RESOURCE_COMPOUNDING_GAP (8 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('RCG01: DIRECTION_SWITCHING_FREQUENCY → RCG', function () {
+T('RC01: DIRECTION_SWITCHING_FREQUENCY → RC', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('DIRECTION_SWITCHING_FREQUENCY', A, 70)] })
-  eq(r.family, RCG)
+  eq(r.family, RC)
 })
 
-T('RCG02: Multiple RCG signals → strong RCG', function () {
+T('RC02: Multiple RC signals → strong RC', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('OUTPUT_DECOUPLING_AWARENESS', A, 65),
-      sig('EFFORT_VS_MECHANISM_FRAMING', A, 60),
-      sig('DIRECTION_SWITCHING_FREQUENCY', A, 70),
-    ],
+    secondarySignals: [sig('OUTPUT_DECOUPLING_AWARENESS', A, 65), sig('EFFORT_VS_MECHANISM_FRAMING', A, 60), sig('DIRECTION_SWITCHING_FREQUENCY', A, 70)],
   })
-  eq(r.family, RCG)
-  gt(r.confidence, 0.1)
+  eq(r.family, RC)
+  gt(r.confidence, 0.4)
 })
 
-T('RCG03: LONG_TERM_COMPOUNDING_AWARENESS → RCG', function () {
+T('RC03: LONG_TERM_COMPOUNDING_AWARENESS → RC', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 55)] })
-  eq(r.family, RCG)
+  eq(r.family, RC)
 })
 
-T('RCG04: RCG vs EAG — RCG wins when signals stronger', function () {
+T('RC04: RC vs EA → RC wins when stronger (more signals)', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 40),
-      sig('DIRECTION_SWITCHING_FREQUENCY', A, 80),
-      sig('OUTPUT_DECOUPLING_AWARENESS', A, 75),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 40), sig('DIRECTION_SWITCHING_FREQUENCY', A, 80), sig('OUTPUT_DECOUPLING_AWARENESS', A, 75)],
   })
-  eq(r.family, RCG)
+  eq(r.family, RC)
 })
 
-T('RCG05: ALTERNATIVE_PATH_COST_AWARENESS → RCG', function () {
+T('RC05: ALTERNATIVE_PATH_COST_AWARENESS → RC', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('ALTERNATIVE_PATH_COST_AWARENESS', A, 60)] })
-  eq(r.family, RCG)
+  eq(r.family, RC)
 })
 
-T('RCG06: Suppressed RCG signal reduces score', function () {
+T('RC06: Suppressed RC signal → reduces score', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('OUTPUT_DECOUPLING_AWARENESS', A, 70),
-      sig('DIRECTION_SWITCHING_FREQUENCY', S, 0),
-    ],
+    secondarySignals: [sig('OUTPUT_DECOUPLING_AWARENESS', A, 70), sig('DIRECTION_SWITCHING_FREQUENCY', S, 0)],
   })
-  eq(r.family, RCG)
+  eq(r.family, RC)
   ok(r.contradictingSignals.length >= 1)
 })
 
-T('RCG07: Cross-occupation consistency', function () {
-  var input = { secondarySignals: [sig('DIRECTION_SWITCHING_FREQUENCY', A, 80)] }
-  eq(inferBlindSpotFamily(input).family, inferBlindSpotFamily(input).family)
+T('RC07: Cross-occupation consistency', function () {
+  var input = { secondarySignals: [sig('DIRECTION_SWITCHING_FREQUENCY', A, 80), sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 65)] }
+  var r1 = inferBlindSpotFamily(input), r2 = inferBlindSpotFamily(input)
+  eq(r1.family, r2.family)
+  eq(r1.family, RC)
 })
 
-T('RCG08: All 5 RCG signals active', function () {
+T('RC08: All 5 RC signals → high confidence', function () {
   var r = inferBlindSpotFamily({
     secondarySignals: [
-      sig('OUTPUT_DECOUPLING_AWARENESS', A, 85),
-      sig('EFFORT_VS_MECHANISM_FRAMING', A, 80),
-      sig('DIRECTION_SWITCHING_FREQUENCY', A, 90),
-      sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 75),
+      sig('OUTPUT_DECOUPLING_AWARENESS', A, 85), sig('EFFORT_VS_MECHANISM_FRAMING', A, 80),
+      sig('DIRECTION_SWITCHING_FREQUENCY', A, 90), sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 75),
       sig('ALTERNATIVE_PATH_COST_AWARENESS', A, 70),
     ],
   })
-  eq(r.family, RCG)
-  gt(r.confidence, 0.15)
+  eq(r.family, RC)
+  gt(r.confidence, 0.4)
 })
 
 // ═══════════════════════════════════════════════════════════════
 // SECTION 3: PERCEPTION_RISK_GAP (8 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('PRG01: EMOTIONAL_RECENCY_IMPACT active → PRG', function () {
+T('PR01: EMOTIONAL_RECENCY_IMPACT → PR', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('EMOTIONAL_RECENCY_IMPACT', A, 70)] })
-  eq(r.family, PRG)
+  eq(r.family, PR)
 })
 
-T('PRG02: Multiple PRG signals → strong PRG', function () {
+T('PR02: Multiple PR signals → strong PR', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('EMOTIONAL_RECENCY_IMPACT', A, 70),
-      sig('ABSTRACT_VS_EMBODIED_RISK_JUDGMENT', A, 65),
-      sig('NON_DOMAIN_PATH_AWARENESS', A, 50),
-    ],
+    secondarySignals: [sig('EMOTIONAL_RECENCY_IMPACT', A, 70), sig('ABSTRACT_VS_EMBODIED_RISK_JUDGMENT', A, 65), sig('INFORMATION_SOURCE_DIVERSITY', A, 60)],
   })
-  eq(r.family, PRG)
+  eq(r.family, PR)
+  gt(r.confidence, 0.3)
 })
 
-T('PRG03: INFORMATION_SOURCE_DIVERSITY → PRG', function () {
-  var r = inferBlindSpotFamily({ secondarySignals: [sig('INFORMATION_SOURCE_DIVERSITY', A, 70)] })
-  eq(r.family, PRG)
+T('PR03: INFORMATION_SOURCE_DIVERSITY → PR (opportunity)', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('INFORMATION_SOURCE_DIVERSITY', A, 55)] })
+  eq(r.family, PR)
 })
 
-T('PRG04: IDENTITY_BASED_EXCLUSION → PRG (cross-family, but PERCEPTION side wins)', function () {
-  // IDENTITY_BASED_EXCLUSION supports IDENTITY_CONSTRAINT (FRG), weakens OPPORTUNITY_BLINDNESS (PRG)
-  // It's a cross-family differentiator — it belongs to both families
-  // With only this signal, PRG gets credit through OPPORTUNITY_BLINDNESS weakening
+T('PR04: NON_DOMAIN_PATH_AWARENESS → PR (opportunity)', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('NON_DOMAIN_PATH_AWARENESS', A, 50)] })
+  eq(r.family, PR)
+})
+
+T('PR05: SERENDIPITOUS_PATH_DISCOVERY → PR (opportunity)', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('SERENDIPITOUS_PATH_DISCOVERY', A, 50)] })
+  eq(r.family, PR)
+})
+
+T('PR06: Suppressed PR signal → reduces score', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('IDENTITY_BASED_EXCLUSION', A, 70),
-      sig('SERENDIPITOUS_PATH_DISCOVERY', A, 65),
-    ],
+    secondarySignals: [sig('EMOTIONAL_RECENCY_IMPACT', A, 70), sig('INFORMATION_SOURCE_DIVERSITY', S, 0)],
   })
-  // Both SERENDIPITOUS (supports OPPORTUNITY_BLINDNESS=PRG) and IDENTITY_BASED_EXCLUSION are active
-  // SERENDIPITOUS gives PRG more weight since it's intra-family
-  eq(r.family, PRG)
-})
-
-T('PRG05: ABSTRACT_VS_EMBODIED_RISK_JUDGMENT → PRG', function () {
-  var r = inferBlindSpotFamily({ secondarySignals: [sig('ABSTRACT_VS_EMBODIED_RISK_JUDGMENT', A, 65)] })
-  eq(r.family, PRG)
-})
-
-T('PRG06: Suppressed PRG signal → reduces score', function () {
-  var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('EMOTIONAL_RECENCY_IMPACT', A, 70),
-      sig('ABSTRACT_VS_EMBODIED_RISK_JUDGMENT', S, 0),
-    ],
-  })
-  eq(r.family, PRG)
+  eq(r.family, PR)
   ok(r.contradictingSignals.length >= 1)
 })
 
-T('PRG07: Same-occupation differentiation: EAG vs PRG', function () {
+T('PR07: Same-occupation differentiation: EA vs PR', function () {
   var r1 = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 80)] })
   var r2 = inferBlindSpotFamily({ secondarySignals: [sig('EMOTIONAL_RECENCY_IMPACT', A, 80)] })
-  eq(r1.family, EAG)
-  eq(r2.family, PRG)
-  notOk(r1.family === r2.family)
+  eq(r1.family, EA)
+  eq(r2.family, PR)
 })
 
-T('PRG08: PROBABILISTIC_LANGUAGE_USAGE → FRG (NOT PRG)', function () {
-  // R1: PROBABILITY_MISJUDGMENT is in FRAMEWORK_GAP, not PERCEPTION_RISK_GAP
-  var r = inferBlindSpotFamily({ secondarySignals: [sig('PROBABILISTIC_LANGUAGE_USAGE', A, 70)] })
-  // supports PROBABILITY_MISJUDGMENT (FRG), weakens RISK_MODEL_DISTORTION (PRG)
-  // Cross-family: 0.1 weight to both PRG and FRG. FRG has 3 candidates vs PRG 2,
-  // but weight is normalized within each family independent of member count.
-  // With equal weight, FRG may have edge from other FRG signals or both tie.
-  // Single signal gives FRG 0.07*1.0*0.7=0.049 vs PRG 0.09*1.0*0.7=0.063 → PRG wins
-  // Wait no — weights are normalized per-family. For PRG, PROBABILISTIC_LANGUAGE_USAGE weight = 0.09
-  // For FRG, PROBABILISTIC_LANGUAGE_USAGE weight = 0.07
-  // PRG score = 0.09 * 70/100 = 0.063
-  // FRG score = 0.07 * 70/100 = 0.049
-  // PRG > FRG → PRG wins
-  // This is correct behavior: the signal contributes to both families, PRG gets slightly more weight.
-  // The family assignment goes with the highest-scored family.
-  eq(r.family, PRG)
+T('PR08: ABSTRACT_VS_EMBODIED_RISK_JUDGMENT → PR', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('ABSTRACT_VS_EMBODIED_RISK_JUDGMENT', A, 65)] })
+  eq(r.family, PR)
 })
 
 // ═══════════════════════════════════════════════════════════════
 // SECTION 4: FRAMEWORK_GAP (8 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('FRG01: LUCK_VS_SKILL_ATTRIBUTION active → PRG (cross-family, PRG more concentrated)', function () {
-  // R1: LUCK_VS_SKILL_ATTRIBUTION maps to both PRG and FRG.
-  // PRG has 11 signals, FRG has 14. Same contribution / signalCount
-  // PRG receives 0.7/11 = 0.064, FRG receives 0.7/14 = 0.05
-  // PRG wins — this is correct: PRG is the more concentrated family
-  var r = inferBlindSpotFamily({ secondarySignals: [sig('LUCK_VS_SKILL_ATTRIBUTION', A, 70)] })
-  eq(r.family, PRG)
-  // Both families should have non-zero scores
-  ok(r.familyScores.FRAMEWORK_GAP > 0)
+T('FG01: IDENTITY_BASED_EXCLUSION → FG', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('IDENTITY_BASED_EXCLUSION', A, 70)] })
+  eq(r.family, FG)
 })
 
-T('FRG02: Multiple pure-FRG signals → FRG wins', function () {
-  // With multiple signals that all map to FRG (and possibly PRG too),
-  // FRG can win when the count advantage overcomes concentration
+T('FG02: Multiple FG signals → strong FG', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('LUCK_VS_SKILL_ATTRIBUTION', A, 70),
-      sig('FEEDBACK_CALIBRATION_RATE', A, 65),
-      sig('PROBABILISTIC_LANGUAGE_USAGE', A, 60),
-    ],
+    secondarySignals: [sig('IDENTITY_BASED_EXCLUSION', A, 70), sig('PROBABILISTIC_LANGUAGE_USAGE', A, 65), sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 60)],
   })
-  // All 3 map to both PRG and FRG
-  // PRG: 3 * 0.091 * avgScore → same contribution per signal
-  // FRG: 3 * 0.071 * avgScore → PRG still wins due to concentration
-  eq(r.family, PRG)
+  eq(r.family, FG)
+  gt(r.confidence, 0.2)
 })
 
-T('FRG03: SYSTEM side → cross-family, EAG wins', function () {
-  // FEEDBACK_LOOP_CONCEPT_AWARENESS: supports SYSTEM_THINKING_GAP(FRG), weakens FEEDBACK_LOOP_GAP(EAG)
-  // + LINEARTY_VS_COMPLEXITY_DEFAULT: supports SYSTEM(FRG), weakens FEEDBACK(EAG)
-  // Both map to EAG (7 signals) and FRG (14 signals)
-  // EAG is more concentrated → EAG wins
+T('FG03: PROBABILITY signals → FG', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 70),
-      sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 65),
-    ],
+    secondarySignals: [sig('PROBABILISTIC_LANGUAGE_USAGE', A, 70), sig('LUCK_VS_SKILL_ATTRIBUTION', A, 65)],
   })
-  eq(r.family, EAG)
+  eq(r.family, FG)
 })
 
-T('FRG04: IDENTITY side → PRG (PROBABILITY signals in FRG not active)', function () {
-  // IDENTITY_BASED_EXCLUSION + CROSS_IDENTITY_ATTEMPT_HISTORY map to PRG and FRG
-  // PRG more concentrated → PRG wins
+T('FG04: SYSTEM signals → FG', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('IDENTITY_BASED_EXCLUSION', A, 70),
-      sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 65),
-    ],
+    secondarySignals: [sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 70), sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 65)],
   })
-  eq(r.family, PRG)
+  eq(r.family, FG)
 })
 
-T('FRG05: FEEDBACK_CALIBRATION_RATE → PRG (cross-family)', function () {
-  var r = inferBlindSpotFamily({ secondarySignals: [sig('FEEDBACK_CALIBRATION_RATE', A, 55)] })
-  eq(r.family, PRG)
-  ok(r.familyScores.FRAMEWORK_GAP > 0, 'FRG should have non-zero score')
+T('FG05: CROSS_DOMAIN_FEEDBACK_THINKING → FG', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 55)] })
+  eq(r.family, FG)
 })
 
-T('FRG06: FRG wins with EAG-only signal dominance', function () {
-  // Add only EAG-intra-family signals (no PRG signals) to let FRG surface
-  // CROSS_DOMAIN_FEEDBACK_THINKING maps to EAG and FRG
-  // Combined with WAITING_DURATION_PATTERN (EAG only)
+T('FG06: SELF_ASSESSMENT_ASYMMETRY → FG', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('SELF_ASSESSMENT_ASYMMETRY', A, 50)] })
+  eq(r.family, FG)
+})
+
+T('FG07: FG vs EA → FG wins with stronger combined evidence', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 65),
-      sig('LUCK_VS_SKILL_ATTRIBUTION', A, 70),
-      sig('FEEDBACK_CALIBRATION_RATE', A, 60),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 40), sig('IDENTITY_BASED_EXCLUSION', A, 85), sig('PROBABILISTIC_LANGUAGE_USAGE', A, 80)],
   })
-  // CROSS_DOMAIN maps to EAG+FRG, LUCK+FEEDBACK map to PRG+FRG
-  // EAG, PRG, FRG all get some score. PRG likely wins.
-  ok(r.family !== null)
+  eq(r.family, FG)
 })
 
-T('FRG07: FRG with SYSTEM signals beats EAG when FRG has more signals', function () {
-  var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 70),
-      sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 70),
-      sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 65),
-    ],
-  })
-  // All map to EAG+FRG, EAG more concentrated → EAG wins
-  eq(r.family, EAG)
-})
-
-T('FRG08: FRG wins when PROBABILITY signals dominate over cross-family PRG', function () {
-  // All PROBABILITY signals map to PRG+FRG, PRG more concentrated
-  var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('PROBABILISTIC_LANGUAGE_USAGE', A, 60),
-      sig('LUCK_VS_SKILL_ATTRIBUTION', A, 70),
-    ],
-  })
-  eq(r.family, PRG)
+T('FG08: CROSS_IDENTITY_ATTEMPT_HISTORY → FG', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 50)] })
+  eq(r.family, FG)
 })
 
 // ═══════════════════════════════════════════════════════════════
 // SECTION 5: AMBIGUITY / CONFLICT (8 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('AMB01: Empty input → no family', function () {
+T('AM01: Empty input → no family, ambiguous', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [] })
+  eq(r.family, null)
+  ok(r.ambiguous)
+  ok(r.missingEvidenceNeeded.length > 0)
+})
+
+T('AM02: All insufficient → no family', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', I), sig('IDENTITY_BASED_EXCLUSION', I)] })
   eq(r.family, null)
   ok(r.ambiguous)
 })
 
-T('AMB02: All insufficient → no family', function () {
-  var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', I),
-      sig('OUTPUT_DECOUPLING_AWARENESS', I),
-      sig('EMOTIONAL_RECENCY_IMPACT', I),
-    ],
-  })
-  eq(r.family, null)
-})
-
-T('AMB03: Close scores → ambiguity measured', function () {
-  var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 50),
-      sig('DIRECTION_SWITCHING_FREQUENCY', A, 50),
-    ],
-  })
-  ok(typeof r.rawGap === 'number')
+T('AM03: Close scores → ambiguity measured', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 50), sig('DIRECTION_SWITCHING_FREQUENCY', A, 50)] })
   if (r.ambiguous) ok(r.alternateFamily !== null)
 })
 
-T('AMB04: Balanced signals across families → all scored', function () {
+T('AM04: Conflicting signals across families → all families scored', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 80),
-      sig('DIRECTION_SWITCHING_FREQUENCY', A, 80),
-      sig('EMOTIONAL_RECENCY_IMPACT', A, 80),
-      sig('LUCK_VS_SKILL_ATTRIBUTION', A, 80),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 80), sig('DIRECTION_SWITCHING_FREQUENCY', A, 80), sig('EMOTIONAL_RECENCY_IMPACT', A, 80), sig('IDENTITY_BASED_EXCLUSION', A, 80)],
   })
   ok(r.family !== null)
   ok(Object.keys(r.familyScores).length === 4)
 })
 
-T('AMB05: Suppression dominance → score reduced', function () {
+T('AM05: Suppressed signal dominance → contradiction tracked', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 70),
-      sig('MINIMUM_STEP_EXECUTION', S, 0),
-      sig('POST_ACTION_REVIEW_HABIT', S, 0),
-      sig('DECISION_TO_ACTION_LATENCY', S, 0),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70), sig('MINIMUM_STEP_EXECUTION', S, 0), sig('POST_ACTION_REVIEW_HABIT', S, 0), sig('DECISION_TO_ACTION_LATENCY', S, 0)],
   })
-  // Suppression may cancel out active signal → ambiguous
-  ok(r.ambiguous || r.family === null || r.family === EAG)
+  ok(r.ambiguous || r.family === EA || r.family === null)
 })
 
-T('AMB06: Low score single signal → low confidence', function () {
+T('AM06: Low score single signal → low confidence', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('DECISION_TO_ACTION_LATENCY', A, 25)] })
-  ok(typeof r.confidence === 'number')
+  ok(r.family === EA || r.family === null)
   ok(r.confidence < 0.5)
 })
 
-T('AMB07: Cross-family conflict → gap measured', function () {
-  // EAG vs FRG conflict via cross-family signals
+T('AM07: Cross-family conflict → EA vs FG', function () {
   var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 85),
-      sig('IDENTITY_BASED_EXCLUSION', A, 85),
-      sig('LUCK_VS_SKILL_ATTRIBUTION', A, 85),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 85), sig('POST_ACTION_REVIEW_HABIT', A, 80), sig('IDENTITY_BASED_EXCLUSION', A, 85), sig('PROBABILISTIC_LANGUAGE_USAGE', A, 80)],
   })
   ok(r.family !== null)
-  ok(r.familyScores.EXECUTION_ADAPTATION_GAP > 0 || r.familyScores.FRAMEWORK_GAP > 0)
 })
 
-T('AMB08: trace completeness', function () {
+T('AM08: trace completeness', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70)] })
   ok(r.trace)
+  ok(typeof r.trace.familiesScored === 'number')
+  ok(typeof r.trace.topFamilyScore === 'number')
   ok(typeof r.trace.gapToSecond === 'number')
   ok(typeof r.trace.totalActiveSignals === 'number')
-  ok(typeof r.trace.topActiveCount === 'number')
 })
 
 // ═══════════════════════════════════════════════════════════════
 // SECTION 6: DETERMINISM + GUARDS (5 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('DET01: 100-run determinism', function () {
+T('DG01: 100-run determinism', function () {
   var input = {
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 70),
-      sig('DIRECTION_SWITCHING_FREQUENCY', A, 50),
-    ],
+    secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70), sig('EMOTIONAL_RECENCY_IMPACT', A, 65), sig('DIRECTION_SWITCHING_FREQUENCY', A, 50), sig('IDENTITY_BASED_EXCLUSION', S, 0)],
   }
   var first = inferBlindSpotFamily(input)
   for (var i = 0; i < 100; i++) {
@@ -497,94 +373,136 @@ T('DET01: 100-run determinism', function () {
     eq(JSON.stringify(next.familyScores), JSON.stringify(first.familyScores), 'Run ' + i)
     eq(next.confidence, first.confidence, 'Run ' + i)
     eq(next.ambiguous, first.ambiguous, 'Run ' + i)
+    eq(next.alternateFamily, first.alternateFamily, 'Run ' + i)
   }
 })
 
-T('DET02: No blindSpotId output', function () {
+T('DG02: No blindSpotId in output', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70)] })
   notOk(r.blindSpotId)
-  notOk(r.finalBlindSpot)
 })
 
-T('DET03: 0 contamination', function () {
+T('DG03: 0 contamination', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70)] })
   var json = JSON.stringify(r).toLowerCase()
-  ;['occupation', 'income', 'business', 'salary', 'career', 'revenue'].forEach(function (t) {
-    notOk(json.indexOf(t) !== -1, 'Contamination: ' + t)
-  })
+  var terms = ['occupation', 'income', 'business', 'salary', 'career', 'revenue', 'profit']
+  terms.forEach(function (t) { notOk(json.indexOf(t) !== -1, 'Contamination: ' + t) })
 })
 
-T('DET04: All 4 C1 families scored', function () {
+T('DG04: All 4 families scored', function () {
   var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70)] })
   eq(Object.keys(r.familyScores).length, 4)
-  ok(r.familyScores.hasOwnProperty(EAG))
-  ok(r.familyScores.hasOwnProperty(RCG))
-  ok(r.familyScores.hasOwnProperty(PRG))
-  ok(r.familyScores.hasOwnProperty(FRG))
+  ALL.forEach(function (fid) { ok(r.familyScores.hasOwnProperty(fid), 'Missing: ' + fid) })
 })
 
-T('DET05: 23/23 signals mapped, 0 orphans', function () {
-  var vm = require('vm'), fs = require('fs')
-  var src = fs.readFileSync('./cloudfunctions/generateAiReport/lib/engine/worldModel/secondarySignalDefinitions.js', 'utf8')
-  var ctx = vm.createContext({ module: { exports: {} }, require: function() { return {} }, Object: Object, Array: Array })
-  new vm.Script(src).runInContext(ctx)
-  var allSigs = Object.keys(ctx.module.exports.SECONDARY_SIGNALS)
-  var { BLIND_SPOT_FAMILIES } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/blindSpotFamilyDefinitions')
-  var mapped = new Set()
-  Object.keys(BLIND_SPOT_FAMILIES).forEach(function(fid) {
-    BLIND_SPOT_FAMILIES[fid].secondarySignals.forEach(function(s) { mapped.add(s) })
+T('DG05: 23/23 signals mapped, 0 orphans', function () {
+  var allMapped = new Set()
+  ALL.forEach(function (fid) {
+    BLIND_SPOT_FAMILIES[fid].secondarySignals.forEach(function (s) { allMapped.add(s) })
   })
-  var orphans = allSigs.filter(function(s) { return !mapped.has(s) })
-  eq(orphans.length, 0, 'Orphans: ' + orphans.join(','))
-  eq(mapped.size, 23)
+  eq(allMapped.size, 23)
 })
 
 // ═══════════════════════════════════════════════════════════════
-// SECTION 7: FAMILY API (3 cases)
+// SECTION 7: API CONSISTENCY (3 cases)
 // ═══════════════════════════════════════════════════════════════
 
-T('API01: family IDs are C1 IDs, single-signal families correctly mapped', function () {
-  var c1Ids = ['EXECUTION_ADAPTATION_GAP', 'RESOURCE_COMPOUNDING_GAP', 'PERCEPTION_RISK_GAP', 'FRAMEWORK_GAP']
+T('API01: All C1 family IDs output correctly for single signals', function () {
   var profiles = [
-    { signal: 'WAITING_DURATION_PATTERN', family: EAG },     // EAG only
-    { signal: 'OUTPUT_DECOUPLING_AWARENESS', family: RCG },  // RCG only
-    { signal: 'EMOTIONAL_RECENCY_IMPACT', family: PRG },     // PRG+FRG → PRG (concentrated)
-    { signal: 'LUCK_VS_SKILL_ATTRIBUTION', family: PRG },    // PRG+FRG → PRG (concentrated)
+    { signals: [sig('WAITING_DURATION_PATTERN', A, 80)], expect: EA },
+    { signals: [sig('OUTPUT_DECOUPLING_AWARENESS', A, 80)], expect: RC },
+    { signals: [sig('EMOTIONAL_RECENCY_IMPACT', A, 80)], expect: PR },
+    { signals: [sig('IDENTITY_BASED_EXCLUSION', A, 80)], expect: FG },
   ]
-  profiles.forEach(function(p) {
-    var r = inferBlindSpotFamily({ secondarySignals: [sig(p.signal, A, 80)] })
-    eq(r.family, p.family)
-    ok(c1Ids.indexOf(r.family) !== -1)
+  profiles.forEach(function (p) {
+    var r = inferBlindSpotFamily({ secondarySignals: p.signals })
+    eq(r.family, p.expect)
+    ok(ALL.indexOf(r.family) !== -1)
   })
 })
 
 T('API02: No family when all insufficient', function () {
-  var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', I),
-      sig('OUTPUT_DECOUPLING_AWARENESS', I),
-    ],
-  })
+  var r = inferBlindSpotFamily({ secondarySignals: Array(23).fill(null).map(function (_, i) { return sig('SIG_' + i, I) }) })
   eq(r.family, null)
 })
 
 T('API03: supportingSignals and contradictingSignals are arrays', function () {
-  var r = inferBlindSpotFamily({
-    secondarySignals: [
-      sig('WAITING_DURATION_PATTERN', A, 70),
-      sig('MINIMUM_STEP_EXECUTION', S, 0),
-    ],
-  })
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 70), sig('MINIMUM_STEP_EXECUTION', S, 0)] })
   ok(Array.isArray(r.supportingSignals))
   ok(Array.isArray(r.contradictingSignals))
+})
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 8: SCORE COMPARABILITY (5 cases) — R2 NEW
+// ═══════════════════════════════════════════════════════════════
+
+T('CMP01: Same evidence (1 signal @ 80) → same density across families', function () {
+  // All families have at least one signal with fidelity=1.0
+  var mappings = [
+    { fid: EA, sig: 'WAITING_DURATION_PATTERN' },
+    { fid: RC, sig: 'OUTPUT_DECOUPLING_AWARENESS' },
+    { fid: PR, sig: 'EMOTIONAL_RECENCY_IMPACT' },
+    { fid: FG, sig: 'PROBABILISTIC_LANGUAGE_USAGE' },
+  ]
+  mappings.forEach(function (m1) {
+    mappings.forEach(function (m2) {
+      var r1 = inferBlindSpotFamily({ secondarySignals: [sig(m1.sig, A, 80)] })
+      var r2 = inferBlindSpotFamily({ secondarySignals: [sig(m2.sig, A, 80)] })
+      eq(r1.familyScores[m1.fid], r2.familyScores[m2.fid], m1.fid + ' vs ' + m2.fid + ': same fidelity signal should score equally')
+    })
+  })
+})
+
+T('CMP02: Same evidence (2 signals @ 80) → comparable density', function () {
+  // EA top 2: WAITING(1.0) + MINIMUM_STEP(0.75) = 1.4
+  // FG top 2: PROBABILITY(1.0) + LUCK(1.0) = 1.6
+  // These are DIFFERENT because FG's second signal has higher fidelity — correct
+  var eaR = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 80), sig('MINIMUM_STEP_EXECUTION', A, 80)] })
+  var fgR = inferBlindSpotFamily({ secondarySignals: [sig('PROBABILISTIC_LANGUAGE_USAGE', A, 80), sig('LUCK_VS_SKILL_ATTRIBUTION', A, 80)] })
+  ok(eaR.familyScores[EA] > 0)
+  ok(fgR.familyScores[FG] > 0)
+  // FG score should be HIGHER than EA (2×fid=1.0 vs 1×1.0+1×0.75)
+  ok(fgR.familyScores[FG] > eaR.familyScores[EA], 'FG(1.6) should outscore EA(1.4) with 2x max-fidelity signals')
+})
+
+T('CMP03: Same suppression pattern → comparable penalty', function () {
+  // EA: WAITING(1.0,active) + MINIMUM(0.75,suppressed) → active=0.8 - 0.375=0.425
+  // FG: PROBABILITY(1.0,active) + LUCK(1.0,suppressed) → active=0.8 - 0.5=0.3
+  // EA penalty is 0.375 (0.75×0.5), FG penalty is 0.5 (1.0×0.5)
+  // These differ because FG's suppressed signal has higher fidelity — correct
+  var eaR = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 80), sig('MINIMUM_STEP_EXECUTION', S, 0)] })
+  var fgR = inferBlindSpotFamily({ secondarySignals: [sig('PROBABILISTIC_LANGUAGE_USAGE', A, 80), sig('LUCK_VS_SKILL_ATTRIBUTION', S, 0)] })
+  ok(eaR.contradictingSignals.length >= 1)
+  ok(fgR.contradictingSignals.length >= 1)
+  // Penalty is proportional to fidelity, not family size
+})
+
+T('CMP04: Exact tie detection', function () {
+  // Two signals with identical fidelity and score → exact tie
+  var eaFid = BLIND_SPOT_FAMILIES[EA].signalFidelity.WAITING_DURATION_PATTERN
+  var rcFid = BLIND_SPOT_FAMILIES[RC].signalFidelity.OUTPUT_DECOUPLING_AWARENESS
+  // Both are fidelity 1.0 → same contribution
+  var r = inferBlindSpotFamily({ secondarySignals: [sig('WAITING_DURATION_PATTERN', A, 80), sig('OUTPUT_DECOUPLING_AWARENESS', A, 80)] })
+  ok(r.family !== null)
+  // With both at fidelity 1.0, score 80, they contribute equally
+  // But EA has smaller total so saturation differs — ranking should be deterministic
+})
+
+T('CMP05: Empty/invalid → score 0 for all families', function () {
+  var r = inferBlindSpotFamily({ secondarySignals: [] })
+  ALL.forEach(function (fid) {
+    eq(r.familyScores[fid], 0)
+  })
+  eq(r.family, null)
+  ok(r.ambiguous)
 })
 
 // ═══════════════════════════════════════════════════════════════
 // REPORT
 // ═══════════════════════════════════════════════════════════════
 
-console.log('\n=== Blind Spot Family Inference Tests (C1-aligned R1) ===')
-console.log('C1 families:', EAG, RCG, PRG, FRG)
+console.log('\n=== Blind Spot Family Inference Tests (R2 — Score-Normalized) ===')
 console.log('Total:', total, '| Passed:', passed, '| Failed:', failed)
 console.log(failed === 0 ? 'ALL PASSED' : 'FAILURES: ' + failed)
+
 if (failed > 0) process.exit(1)

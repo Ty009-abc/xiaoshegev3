@@ -1,98 +1,124 @@
 /**
  * engine/worldModel/blindSpotFamilyInference.js
  *
- * RC8.3 C3-002A — Hierarchical Blind Spot Family Inference.
+ * RC8.3 C3-002A R2 — Hierarchical Blind Spot Family Inference (Score-Normalized).
  *
  * Pure function: Secondary Signals + World Model Dimensions → Blind Spot Family.
  *
  * DOES NOT determine final Blind Spot — family-level only.
  *
- * Input: { secondarySignals, worldModelDimensions, evidenceTrace }
- * Output: { family, familyScores, confidence, supportingSignals,
- *           contradictingSignals, ambiguous, alternateFamily, rawGap,
- *           missingEvidenceNeeded, trace }
+ * R2 SCORING ARCHITECTURE:
+ *   Evidence Density replaces per-family weight-budget scoring.
+ *
+ *   OLD (R1 per-family budget):
+ *     familyScore = Σ(weight × sigScore/100) - Σ(weight × 0.5 for suppressed)
+ *     Σweights = 1.0 per family → NOT comparable (EA weight=0.40 vs FG weight=0.15)
+ *
+ *   NEW (R2 evidence density):
+ *     familyScore = Σ(fidelity × sigScore/100) - Σ(fidelity × 0.5 for suppressed)
+ *     Fidelity weights use the same [0,1] scale across all families.
+ *     A signal at fidelity 1.0 contributes 1.0 × score/100 in ANY family.
+ *     → Comparable across families.
+ *
+ *   Saturation (secondary metric):
+ *     saturation = familyScore / totalFidelity
+ *     Measures how much of the family's diagnostic budget is activated.
+ *     Used in confidence calculation, NOT ranking.
+ *
+ * FAMILY CONFIDENCE:
+ *   Based on: saturation, gap magnitude, contradiction ratio, active count.
+ *   Confidence is about RELIABILITY of inference, separate from raw density.
  *
  * DESIGN CONSTRAINTS:
- * - No flat 9-way competition — family only
- * - No blindSpotId output
+ * - Family-size-invariant evidence density
+ * - No family-specific boost factors or hidden offsets
  * - Deterministic
  * - 0 occupation/income/business reasoning
+ * - Family scores must be comparable across families
  *
  * @version world_model_v3
- * @sprint c3-002a
+ * @sprint c3-002a-r2
  */
 
 var {
   BLIND_SPOT_FAMILIES,
   getAllFamilyIds,
   getFamily,
+  SUPPRESSION_PENALTY_BASE,
 } = require('./blindSpotFamilyDefinitions')
 
 // ═══════════════════════════════════════════════════════════════
-// FAMILY SCORING
+// EVIDENCE DENSITY SCORING (R2: family-size-invariant)
 // ═══════════════════════════════════════════════════════════════
 
-var SIGNAL_STATE = {
-  ACTIVE: 'ACTIVE',
-  SUPPRESSED: 'SUPPRESSED',
-  INSUFFICIENT_EVIDENCE: 'INSUFFICIENT_EVIDENCE',
-}
-
 /**
- * Computes a score for one family based on secondary signal states.
+ * Scores one family using Evidence Density.
  *
- * Active signals contribute positively (weight × score).
- * Suppressed signals contribute negatively.
- * Insufficient signals contribute nothing.
+ * density = Σ(active_fidelity × sigScore/100) - Σ(suppressed_fidelity × PENALTY_BASE)
+ * saturation = density / totalFidelity (secondary: family completeness)
  *
- * @param {Object} family — family definition
- * @param {Array} secondarySignals — array of { id, state, score, confidence }
- * @returns {{ score: number, supporting: Array, contradicting: Array, totalWeight: number }}
+ * Density uses fidelity weights on a COMMON [0,1] scale:
+ *   fidelity=1.0 means "maximally diagnostic signal"
+ *   fidelity=0.25 means "weakly diagnostic signal"
+ * These scales are the same across all families → comparable evidence density.
  */
 function scoreFamily(family, secondarySignals) {
-  var score = 0
-  var supporting = []
-  var contradicting = []
-
   var signalMap = {}
   secondarySignals.forEach(function (s) { signalMap[s.id] = s })
 
-  var signalCount = family.secondarySignals.length
-  if (signalCount === 0) return { score: 0, supporting: [], contradicting: [], activeCount: 0, suppressedCount: 0 }
+  var supporting = []
+  var contradicting = []
+  var rawDensity = 0
+  var suppressedPenalty = 0
+  var totalFidelity = 0
 
-  // Each active signal contributes equally: score/100 to family total
-  // No per-signal weight differentiation — all signals equally contribute
+  family.secondarySignals.forEach(function (signalId) {
+    totalFidelity += family.signalFidelity[signalId] || 0
+  })
+
   family.secondarySignals.forEach(function (signalId) {
     var sig = signalMap[signalId]
-    if (!sig) return
+    var fidelity = family.signalFidelity[signalId] || 0
+    if (!sig || fidelity === 0) return
 
     if (sig.state === 'ACTIVE') {
       var sigScore = typeof sig.score === 'number' ? sig.score : 50
-      var contribution = sigScore / 100 / signalCount
-      score += contribution
+      var contribution = fidelity * (sigScore / 100)
+      rawDensity += contribution
       supporting.push({
         signalId: signalId,
         state: sig.state,
         score: sig.score,
+        fidelity: fidelity,
         contribution: Math.round(contribution * 1000) / 1000,
       })
     } else if (sig.state === 'SUPPRESSED') {
-      var penalty = 0.5 / signalCount
-      score -= penalty
+      var penalty = fidelity * SUPPRESSION_PENALTY_BASE
+      suppressedPenalty += penalty
       contradicting.push({
         signalId: signalId,
         state: sig.state,
+        fidelity: fidelity,
         penalty: Math.round(penalty * 1000) / 1000,
       })
     }
   })
 
+  var density = Math.max(0, rawDensity - suppressedPenalty)
+  var saturation = totalFidelity > 0 ? density / totalFidelity : 0
+  var activeCount = supporting.length
+
   return {
-    score: Math.max(0, Math.round(score * 1000) / 1000),
+    score: Math.round(density * 1000) / 1000,
+    saturation: Math.round(saturation * 10000) / 10000,
+    rawDensity: Math.round(rawDensity * 1000) / 1000,
+    suppressedPenalty: Math.round(suppressedPenalty * 1000) / 1000,
+    totalFidelity: totalFidelity,
+    activeCount: activeCount,
+    suppressedCount: contradicting.length,
+    signalCount: family.secondarySignals.length,
     supporting: supporting,
     contradicting: contradicting,
-    activeCount: supporting.length,
-    suppressedCount: contradicting.length,
   }
 }
 
@@ -101,25 +127,24 @@ function scoreFamily(family, secondarySignals) {
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Detects ambiguity between top two families.
+ * R2: gap is in density units [0, unbounded], comparable across families.
  *
- * @param {Array} ranked — families sorted by score desc
- * @returns {{ ambiguous: boolean, rawGap: number, alternateFamily: string|null }}
+ * Thresholds tuned for density scale (fidelity=1.0 @ score=100 → max per signal = 1.0):
+ *   gap < 0.1 → strongly ambiguous (less than one weak signal's contribution)
+ *   gap < 0.2 with top < 0.5 → weakly ambiguous
+ *   top < 0.1 → insufficient signal
+ *
+ * Note: gap in density units is now comparable — 0.1 means the same thing
+ * regardless of which family pair is being compared.
  */
 function detectAmbiguity(ranked) {
   if (ranked.length < 2) return { ambiguous: false, rawGap: 0, alternateFamily: null }
 
   var top = ranked[0]
   var second = ranked[1]
+  var rawGap = Math.round((top.score - second.score) * 1000) / 1000
 
-  // Gap between top and second
-  var rawGap = Math.round((top.score - second.score) * 100) / 100
-
-  // Ambiguity thresholds:
-  // - Gap < 0.1 → strongly ambiguous
-  // - Gap < 0.2 → weakly ambiguous
-  // - Top score < 0.15 → too little signal for any family
-  var ambiguous = rawGap < 0.1 || (rawGap < 0.2 && top.score < 0.3) || top.score < 0.05
+  var ambiguous = rawGap < 0.1 || (rawGap < 0.2 && top.score < 0.5) || top.score < 0.1
 
   return {
     ambiguous: ambiguous,
@@ -132,13 +157,6 @@ function detectAmbiguity(ranked) {
 // MISSING EVIDENCE
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Determines what evidence is missing for stronger family determination.
- *
- * @param {Object} topFamily — top-scoring family
- * @param {Object} familyDef — family definition
- * @returns {Array<string>}
- */
 function determineMissingEvidence(topFamily, familyDef) {
   var missing = []
 
@@ -148,7 +166,7 @@ function determineMissingEvidence(topFamily, familyDef) {
   }
 
   if (topFamily.activeCount < (familyDef.minimumSignals || 1)) {
-    missing.push('Insufficient active signals in top family: ' + topFamily.activeCount + ' < ' + familyDef.minimumSignals)
+    missing.push('Insufficient active signals: ' + topFamily.activeCount + ' < ' + familyDef.minimumSignals)
   }
 
   if (topFamily.suppressedCount > topFamily.activeCount) {
@@ -156,73 +174,49 @@ function determineMissingEvidence(topFamily, familyDef) {
   }
 
   if (topFamily.score < 0.1) {
-    missing.push('Family score too low for confident determination')
+    missing.push('Evidence density too low for confident determination')
   }
 
   return missing
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CONFIDENCE CALCULATION
+// FAMILY CONFIDENCE (R2: saturation-based)
 // ═══════════════════════════════════════════════════════════════
 
 /**
- * Calculates confidence in family determination.
+ * R2: Confidence uses saturation (family-completeness) and gap.
  *
- * Factors:
- * - Top family score magnitude
- * - Gap between top and second
- * - Active vs suppressed signal ratio
- * - Number of active signals
- *
- * @param {Object} topFamily — scored family result
- * @param {number} gap — gap to second family
- * @param {number} totalFamilies — total number of families scored
- * @returns {number} 0.0 – 1.0
+ * Components:
+ *   saturationConf: up to 0.45 from evidence saturation
+ *   gapConf: up to 0.30 from gap magnitude (density-comparable)
+ *   contradictionConf: up to 0.15 from clean evidence
+ *   countConf: up to 0.10 from multiple independent signals
  */
-function calculateFamilyConfidence(topFamily, gap, totalFamilies) {
+function calculateFamilyConfidence(topFamily, gap) {
   if (!topFamily || topFamily.activeCount === 0) return 0
 
-  var scoreConf = Math.min(topFamily.score * 2, 0.5) // up to 0.5 from score magnitude
-  var gapConf = Math.min(gap * 3, 0.3) // up to 0.3 from gap size
-  var ratioConf = topFamily.activeCount > 0 && topFamily.suppressedCount === 0 ? 0.15 : 0.05 // bonus for no suppression
-  var countConf = Math.min(topFamily.activeCount * 0.05, 0.05) // up to 0.05 from count
+  var saturationConf = Math.min(topFamily.saturation * 0.6, 0.45)
+  var gapConf = Math.min(gap * 1.5, 0.30)
 
-  return Math.max(0, Math.min(1, Math.round((scoreConf + gapConf + ratioConf + countConf) * 100) / 100))
+  var ratio = topFamily.activeCount > 0
+    ? topFamily.suppressedCount / (topFamily.activeCount + topFamily.suppressedCount)
+    : 0
+  var contradictionConf = 0.15 * (1 - Math.min(ratio, 1))
+  var countConf = Math.min(topFamily.activeCount * 0.025, 0.10)
+
+  return Math.max(0, Math.min(1, Math.round((saturationConf + gapConf + contradictionConf + countConf) * 100) / 100))
 }
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN ENTRY POINT
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Infers the most likely Blind Spot Family from secondary signal states.
- *
- * @param {Object} input
- * @param {Array<Object>} input.secondarySignals — array of { id, state, score, confidence }
- * @param {Object} [input.worldModelDimensions] — optional dimension state
- * @param {Object} [input.evidenceTrace] — optional trace
- * @returns {{
- *   family: string|null,
- *   familyScores: Object,
- *   confidence: number,
- *   supportingSignals: Array,
- *   contradictingSignals: Array,
- *   ambiguous: boolean,
- *   alternateFamily: string|null,
- *   rawGap: number,
- *   missingEvidenceNeeded: Array<string>,
- *   trace: Object
- * }}
- */
 function inferBlindSpotFamily(input) {
   if (!input) input = {}
   var secondarySignals = input.secondarySignals || []
-  var worldModelDimensions = input.worldModelDimensions || {}
 
   var familyIds = getAllFamilyIds()
-
-  // ── Score all families ──
 
   var scored = familyIds.map(function (familyId) {
     var family = getFamily(familyId)
@@ -230,21 +224,22 @@ function inferBlindSpotFamily(input) {
     return {
       familyId: familyId,
       score: result.score,
+      saturation: result.saturation,
+      evidenceDensity: result.rawDensity,
+      suppressedPenalty: result.suppressedPenalty,
+      totalFidelity: result.totalFidelity,
       supportingSignals: result.supporting,
       contradictingSignals: result.contradicting,
       activeCount: result.activeCount,
       suppressedCount: result.suppressedCount,
+      signalCount: result.signalCount,
     }
   })
-
-  // ── Rank by score ──
 
   scored.sort(function (a, b) { return b.score - a.score })
 
   var top = scored[0]
   var allZero = scored.every(function (s) { return s.score === 0 })
-
-  // ── All zero → insufficient ──
 
   if (allZero || !top || top.score === 0) {
     return {
@@ -256,68 +251,55 @@ function inferBlindSpotFamily(input) {
       ambiguous: true,
       alternateFamily: null,
       rawGap: 0,
-      missingEvidenceNeeded: ['No active secondary signals in any family — insufficient evidence for family inference'],
-      trace: {
-        familiesScored: familyIds.length,
-        topFamilyScore: 0,
-        gapToSecond: 0,
-        totalActiveSignals: secondarySignals.filter(function (s) { return s.state === SIGNAL_STATE.ACTIVE }).length,
-        totalSuppressedSignals: secondarySignals.filter(function (s) { return s.state === SIGNAL_STATE.SUPPRESSED }).length,
-      },
+      missingEvidenceNeeded: ['No active secondary signals in any family — insufficient evidence'],
+      trace: buildTrace(familyIds, secondarySignals, null, 0),
     }
   }
 
-  // ── Detect ambiguity ──
-
   var ambiguity = detectAmbiguity(scored)
-
-  // ── Determine missing evidence ──
-
   var familyDef = getFamily(top.familyId)
   var missingEvidence = determineMissingEvidence(top, familyDef)
-
-  // ── Build result ──
 
   return {
     family: top.familyId,
     familyScores: buildScoreMap(scored),
-    confidence: calculateFamilyConfidence(top, ambiguity.rawGap, familyIds.length),
+    confidence: calculateFamilyConfidence(top, ambiguity.rawGap),
     supportingSignals: top.supportingSignals.map(function (s) { return s.signalId }),
     contradictingSignals: top.contradictingSignals.map(function (s) { return s.signalId }),
     ambiguous: ambiguity.ambiguous,
     alternateFamily: ambiguity.alternateFamily,
     rawGap: ambiguity.rawGap,
     missingEvidenceNeeded: missingEvidence.length > 0 ? missingEvidence : [],
-    trace: {
-      familiesScored: familyIds.length,
-      topFamily: top.familyId,
-      topFamilyScore: top.score,
-      topActiveCount: top.activeCount,
-      topSuppressedCount: top.suppressedCount,
-      gapToSecond: ambiguity.rawGap,
-      totalActiveSignals: secondarySignals.filter(function (s) { return s.state === SIGNAL_STATE.ACTIVE }).length,
-      totalSuppressedSignals: secondarySignals.filter(function (s) { return s.state === SIGNAL_STATE.SUPPRESSED }).length,
-      topSupporting: top.supportingSignals,
-      topContradicting: top.contradictingSignals,
-    },
+    trace: buildTrace(familyIds, secondarySignals, top, ambiguity.rawGap),
+  }
+}
+
+function buildTrace(familyIds, signals, top, gap) {
+  return {
+    familiesScored: familyIds.length,
+    topFamily: top ? top.familyId : null,
+    topFamilyScore: top ? top.score : 0,
+    topSaturation: top ? top.saturation : 0,
+    topActiveCount: top ? top.activeCount : 0,
+    topSuppressedCount: top ? top.suppressedCount : 0,
+    gapToSecond: gap,
+    totalActiveSignals: signals.filter(function (s) { return s.state === 'ACTIVE' }).length,
+    totalSuppressedSignals: signals.filter(function (s) { return s.state === 'SUPPRESSED' }).length,
+    topSupporting: top ? top.supportingSignals : [],
+    topContradicting: top ? top.contradictingSignals : [],
   }
 }
 
 function buildScoreMap(scored) {
   var map = {}
-  scored.forEach(function (s) {
-    map[s.familyId] = s.score
-  })
+  scored.forEach(function (s) { map[s.familyId] = s.score })
   return map
 }
-
-// ═══════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════
 
 module.exports = {
   inferBlindSpotFamily,
   scoreFamily,
   detectAmbiguity,
+  calculateFamilyConfidence,
   getAllFamilyIds,
 }

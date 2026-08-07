@@ -1,66 +1,93 @@
-# ADR-RC8.3-C3-002A — Hierarchical Blind Spot Family Inference
+# ADR-RC8.3-C3-002A-R2 — Hierarchical Blind Spot Family Inference (Score-Normalized)
 
 ## Status
 ACCEPTED
 
 ## Context
-C3-001B completed the predicate executor, making secondary signal states fully deterministic. Before proceeding to final Blind Spot selection, a hierarchical intermediate layer is needed: Secondary Signals → Family. This prevents flat 9-way Blind Spot competition and provides a structured, auditable intermediate state.
+R1 (5aad39e + ff6a2ad) resolved P1 FAMILY_LINEAGE_MISALIGNMENT — C3 now derives family membership from C1 BLIND_SPOT_FAMILIES authority. But R1 carried forward a P2 debt from 9b39220: **FAMILY_SCORE_SCALE_BIAS**.
+
+The per-family weight-budget scoring (Σweights=1.0, weight × score/100) produced:
+- EA single-signal weight = 0.40
+- FG single-signal weight = 0.15
+- 2.67× contribution difference for same evidence
+
+This made family ranking, rawGap, ambiguity thresholds, and family confidence not reliably comparable across families.
 
 ## Decision
-Implement a two-stage architecture:
-1. **Family Inference (C3-002A)**: Secondary Signals → Family (this ADR)
-2. **Blind Spot Selection (C3-002B, future)**: Family + dimensions → final Blind Spot
+Replace per-family weight-budget scoring with **Evidence Density** using fidelity weights on a common [0,1] scale.
 
-Four cognitive families are defined, each grouping confusable Blind Spots by their underlying cognitive mechanism:
+### Old (R1)
+```
+familyScore = Σ(weight × sigScore/100), Σweights=1.0 per family
+```
+Weight=0.40 in EA contributes 2.67× more than weight=0.15 in FG for equivalent evidence.
 
-| Family | Candidates | C1 Boundary |
-|---|---|---|
-| DECISION_ADAPTATION | DECISION_INERTIA, FEEDBACK_LOOP_GAP | EXECUTION_ADAPTATION_GAP |
-| RESOURCE_COMPOUNDING | LEVERAGE_MODEL_GAP, TIME_HORIZON_TRAP | RESOURCE_COMPOUNDING_GAP |
-| UNCERTAINTY_JUDGMENT | RISK_MODEL_DISTORTION, PROBABILITY_MISJUDGMENT | PERCEPTION_RISK_GAP |
-| MODEL_BOUNDARY | OPPORTUNITY_BLINDNESS, IDENTITY_CONSTRAINT, SYSTEM_THINKING_GAP | FRAMEWORK_GAP |
+### New (R2)
+```
+evidenceDensity = Σ(fidelity × sigScore/100) - Σ(fidelity × 0.5 for suppressed)
+saturation = evidenceDensity / totalFidelity  [secondary metric]
+```
+Fidelity weights use the same [0,1] scale across all families. A signal at fidelity=1.0 contributes the same evidence in ANY family.
 
-## Inference Algorithm
-1. Score each family based on active/suppressed secondary signals (weighted contributions)
-2. Rank families by score
-3. Detect ambiguity (small gap, low top score, conflicting signals)
-4. Return family, scores, confidence, supporting/contradicting signals, trace
+### Comparability Proof
+Same evidence (1 signal, fidelity=1.0, score=80): **ALL families = 0.800** — identical across EA, RC, PR, FG.
 
-Suppressed signals actively reduce family support (contradiction-first carries through from C2). Insufficient signals contribute nothing.
+### Fidelity Weight Rationale
+Fidelity represents signal diagnosticity on a common scale:
+- 1.0 = maximally diagnostic within its family
+- 0.5 = moderately diagnostic
+- 0.25 = weakly diagnostic
 
-## Ambiguity Rules
-- Gap < 0.1 → strongly ambiguous
-- Gap < 0.2 with top score < 0.3 → weakly ambiguous
-- Top score < 0.05 → too little signal
-- When ambiguous: alternateFamily returned, rawGap measured, missingEvidenceNeeded populated
+Weights are assigned per-signal based on cognitive diagnosticity, not per-family budget allocation.
+
+### Family Ranking
+Ranked by evidenceDensity (comparable). Saturation is available as a secondary metric for confidence calculation only.
+
+### Family Confidence
+```
+saturationConf = min(saturation × 0.6, 0.45)
+gapConf = min(gap × 1.5, 0.30)
+contradictionConf = 0.15 × (1 - suppressedRatio)
+countConf = min(activeCount × 0.025, 0.10)
+confidence = saturationConf + gapConf + contradictionConf + countConf
+```
+Confidence uses saturation (family-completeness) + gap (density difference, now comparable).
+
+### Ambiguity Thresholds
+Updated for density scale:
+- gap < 0.1 → strongly ambiguous (less than one weak signal's density)
+- gap < 0.2 with top < 0.5 → weakly ambiguous
+- top < 0.1 → insufficient signal
+
+These thresholds now have stable semantics across families because gap is in comparable density units.
 
 ## Constraints Satisfied
+- C1 BLIND_SPOT_FAMILIES is authoritative source of candidate membership
+- Family-size-invariant evidence density
+- Same evidence → same density → comparable scores
+- No family-specific boost factors, hidden offsets, or cap tuning
 - 0 flat 9-way competition — family only
 - 0 blindSpotId output
-- 0 direct Blind Spot, Archetype, or Strategy determination
 - 0 occupation/income/business references
-- 100% deterministic (100-run verified)
-- 48/48 test cases pass
+- 100% deterministic
+- 55/55 test cases pass (50 from R1 + 5 new comparability)
 
 ## Test Coverage
-- 8 DECISION_ADAPTATION cases
-- 8 RESOURCE_COMPOUNDING cases
-- 8 UNCERTAINTY_JUDGMENT cases
-- 8 MODEL_BOUNDARY cases
-- 8 ambiguity/conflict cases
-- 5 determinism + guard cases
-- 3 API consistency cases
-- Cross-occupation consistency verified
-- Same-occupation differentiation verified
+- 2 lineage identity
+- 8 EA, 8 RC, 8 PR, 8 FG
+- 8 ambiguity/conflict
+- 5 determinism + guards
+- 3 API consistency
+- 5 score comparability (R2 new)
+- 100-run determinism PASS
 
-## Runtime Impact
-- 0 production imports
-- 0 runtime call chain changes
-- 0 feature flag changes
-- No cloud deployment required
+## Related Debts
+- P1 FAMILY_LINEAGE_MISALIGNMENT: RESOLVED (R1)
+- P2 FAMILY_SCORE_SCALE_BIAS: RESOLVED (R2)
+- P2 FAMILY_AMBIGUITY_THRESHOLD_HEURISTIC: RESOLVED (R2 — thresholds now on comparable density scale)
+- P2 SERENDIPITOUS_PATH_DISCOVERY contradiction gap: OPEN / NON-BLOCKING
 
 ## Related
-- `ADR-RC8.3-C3-001A-PREDICATE-SCHEMA.md` (implied)
-- `ADR-RC8.3-C3-001B-PREDICATE-EXECUTOR.md` (implied)
+- `ADR-RC8.3-C3-001B-PREDICATE-EXECUTOR.md`
 - `ADR-RC8.3-C2-001-SECONDARY-SIGNAL-VOCABULARY.md`
 - `ADR-RC8.3-C1-002-CORE-BOUNDARIES.md`
