@@ -1,23 +1,21 @@
 /**
  * engine/worldModel/withinFamilyBlindSpotInference.js
  *
- * RC8.3 C3-002B — Within-Family Blind Spot Selection.
+ * RC8.3 C3-002B-R1 — Within-Family Blind Spot Selection.
  *
- * Boundary-first evaluation: for each candidate in the selected family,
- * execute necessaryConditions → disqualifiers → contradiction → differentiators
- * → ambiguity → ranking.
- *
- * C1 blindSpotBoundaryDefinitions.js is authoritative for all conditions.
- * C3 consumes them — does NOT redefine.
- *
- * HIERARCHY: Input family determines valid candidate set. No cross-family leakage.
+ * R1 CHANGES:
+ *   - Necessary condition cardinality: explicit policies (ALL_OF / AT_LEAST_N)
+ *   - Provenance-aware scoring: per-origin strongest contribution
+ *   - 0 hardcoded evidence-semantic mappings in inference engine
+ *   - Policies owned by necessaryConditionPolicies.js, not inference engine
  *
  * @version world_model_v3
- * @sprint c3-002b
+ * @sprint c3-002b-r1
  */
 
 var { BLIND_SPOT_BOUNDARIES } = require('./blindSpotBoundaryDefinitions')
 var { BLIND_SPOT_FAMILIES, getFamily } = require('./blindSpotFamilyDefinitions')
+var { getPolicy, getConditionEvidenceSignals } = require('./necessaryConditionPolicies')
 
 // ═══════════════════════════════════════════════════════════════
 // CANDIDATE ELIGIBILITY STATES
@@ -30,40 +28,73 @@ var ELIGIBILITY = Object.freeze({
 })
 
 // ═══════════════════════════════════════════════════════════════
-// EVIDENCE ORIGIN DEDUPLICATION
+// PROVENANCE-AWARE AGGREGATION
 // ═══════════════════════════════════════════════════════════════
 
 function getOrigin(signal) {
   return signal.originId || (signal.id || '')
 }
 
-function countIndependentSignals(signals) {
+/**
+ * Groups signals by provenance origin.
+ * Within each origin, takes the STRONGEST contribution.
+ * Returns aggregated independent contributions and total count.
+ */
+function aggregateByOrigin(signals) {
+  var groups = {}
+  signals.forEach(function (s) {
+    var origin = getOrigin(s)
+    if (!groups[origin]) groups[origin] = { signals: [], maxScore: 0, maxConfidence: 0 }
+    groups[origin].signals.push(s)
+    if ((s.score || 0) > groups[origin].maxScore) {
+      groups[origin].maxScore = s.score || 0
+      groups[origin].maxConfidence = s.confidence || 0
+    }
+  })
+
+  var independentCount = Object.keys(groups).length
+  var totalStrength = 0
+  Object.keys(groups).forEach(function (o) {
+    totalStrength += groups[o].maxScore
+  })
+
+  return {
+    independentCount: independentCount,
+    totalStrength: totalStrength,
+    avgStrength: independentCount > 0 ? Math.round(totalStrength / independentCount) : 0,
+    groups: groups,
+  }
+}
+
+/**
+ * Aggregates suppressed/contradicting signals by origin.
+ * Within each origin, counts as 1 contradiction penalty (not N).
+ */
+function aggregateContradictionByOrigin(signals) {
   var origins = {}
-  signals.forEach(function (s) { origins[getOrigin(s)] = true })
-  return Object.keys(origins).length
+  signals.forEach(function (s) {
+    origins[getOrigin(s)] = true
+  })
+  return {
+    independentCount: Object.keys(origins).length,
+    totalCount: signals.length,
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SECONDARY SIGNAL → BLIND SPOT DIRECTION
+// SECONDARY SIGNAL → BLIND SPOT DIRECTION (immutable architecture)
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Maps secondary signal IDs to which blind spots they support/weaken.
- * Derived from secondarySignalDefinitions.js differentiates field.
- */
 var SIGNAL_BLIND_SPOT_MAP = Object.freeze({
-  // EAG signals
   WAITING_DURATION_PATTERN: { supports: 'DECISION_INERTIA', weakens: 'FEEDBACK_LOOP_GAP' },
   MINIMUM_STEP_EXECUTION: { supports: 'FEEDBACK_LOOP_GAP', weakens: 'DECISION_INERTIA' },
   POST_ACTION_REVIEW_HABIT: { supports: 'FEEDBACK_LOOP_GAP', weakens: 'DECISION_INERTIA' },
   DECISION_TO_ACTION_LATENCY: { supports: 'FEEDBACK_LOOP_GAP', weakens: 'DECISION_INERTIA' },
-  // RCG signals
   OUTPUT_DECOUPLING_AWARENESS: { supports: 'LEVERAGE_MODEL_GAP', weakens: 'TIME_HORIZON_TRAP' },
   EFFORT_VS_MECHANISM_FRAMING: { supports: 'LEVERAGE_MODEL_GAP', weakens: 'TIME_HORIZON_TRAP' },
   DIRECTION_SWITCHING_FREQUENCY: { supports: 'TIME_HORIZON_TRAP', weakens: 'LEVERAGE_MODEL_GAP' },
   LONG_TERM_COMPOUNDING_AWARENESS: { supports: 'TIME_HORIZON_TRAP', weakens: 'LEVERAGE_MODEL_GAP' },
   ALTERNATIVE_PATH_COST_AWARENESS: { supports: 'TIME_HORIZON_TRAP', weakens: 'LEVERAGE_MODEL_GAP' },
-  // PRG/FRG signals (cross-family)
   EMOTIONAL_RECENCY_IMPACT: { supports: 'RISK_MODEL_DISTORTION', weakens: 'PROBABILITY_MISJUDGMENT' },
   ABSTRACT_VS_EMBODIED_RISK_JUDGMENT: { supports: 'RISK_MODEL_DISTORTION', weakens: 'PROBABILITY_MISJUDGMENT' },
   PROBABILISTIC_LANGUAGE_USAGE: { supports: 'PROBABILITY_MISJUDGMENT', weakens: 'RISK_MODEL_DISTORTION' },
@@ -81,113 +112,58 @@ var SIGNAL_BLIND_SPOT_MAP = Object.freeze({
 })
 
 // ═══════════════════════════════════════════════════════════════
-// NECESSARY CONDITION EVALUATION
+// NECESSARY CONDITION EVALUATION (policy-driven)
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Evaluates necessary conditions for a candidate blind spot.
- * Each condition is checked against active secondary signals.
- *
- * Returns { met: boolean, missing: Array<number>, checks: Array }
- */
 function evaluateNecessaryConditions(candidateId, secondarySignals) {
-  var boundary = BLIND_SPOT_BOUNDARIES[candidateId]
-  if (!boundary) return { met: false, missing: [0, 1, 2], checks: [] }
+  var signalMap = {}
+  secondarySignals.forEach(function (s) { signalMap[s.id] = s })
 
-  var conditions = boundary.necessaryConditions
-  var signalMap = buildSignalMap(secondarySignals)
+  var conditions = getConditionEvidenceSignalsBatch(candidateId)
   var checks = []
-  var missingIndices = []
+  var metCount = 0
 
   conditions.forEach(function (cond, i) {
-    var check = checkNecessaryCondition(candidateId, i, signalMap)
-    checks.push(check)
-    if (!check.met) missingIndices.push(i)
+    var met = cond.every(function (criterion) {
+      var sig = signalMap[criterion.signalId]
+      if (!sig) return false
+      if (sig.state !== criterion.state) return false
+      if (criterion.minScore && (sig.score || 0) < criterion.minScore) return false
+      return true
+    })
+    checks.push({ met: met, conditionIndex: i, evidenceIds: met ? [cond[0].signalId] : [] })
+    if (met) metCount++
   })
 
-  var metCount = conditions.length - missingIndices.length
+  // Apply policy
+  var policy = getPolicy(candidateId) || { operator: 'AT_LEAST_N', minimum: 2 }
+  var eligible = false
+
+  if (policy.operator === 'ALL_OF') {
+    eligible = metCount === conditions.length
+  } else if (policy.operator === 'AT_LEAST_N') {
+    eligible = metCount >= (policy.minimum || 2)
+  }
+
+  var missingIndices = []
+  checks.forEach(function (c) { if (!c.met) missingIndices.push(c.conditionIndex) })
 
   return {
-    met: metCount >= 1,
+    met: eligible,
     missing: missingIndices,
     checks: checks,
     total: conditions.length,
     metCount: metCount,
+    policy: policy,
   }
 }
 
-function checkNecessaryCondition(candidateId, index, signalMap) {
-  // Map condition index + candidate to specific secondary signal criteria
-  var criteria = getNecessaryConditionCriteria(candidateId, index)
-  var evidenceIds = []
-
-  var met = criteria.every(function (c) {
-    var sig = signalMap[c.signalId]
-    if (!sig) return false
-    if (sig.state !== 'ACTIVE') return false
-    if (c.minScore && (sig.score || 0) < c.minScore) return false
-    evidenceIds.push(c.signalId)
-    return true
-  })
-
-  return { met: met, conditionIndex: index, evidenceIds: evidenceIds, description: criteria.map(function (c) { return c.signalId }).join(',') }
-}
-
-/**
- * Maps each candidate's necessary condition index to required secondary signal states.
- */
-function getNecessaryConditionCriteria(candidateId, index) {
-  var criteria = {
-    DECISION_INERTIA: [
-      [{ signalId: 'WAITING_DURATION_PATTERN', minScore: 0 }],
-      [{ signalId: 'WAITING_DURATION_PATTERN', minScore: 40 }],
-      [{ signalId: 'WAITING_DURATION_PATTERN', minScore: 50 }],
-    ],
-    FEEDBACK_LOOP_GAP: [
-      [{ signalId: 'MINIMUM_STEP_EXECUTION', minScore: 0 }],
-      [{ signalId: 'POST_ACTION_REVIEW_HABIT', minScore: 0 }],
-      [{ signalId: 'DECISION_TO_ACTION_LATENCY', minScore: 0 }],
-    ],
-    LEVERAGE_MODEL_GAP: [
-      [{ signalId: 'OUTPUT_DECOUPLING_AWARENESS', minScore: 0 }],
-      [{ signalId: 'EFFORT_VS_MECHANISM_FRAMING', minScore: 0 }],
-      [{ signalId: 'OUTPUT_DECOUPLING_AWARENESS', minScore: 40 }],
-    ],
-    TIME_HORIZON_TRAP: [
-      [{ signalId: 'DIRECTION_SWITCHING_FREQUENCY', minScore: 0 }],
-      [{ signalId: 'LONG_TERM_COMPOUNDING_AWARENESS', minScore: 0 }],
-      [{ signalId: 'DIRECTION_SWITCHING_FREQUENCY', minScore: 40 }],
-    ],
-    OPPORTUNITY_BLINDNESS: [
-      [{ signalId: 'INFORMATION_SOURCE_DIVERSITY', minScore: 0 }],
-      [{ signalId: 'NON_DOMAIN_PATH_AWARENESS', minScore: 0 }],
-      [{ signalId: 'SERENDIPITOUS_PATH_DISCOVERY', minScore: 0 }],
-    ],
-    RISK_MODEL_DISTORTION: [
-      [{ signalId: 'EMOTIONAL_RECENCY_IMPACT', minScore: 0 }],
-      [{ signalId: 'ABSTRACT_VS_EMBODIED_RISK_JUDGMENT', minScore: 0 }],
-      [{ signalId: 'EMOTIONAL_RECENCY_IMPACT', minScore: 40 }],
-    ],
-    PROBABILITY_MISJUDGMENT: [
-      [{ signalId: 'PROBABILISTIC_LANGUAGE_USAGE', minScore: 0 }],
-      [{ signalId: 'LUCK_VS_SKILL_ATTRIBUTION', minScore: 0 }],
-      [{ signalId: 'FEEDBACK_CALIBRATION_RATE', minScore: 0 }],
-    ],
-    IDENTITY_CONSTRAINT: [
-      [{ signalId: 'IDENTITY_BASED_EXCLUSION', minScore: 0 }],
-      [{ signalId: 'CROSS_IDENTITY_ATTEMPT_HISTORY', minScore: 0 }],
-      [{ signalId: 'SELF_ASSESSMENT_ASYMMETRY', minScore: 0 }],
-    ],
-    SYSTEM_THINKING_GAP: [
-      [{ signalId: 'FEEDBACK_LOOP_CONCEPT_AWARENESS', minScore: 0 }],
-      [{ signalId: 'LINEARTY_VS_COMPLEXITY_DEFAULT', minScore: 0 }],
-      [{ signalId: 'CROSS_DOMAIN_FEEDBACK_THINKING', minScore: 0 }],
-    ],
+function getConditionEvidenceSignalsBatch(candidateId) {
+  var results = []
+  for (var i = 0; i < 3; i++) {
+    results.push(getConditionEvidenceSignals(candidateId, i))
   }
-
-  var candidateCriteria = criteria[candidateId]
-  if (!candidateCriteria || index >= candidateCriteria.length) return []
-  return candidateCriteria[index]
+  return results
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -195,9 +171,9 @@ function getNecessaryConditionCriteria(candidateId, index) {
 // ═══════════════════════════════════════════════════════════════
 
 function evaluateDisqualifiers(candidateId, secondarySignals) {
-  var signalMap = buildSignalMap(secondarySignals)
+  var signalMap = {}
+  secondarySignals.forEach(function (s) { signalMap[s.id] = s })
 
-  // Disqualifier criteria: signal × state → disqualification
   var disqualifierCriteria = {
     DECISION_INERTIA: [
       { signalId: 'MINIMUM_STEP_EXECUTION', state: 'ACTIVE', reason: '正在进行多方向实验' },
@@ -249,24 +225,16 @@ function evaluateDisqualifiers(candidateId, secondarySignals) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CONTRADICTION EVALUATION
+// CONTRADICTION (provenance-aware)
 // ═══════════════════════════════════════════════════════════════
 
 function evaluateContradiction(candidateId, secondarySignals) {
-  var signals = secondarySignals.filter(function (s) {
-    if (s.state !== 'SUPPRESSED') return false
-    var map = SIGNAL_BLIND_SPOT_MAP[s.id]
-    if (!map) return false
-    return map.weakens === candidateId || map.supports === candidateId
-  })
-
   var contradictingSignals = secondarySignals.filter(function (s) {
     var map = SIGNAL_BLIND_SPOT_MAP[s.id]
     if (!map) return false
     return map.weakens === candidateId && s.state === 'ACTIVE'
   })
 
-  // Also: suppressed signals that support this candidate count as contradiction
   var suppressedSupport = secondarySignals.filter(function (s) {
     var map = SIGNAL_BLIND_SPOT_MAP[s.id]
     if (!map) return false
@@ -274,19 +242,21 @@ function evaluateContradiction(candidateId, secondarySignals) {
   })
 
   var allContradict = contradictingSignals.concat(suppressedSupport)
-  var independentCount = countIndependentSignals(allContradict)
+
+  // Provenance-aware: one origin → one contradiction penalty
+  var agg = aggregateContradictionByOrigin(allContradict)
 
   return {
-    hasContradiction: allContradict.length > 0,
-    count: allContradict.length,
-    independentCount: independentCount,
+    hasContradiction: agg.totalCount > 0,
+    totalCount: agg.totalCount,
+    independentCount: agg.independentCount,
     evidenceIds: allContradict.map(function (s) { return s.id }),
-    strength: independentCount >= 2 ? 'STRONG' : (allContradict.length > 0 ? 'MODERATE' : 'NONE'),
+    strength: agg.independentCount >= 2 ? 'STRONG' : (agg.totalCount > 0 ? 'MODERATE' : 'NONE'),
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// DIFFERENTIATOR EVALUATION
+// DIFFERENTIATORS (provenance-aware)
 // ═══════════════════════════════════════════════════════════════
 
 function evaluateDifferentiators(candidateId, secondarySignals) {
@@ -297,31 +267,31 @@ function evaluateDifferentiators(candidateId, secondarySignals) {
     return map.supports === candidateId
   })
 
-  var independentCount = countIndependentSignals(supporting)
-  var totalScore = supporting.reduce(function (sum, s) { return sum + (s.score || 50) }, 0)
+  // Provenance-aware: per-origin strongest contribution
+  var agg = aggregateByOrigin(supporting)
 
   return {
     count: supporting.length,
-    independentCount: independentCount,
+    independentCount: agg.independentCount,
     evidenceIds: supporting.map(function (s) { return s.id }),
-    totalScore: totalScore,
-    avgScore: supporting.length > 0 ? Math.round(totalScore / supporting.length) : 0,
+    totalStrength: agg.totalStrength,
+    avgStrength: agg.avgStrength,
   }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SUPPORT STRENGTH
+// SUPPORT STRENGTH (provenance-aware)
 // ═══════════════════════════════════════════════════════════════
 
-function calculateSupportStrength(necessary, differentiators, contradiction, allSecondarySignals) {
+function calculateSupportStrength(necessary, differentiators, contradiction) {
   if (!necessary.met) return 0
 
-  var diffScore = differentiators.avgScore
-  var diffCountBonus = Math.min(differentiators.independentCount, 3) * 10
-  var necessaryBonus = necessary.metCount * 10
-  var contradictionPenalty = contradiction.independentCount * 20
+  var diffStrength = differentiators.avgStrength
+  var independenceBonus = Math.min(differentiators.independentCount, 3) * 10
+  var necessaryBonus = necessary.metCount * 5
+  var contradictionPenalty = contradiction.independentCount * 15
 
-  var raw = diffScore + diffCountBonus + necessaryBonus - contradictionPenalty
+  var raw = diffStrength + independenceBonus + necessaryBonus - contradictionPenalty
   return Math.max(0, Math.min(100, Math.round(raw)))
 }
 
@@ -332,9 +302,11 @@ function calculateSupportStrength(necessary, differentiators, contradiction, all
 function calculateCandidateConfidence(necessary, differentiators, contradiction) {
   if (!necessary.met) return 0
 
-  var necessaryConf = Math.min(necessary.metCount / necessary.total, 1) * 0.4
+  var necessaryConf = necessary.policy.operator === 'ALL_OF'
+    ? (necessary.metCount === necessary.total ? 0.4 : 0.2)
+    : Math.min(necessary.metCount / (necessary.policy.minimum || 2), 1) * 0.4
   var diffConf = Math.min(differentiators.independentCount / 3, 1) * 0.4
-  var contraConf = contradiction.hasContradiction ? -0.2 : 0.1
+  var contraConf = contradiction.independentCount > 0 ? -0.2 : 0.1
 
   return Math.max(0, Math.min(1, Math.round((necessaryConf + diffConf + contraConf) * 100) / 100))
 }
@@ -345,24 +317,10 @@ function calculateCandidateConfidence(necessary, differentiators, contradiction)
 
 function detectCandidateAmbiguity(eligible) {
   if (eligible.length < 2) return { ambiguous: false, rawGap: 0 }
-
-  var top = eligible[0]
-  var second = eligible[1]
+  var top = eligible[0], second = eligible[1]
   var rawGap = Math.round((top.supportStrength - second.supportStrength) * 100) / 100
-
   var ambiguous = rawGap < 10 || (rawGap < 20 && top.supportStrength < 40)
-
   return { ambiguous: ambiguous, rawGap: rawGap }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════
-
-function buildSignalMap(secondarySignals) {
-  var map = {}
-  secondarySignals.forEach(function (s) { map[s.id] = s })
-  return map
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -375,22 +333,13 @@ function inferWithinFamilyBlindSpot(input) {
   var secondarySignals = input.secondarySignals || []
 
   var family = getFamily(familyId)
-  if (!family) {
-    return {
-      family: familyId,
-      primaryBlindSpot: null,
-      alternateBlindSpot: null,
-      candidateStates: [],
-      ambiguous: true,
-      rawGap: 0,
-      confidence: 0,
-      reasoningTrace: 'Unknown family: ' + familyId,
-    }
+  if (!family) return {
+    family: familyId, primaryBlindSpot: null, alternateBlindSpot: null,
+    candidateStates: [], ambiguous: true, rawGap: 0, confidence: 0,
+    reasoningTrace: 'Unknown family: ' + familyId,
   }
 
   var candidates = family.candidates
-
-  // ── Evaluate each candidate through boundary pipeline ──
 
   var candidateStates = candidates.map(function (candidateId) {
     var necessary = evaluateNecessaryConditions(candidateId, secondarySignals)
@@ -398,7 +347,6 @@ function inferWithinFamilyBlindSpot(input) {
     var contradiction = evaluateContradiction(candidateId, secondarySignals)
     var differentiators = evaluateDifferentiators(candidateId, secondarySignals)
 
-    // Determine eligibility
     var eligibility
     if (disqualifier.disqualified) {
       eligibility = ELIGIBILITY.DISQUALIFIED
@@ -408,22 +356,19 @@ function inferWithinFamilyBlindSpot(input) {
       eligibility = ELIGIBILITY.ELIGIBLE
     }
 
-    var supportStrength = calculateSupportStrength(necessary, differentiators, contradiction, secondarySignals)
+    var supportStrength = calculateSupportStrength(necessary, differentiators, contradiction)
     var confidence = calculateCandidateConfidence(necessary, differentiators, contradiction)
 
     var missingEvidenceNeeded = []
     if (!necessary.met) {
       necessary.missing.forEach(function (i) {
-        missingEvidenceNeeded.push('Missing necessary condition ' + (i + 1))
+        missingEvidenceNeeded.push('Missing necessary condition ' + (i + 1) + ' (policy: ' + necessary.policy.operator + ')')
       })
     }
 
     var ambiguityReasons = []
     if (eligibility === ELIGIBILITY.ELIGIBLE && contradiction.independentCount >= 1) {
-      ambiguityReasons.push('Contradiction present: ' + contradiction.count + ' items')
-    }
-    if (eligibility === ELIGIBILITY.ELIGIBLE && differentiators.independentCount < 2) {
-      ambiguityReasons.push('Few independent differentiators: ' + differentiators.independentCount)
+      ambiguityReasons.push('Contradiction: ' + contradiction.independentCount + ' independent origins')
     }
 
     return {
@@ -433,21 +378,20 @@ function inferWithinFamilyBlindSpot(input) {
       confidence: confidence,
       necessaryConditionsMet: necessary.metCount,
       necessaryConditionsMissing: necessary.missing.slice(),
+      necessaryPolicy: necessary.policy,
       differentiatingEvidenceIds: differentiators.evidenceIds,
       contradictingEvidenceIds: contradiction.evidenceIds,
       disqualifyingEvidenceIds: disqualifier.evidenceIds,
       ambiguityReasons: ambiguityReasons,
       missingEvidenceNeeded: missingEvidenceNeeded,
       trace: {
-        necessary: { met: necessary.met, metCount: necessary.metCount, total: necessary.total },
+        necessary: { met: necessary.met, metCount: necessary.metCount, total: necessary.total, policy: necessary.policy },
         disqualifier: { disqualified: disqualifier.disqualified },
-        contradiction: { count: contradiction.count, independentCount: contradiction.independentCount, strength: contradiction.strength },
-        differentiators: { count: differentiators.count, independentCount: differentiators.independentCount },
+        contradiction: { totalCount: contradiction.totalCount, independentCount: contradiction.independentCount, strength: contradiction.strength },
+        differentiators: { count: differentiators.count, independentCount: differentiators.independentCount, avgStrength: differentiators.avgStrength },
       },
     }
   })
-
-  // ── Rank eligible candidates ──
 
   var eligible = candidateStates
     .filter(function (c) { return c.eligibility === ELIGIBILITY.ELIGIBLE })
@@ -457,33 +401,19 @@ function inferWithinFamilyBlindSpot(input) {
   if (eligible.length === 0) ambiguity.ambiguous = true
 
   var primaryBlindSpot = eligible.length > 0 ? eligible[0].id : null
-  var alternateBlindSpot = null
-  if (eligible.length >= 2) {
-    alternateBlindSpot = eligible[1].id
-  } else if (eligible.length === 1) {
-    // Look for best alternate among non-eligible
-    var nonEligible = candidateStates
-      .filter(function (c) { return c.eligibility !== ELIGIBILITY.ELIGIBLE })
-      .sort(function (a, b) { return b.supportStrength - a.supportStrength })
-    if (nonEligible.length > 0) alternateBlindSpot = nonEligible[0].id
-  }
-
-  // ── Build reasoning trace ──
+  var alternateBlindSpot = eligible.length >= 2 ? eligible[1].id : null
 
   var traceLines = []
   candidateStates.forEach(function (c) {
     if (c.eligibility === ELIGIBILITY.DISQUALIFIED) {
-      traceLines.push(c.id + ': DISQUALIFIED — ' + (c.disqualifyingEvidenceIds.join(', ') || 'disqualifier triggered'))
+      traceLines.push(c.id + ': DISQUALIFIED — ' + (c.disqualifyingEvidenceIds.join(',') || 'triggered'))
     } else if (c.eligibility === ELIGIBILITY.INSUFFICIENT) {
-      traceLines.push(c.id + ': INSUFFICIENT — met ' + c.necessaryConditionsMet + '/' + c.trace.necessary.total + ' conditions')
+      traceLines.push(c.id + ': INSUFFICIENT — ' + c.necessaryConditionsMet + '/' + c.trace.necessary.total + ' necessary (policy: ' + c.necessaryPolicy.operator + ')')
     } else {
-      traceLines.push(c.id + ': ELIGIBLE — support=' + c.supportStrength + ' conf=' + c.confidence + ' diff=' + c.differentiatingEvidenceIds.length + ' contra=' + c.contradictingEvidenceIds.length)
+      traceLines.push(c.id + ': ELIGIBLE — support=' + c.supportStrength + ' diff_indep=' + c.trace.differentiators.independentCount)
     }
   })
-
-  if (eligible.length >= 2) {
-    traceLines.push('Ambiguity: gap=' + ambiguity.rawGap + ' ambiguous=' + ambiguity.ambiguous)
-  }
+  if (eligible.length >= 2) traceLines.push('Ambiguity: gap=' + ambiguity.rawGap + ' ambiguous=' + ambiguity.ambiguous)
 
   return {
     family: familyId,
@@ -497,16 +427,14 @@ function inferWithinFamilyBlindSpot(input) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════
-
 module.exports = {
   inferWithinFamilyBlindSpot,
   evaluateNecessaryConditions,
   evaluateDisqualifiers,
   evaluateContradiction,
   evaluateDifferentiators,
+  aggregateByOrigin,
+  aggregateContradictionByOrigin,
   ELIGIBILITY,
   SIGNAL_BLIND_SPOT_MAP,
 }

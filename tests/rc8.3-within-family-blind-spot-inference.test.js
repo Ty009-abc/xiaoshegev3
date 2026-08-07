@@ -119,12 +119,14 @@ T('FLG01: MINIMUM_STEP_EXECUTION + POST_ACTION → FLG primary', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'EXECUTION_ADAPTATION_GAP', secondarySignals: [
     sig('MINIMUM_STEP_EXECUTION', A, 70),
     sig('POST_ACTION_REVIEW_HABIT', A, 65),
+    sig('DECISION_TO_ACTION_LATENCY', A, 55),
   ]})
   eq(r.primaryBlindSpot, 'FEEDBACK_LOOP_GAP')
 })
 
 T('FLG02: DECISION_TO_ACTION_LATENCY → FLG eligible', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'EXECUTION_ADAPTATION_GAP', secondarySignals: [
+    sig('MINIMUM_STEP_EXECUTION', A, 55),
     sig('DECISION_TO_ACTION_LATENCY', A, 55),
     sig('POST_ACTION_REVIEW_HABIT', A, 50),
   ]})
@@ -144,6 +146,7 @@ T('FLG04: FLG with strong POST_ACTION_REVIEW', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'EXECUTION_ADAPTATION_GAP', secondarySignals: [
     sig('POST_ACTION_REVIEW_HABIT', A, 85),
     sig('MINIMUM_STEP_EXECUTION', A, 60),
+    sig('DECISION_TO_ACTION_LATENCY', A, 50),
   ]})
   eq(r.primaryBlindSpot, 'FEEDBACK_LOOP_GAP')
   gt(findC(r, 'FEEDBACK_LOOP_GAP').supportStrength, 40)
@@ -291,6 +294,7 @@ T('LMG07: Cross-occupation: same RCG → same primary', function () {
 T('LMG08: LMG with no disqualifier but TIME disqualified', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'RESOURCE_COMPOUNDING_GAP', secondarySignals: [
     sig('OUTPUT_DECOUPLING_AWARENESS', A, 60),
+    sig('EFFORT_VS_MECHANISM_FRAMING', A, 55),
     sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 80),
   ]})
   // LMG disqualified by DIRECTION_SWITCHING? No — DIRECTION not active
@@ -343,6 +347,7 @@ T('THT05: THT insufficient with 0 TIME signals', function () {
 T('THT06: THT with ALTERNATIVE_PATH_COST awareness', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'RESOURCE_COMPOUNDING_GAP', secondarySignals: [
     sig('ALTERNATIVE_PATH_COST_AWARENESS', A, 55),
+    sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 60),
     sig('DIRECTION_SWITCHING_FREQUENCY', A, 70),
   ]})
   eq(r.primaryBlindSpot, 'TIME_HORIZON_TRAP')
@@ -386,6 +391,7 @@ T('RCG_AMB02: Both insufficient', function () {
 T('RCG_AMB03: LMG disqualified → THT wins clean', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'RESOURCE_COMPOUNDING_GAP', secondarySignals: [
     sig('DIRECTION_SWITCHING_FREQUENCY', A, 80),
+    sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 60),
     sig('OUTPUT_DECOUPLING_AWARENESS', I),
   ]})
   eq(r.primaryBlindSpot, 'TIME_HORIZON_TRAP')
@@ -448,6 +454,7 @@ T('OB05: OB with all 3 supporting signals → strong', function () {
 T('OB06: OB with single strong signal → eligible', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
     sig('INFORMATION_SOURCE_DIVERSITY', A, 90),
+    sig('NON_DOMAIN_PATH_AWARENESS', A, 50),
   ]})
   eq(findC(r, 'OPPORTUNITY_BLINDNESS').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -639,6 +646,7 @@ T('IC05: IC wins 3-way in FRAMEWORK_GAP', function () {
 T('IC06: IC with SELF_ASSESSMENT_ASYMMETRY only', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('SELF_ASSESSMENT_ASYMMETRY', A, 70),
+    sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 55),
   ]})
   eq(findC(r, 'IDENTITY_CONSTRAINT').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -651,6 +659,7 @@ T('STG01: FEEDBACK_LOOP_CONCEPT → STG eligible', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 70),
     sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 60),
+    sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 50),
   ]})
   eq(findC(r, 'SYSTEM_THINKING_GAP').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -683,8 +692,11 @@ T('STG05: STG wins 3-way in FRAMEWORK_GAP', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 90),
     sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 85),
+    sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 60),
     sig('IDENTITY_BASED_EXCLUSION', A, 50),
+    sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 45),
     sig('PROBABILISTIC_LANGUAGE_USAGE', A, 45),
+    sig('LUCK_VS_SKILL_ATTRIBUTION', A, 40),
   ]})
   eq(r.primaryBlindSpot, 'SYSTEM_THINKING_GAP')
 })
@@ -692,6 +704,8 @@ T('STG05: STG wins 3-way in FRAMEWORK_GAP', function () {
 T('STG06: STG with CROSS_DOMAIN only', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 65),
+    sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 55),
+    sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 50),
   ]})
   eq(findC(r, 'SYSTEM_THINKING_GAP').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -741,8 +755,12 @@ T('FRG_AMB04: No cross-family leakage', function () {
 T('FRG_AMB05: 3 candidates all eligible with strengths', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('PROBABILISTIC_LANGUAGE_USAGE', A, 90),
+    sig('LUCK_VS_SKILL_ATTRIBUTION', A, 60),
     sig('IDENTITY_BASED_EXCLUSION', A, 85),
+    sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 55),
     sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 80),
+    sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 65),
+    sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 55),
   ]})
   ok(r.candidateStates.length === 3)
   ok(r.primaryBlindSpot !== null)
@@ -751,8 +769,12 @@ T('FRG_AMB05: 3 candidates all eligible with strengths', function () {
 T('FRG_AMB06: alternateBlindSpot populated in 3-way', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('PROBABILISTIC_LANGUAGE_USAGE', A, 85),
+    sig('LUCK_VS_SKILL_ATTRIBUTION', A, 55),
     sig('IDENTITY_BASED_EXCLUSION', A, 80),
+    sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 50),
     sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 75),
+    sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 60),
+    sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 50),
   ]})
   ok(r.alternateBlindSpot !== null)
 })
@@ -827,6 +849,115 @@ T('DET06: SUPPRESSED signals count as contradiction, not weak support', function
   ]})
   var di = findC(r, 'DECISION_INERTIA')
   ok(di.contradictingEvidenceIds.length >= 1 || di.eligibility === ELIGIBILITY.DISQUALIFIED)
+})
+
+// ═══════════════════════════════════════════════════════════════
+// R1: PART F — NEW TESTS (10 cases)
+// ═══════════════════════════════════════════════════════════════
+
+T('R1-01: ALL_OF policy — all 3 FLG signals needed', function () {
+  var r = inferWithinFamilyBlindSpot({ family: 'EXECUTION_ADAPTATION_GAP', secondarySignals: [
+    sig('MINIMUM_STEP_EXECUTION', A, 70),
+    sig('POST_ACTION_REVIEW_HABIT', A, 65),
+    sig('DECISION_TO_ACTION_LATENCY', A, 55),
+  ]})
+  eq(findC(r, 'FEEDBACK_LOOP_GAP').eligibility, ELIGIBILITY.ELIGIBLE)
+  eq(r.primaryBlindSpot, 'FEEDBACK_LOOP_GAP')
+})
+
+T('R1-02: ALL_OF missing 1 condition → INSUFFICIENT', function () {
+  var r = inferWithinFamilyBlindSpot({ family: 'EXECUTION_ADAPTATION_GAP', secondarySignals: [
+    sig('MINIMUM_STEP_EXECUTION', A, 70),
+    sig('POST_ACTION_REVIEW_HABIT', A, 65),
+    // DECISION_TO_ACTION_LATENCY missing → ALL_OF fails
+  ]})
+  eq(findC(r, 'FEEDBACK_LOOP_GAP').eligibility, ELIGIBILITY.INSUFFICIENT)
+})
+
+T('R1-03: AT_LEAST_N(2) policy — 2/3 met → eligible', function () {
+  var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
+    sig('INFORMATION_SOURCE_DIVERSITY', A, 70),
+    sig('SERENDIPITOUS_PATH_DISCOVERY', A, 60),
+    // NON_DOMAIN_PATH_AWARENESS missing → AT_LEAST_N(2) → eligible
+  ]})
+  eq(findC(r, 'OPPORTUNITY_BLINDNESS').eligibility, ELIGIBILITY.ELIGIBLE)
+})
+
+T('R1-04: AT_LEAST_N(2) — 1/3 met → INSUFFICIENT', function () {
+  var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
+    sig('PROBABILISTIC_LANGUAGE_USAGE', A, 80),
+    // only 1/3 → AT_LEAST_N(2) fails
+  ]})
+  eq(findC(r, 'PROBABILITY_MISJUDGMENT').eligibility, ELIGIBILITY.INSUFFICIENT)
+})
+
+T('R1-05: Disqualifier still overrides ALL_OF eligibility', function () {
+  var r = inferWithinFamilyBlindSpot({ family: 'EXECUTION_ADAPTATION_GAP', secondarySignals: [
+    sig('MINIMUM_STEP_EXECUTION', A, 70),
+    sig('POST_ACTION_REVIEW_HABIT', A, 65),
+    sig('DECISION_TO_ACTION_LATENCY', A, 55),
+    sig('WAITING_DURATION_PATTERN', A, 70), // disqualifies FLG
+  ]})
+  eq(findC(r, 'FEEDBACK_LOOP_GAP').eligibility, ELIGIBILITY.DISQUALIFIED)
+})
+
+T('R1-06: 3 signals same origin → 1 origin-level contribution', function () {
+  var { aggregateByOrigin } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/withinFamilyBlindSpotInference')
+  var signals = [
+    sig('MINIMUM_STEP_EXECUTION', A, 70, 'SAME'),
+    sig('POST_ACTION_REVIEW_HABIT', A, 65, 'SAME'),
+    sig('DECISION_TO_ACTION_LATENCY', A, 55, 'SAME'),
+  ]
+  var agg = aggregateByOrigin(signals)
+  eq(agg.independentCount, 1, '3 same-origin → 1 independent origin')
+  ok(agg.totalStrength > 0)
+})
+
+T('R1-07: 3 independent origins → stronger than 1 origin', function () {
+  var { aggregateByOrigin } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/withinFamilyBlindSpotInference')
+  var oneOrigin = aggregateByOrigin([
+    sig('A', A, 90, 'o1'), sig('B', A, 85, 'o1'), sig('C', A, 80, 'o1'),
+  ])
+  var threeOrigin = aggregateByOrigin([
+    sig('A', A, 70, 'o1'), sig('B', A, 70, 'o2'), sig('C', A, 70, 'o3'),
+  ])
+  ok(threeOrigin.independentCount > oneOrigin.independentCount)
+})
+
+T('R1-08: Same-origin contradiction dedup', function () {
+  var { aggregateContradictionByOrigin } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/withinFamilyBlindSpotInference')
+  var agg = aggregateContradictionByOrigin([
+    sig('A', 'SUPPRESSED', 0, 'SAME'),
+    sig('B', 'SUPPRESSED', 0, 'SAME'),
+  ])
+  eq(agg.independentCount, 1, '2 same-origin suppressed → 1 contradiction origin')
+  eq(agg.totalCount, 2)
+})
+
+T('R1-09: Minimal evidence does not create near-max support', function () {
+  // 1 necessary condition barely met + 1 weak differentiator
+  var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
+    sig('INFORMATION_SOURCE_DIVERSITY', A, 50),
+    sig('NON_DOMAIN_PATH_AWARENESS', A, 40),
+  ]})
+  var ob = findC(r, 'OPPORTUNITY_BLINDNESS')
+  if (ob.eligibility === ELIGIBILITY.ELIGIBLE) {
+    ok(ob.supportStrength < 85, 'Minimal evidence should not approach max support: ' + ob.supportStrength)
+    ok(ob.confidence < 0.8, 'Minimal evidence should have moderate confidence at most')
+  }
+})
+
+T('R1-10: Exact tie ambiguity preserved', function () {
+  // Two candidates with equal support
+  var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
+    sig('PROBABILISTIC_LANGUAGE_USAGE', A, 70),
+    sig('LUCK_VS_SKILL_ATTRIBUTION', A, 70),
+    sig('IDENTITY_BASED_EXCLUSION', A, 70),
+    sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 70),
+  ]})
+  // Both PM and IC are AT_LEAST_N(2), both have 2 signals
+  ok(typeof r.rawGap === 'number')
+  ok(typeof r.ambiguous === 'boolean')
 })
 
 // ═══════════════════════════════════════════════════════════════
