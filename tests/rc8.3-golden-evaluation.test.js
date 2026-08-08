@@ -329,44 +329,50 @@ function generateReport(results) {
     contamination: 0, // checked via audit
   }
 
-  // ── TABLE 10: Cross-Occupation Consistency ──
-  // Group by same cognitive evidence
+  // ── TABLE 10: Cross-Occupation Consistency (grouped by validationGroup) ──
   var crossOccResults = results.filter(function (r) { return r.golden.validRole === 'CROSS_OCCUPATION' })
   var crossGroups = {}
   crossOccResults.forEach(function (r) {
-    var key = JSON.stringify(r.golden.expectedFamily) + '||' + JSON.stringify(r.golden.expectedBlindSpot)
-    if (!crossGroups[key]) crossGroups[key] = []
-    crossGroups[key].push(r)
+    // Use goldenMeta.validationGroup from the golden case for authoritative grouping
+    var gc = GOLDEN_CASES.find(function (g) { return g.id === r.caseId })
+    var vg = (gc && gc.goldenMeta && gc.goldenMeta.validationGroup) || r.caseId
+    if (!crossGroups[vg]) crossGroups[vg] = []
+    crossGroups[vg].push(r)
   })
-  var crossGroupsList = Object.keys(crossGroups)
+  var crossGroupsList = Object.keys(crossGroups).sort()
   var consistentGroups = 0, inconsistentGroups = 0
   crossGroupsList.forEach(function (key) {
     var group = crossGroups[key]
     var families = new Set(group.map(function (g) { return g.actual.selectedFamily }))
     var bses = new Set(group.map(function (g) { return g.actual.primaryBlindSpot }))
-    if (families.size === 1 && bses.size === 1) consistentGroups++
+    var sts = new Set(group.map(function (g) { return g.actual.inferenceState }))
+    if (families.size === 1 && bses.size === 1 && sts.size === 1) consistentGroups++
     else inconsistentGroups++
   })
   report.tables.crossOccupation = { groups: crossGroupsList.length, consistent: consistentGroups, inconsistent: inconsistentGroups }
 
-  // ── TABLE 11: Same-Occupation Differentiation ──
+  // ── TABLE 11: Same-Occupation Differentiation (grouped by validationGroup) ──
   var sameOccResults = results.filter(function (r) { return r.golden.validRole === 'SAME_OCCUPATION' })
   var sameOccGroups = {}
   sameOccResults.forEach(function (r) {
-    // Group by prefix G-SAME-XXX
-    var prefix = r.caseId.replace(/-[AB]$/, '')
-    if (!sameOccGroups[prefix]) sameOccGroups[prefix] = []
-    sameOccGroups[prefix].push(r)
+    // Use goldenMeta.validationGroup from the golden case for authoritative grouping
+    var gc = GOLDEN_CASES.find(function (g) { return g.id === r.caseId })
+    var vg = (gc && gc.goldenMeta && gc.goldenMeta.validationGroup) || r.caseId
+    if (!sameOccGroups[vg]) sameOccGroups[vg] = []
+    sameOccGroups[vg].push(r)
   })
-  var sameGroupList = Object.keys(sameOccGroups)
-  var diffedGroups = 0, collapsedGroups = 0
+  var sameGroupList = Object.keys(sameOccGroups).sort()
+  var diffedGroups = 0, collapsedGroups = 0, allMatchGroups = 0
   sameGroupList.forEach(function (key) {
     var group = sameOccGroups[key]
     var bses = new Set(group.map(function (g) { return g.actual.primaryBlindSpot }))
-    if (bses.size > 1) diffedGroups++
+    var sts = new Set(group.map(function (g) { return g.actual.inferenceState }))
+    var allMatch = group.every(function (g) { return g.evaluation.exactMatch })
+    if (bses.size > 1 || sts.size > 1) diffedGroups++
     else collapsedGroups++
+    if (allMatch) allMatchGroups++
   })
-  report.tables.sameOccupation = { groups: sameGroupList.length, differentiated: diffedGroups, collapsed: collapsedGroups }
+  report.tables.sameOccupation = { groups: sameGroupList.length, groupedCases: sameOccResults.length, differentiated: diffedGroups, collapsed: collapsedGroups, allExactMatch: allMatchGroups === sameGroupList.length }
 
   // ── TABLE 12: Disputed Golden Queue ──
   var disputedCases = results.filter(function (r) { return r.golden.reviewStatus === 'DISPUTED' })
@@ -476,7 +482,7 @@ t.highConfidenceFailures.forEach(function (hf) {
 console.log('\nTABLE 8 — External Constraint: ' + t.externalConstraint.total + ' cases, ' + t.externalConstraint.falsePositiveCount + ' false positives, failing: ' + t.externalConstraint.failingIds.join(','))
 console.log('TABLE 9 — Legacy Failure: ' + t.legacyFailure.total + ' cases, ' + t.legacyFailure.regressions + ' regressions')
 console.log('TABLE 10 — Cross-Occupation: ' + t.crossOccupation.groups + ' groups, ' + t.crossOccupation.consistent + ' consistent, ' + t.crossOccupation.inconsistent + ' inconsistent')
-console.log('TABLE 11 — Same-Occupation: ' + t.sameOccupation.groups + ' groups, ' + t.sameOccupation.differentiated + ' differentiated, ' + t.sameOccupation.collapsed + ' collapsed')
+console.log('TABLE 11 — Same-Occupation: ' + t.sameOccupation.groups + ' groups / ' + t.sameOccupation.groupedCases + ' cases, all exact = ' + t.sameOccupation.allExactMatch + ', differentiated = ' + t.sameOccupation.differentiated + ', collapsed = ' + t.sameOccupation.collapsed)
 
 console.log('\nAUDIT — Hierarchy:', audit.hierarchyViolations, 'Disqualifier:', audit.disqualifierViolations, 'ConfidenceInflation:', audit.confidenceInflation, 'Orphan:', audit.orphanEvidence)
 console.log('DETERMINISM — ' + determinism.runs + ' runs, ' + determinism.violations + ' violations')
