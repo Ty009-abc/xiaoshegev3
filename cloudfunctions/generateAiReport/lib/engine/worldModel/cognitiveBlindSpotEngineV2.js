@@ -228,6 +228,7 @@ function inferBlindSpot(worldModel, signalResult) {
 
   return {
     id: primary.id,
+    primary: primary.id,
     label: bsDef ? bsDef.label : primary.id,
     confidence: confidence,
     mechanism: bsDef ? bsDef.mechanism : '',
@@ -270,6 +271,7 @@ function getRelevantDimension(bs, worldModel) {
 function buildEmptyBlindSpot() {
   return {
     id: 'FEEDBACK_LOOP_GAP',
+    primary: 'FEEDBACK_LOOP_GAP',
     label: '反馈回路断裂',
     confidence: 0.1,
     mechanism: 'Insufficient data for confident blind spot diagnosis.',

@@ -82,6 +82,7 @@ function runWorldModelPipeline(rawAnswers, options) {
     },
     cognitiveBlindSpot: {
       id: blindSpot.id,
+      primary: blindSpot.primary,
       label: blindSpot.label,
       confidence: blindSpot.confidence,
       mechanism: blindSpot.mechanism,
@@ -97,6 +98,7 @@ function runWorldModelPipeline(rawAnswers, options) {
     },
     worldStrategy: {
       id: strategy.id,
+      primary: strategy.primary,
       label: strategy.label,
       targetBlindSpot: strategy.targetBlindSpot,
       mechanism: strategy.mechanism,

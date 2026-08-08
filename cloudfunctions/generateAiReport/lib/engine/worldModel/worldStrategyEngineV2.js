@@ -61,6 +61,7 @@ function selectStrategy(blindSpot, worldModel, signalResult) {
   // Build the strategy with the blind spot diagnosis
   return {
     id: stratDef.id,
+    primary: stratDef.id,
     label: stratDef.label,
     targetBlindSpot: blindSpot.id,
     mechanism: stratDef.mechanism,
@@ -84,6 +85,7 @@ function selectStrategy(blindSpot, worldModel, signalResult) {
 function buildDefaultStrategy() {
   return {
     id: 'BUILD_FEEDBACK_LOOP',
+    primary: 'BUILD_FEEDBACK_LOOP',
     label: '建立反馈回路',
     targetBlindSpot: 'FEEDBACK_LOOP_GAP',
     mechanism: '建立从行动到学习的最短路径，用真实世界反馈校准认知模型。',
