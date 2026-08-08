@@ -134,13 +134,37 @@ function inferHierarchicalBlindSpot(input) {
     }
   }
 
-  // ── STEP 5: Determine inference state ──
+  // ── STEP 5: Determine inference state (R1: refined state machine) ──
 
   var inferenceState
   if (familyAmbiguous) {
     inferenceState = INFERENCE_STATE.AMBIGUOUS_FAMILY
   } else if (!primaryBlindSpot) {
-    inferenceState = INFERENCE_STATE.INSUFFICIENT_EVIDENCE
+    // Family established but no candidate selected → inspect WHY
+    var candidates = withinFamilyResult.candidateStates || []
+
+    var allDisqualified = candidates.length > 0 &&
+      candidates.every(function (c) { return c.eligibility === ELIGIBILITY.DISQUALIFIED })
+
+    var anyGuardBlocked = candidates.some(function (c) {
+      return c.externalConstraintTrace &&
+        c.externalConstraintTrace.guardState !== 'COGNITIVE_EVIDENCE_INDEPENDENT' &&
+        c.externalConstraintTrace.matchedConstraints &&
+        c.externalConstraintTrace.matchedConstraints.length > 0 &&
+        c.eligibility !== ELIGIBILITY.ELIGIBLE
+    })
+
+    if (allDisqualified) {
+      // All candidates DISQUALIFIED → no valid blind spot mechanism fits
+      inferenceState = INFERENCE_STATE.INSUFFICIENT_EVIDENCE
+    } else if (anyGuardBlocked) {
+      // Guard-driven insufficiency → external constraint explains evidence
+      inferenceState = INFERENCE_STATE.INSUFFICIENT_EVIDENCE
+    } else {
+      // NC-unresolved: family is clear, but necessary-condition evidence
+      // is incomplete → cognitive issue exists, cannot resolve which
+      inferenceState = INFERENCE_STATE.AMBIGUOUS_BLIND_SPOT
+    }
   } else if (blindSpotAmbiguous) {
     inferenceState = INFERENCE_STATE.AMBIGUOUS_BLIND_SPOT
   } else {
