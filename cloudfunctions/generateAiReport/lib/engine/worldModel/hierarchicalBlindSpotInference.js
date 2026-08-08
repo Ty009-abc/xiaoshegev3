@@ -83,6 +83,12 @@ function inferHierarchicalBlindSpot(input) {
         disqualifying: [],
         missing: familyResult.missingEvidenceNeeded || ['No family could be determined from available evidence'],
       },
+      missingEvidence: {
+        purpose: 'ESTABLISH_COGNITIVE_ISSUE',
+        items: buildNullFamilyItems(familyResult, secondarySignals),
+        candidateSpecific: {},
+        provenance: buildNullFamilyProvenance(secondarySignals),
+      },
       trace: {
         familyTrace: familyResult.trace,
         boundaryTrace: null,
@@ -291,6 +297,48 @@ function inferHierarchicalBlindSpot(input) {
 
     inferenceState: inferenceState,
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NULL-FAMILY MISSING EVIDENCE HELPERS (R1)
+// ═══════════════════════════════════════════════════════════════
+
+function buildNullFamilyItems(familyResult, secondarySignals) {
+  var items = []
+  var activeCount = secondarySignals.filter(function (s) { return s.state === 'ACTIVE' }).length
+  var insufficientCount = secondarySignals.filter(function (s) { return s.state === 'INSUFFICIENT_EVIDENCE' }).length
+  var suppressedCount = secondarySignals.filter(function (s) { return s.state === 'SUPPRESSED' }).length
+
+  if (activeCount === 0 && insufficientCount > 0) {
+    items.push('No active cognitive signals detected — all evidence is insufficient to establish a pattern')
+  } else if (activeCount === 0 && suppressedCount > 0) {
+    items.push('Only suppressed signals present — no active cognitive pattern detected')
+  } else if (activeCount === 0) {
+    items.push('No cognitive signal evidence available — cannot establish any cognitive mechanism')
+  } else if (familyResult.missingEvidenceNeeded && familyResult.missingEvidenceNeeded.length > 0) {
+    items = familyResult.missingEvidenceNeeded
+  } else {
+    items.push('Insufficient evidence to identify a cognitive family — need stronger signal patterns')
+    if (activeCount > 0) {
+      items.push(activeCount + ' active signal(s) detected but insufficient to distinguish a cognitive family')
+    }
+  }
+
+  // Use family trace info if available
+  if (familyResult.trace && familyResult.trace.totalActiveSignals !== undefined) {
+    if (familyResult.trace.totalActiveSignals === 0 && items.length === 0) {
+      items.push('Zero active signals — minimum evidence threshold not met')
+    }
+  }
+
+  return items
+}
+
+function buildNullFamilyProvenance(secondarySignals) {
+  return secondarySignals
+    .filter(function (s) { return s.state === 'ACTIVE' || s.state === 'SUPPRESSED' })
+    .map(function (s) { return s.id + ':' + s.state })
+    .slice(0, 10)
 }
 
 // ═══════════════════════════════════════════════════════════════

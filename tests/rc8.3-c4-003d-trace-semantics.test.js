@@ -224,6 +224,71 @@ T('T30: missingEvidence items non-empty for non-CLEAR states',function(){
   ok(amb.missingEvidence.items.length>0)
 })
 
+// ── R1: NULL-FAMILY CONTRACT TESTS ──
+
+T('R1-01: null family → missingEvidence present',function(){
+  var r=inferHierarchicalBlindSpot({secondarySignals:[]})
+  ok(r.missingEvidence)
+  eq(r.inferenceState,INS)
+})
+
+T('R1-02: null family purpose = ESTABLISH_COGNITIVE_ISSUE',function(){
+  var r=inferHierarchicalBlindSpot({secondarySignals:[]})
+  eq(r.missingEvidence.purpose,'ESTABLISH_COGNITIVE_ISSUE')
+})
+
+T('R1-03: null family candidateSpecific = {}',function(){
+  var r=inferHierarchicalBlindSpot({secondarySignals:[]})
+  ok(Array.isArray(Object.keys(r.missingEvidence.candidateSpecific))||typeof r.missingEvidence.candidateSpecific==='object')
+})
+
+T('R1-04: null family no Blind Spot recommendation',function(){
+  var r=inferHierarchicalBlindSpot({secondarySignals:[]})
+  eq(r.blindSpot.primary,null)
+  eq(r.family.primary,null)
+})
+
+T('R1-05: null family provenance valid',function(){
+  var r=inferHierarchicalBlindSpot({secondarySignals:[s('WAITING_DURATION_PATTERN',I),s('MINIMUM_STEP_EXECUTION',I)]})
+  ok(Array.isArray(r.missingEvidence.provenance))
+})
+
+T('R1-06: G-INS-002 trace explainable',function(){
+  var gc=GOLDEN_CASES.find(function(c){return c.id==='G-INS-002'})
+  var r=inferHierarchicalBlindSpot({secondarySignals:gc.inputProfile.signals})
+  ok(r.missingEvidence.items.length>0)
+  eq(r.missingEvidence.purpose,'ESTABLISH_COGNITIVE_ISSUE')
+})
+
+T('R1-07: G-INS-007 trace explainable',function(){
+  var gc=GOLDEN_CASES.find(function(c){return c.id==='G-INS-007'})
+  var r=inferHierarchicalBlindSpot({secondarySignals:gc.inputProfile.signals})
+  ok(r.missingEvidence.items.length>0)
+})
+
+T('R1-08: null family diagnosis unchanged',function(){
+  var r=inferHierarchicalBlindSpot({secondarySignals:[]})
+  eq(r.inferenceState,INS)
+  eq(r.family.primary,null)
+  eq(r.blindSpot.primary,null)
+  eq(r.family.confidence,0)
+  eq(r.blindSpot.confidence,0)
+})
+
+T('R1-09: deterministic null-family trace',function(){
+  var first=inferHierarchicalBlindSpot({secondarySignals:[]})
+  for(var i=0;i<50;i++){
+    var n=inferHierarchicalBlindSpot({secondarySignals:[]})
+    eq(JSON.stringify(n.missingEvidence),JSON.stringify(first.missingEvidence))
+  }
+})
+
+T('R1-10: no synthetic evidence IDs in null-family trace',function(){
+  var r=inferHierarchicalBlindSpot({secondarySignals:[]})
+  var json=JSON.stringify(r.missingEvidence)
+  notOk(json.indexOf('GENERATED')!==-1||json.indexOf('SYNTHETIC')!==-1||json.indexOf('UNKNOWN_ID')!==-1)
+})
+
 console.log('\n=== C4-003D Trace Semantics Tests ===')
 console.log('Total:',t,'| Passed:',p,'| Failed:',f)
 console.log(f===0?'ALL PASSED':'FAILURES: '+f)
