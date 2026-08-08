@@ -16,6 +16,7 @@
 var { BLIND_SPOT_BOUNDARIES } = require('./blindSpotBoundaryDefinitions')
 var { BLIND_SPOT_FAMILIES, getFamily } = require('./blindSpotFamilyDefinitions')
 var { getPolicy, getConditionEvidenceSignals } = require('./necessaryConditionPolicies')
+var { evaluateExternalGuards } = require('./externalConstraintGuardEvaluator')
 
 // ═══════════════════════════════════════════════════════════════
 // CANDIDATE ELIGIBILITY STATES
@@ -342,6 +343,9 @@ function inferWithinFamilyBlindSpot(input) {
   var candidates = family.candidates
 
   var candidateStates = candidates.map(function (candidateId) {
+    // ── C4-003A: External Constraint Guard (BEFORE cognitive evaluation) ──
+    var externalGuard = evaluateExternalGuards(candidateId, secondarySignals)
+
     var necessary = evaluateNecessaryConditions(candidateId, secondarySignals)
     var disqualifier = evaluateDisqualifiers(candidateId, secondarySignals)
     var contradiction = evaluateContradiction(candidateId, secondarySignals)
@@ -350,6 +354,12 @@ function inferWithinFamilyBlindSpot(input) {
     var eligibility
     if (disqualifier.disqualified) {
       eligibility = ELIGIBILITY.DISQUALIFIED
+    } else if (externalGuard.guardState === 'EXTERNAL_CONSTRAINT_PRESENT') {
+      eligibility = ELIGIBILITY.INSUFFICIENT
+    } else if (externalGuard.guardState === 'INSUFFICIENT_TO_DIAGNOSE') {
+      eligibility = ELIGIBILITY.INSUFFICIENT
+    } else if (externalGuard.guardState === 'FALSE_POSITIVE_RISK') {
+      eligibility = ELIGIBILITY.INSUFFICIENT
     } else if (!necessary.met) {
       eligibility = ELIGIBILITY.INSUFFICIENT
     } else {
@@ -384,9 +394,17 @@ function inferWithinFamilyBlindSpot(input) {
       disqualifyingEvidenceIds: disqualifier.evidenceIds,
       ambiguityReasons: ambiguityReasons,
       missingEvidenceNeeded: missingEvidenceNeeded,
+      externalConstraintTrace: {
+        guardState: externalGuard.guardState,
+        matchedConstraints: externalGuard.matchedConstraints.map(function (m) { return m.guardId }),
+        explanatoryCoverage: externalGuard.explanatoryCoverage,
+        independentCognitiveEvidence: externalGuard.independentCognitiveEvidence.map(function (s) { return s.id }),
+        reason: externalGuard.reason,
+      },
       trace: {
         necessary: { met: necessary.met, metCount: necessary.metCount, total: necessary.total, policy: necessary.policy },
         disqualifier: { disqualified: disqualifier.disqualified },
+        externalGuard: { state: externalGuard.guardState, constraints: externalGuard.matchedConstraints.length },
         contradiction: { totalCount: contradiction.totalCount, independentCount: contradiction.independentCount, strength: contradiction.strength },
         differentiators: { count: differentiators.count, independentCount: differentiators.independentCount, avgStrength: differentiators.avgStrength },
       },
