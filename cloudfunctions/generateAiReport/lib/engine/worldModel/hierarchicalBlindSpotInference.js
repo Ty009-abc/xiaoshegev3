@@ -146,23 +146,30 @@ function inferHierarchicalBlindSpot(input) {
     var allDisqualified = candidates.length > 0 &&
       candidates.every(function (c) { return c.eligibility === ELIGIBILITY.DISQUALIFIED })
 
-    var anyGuardBlocked = candidates.some(function (c) {
-      return c.externalConstraintTrace &&
+    // R1: non-disqualified candidates that are guard-blocked
+    var nonDQCandidates = candidates.filter(function (c) {
+      return c.eligibility !== ELIGIBILITY.DISQUALIFIED
+    })
+
+    function isGuardBlocked(c) {
+      return c.eligibility !== ELIGIBILITY.ELIGIBLE &&
+        c.externalConstraintTrace &&
         c.externalConstraintTrace.guardState !== 'COGNITIVE_EVIDENCE_INDEPENDENT' &&
         c.externalConstraintTrace.matchedConstraints &&
-        c.externalConstraintTrace.matchedConstraints.length > 0 &&
-        c.eligibility !== ELIGIBILITY.ELIGIBLE
-    })
+        c.externalConstraintTrace.matchedConstraints.length > 0
+    }
+
+    var allNonDQCandidatesGuardBlocked = nonDQCandidates.length > 0 &&
+      nonDQCandidates.every(function (c) { return isGuardBlocked(c) })
 
     if (allDisqualified) {
       // All candidates DISQUALIFIED → no valid blind spot mechanism fits
       inferenceState = INFERENCE_STATE.INSUFFICIENT_EVIDENCE
-    } else if (anyGuardBlocked) {
-      // Guard-driven insufficiency → external constraint explains evidence
+    } else if (allNonDQCandidatesGuardBlocked) {
+      // ALL non-DQ candidates are guard-blocked → external constraint explains evidence
       inferenceState = INFERENCE_STATE.INSUFFICIENT_EVIDENCE
     } else {
-      // NC-unresolved: family is clear, but necessary-condition evidence
-      // is incomplete → cognitive issue exists, cannot resolve which
+      // NC-unresolved or mixed guard+NC: cognitive issue exists, cannot resolve which
       inferenceState = INFERENCE_STATE.AMBIGUOUS_BLIND_SPOT
     }
   } else if (blindSpotAmbiguous) {
