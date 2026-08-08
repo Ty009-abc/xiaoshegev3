@@ -350,8 +350,8 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   var CURRENT_CACHE_VERSION = {
     diagnosticVersion: 'v4',
     diagnosisEngineVersion: 'RC8.3',
-    rulesetVersion: 'RC8.3',
-    promptVersion: 'RC8.3',
+    rulesetVersion: 'RC8.2',
+    promptVersion: 'RC8.2',
     fallbackRouterVersion: '2.0',
   }
 
@@ -671,13 +671,13 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     })),
     createdAt: ts,
     updatedAt: ts,
-    // ── RC8.2: Version-aware cache key — pre-router records will lack this field ──
+    // ── RC8.3: Cache version from single source of truth ──
     cacheVersion: {
-      diagnosticVersion: 'v4',
-      diagnosisEngineVersion: 'RC8.2',
-      rulesetVersion: 'RC8.2',
-      promptVersion: 'RC8.2',
-      fallbackRouterVersion: '2.0',
+      diagnosticVersion: CURRENT_CACHE_VERSION.diagnosticVersion,
+      diagnosisEngineVersion: CURRENT_CACHE_VERSION.diagnosisEngineVersion,
+      rulesetVersion: CURRENT_CACHE_VERSION.rulesetVersion,
+      promptVersion: CURRENT_CACHE_VERSION.promptVersion,
+      fallbackRouterVersion: CURRENT_CACHE_VERSION.fallbackRouterVersion || '2.0',
     },
     cloudBuildSha: '94ceca4',
     // ── RC8.3 Phase-2: World Model Shadow Observability ──
