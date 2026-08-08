@@ -92,10 +92,10 @@ var NECESSARY_POLICIES = Object.freeze({
     ],
   },
 
-  // ── TIME_HORIZON_TRAP: ALL_OF — all describe short-term bias pattern ──
+  // ── TIME_HORIZON_TRAP: AT_LEAST_N(2) — short-term bias can manifest in varied patterns ──
 
   TIME_HORIZON_TRAP: {
-    policy: { operator: 'ALL_OF' },
+    policy: { operator: 'AT_LEAST_N', minimum: 2 },
     conditions: [
       {
         evidenceSignals: [
@@ -115,10 +115,10 @@ var NECESSARY_POLICIES = Object.freeze({
     ],
   },
 
-  // ── OPPORTUNITY_BLINDNESS: AT_LEAST_N(2) — condition [2] is a prerequisite ──
+  // ── OPPORTUNITY_BLINDNESS: ALL_OF — narrow exposure + unawareness jointly necessary ──
 
   OPPORTUNITY_BLINDNESS: {
-    policy: { operator: 'AT_LEAST_N', minimum: 2 },
+    policy: { operator: 'ALL_OF' },
     conditions: [
       {
         evidenceSignals: [
@@ -162,10 +162,10 @@ var NECESSARY_POLICIES = Object.freeze({
     ],
   },
 
-  // ── PROBABILITY_MISJUDGMENT: AT_LEAST_N(2) — [1] is manifestation of [0] ──
+  // ── PROBABILITY_MISJUDGMENT: ALL_OF — all facets of missing probability framework ──
 
   PROBABILITY_MISJUDGMENT: {
-    policy: { operator: 'AT_LEAST_N', minimum: 2 },
+    policy: { operator: 'ALL_OF' },
     conditions: [
       {
         evidenceSignals: [
@@ -185,10 +185,10 @@ var NECESSARY_POLICIES = Object.freeze({
     ],
   },
 
-  // ── IDENTITY_CONSTRAINT: AT_LEAST_N(2) — [2] emerges from [0]+[1] ──
+  // ── IDENTITY_CONSTRAINT: ALL_OF — self-restriction + exclusion + limitation jointly necessary ──
 
   IDENTITY_CONSTRAINT: {
-    policy: { operator: 'AT_LEAST_N', minimum: 2 },
+    policy: { operator: 'ALL_OF' },
     conditions: [
       {
         evidenceSignals: [
@@ -208,10 +208,10 @@ var NECESSARY_POLICIES = Object.freeze({
     ],
   },
 
-  // ── SYSTEM_THINKING_GAP: ALL_OF — all 3 facets of linear thinking ──
+  // ── SYSTEM_THINKING_GAP: AT_LEAST_N(2) — linear thinking facets manifest independently ──
 
   SYSTEM_THINKING_GAP: {
-    policy: { operator: 'ALL_OF' },
+    policy: { operator: 'AT_LEAST_N', minimum: 2 },
     conditions: [
       {
         evidenceSignals: [

@@ -414,6 +414,7 @@ T('OB01: INFORMATION_SOURCE_DIVERSITY → OB eligible', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
     sig('INFORMATION_SOURCE_DIVERSITY', A, 70),
     sig('NON_DOMAIN_PATH_AWARENESS', A, 55),
+    sig('SERENDIPITOUS_PATH_DISCOVERY', A, 50),
   ]})
   eq(findC(r, 'OPPORTUNITY_BLINDNESS').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -422,6 +423,7 @@ T('OB02: Multiple OB signals → OB primary', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
     sig('INFORMATION_SOURCE_DIVERSITY', A, 80),
     sig('SERENDIPITOUS_PATH_DISCOVERY', A, 65),
+    sig('NON_DOMAIN_PATH_AWARENESS', A, 55),
   ]})
   eq(r.primaryBlindSpot, 'OPPORTUNITY_BLINDNESS')
 })
@@ -455,6 +457,7 @@ T('OB06: OB with single strong signal → eligible', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
     sig('INFORMATION_SOURCE_DIVERSITY', A, 90),
     sig('NON_DOMAIN_PATH_AWARENESS', A, 50),
+    sig('SERENDIPITOUS_PATH_DISCOVERY', A, 45),
   ]})
   eq(findC(r, 'OPPORTUNITY_BLINDNESS').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -506,6 +509,7 @@ T('RMD06: OB wins when both eligible and OB stronger', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
     sig('INFORMATION_SOURCE_DIVERSITY', A, 85),
     sig('SERENDIPITOUS_PATH_DISCOVERY', A, 80),
+    sig('NON_DOMAIN_PATH_AWARENESS', A, 60),
     sig('EMOTIONAL_RECENCY_IMPACT', A, 70),
   ]})
   eq(r.primaryBlindSpot, 'OPPORTUNITY_BLINDNESS')
@@ -552,6 +556,7 @@ T('PM01: PROBABILISTIC_LANGUAGE → PM eligible', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('PROBABILISTIC_LANGUAGE_USAGE', A, 70),
     sig('LUCK_VS_SKILL_ATTRIBUTION', A, 60),
+    sig('FEEDBACK_CALIBRATION_RATE', A, 50),
   ]})
   eq(findC(r, 'PROBABILITY_MISJUDGMENT').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -584,6 +589,7 @@ T('PM05: PM wins 3-way in FRAMEWORK_GAP', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('PROBABILISTIC_LANGUAGE_USAGE', A, 85),
     sig('LUCK_VS_SKILL_ATTRIBUTION', A, 80),
+    sig('FEEDBACK_CALIBRATION_RATE', A, 65),
     sig('IDENTITY_BASED_EXCLUSION', A, 60),
     sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 55),
   ]})
@@ -606,6 +612,7 @@ T('IC01: IDENTITY_BASED_EXCLUSION → IC eligible', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('IDENTITY_BASED_EXCLUSION', A, 70),
     sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 60),
+    sig('SELF_ASSESSMENT_ASYMMETRY', A, 50),
   ]})
   eq(findC(r, 'IDENTITY_CONSTRAINT').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -638,6 +645,7 @@ T('IC05: IC wins 3-way in FRAMEWORK_GAP', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('IDENTITY_BASED_EXCLUSION', A, 90),
     sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 85),
+    sig('SELF_ASSESSMENT_ASYMMETRY', A, 60),
     sig('PROBABILISTIC_LANGUAGE_USAGE', A, 50),
   ]})
   eq(r.primaryBlindSpot, 'IDENTITY_CONSTRAINT')
@@ -647,6 +655,7 @@ T('IC06: IC with SELF_ASSESSMENT_ASYMMETRY only', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('SELF_ASSESSMENT_ASYMMETRY', A, 70),
     sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 55),
+    sig('IDENTITY_BASED_EXCLUSION', A, 50),
   ]})
   eq(findC(r, 'IDENTITY_CONSTRAINT').eligibility, ELIGIBILITY.ELIGIBLE)
 })
@@ -770,8 +779,10 @@ T('FRG_AMB06: alternateBlindSpot populated in 3-way', function () {
   var r = inferWithinFamilyBlindSpot({ family: 'FRAMEWORK_GAP', secondarySignals: [
     sig('PROBABILISTIC_LANGUAGE_USAGE', A, 85),
     sig('LUCK_VS_SKILL_ATTRIBUTION', A, 55),
+    sig('FEEDBACK_CALIBRATION_RATE', A, 50),
     sig('IDENTITY_BASED_EXCLUSION', A, 80),
     sig('CROSS_IDENTITY_ATTEMPT_HISTORY', A, 50),
+    sig('SELF_ASSESSMENT_ASYMMETRY', A, 45),
     sig('FEEDBACK_LOOP_CONCEPT_AWARENESS', A, 75),
     sig('LINEARTY_VS_COMPLEXITY_DEFAULT', A, 60),
     sig('CROSS_DOMAIN_FEEDBACK_THINKING', A, 50),
@@ -875,12 +886,12 @@ T('R1-02: ALL_OF missing 1 condition → INSUFFICIENT', function () {
 })
 
 T('R1-03: AT_LEAST_N(2) policy — 2/3 met → eligible', function () {
-  var r = inferWithinFamilyBlindSpot({ family: 'PERCEPTION_RISK_GAP', secondarySignals: [
-    sig('INFORMATION_SOURCE_DIVERSITY', A, 70),
-    sig('SERENDIPITOUS_PATH_DISCOVERY', A, 60),
-    // NON_DOMAIN_PATH_AWARENESS missing → AT_LEAST_N(2) → eligible
+  var r = inferWithinFamilyBlindSpot({ family: 'RESOURCE_COMPOUNDING_GAP', secondarySignals: [
+    sig('DIRECTION_SWITCHING_FREQUENCY', A, 70),
+    sig('LONG_TERM_COMPOUNDING_AWARENESS', A, 60),
+    // ALTERNATIVE_PATH_COST_AWARENESS missing → AT_LEAST_N(2) → eligible
   ]})
-  eq(findC(r, 'OPPORTUNITY_BLINDNESS').eligibility, ELIGIBILITY.ELIGIBLE)
+  eq(findC(r, 'TIME_HORIZON_TRAP').eligibility, ELIGIBILITY.ELIGIBLE)
 })
 
 T('R1-04: AT_LEAST_N(2) — 1/3 met → INSUFFICIENT', function () {
