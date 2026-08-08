@@ -42,6 +42,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '不是一次性的审慎考虑。而是反复出现的模式：在不同领域、不同时间点都表现出类似的决策延迟。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'ALL_OF' }),
     differentiatingEvidence: [
       {
         evidence: '决策推迟的时长显著超过信息收集的边际价值',
@@ -161,6 +162,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '即使重复行动，方法、策略、路径缺乏基于过去结果的有意义调整。第二次行动的方式与第一次几乎一样，无论第一次的结果如何。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'ALL_OF' }),
     differentiatingEvidence: [
       {
         evidence: '有多次行动但行动方式高度重复，缺少基于结果的调整',
@@ -280,6 +282,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '没有正在构建的工具、流程、内容、系统、网络或其他可以在不增加个人投入的情况下持续产生价值的资产。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'ALL_OF' }),
     differentiatingEvidence: [
       {
         evidence: '投入与产出高度线性相关——更多产出只能来自更多个人时间',
@@ -399,6 +402,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '没有在时间、精力或资源上为需要长期积累才能显现的东西做明确配置。所有的投入都指向短期可见的回报。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'AT_LEAST_N', minimum: 2 }),
     differentiatingEvidence: [
       {
         evidence: '方向切换频率显著高于该方向产生复利所需的时间',
@@ -518,6 +522,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '如果此人碰巧接触到机会，他们是能够识别和利用的。问题不在于能力缺陷，而在于接触面缺陷。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'ALL_OF' }),
     differentiatingEvidence: [
       {
         evidence: '能看到自己领域内部的变化和路径，但对领域外几乎一无所知',
@@ -640,6 +645,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '要么将所有风险视为对称危险（不区分散度），要么只看到风险的一面（只看到下行而忽略上行，或只看上行而忽略下行）。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'AT_LEAST_N', minimum: 2 }),
     differentiatingEvidence: [
       {
         evidence: '对高概率但渐进的风险（如长期暴露的累积风险）反应不足',
@@ -762,6 +768,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '缺乏基础的贝叶斯思维——先有先验，再根据新证据更新。没有大数定律、回归均值的直觉。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'ALL_OF' }),
     differentiatingEvidence: [
       {
         evidence: '用单次成功或失败来评价整个策略或路径',
@@ -880,6 +887,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '不是谨慎选择，而是身份本身在说你没有这个选项。这是自动认知过滤，不是有意识的决策。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'ALL_OF' }),
     differentiatingEvidence: [
       {
         evidence: '排除某个方向的核心理由是我不是那种人',
@@ -1002,6 +1010,7 @@ const BLIND_SPOT_BOUNDARIES = Object.freeze({
         description: '不能自然地识别和描述自强化循环（正反馈）和自平衡循环（负反馈）。在解决问题时不考虑系统对干预的响应。'
       }
     ],
+    necessaryConditionPolicy: Object.freeze({ operator: 'AT_LEAST_N', minimum: 2 }),
     differentiatingEvidence: [
       {
         evidence: '将问题归因到单一原因而不考虑系统相互作用',
