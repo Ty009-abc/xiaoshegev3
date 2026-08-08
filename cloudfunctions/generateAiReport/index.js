@@ -66,7 +66,7 @@ exports.main = async (event, context) => {
 
       // ═══ V4 分流 ═══
       const diagnosticVersion = event.diagnosticVersion || (event.answers && event.answers.diagnosticVersion)
-      if (diagnosticVersion === 'v4') {
+      if (diagnosticVersion === 'v4' || diagnosticVersion === 'world_model_v1') {
         return await runDiagnosticV4Branch({ event, openid, ts, db })
       }
 
@@ -336,7 +336,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   // 归一化输入
   const answers = normalizeV4Input(event)
   if (!answers) {
-    return fail(CODES.PARAM_ERROR, 'V4_DIAGNOSTIC_INPUT_INVALID: answers 缺失或 diagnosticVersion !== v4')
+    return fail(CODES.PARAM_ERROR, 'V4_DIAGNOSTIC_INPUT_INVALID: answers 缺失或 diagnosticVersion 不合法')
   }
 
   // 幂等检查
@@ -574,6 +574,35 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
 
   const { code, message, data, stages } = pipelineResult
 
+  // ── RC8.3 Phase-2: World Model Shadow Execution ──
+  var shadowExecuted = false
+  var shadowSucceeded = false
+  var shadowFailureClass = null
+
+  if (diagnosticVersion === 'world_model_v1' && code === 0 && data) {
+    try {
+      var { runWorldModelPipeline } = require('./lib/engine/worldModel/worldModelPipeline')
+      var shadowProfile = {
+        signals: (answersSnapshot || answers || {}).signals || [],
+        occupation: (answers || {}).occupation || '',
+        yearsOfExperience: (answers || {}).yearsOfExperience || 0,
+      }
+      var shadowResult = runWorldModelPipeline({ inputProfile: shadowProfile, evidenceTrace: [], context: {} })
+      shadowExecuted = true
+      shadowSucceeded = shadowResult && shadowResult.valid !== false
+      if (!shadowSucceeded) shadowFailureClass = 'VALIDATION_FAILED'
+
+      // Record observability without mutating legacy diagnosis
+      console.log('[V4Diagnostic][SHADOW] world_model_v1 shadow executed. Succeeded=' + shadowSucceeded)
+    } catch (shadowError) {
+      shadowExecuted = true
+      shadowSucceeded = false
+      shadowFailureClass = shadowError.message ? shadowError.message.split('\n')[0].substring(0, 100) : 'UNKNOWN'
+      console.error('[V4Diagnostic][SHADOW] world_model_v1 shadow failed:', shadowFailureClass)
+    }
+  }
+  // ── End Shadow Execution ──
+
   // 记录管线日志（非敏感）
   console.log('[V4DiagnosticPipeline] stages:', JSON.stringify(stages.map(s => ({
     stage: s.stage,
@@ -651,6 +680,13 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       fallbackRouterVersion: '2.0',
     },
     cloudBuildSha: '94ceca4',
+    // ── RC8.3 Phase-2: World Model Shadow Observability ──
+    shadowWorldModel: {
+      worldModelVersion: 'v1',
+      shadowExecuted: shadowExecuted,
+      shadowSucceeded: shadowSucceeded,
+      shadowFailureClass: shadowFailureClass,
+    },
   }
 
   try {
