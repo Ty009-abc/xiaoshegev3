@@ -359,11 +359,23 @@ function inferWithinFamilyBlindSpot(input) {
     } else if (externalGuard.guardState === 'INSUFFICIENT_TO_DIAGNOSE') {
       eligibility = ELIGIBILITY.INSUFFICIENT
     } else if (externalGuard.guardState === 'FALSE_POSITIVE_RISK') {
-      eligibility = ELIGIBILITY.INSUFFICIENT
-    } else if (!necessary.met) {
-      eligibility = ELIGIBILITY.INSUFFICIENT
-    } else {
-      eligibility = ELIGIBILITY.ELIGIBLE
+      // FALSE_POSITIVE_RISK: guard triggered, but uncovered independent evidence may remain
+      // Only block when no independent cognitive evidence beyond guard-covered signals
+      var uncoveredIndep = externalGuard.uncoveredIndependentCount || 0
+      if (uncoveredIndep === 0) {
+        eligibility = ELIGIBILITY.INSUFFICIENT
+      }
+    }
+    // Fall-through for FALSE_POSITIVE_RISK with uncovered evidence:
+    // check necessary conditions below
+    if (eligibility === undefined) {
+      if (disqualifier.disqualified) {
+        eligibility = ELIGIBILITY.DISQUALIFIED
+      } else if (!necessary.met) {
+        eligibility = ELIGIBILITY.INSUFFICIENT
+      } else {
+        eligibility = ELIGIBILITY.ELIGIBLE
+      }
     }
 
     var supportStrength = calculateSupportStrength(necessary, differentiators, contradiction)

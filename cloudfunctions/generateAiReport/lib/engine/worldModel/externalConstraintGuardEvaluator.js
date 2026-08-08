@@ -85,6 +85,8 @@ function evaluateExternalGuards(candidateId, secondarySignals) {
   var guards = getGuards(candidateId)
   var matched = []
   var highestSeverity = null
+  var uncoveredEvidence = []
+  var independentEvidence = []
 
   guards.forEach(function (guard) {
     var result = evaluateGuardPredicate(guard.evidencePredicate, signalMap)
@@ -114,9 +116,11 @@ function evaluateExternalGuards(candidateId, secondarySignals) {
   var guardState
   if (highestSeverity === 'DISQUALIFYING') {
     guardState = 'EXTERNAL_CONSTRAINT_PRESENT'
+    independentEvidence = getActiveSupportingSignals(candidateId, secondarySignals)
+    uncoveredEvidence = []
   } else {
     // CONDITIONAL: check if there's independent cognitive evidence
-    var independentEvidence = getActiveSupportingSignals(candidateId, secondarySignals)
+    independentEvidence = getActiveSupportingSignals(candidateId, secondarySignals)
     // Filter out signals covered by guards
     var guardSignalIds = new Set()
     matched.forEach(function (m) {
@@ -126,7 +130,7 @@ function evaluateExternalGuards(candidateId, secondarySignals) {
         collectSignalIdsFromPredicate(guard.evidencePredicate, guardSignalIds)
       }
     })
-    var uncoveredEvidence = independentEvidence.filter(function (s) { return !guardSignalIds.has(s.id) })
+    uncoveredEvidence = independentEvidence.filter(function (s) { return !guardSignalIds.has(s.id) })
 
     if (uncoveredEvidence.length === 0 && independentEvidence.length > 0) {
       guardState = 'INSUFFICIENT_TO_DIAGNOSE'
@@ -141,7 +145,9 @@ function evaluateExternalGuards(candidateId, secondarySignals) {
     guardState: guardState,
     matchedConstraints: matched,
     explanatoryCoverage: matched.length,
-    independentCognitiveEvidence: getActiveSupportingSignals(candidateId, secondarySignals),
+    independentCognitiveEvidence: independentEvidence.map(function (s) { return s.id }),
+    uncoveredEvidence: uncoveredEvidence.map(function (s) { return s.id }),
+    uncoveredIndependentCount: countIndependentOrigins(uncoveredEvidence),
     reason: matched.length + ' guard(s) triggered: ' + matched.map(function (m) { return m.guardId }).join(', '),
   }
 }
@@ -152,6 +158,15 @@ function collectSignalIdsFromPredicate(predicate, signalIds) {
   if (predicate.conditions) {
     predicate.conditions.forEach(function (c) { collectSignalIdsFromPredicate(c, signalIds) })
   }
+}
+
+function countIndependentOrigins(signals) {
+  var origins = {}
+  signals.forEach(function (s) {
+    var origin = s.originId || s.id || ''
+    origins[origin] = true
+  })
+  return Object.keys(origins).length
 }
 
 // ═══════════════════════════════════════════════════════════════
