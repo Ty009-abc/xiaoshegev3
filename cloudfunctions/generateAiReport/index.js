@@ -329,8 +329,8 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log('[V4Diagnostic] CLOUD FUNCTION VERSION: v4.0-rc8-router-audit')
   console.log('[V4Diagnostic] Deploy/build SHA: 94ceca4')
-  console.log('[V4Diagnostic] Router version: RC8.2 | fallbackRouterVersion: 2.0')
-  console.log('[V4Diagnostic] Engine version: RC8.2 | diagnosis version: 2.0')
+  console.log('[V4Diagnostic] Router version: RC8.3 | fallbackRouterVersion: 2.0')
+  console.log('[V4Diagnostic] Engine version: RC8.3 | diagnosis version: 2.0')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
   // 归一化输入
@@ -349,9 +349,9 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   // ── RC8.2: Version-aware cache key ──
   var CURRENT_CACHE_VERSION = {
     diagnosticVersion: 'v4',
-    diagnosisEngineVersion: 'RC8.2',
-    rulesetVersion: 'RC8.2',
-    promptVersion: 'RC8.2',
+    diagnosisEngineVersion: 'RC8.3',
+    rulesetVersion: 'RC8.3',
+    promptVersion: 'RC8.3',
     fallbackRouterVersion: '2.0',
   }
 
@@ -523,7 +523,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     // Validate: version compatibility
     var versionMatch = (
       clientDiagnosis.engineVersion === 'RC8.1' ||
-      clientDiagnosis.engineVersion === 'RC8.2'
+      clientDiagnosis.engineVersion === 'RC8.2' || clientDiagnosis.engineVersion === 'RC8.3'
     )
     handoffTrace.versionCompatible = !!versionMatch
 
