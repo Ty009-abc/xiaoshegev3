@@ -205,19 +205,40 @@ function inferHierarchicalBlindSpot(input) {
   // Deduplicate
   var unique = function (arr) { return arr.filter(function (v, i) { return arr.indexOf(v) === i }) }
 
-  // ── Build provenance trace ──
+  // ── Build enriched candidate traces (R4: guard + ambiguity propagation) ──
 
   var allCandidateTraces = withinFamilyResult.candidateStates.map(function (c) {
+    var guardInfo = {}
+    if (c.externalConstraintTrace) {
+      guardInfo = {
+        guardState: c.externalConstraintTrace.guardState,
+        matchedConstraints: c.externalConstraintTrace.matchedConstraints,
+        explanatoryCoverage: c.externalConstraintTrace.explanatoryCoverage,
+        uncoveredEvidenceIds: c.externalConstraintTrace.independentCognitiveEvidence || [],
+        uncoveredIndependentCount: c.externalConstraintTrace.uncoveredIndependentCount || 0,
+      }
+    }
+
     return {
       id: c.id,
       eligibility: c.eligibility,
       supportStrength: c.supportStrength,
+      confidence: c.confidence,
       necessaryMet: c.necessaryConditionsMet,
+      necessaryMissing: c.necessaryConditionsMissing,
       necessaryPolicy: c.necessaryPolicy,
       differentiators: c.trace.differentiators,
       contradiction: c.trace.contradiction,
+      disqualifier: c.trace.disqualifier,
+      guardInfo: guardInfo,
+      ambiguityReasons: c.ambiguityReasons || [],
+      missingEvidenceNeeded: c.missingEvidenceNeeded || [],
     }
   })
+
+  // ── Build structured missingEvidence (R4: purpose-classified) ──
+
+  var missingEvidence = buildMissingEvidence(inferenceState, allCandidateTraces, familyResult)
 
   // ── Compose final output ──
 
@@ -253,6 +274,8 @@ function inferHierarchicalBlindSpot(input) {
       missing: unique(allMissing),
     },
 
+    missingEvidence: missingEvidence,
+
     trace: {
       familyTrace: familyResult.trace,
       boundaryTrace: withinFamilyResult.candidateStates.length > 0
@@ -270,12 +293,112 @@ function inferHierarchicalBlindSpot(input) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// MISSING EVIDENCE BUILDER (R4: purpose-classified)
+// ═══════════════════════════════════════════════════════════════
+
+function buildMissingEvidence(inferenceState, candidateTraces, familyResult) {
+  var items = []
+  var candidateSpecific = {}
+  var purpose
+
+  if (inferenceState === INFERENCE_STATE.INSUFFICIENT_EVIDENCE) {
+    purpose = 'ESTABLISH_COGNITIVE_ISSUE'
+
+    // Collect evidence gaps that explain WHY no cognitive issue is established
+    var allDisqualified = candidateTraces.length > 0 &&
+      candidateTraces.every(function (c) { return c.eligibility === 'DISQUALIFIED' })
+
+    var allGuardBlocked = candidateTraces.length > 0 &&
+      candidateTraces.filter(function (c) { return c.eligibility !== 'DISQUALIFIED' })
+        .every(function (c) { return c.eligibility !== 'ELIGIBLE' && c.guardInfo && c.guardInfo.guardState !== 'COGNITIVE_EVIDENCE_INDEPENDENT' })
+
+    if (candidateTraces.length === 0) {
+      items.push('No candidate blind spot mechanisms could be evaluated')
+    } else if (allDisqualified) {
+      items.push('All candidate mechanisms disqualified — observed evidence does not cleanly instantiate any valid blind spot')
+      candidateTraces.forEach(function (c) {
+        if (c.eligibility === 'DISQUALIFIED') {
+          candidateSpecific[c.id] = ['Disqualified: conflicting evidence rules out this mechanism']
+        }
+      })
+    } else if (allGuardBlocked) {
+      items.push('Observed behavior has external/false-positive explanation; independent cognitive evidence insufficient')
+      candidateTraces.forEach(function (c) {
+        if (c.guardInfo && c.guardInfo.guardState !== 'COGNITIVE_EVIDENCE_INDEPENDENT') {
+          candidateSpecific[c.id] = ['Externally explained: ' + c.guardInfo.guardState]
+        }
+      })
+    } else {
+      items.push('Insufficient evidence to establish a cognitive mechanism problem')
+      items.push('Family evidence: ' + (familyResult.confidence > 0.5 ? 'present but weak' : 'insufficient'))
+      candidateTraces.forEach(function (c) {
+        candidateSpecific[c.id] = c.missingEvidenceNeeded.length > 0
+          ? c.missingEvidenceNeeded
+          : ['Insufficient evidence for this candidate mechanism']
+      })
+    }
+  }
+
+  else if (inferenceState === INFERENCE_STATE.AMBIGUOUS_BLIND_SPOT) {
+    purpose = 'DISAMBIGUATE_BLIND_SPOT'
+
+    var eligibleCandidates = candidateTraces.filter(function (c) { return c.eligibility === 'ELIGIBLE' })
+    var nonDisqualified = candidateTraces.filter(function (c) { return c.eligibility !== 'DISQUALIFIED' })
+
+    if (eligibleCandidates.length >= 2) {
+      items.push(eligibleCandidates.length + ' candidate mechanisms are eligible — need evidence to distinguish between them')
+    } else if (nonDisqualified.length >= 2) {
+      items.push('Multiple potential mechanisms unresolved — evidence needed to confirm or rule out')
+    } else {
+      items.push('Cognitive issue likely exists within this family, but specific mechanism unresolved')
+    }
+
+    candidateTraces.forEach(function (c) {
+      var gaps = []
+      if (c.eligibility === 'INSUFFICIENT') {
+        gaps = c.missingEvidenceNeeded.length > 0
+          ? c.missingEvidenceNeeded
+          : ['Necessary conditions incomplete for this mechanism']
+      } else if (c.eligibility === 'ELIGIBLE') {
+        if (c.ambiguityReasons.length > 0) {
+          gaps = c.ambiguityReasons
+        } else {
+          gaps = ['Eligible but competing with other candidates — need differentiator evidence']
+        }
+      }
+      if (c.guardInfo && c.guardInfo.guardState !== 'COGNITIVE_EVIDENCE_INDEPENDENT') {
+        gaps.push('Externally explained pattern: ' + c.guardInfo.guardState)
+      }
+      candidateSpecific[c.id] = gaps
+    })
+  }
+
+  else {
+    // CLEAR or AMBIGUOUS_FAMILY — no missing evidence at this layer
+    purpose = 'NONE'
+  }
+
+  return {
+    purpose: purpose,
+    items: items,
+    candidateSpecific: candidateSpecific,
+    provenance: candidateTraces.map(function (c) { return c.id + ':' + c.eligibility }),
+  }
+}
+
 function insufficientResult(reason, secondarySignals) {
   var activeCount = secondarySignals.filter(function (s) { return s.state === 'ACTIVE' }).length
   return {
     family: { primary: null, alternate: null, ambiguous: true, rawGap: 0, confidence: 0, scores: {} },
     blindSpot: { primary: null, alternate: null, ambiguous: true, rawGap: 0, confidence: 0, eligibility: null },
     evidence: { supporting: [], contradicting: [], disqualifying: [], missing: [reason] },
+    missingEvidence: {
+      purpose: 'ESTABLISH_COGNITIVE_ISSUE',
+      items: [reason],
+      candidateSpecific: {},
+      provenance: [],
+    },
     trace: {
       familyTrace: { topFamily: null, totalActiveSignals: activeCount },
       boundaryTrace: null,
