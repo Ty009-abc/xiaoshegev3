@@ -31,7 +31,7 @@ T('C3: v4 lookup uses cacheType',function(){
 T('C4: WM lookup uses cacheType',function(){
   var src=require('fs').readFileSync('./cloudfunctions/generateAiReport/index.js','utf8')
   var count=(src.match(/type: cacheType/g)||[]).length
-  eq(count,2,'Both lookup and write use cacheType')
+  ok(count>=2,'Lookup + write + ai_logs use cacheType: ' + count)
 })
 
 T('C5: legacy cache type preserved for v4',function(){

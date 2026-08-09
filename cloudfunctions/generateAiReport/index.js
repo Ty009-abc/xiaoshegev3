@@ -376,6 +376,52 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   var cacheType = effectiveEngine === 'world_model_v1' ? 'diagnostic_world_model_v1' : 'diagnostic_v4'
   console.log('[V4Diagnostic][CACHE] cacheType=' + cacheType + ' effectiveEngine=' + effectiveEngine)
 
+  // ── RC8.3 Phase-2 003D: Rollout mode + selective primary ──
+  var { parseRolloutMode, getRolloutModeFromEnv } = require('./lib/config/rolloutMode')
+  var rolloutMode = parseRolloutMode(getRolloutModeFromEnv())
+  var primaryEngine = 'v4'
+  var wmPrimaryResult = null
+  var wmPrimaryFallbackReason = null
+
+  if (effectiveEngine === 'world_model_v1' && rolloutMode === 'SELECTIVE_PRIMARY') {
+    console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Attempting WM primary path')
+    try {
+      var { runWorldModelPipeline } = require('./lib/engine/worldModel/worldModelPipeline')
+      var wmProfile = {
+        signals: (answers || {}).signals || [],
+        occupation: (answers || {}).occupation || '',
+        yearsOfExperience: (answers || {}).yearsOfExperience || 0,
+      }
+      var wmPipelineResult = runWorldModelPipeline({ inputProfile: wmProfile, evidenceTrace: [], context: {} })
+
+      if (wmPipelineResult && wmPipelineResult.valid !== false && wmPipelineResult.diagnosis) {
+        var { validateWorldModelOutput } = require('./lib/engine/worldModel/validators')
+        var validation = validateWorldModelOutput(wmPipelineResult.diagnosis)
+        if (validation.valid) {
+          var { adaptWorldModelToLegacyDiagnosis } = require('./lib/engine/worldModel/legacyDiagnosisAdapter')
+          var adapted = adaptWorldModelToLegacyDiagnosis({ worldModel: wmPipelineResult, validate: false })
+          if (adapted && adapted.worldModelDiagnosis) {
+            wmPrimaryResult = adapted.worldModelDiagnosis
+            primaryEngine = 'world_model_v1'
+            console.log('[V4Diagnostic][SELECTIVE_PRIMARY] WM primary accepted')
+          } else {
+            wmPrimaryFallbackReason = 'WM_ADAPTER_FAILURE'
+            console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Adapter failed, falling back to legacy')
+          }
+        } else {
+          wmPrimaryFallbackReason = 'WM_CONTRACT_INVALID'
+          console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Contract invalid, falling back to legacy')
+        }
+      } else {
+        wmPrimaryFallbackReason = 'WM_PIPELINE_FALLBACK'
+        console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Pipeline returned invalid result, falling back to legacy')
+      }
+    } catch (wmError) {
+      wmPrimaryFallbackReason = 'WM_PRIMARY_EXCEPTION'
+      console.error('[V4Diagnostic][SELECTIVE_PRIMARY] Exception:', wmPrimaryFallbackReason)
+    }
+  }
+
   // 归一化输入
   const answers = normalizeV4Input(event)
   if (!answers) {
@@ -396,6 +442,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     rulesetVersion: 'RC8.2',
     promptVersion: 'RC8.2',
     fallbackRouterVersion: '2.0',
+    worldModelVersion: '1.0',
   }
 
   // ── RC8.2: skipCache + stale-cache-migration ──
@@ -601,21 +648,45 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     console.log('[RC8][DIAGNOSIS_HANDOFF]', JSON.stringify(handoffTrace))
   }
 
-  const pipelineResult = await runDiagnosticV4({
-    answers,
-    userContext: { openid, recordId },
-    diagnosis: acceptedDiagnosis,
-    callAI: async (opts) => {
-      return await callAI({
-        systemPrompt: opts.systemPrompt,
-        userMessage: opts.userMessage,
-        maxTokens: 2048,
-        temperature: 0.65,
-      })
-    },
-  })
+  var pipelineResult = null
+  var code, message, data, stages
 
-  const { code, message, data, stages } = pipelineResult
+  if (wmPrimaryResult) {
+    // WM primary path — skip legacy V4 pipeline
+    code = 0
+    message = 'wm_primary'
+    data = {
+      reportId: null,
+      engineVersion: 'world_model_v1',
+      renderSource: 'wm_primary',
+      report: null,
+      legacy: null,
+      diagnosis: wmPrimaryResult.worldModelDiagnosis || wmPrimaryResult,
+      worldModelDiagnosis: wmPrimaryResult.worldModelDiagnosis || wmPrimaryResult,
+      inputHash: '', // computed below
+      fallbackRouterTrace: null,
+    }
+    stages = [{ stage: 'wm_primary', ok: true }]
+    cacheType = 'diagnostic_world_model_v1'
+    console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Using WM primary result, skipping legacy V4 pipeline')
+  } else {
+    // Legacy V4 pipeline (normal path or fallback)
+    pipelineResult = await runDiagnosticV4({
+      answers,
+      userContext: { openid, recordId },
+      diagnosis: acceptedDiagnosis,
+      callAI: async (opts) => {
+        return await callAI({
+          systemPrompt: opts.systemPrompt,
+          userMessage: opts.userMessage,
+          maxTokens: 2048,
+          temperature: 0.65,
+        })
+      },
+    })
+    var _res = pipelineResult
+    code = _res.code; message = _res.message; data = _res.data; stages = _res.stages
+  }
 
   // ── RC8.3 Phase-2: World Model Shadow Execution ──
   var shadowExecuted = false
@@ -732,6 +803,9 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       requestedEngine: requestedEngine,
       effectiveEngine: effectiveEngine,
       authorizationDecision: authorizationDecision,
+      primaryEngine: primaryEngine,
+      rolloutMode: rolloutMode,
+      wmPrimaryFallbackReason: wmPrimaryFallbackReason,
     },
   }
 
@@ -750,7 +824,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
 
   // ── RC8.2: Assertion — potentialIndex must be ≤ MAX_POTENTIAL_INDEX ──
   const { assertPotentialIndex, normalizePotentialIndex } = require('./lib/config/reportUtils')
-  if (!assertPotentialIndex(data.report?.wealthProbability)) {
+  if (data.report && !assertPotentialIndex(data.report?.wealthProbability)) {
     console.error('[V4Diagnostic][POTENTIAL_INDEX_OUT_OF_RANGE] auto-clamping report.wealthProbability')
     if (data.report) {
       data.report.wealthProbability = normalizePotentialIndex(data.report.wealthProbability)
@@ -767,7 +841,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       data: {
         openid,
         action: 'diagnostic_v4',
-        type: 'diagnostic_v4',
+        type: cacheType,
         reportId: data.reportId,
         recordId,
         renderSource: data.renderSource,
