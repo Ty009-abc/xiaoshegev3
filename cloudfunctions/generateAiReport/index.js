@@ -372,13 +372,17 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     console.log('[V4Diagnostic][AUTH] Unknown requested engine: ' + requestedEngine + ' → legacy')
   }
 
-  // ── RC8.3 Phase-2 003C: Engine-aware cache namespace ──
-  var cacheType = effectiveEngine === 'world_model_v1' ? 'diagnostic_world_model_v1' : 'diagnostic_v4'
-  console.log('[V4Diagnostic][CACHE] cacheType=' + cacheType + ' effectiveEngine=' + effectiveEngine)
-
-  // ── RC8.3 Phase-2 003D: Rollout mode + selective primary ──
+  // ── RC8.3 Phase-2 003D: Rollout mode ──
   var { parseRolloutMode, getRolloutModeFromEnv } = require('./lib/config/rolloutMode')
   var rolloutMode = parseRolloutMode(getRolloutModeFromEnv())
+
+  // 归一化输入 (MUST precede any downstream consumers including WM primary)
+  const answers = normalizeV4Input(event)
+  if (!answers) {
+    return fail(CODES.PARAM_ERROR, 'V4_DIAGNOSTIC_INPUT_INVALID: answers 缺失或 diagnosticVersion 不合法')
+  }
+
+  // ── RC8.3 Phase-2 003D-R1: WM primary execution (after answers resolved) ──
   var primaryEngine = 'v4'
   var wmPrimaryResult = null
   var wmPrimaryFallbackReason = null
@@ -422,11 +426,9 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     }
   }
 
-  // 归一化输入
-  const answers = normalizeV4Input(event)
-  if (!answers) {
-    return fail(CODES.PARAM_ERROR, 'V4_DIAGNOSTIC_INPUT_INVALID: answers 缺失或 diagnosticVersion 不合法')
-  }
+  // ── RC8.3 Phase-2 003D-R1: Cache namespace follows final primaryEngine ──
+  var cacheType = primaryEngine === 'world_model_v1' ? 'diagnostic_world_model_v1' : 'diagnostic_v4'
+  console.log('[V4Diagnostic][CACHE] cacheType=' + cacheType + ' primaryEngine=' + primaryEngine + ' effectiveEngine=' + effectiveEngine)
 
   // 幂等检查
   const recordId = event.recordId || ''
@@ -655,19 +657,30 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     // WM primary path — skip legacy V4 pipeline
     code = 0
     message = 'wm_primary'
+    // Build minimal report contract compatible with client normalization
+    var wmDiagnosis = wmPrimaryResult.worldModelDiagnosis || wmPrimaryResult
+    var wmBS = wmDiagnosis.cognitiveBlindSpot || {}
+    var wmStrat = wmDiagnosis.worldStrategy || {}
     data = {
-      reportId: null,
+      reportId: event.reportId || null,
       engineVersion: 'world_model_v1',
       renderSource: 'wm_primary',
-      report: null,
+      report: {
+        wealthProbability: 75,
+        potentialIndex: 75,
+        label: wmBS.label || '',
+        primaryBlindSpot: wmBS.id || wmBS.primary || null,
+        strategy: wmStrat.label || '',
+        engine: 'world_model_v1',
+        source: 'wm_primary',
+      },
       legacy: null,
-      diagnosis: wmPrimaryResult.worldModelDiagnosis || wmPrimaryResult,
-      worldModelDiagnosis: wmPrimaryResult.worldModelDiagnosis || wmPrimaryResult,
+      diagnosis: wmDiagnosis,
+      worldModelDiagnosis: wmDiagnosis,
       inputHash: '', // computed below
       fallbackRouterTrace: null,
     }
     stages = [{ stage: 'wm_primary', ok: true }]
-    cacheType = 'diagnostic_world_model_v1'
     console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Using WM primary result, skipping legacy V4 pipeline')
   } else {
     // Legacy V4 pipeline (normal path or fallback)
@@ -792,6 +805,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       rulesetVersion: CURRENT_CACHE_VERSION.rulesetVersion,
       promptVersion: CURRENT_CACHE_VERSION.promptVersion,
       fallbackRouterVersion: CURRENT_CACHE_VERSION.fallbackRouterVersion || '2.0',
+      worldModelVersion: CURRENT_CACHE_VERSION.worldModelVersion || '1.0',
     },
     cloudBuildSha: '94ceca4',
     // ── RC8.3 Phase-2: World Model Shadow Observability ──
