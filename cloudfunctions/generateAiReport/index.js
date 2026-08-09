@@ -403,8 +403,8 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
         var validation = validateWorldModelOutput(wmPipelineResult.diagnosis)
         if (validation.valid) {
           var { adaptWorldModelToLegacyDiagnosis } = require('./lib/engine/worldModel/legacyDiagnosisAdapter')
-          var adapted = adaptWorldModelToLegacyDiagnosis({ worldModel: wmPipelineResult, validate: false })
-          if (adapted && adapted.worldModelDiagnosis) {
+          var adapted = adaptWorldModelToLegacyDiagnosis(wmPipelineResult.diagnosis)
+          if (adapted && !adapted.adapterError && adapted.worldModelDiagnosis) {
             wmPrimaryResult = adapted.worldModelDiagnosis
             primaryEngine = 'world_model_v1'
             console.log('[V4Diagnostic][SELECTIVE_PRIMARY] WM primary accepted')
