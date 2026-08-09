@@ -67,12 +67,17 @@ function validateV4Answers(answers) {
 }
 
 function normalizeV4Input(event) {
+  // RC8.3: accept v4 and world_model_v1 (V4-family compatible formats)
+  var isV4 = event.diagnosticVersion === 'v4' || event.diagnosticVersion === 'world_model_v1'
+  var answersIsV4 = event.answers && typeof event.answers === 'object' &&
+    (event.answers.diagnosticVersion === 'v4' || event.answers.diagnosticVersion === 'world_model_v1')
+
   if (event.answers && typeof event.answers === 'object') {
-    if (event.diagnosticVersion === 'v4' || event.answers.diagnosticVersion === 'v4') {
+    if (isV4 || answersIsV4) {
       return event.answers.answers || event.answers
     }
   }
-  if (event.diagnosticVersion === 'v4') {
+  if (isV4) {
     return event
   }
   return null

@@ -333,6 +333,45 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   console.log('[V4Diagnostic] Engine version: RC8.3 | diagnosis version: 2.0')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
+  // ── RC8.3 Phase-2 003B: Whitelist Authorization ──
+  var { isWorldModelAuthorized, getAllowlistFromEnv } = require('./lib/config/worldModelWhitelist')
+  var requestedEngine = event.diagnosticVersion || (event.answers && event.answers.diagnosticVersion) || 'v4'
+  var authorizationDecision = 'LEGACY_REQUEST'
+  var effectiveEngine = 'v4'
+
+  if (requestedEngine === 'world_model_v1') {
+    try {
+      var wxContext = cloud.getWXContext()
+      var trustedOpenid = wxContext && wxContext.OPENID ? wxContext.OPENID : null
+      var rawAllowlist = getAllowlistFromEnv()
+
+      if (!trustedOpenid) {
+        authorizationDecision = 'NO_SERVER_IDENTITY'
+        effectiveEngine = 'v4'
+      } else if (isWorldModelAuthorized(trustedOpenid, rawAllowlist)) {
+        authorizationDecision = 'AUTHORIZED'
+        effectiveEngine = 'world_model_v1'
+      } else {
+        authorizationDecision = 'NOT_WHITELISTED'
+        effectiveEngine = 'v4'
+      }
+
+      console.log('[V4Diagnostic][AUTH] requested=' + requestedEngine +
+        ' effective=' + effectiveEngine +
+        ' decision=' + authorizationDecision +
+        ' openid=' + (trustedOpenid ? 'present' : 'missing'))
+    } catch (authError) {
+      authorizationDecision = 'AUTH_HELPER_EXCEPTION'
+      effectiveEngine = 'v4'
+      console.error('[V4Diagnostic][AUTH] Exception:', authError.message)
+    }
+  } else if (requestedEngine !== 'v4') {
+    // Unknown requested engine → safe legacy fallback
+    authorizationDecision = 'INVALID_REQUESTED_ENGINE'
+    effectiveEngine = 'v4'
+    console.log('[V4Diagnostic][AUTH] Unknown requested engine: ' + requestedEngine + ' → legacy')
+  }
+
   // 归一化输入
   const answers = normalizeV4Input(event)
   if (!answers) {
@@ -579,7 +618,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   var shadowSucceeded = false
   var shadowFailureClass = null
 
-  if (diagnosticVersion === 'world_model_v1' && code === 0 && data) {
+  if (effectiveEngine === 'world_model_v1' && code === 0 && data) {
     try {
       var { runWorldModelPipeline } = require('./lib/engine/worldModel/worldModelPipeline')
       var shadowProfile = {
@@ -686,6 +725,9 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       shadowExecuted: shadowExecuted,
       shadowSucceeded: shadowSucceeded,
       shadowFailureClass: shadowFailureClass,
+      requestedEngine: requestedEngine,
+      effectiveEngine: effectiveEngine,
+      authorizationDecision: authorizationDecision,
     },
   }
 
