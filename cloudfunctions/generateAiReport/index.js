@@ -701,6 +701,13 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     code = _res.code; message = _res.message; data = _res.data; stages = _res.stages
   }
 
+  // 构建答案快照（MUST precede shadow execution — fix TDZ）
+  const answersSnapshot = {}
+  const { REQUIRED_V4_KEYS } = require('./lib/v4/diagnosticPipelineV4')
+  for (const key of REQUIRED_V4_KEYS) {
+    answersSnapshot[key] = answers[key] || ''
+  }
+
   // ── RC8.3 Phase-2: World Model Shadow Execution ──
   var shadowExecuted = false
   var shadowSucceeded = false
@@ -751,13 +758,6 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   // Engine/Contract 错误
   if (code >= 5000) {
     return fail(CODES.AI_ERROR, message)
-  }
-
-  // 构建答案快照（只存 15 枚举 + 职业文本）
-  const answersSnapshot = {}
-  const { REQUIRED_V4_KEYS } = require('./lib/v4/diagnosticPipelineV4')
-  for (const key of REQUIRED_V4_KEYS) {
-    answersSnapshot[key] = answers[key] || ''
   }
 
   // 存储报告
