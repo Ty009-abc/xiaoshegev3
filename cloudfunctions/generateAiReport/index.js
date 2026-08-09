@@ -372,6 +372,10 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     console.log('[V4Diagnostic][AUTH] Unknown requested engine: ' + requestedEngine + ' → legacy')
   }
 
+  // ── RC8.3 Phase-2 003C: Engine-aware cache namespace ──
+  var cacheType = effectiveEngine === 'world_model_v1' ? 'diagnostic_world_model_v1' : 'diagnostic_v4'
+  console.log('[V4Diagnostic][CACHE] cacheType=' + cacheType + ' effectiveEngine=' + effectiveEngine)
+
   // 归一化输入
   const answers = normalizeV4Input(event)
   if (!answers) {
@@ -413,7 +417,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   if (recordId && !forceRegenerate && !skipCache) {
     try {
       const existing = await db.collection('ai_reports')
-        .where({ recordId, openid, type: 'diagnostic_v4' })
+        .where({ recordId, openid, type: cacheType })
         .orderBy('createdAt', 'desc')
         .limit(1)
         .get()
@@ -676,7 +680,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   const reportData = {
     reportId: data.reportId,
     openid,
-    type: 'diagnostic_v4',
+    type: cacheType,
     recordId,
     reportVersion: 'v4',
     diagnosticVersion: 'v4',
