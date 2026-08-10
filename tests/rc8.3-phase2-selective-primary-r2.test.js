@@ -78,9 +78,9 @@ T('R2-08: worldModelVersion in cache write',function(){
 // 9: R1 fixes preserved — TDZ
 T('R2-09: TDZ fix preserved',function(){
   var src=require('fs').readFileSync('./cloudfunctions/generateAiReport/index.js','utf8')
-  var wmBlock=src.indexOf('wmProfile')
+  var wmCall=src.indexOf('runWorldModelPipeline(answers')
   var answersDecl=src.indexOf('const answers = normalizeV4Input')
-  ok(answersDecl<wmBlock,'answers before WM (TDZ preserved)')
+  ok(answersDecl<wmCall,'answers before WM (TDZ preserved)')
 })
 
 // 10: R1 fixes preserved — cache namespace follows primaryEngine

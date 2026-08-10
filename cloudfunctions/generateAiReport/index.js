@@ -391,12 +391,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Attempting WM primary path')
     try {
       var { runWorldModelPipeline } = require('./lib/engine/worldModel/worldModelPipeline')
-      var wmProfile = {
-        signals: (answers || {}).signals || [],
-        occupation: (answers || {}).occupation || '',
-        yearsOfExperience: (answers || {}).yearsOfExperience || 0,
-      }
-      var wmPipelineResult = runWorldModelPipeline({ inputProfile: wmProfile, evidenceTrace: [], context: {} })
+      var wmPipelineResult = runWorldModelPipeline(answers, { version: 'world_model_v1' })
 
       if (wmPipelineResult && wmPipelineResult.valid !== false && wmPipelineResult.diagnosis) {
         var { validateWorldModelOutput } = require('./lib/engine/worldModel/validators')
@@ -716,12 +711,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   if (effectiveEngine === 'world_model_v1' && code === 0 && data) {
     try {
       var { runWorldModelPipeline } = require('./lib/engine/worldModel/worldModelPipeline')
-      var shadowProfile = {
-        signals: (answersSnapshot || answers || {}).signals || [],
-        occupation: (answers || {}).occupation || '',
-        yearsOfExperience: (answers || {}).yearsOfExperience || 0,
-      }
-      var shadowResult = runWorldModelPipeline({ inputProfile: shadowProfile, evidenceTrace: [], context: {} })
+      var shadowResult = runWorldModelPipeline(answers, { version: 'world_model_v1' })
       shadowExecuted = true
       shadowSucceeded = shadowResult && shadowResult.valid !== false
       if (!shadowSucceeded) shadowFailureClass = 'VALIDATION_FAILED'

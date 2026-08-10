@@ -36,9 +36,9 @@ T('R1-04: wealthProbability in report',function(){
 // ── TDZ FIX ──
 
 T('R1-05: answers resolved before WM block',function(){
-  var wmBlock=src.indexOf("wmProfile")
+  var wmCall=src.indexOf("runWorldModelPipeline(answers")
   var answersDecl=src.indexOf("const answers = normalizeV4Input")
-  ok(answersDecl<wmBlock,'answers resolved before WM primary block (TDZ fix)')
+  ok(answersDecl<wmCall,'answers resolved before WM primary block (TDZ fix)')
 })
 
 // ── CACHE NAMESPACE ──
