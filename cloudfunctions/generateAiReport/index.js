@@ -427,6 +427,22 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   var cacheType = primaryEngine === 'world_model_v1' ? 'diagnostic_world_model_v1' : 'diagnostic_v4'
   console.log('[V4Diagnostic][CACHE] cacheType=' + cacheType + ' primaryEngine=' + primaryEngine + ' effectiveEngine=' + effectiveEngine)
 
+  // ── RC8.3 009-R1: Current input identity hash (computed once, used for cache validation + persistence) ──
+  function hashAnswers(ans) {
+    if (!ans || typeof ans !== 'object') return 'empty'
+    var keys = Object.keys(ans).sort()
+    var seed = 0
+    for (var i = 0; i < keys.length; i++) {
+      var v = String(ans[keys[i]] || '')
+      for (var j = 0; j < v.length; j++) {
+        seed = ((seed << 5) - seed + v.charCodeAt(j)) | 0
+      }
+    }
+    return 'h_' + (seed >>> 0).toString(36).slice(0, 8) + '_k' + keys.length
+  }
+  var currentInputHash = hashAnswers(answers)
+  console.log('[V4Diagnostic][IDENTITY] currentInputHash=' + currentInputHash + ' cacheType=' + cacheType)
+
   // 幂等检查
   const recordId = event.recordId || ''
   const forceRegenerate = event.forceRegenerate === true
@@ -508,8 +524,21 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
           console.log('[V4Diagnostic][CACHE_STALE] No cacheVersion field → pre-router cache, forced invalidation')
         }
 
-        if (versionMismatch) {
-          console.log('[V4Diagnostic][CACHE_INVALIDATED] Version mismatch — regenerating')
+        // ── RC8.3 009-R1: Input identity validation (fail-closed) ──
+        var cachedInputHash = (cachedDoc.diagnosticSnapshot && cachedDoc.diagnosticSnapshot.inputHash) || ''
+        var identityMismatch = false
+        if (!cachedInputHash) {
+          identityMismatch = true
+          console.log('[V4Diagnostic][CACHE_STALE] No inputHash in cached diagnosticSnapshot → forced invalidation')
+        } else if (cachedInputHash !== currentInputHash) {
+          identityMismatch = true
+          console.log('[V4Diagnostic][CACHE_STALE] Input identity mismatch: cached=' + cachedInputHash + ' current=' + currentInputHash)
+        } else {
+          console.log('[V4Diagnostic][CACHE_IDENTITY] Input hash match: ' + currentInputHash)
+        }
+
+        if (versionMismatch || identityMismatch) {
+          console.log('[V4Diagnostic][CACHE_INVALIDATED] Version/identity mismatch — regenerating')
           cacheStatus = 'REGENERATED_STALE_CACHE'
           // Fall through to fresh generation (don't return from cache)
         } else {
@@ -567,19 +596,6 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
 
   // 运行 V4 管线
   // ── RC8.2: Server-side diagnosis handoff validation ──
-
-  function hashAnswers(ans) {
-    if (!ans || typeof ans !== 'object') return 'empty'
-    var keys = Object.keys(ans).sort()
-    var seed = 0
-    for (var i = 0; i < keys.length; i++) {
-      var v = String(ans[keys[i]] || '')
-      for (var j = 0; j < v.length; j++) {
-        seed = ((seed << 5) - seed + v.charCodeAt(j)) | 0
-      }
-    }
-    return 'h_' + (seed >>> 0).toString(36).slice(0, 8) + '_k' + keys.length
-  }
 
   var handoffTrace = {
     clientDiagnosisReceived: false,
@@ -664,7 +680,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       legacy: (wmPrimaryAdapter && wmPrimaryAdapter.diagnosis) || null,
       diagnosis: wmDiagnosis,
       worldModelDiagnosis: wmDiagnosis,
-      inputHash: '',
+      inputHash: currentInputHash,
       fallbackRouterTrace: null,
     }
     stages = [{ stage: 'wm_primary', ok: true }]
@@ -686,6 +702,8 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     })
     var _res = pipelineResult
     code = _res.code; message = _res.message; data = _res.data; stages = _res.stages
+    // ── RC8.3 009-R1: Ensure legacy V4 path has input identity hash ──
+    if (data && !data.inputHash) data.inputHash = currentInputHash
   }
 
   // 构建答案快照（MUST precede shadow execution — fix TDZ）
