@@ -64,12 +64,12 @@ T('R1-09: worldModelVersion in persisted cacheVersion',function(){
 
 // ── REPORT CONTRACT ──
 
-T('R1-10: report has label',function(){
-  ok(src.indexOf("label:")!==-1,'Report has label')
+T('R1-10: report uses adapter output',function(){
+  ok(src.indexOf("wmPrimaryAdapter")!==-1,'Report from adapter')
 })
 
-T('R1-11: report has primaryBlindSpot',function(){
-  ok(src.indexOf('primaryBlindSpot')!==-1,'Report has primaryBlindSpot')
+T('R1-11: WM diagnosis preserved in primary path',function(){
+  ok(src.indexOf("worldModelDiagnosis")!==-1,'worldModelDiagnosis preserved')
 })
 
 T('R1-12: report has strategy',function(){

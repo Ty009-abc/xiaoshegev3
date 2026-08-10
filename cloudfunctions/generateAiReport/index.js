@@ -385,6 +385,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
   // ── RC8.3 Phase-2 003D-R1: WM primary execution (after answers resolved) ──
   var primaryEngine = 'v4'
   var wmPrimaryResult = null
+  var wmPrimaryAdapter = null
   var wmPrimaryFallbackReason = null
 
   if (effectiveEngine === 'world_model_v1' && rolloutMode === 'SELECTIVE_PRIMARY') {
@@ -401,6 +402,7 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
           var adapted = adaptWorldModelToLegacyDiagnosis(wmPipelineResult.diagnosis)
           if (adapted && !adapted.adapterError && adapted.worldModelDiagnosis) {
             wmPrimaryResult = adapted.worldModelDiagnosis
+            wmPrimaryAdapter = adapted.legacyDiagnosisAdapter
             primaryEngine = 'world_model_v1'
             console.log('[V4Diagnostic][SELECTIVE_PRIMARY] WM primary accepted')
           } else {
@@ -652,31 +654,21 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
     // WM primary path — skip legacy V4 pipeline
     code = 0
     message = 'wm_primary'
-    // Build minimal report contract compatible with client normalization
-    var wmDiagnosis = wmPrimaryResult.worldModelDiagnosis || wmPrimaryResult
-    var wmBS = wmDiagnosis.cognitiveBlindSpot || {}
-    var wmStrat = wmDiagnosis.worldStrategy || {}
+    var wmDiagnosis = wmPrimaryResult
+
     data = {
       reportId: event.reportId || null,
       engineVersion: 'world_model_v1',
       renderSource: 'wm_primary',
-      report: {
-        wealthProbability: 75,
-        potentialIndex: 75,
-        label: wmBS.label || '',
-        primaryBlindSpot: wmBS.id || wmBS.primary || null,
-        strategy: wmStrat.label || '',
-        engine: 'world_model_v1',
-        source: 'wm_primary',
-      },
-      legacy: null,
+      report: (wmPrimaryAdapter && wmPrimaryAdapter.report) || null,
+      legacy: (wmPrimaryAdapter && wmPrimaryAdapter.diagnosis) || null,
       diagnosis: wmDiagnosis,
       worldModelDiagnosis: wmDiagnosis,
-      inputHash: '', // computed below
+      inputHash: '',
       fallbackRouterTrace: null,
     }
     stages = [{ stage: 'wm_primary', ok: true }]
-    console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Using WM primary result, skipping legacy V4 pipeline')
+    console.log('[V4Diagnostic][SELECTIVE_PRIMARY] Using WM primary result with adapter report, skipping legacy V4 pipeline')
   } else {
     // Legacy V4 pipeline (normal path or fallback)
     pipelineResult = await runDiagnosticV4({
