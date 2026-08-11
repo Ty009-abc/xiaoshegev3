@@ -75,27 +75,49 @@ const EXECUTION_STABILITY_STRENGTH = {
 }
 
 const DECISION_STYLE_STRENGTHS = {
-  'GUT_FEEL': { evidenceBased: 0.15, intuitionDominant: 0.9, securityFirst: 0.3, optionPreserving: 0.5 },
-  'DATA_DRIVEN': { evidenceBased: 0.85, intuitionDominant: 0.1, securityFirst: 0.4, optionPreserving: 0.5 },
-  'SAFETY_FIRST': { evidenceBased: 0.3, intuitionDominant: 0.4, securityFirst: 0.85, optionPreserving: 0.2 },
-  'OPTION_KEEPING': { evidenceBased: 0.4, intuitionDominant: 0.3, securityFirst: 0.2, optionPreserving: 0.85 },
-  'QUICK_DECISIVE': { evidenceBased: 0.3, intuitionDominant: 0.8, securityFirst: 0.2, optionPreserving: 0.3 },
+  // ── English enum aliases (backward compatible) ──
+  'GUT_FEEL':         { evidenceBased: 0.15, intuitionDominant: 0.9, securityFirst: 0.3,  optionPreserving: 0.5,  label: 'GUT_FEEL' },
+  'DATA_DRIVEN':      { evidenceBased: 0.85, intuitionDominant: 0.1, securityFirst: 0.4,  optionPreserving: 0.5,  label: 'DATA_DRIVEN' },
+  'SAFETY_FIRST':     { evidenceBased: 0.3,  intuitionDominant: 0.4, securityFirst: 0.85, optionPreserving: 0.2,  label: 'SAFETY_FIRST' },
+  'OPTION_KEEPING':   { evidenceBased: 0.4,  intuitionDominant: 0.3, securityFirst: 0.2,  optionPreserving: 0.85, label: 'OPTION_KEEPING' },
+  'QUICK_DECISIVE':   { evidenceBased: 0.3,  intuitionDominant: 0.8, securityFirst: 0.2,  optionPreserving: 0.3,  label: 'QUICK_DECISIVE' },
+  // ── Chinese questionnaire values ──
+  '直接辞职/全职All-in':      { evidenceBased: 0.15, intuitionDominant: 0.85, securityFirst: 0.15, optionPreserving: 0.1,  label: 'QUICK_DECISIVE' },
+  '边上班边小规模测试':        { evidenceBased: 0.45, intuitionDominant: 0.3,  securityFirst: 0.6,  optionPreserving: 0.65, label: 'OPTION_KEEPING' },
+  '先学一阵子再判断':          { evidenceBased: 0.75, intuitionDominant: 0.15, securityFirst: 0.5,  optionPreserving: 0.55, label: 'DATA_DRIVEN' },
+  '等别人先做了我再跟上':      { evidenceBased: 0.35, intuitionDominant: 0.25, securityFirst: 0.75, optionPreserving: 0.3,  label: 'SAFETY_FIRST' },
+  '能不动就不动':              { evidenceBased: 0.1,  intuitionDominant: 0.2,  securityFirst: 0.9,  optionPreserving: 0.1,  label: 'SAFETY_FIRST' },
 }
 
 const FAILURE_RESPONSE_STRENGTHS = {
-  'GIVE_UP': { feedbackAvoidance: 0.85, postActionReview: 0.1, uncertaintyTolerance: 0.1 },
-  'ANALYZE_RETRY': { feedbackAvoidance: 0.1, postActionReview: 0.85, uncertaintyTolerance: 0.7 },
-  'TRY_OTHER': { feedbackAvoidance: 0.3, postActionReview: 0.5, uncertaintyTolerance: 0.6 },
-  'BLAME_EXTERNAL': { feedbackAvoidance: 0.8, postActionReview: 0.1, uncertaintyTolerance: 0.2 },
-  'WAIT_BETTER': { feedbackAvoidance: 0.5, postActionReview: 0.3, uncertaintyTolerance: 0.2 },
+  // ── English enum aliases (backward compatible) ──
+  'GIVE_UP':        { feedbackAvoidance: 0.85, postActionReview: 0.1,  uncertaintyTolerance: 0.1, label: 'GIVE_UP' },
+  'ANALYZE_RETRY':  { feedbackAvoidance: 0.1,  postActionReview: 0.85, uncertaintyTolerance: 0.7, label: 'ANALYZE_RETRY' },
+  'TRY_OTHER':      { feedbackAvoidance: 0.3,  postActionReview: 0.5,  uncertaintyTolerance: 0.6, label: 'TRY_OTHER' },
+  'BLAME_EXTERNAL': { feedbackAvoidance: 0.8,  postActionReview: 0.1,  uncertaintyTolerance: 0.2, label: 'BLAME_EXTERNAL' },
+  'WAIT_BETTER':    { feedbackAvoidance: 0.5,  postActionReview: 0.3,  uncertaintyTolerance: 0.2, label: 'WAIT_BETTER' },
+  // ── Chinese questionnaire values ──
+  '直接放弃，不再尝试':  { feedbackAvoidance: 0.9,  postActionReview: 0.05, uncertaintyTolerance: 0.05, label: 'GIVE_UP' },
+  '换个方向继续试':      { feedbackAvoidance: 0.35, postActionReview: 0.4,  uncertaintyTolerance: 0.55, label: 'TRY_OTHER' },
+  '复盘优化后继续':      { feedbackAvoidance: 0.1,  postActionReview: 0.85, uncertaintyTolerance: 0.7,  label: 'ANALYZE_RETRY' },
+  '追加投入再试一次':    { feedbackAvoidance: 0.15, postActionReview: 0.6,  uncertaintyTolerance: 0.55, label: 'ANALYZE_RETRY' },
+  '不确定':              { feedbackAvoidance: 0.45, postActionReview: 0.3,  uncertaintyTolerance: 0.25, label: 'WAIT_BETTER' },
 }
 
 const PAST_ATTEMPT_STRENGTHS = {
-  'NEVER_TRIED': { experimentation: 0.05, marketEvidence: 0.1, feedbackLoop: 0.1 },
-  'PLANNING': { experimentation: 0.2, marketEvidence: 0.1, feedbackLoop: 0.15 },
-  'TRIED_ONCE': { experimentation: 0.5, marketEvidence: 0.3, feedbackLoop: 0.4 },
-  'TRIED_MULTIPLE': { experimentation: 0.75, marketEvidence: 0.6, feedbackLoop: 0.65 },
-  'ONGOING': { experimentation: 0.85, marketEvidence: 0.7, feedbackLoop: 0.7 },
+  // ── English enum aliases (backward compatible) ──
+  'NEVER_TRIED':    { experimentation: 0.05, marketEvidence: 0.1,  feedbackLoop: 0.1,  label: 'NEVER_TRIED' },
+  'PLANNING':       { experimentation: 0.2,  marketEvidence: 0.1,  feedbackLoop: 0.15, label: 'PLANNING' },
+  'TRIED_ONCE':     { experimentation: 0.5,  marketEvidence: 0.3,  feedbackLoop: 0.4,  label: 'TRIED_ONCE' },
+  'TRIED_MULTIPLE': { experimentation: 0.75, marketEvidence: 0.6,  feedbackLoop: 0.65, label: 'TRIED_MULTIPLE' },
+  'ONGOING':        { experimentation: 0.85, marketEvidence: 0.7,  feedbackLoop: 0.7,  label: 'ONGOING' },
+  // ── Chinese questionnaire values ──
+  '还没开始过任何尝试':                { experimentation: 0.05, marketEvidence: 0.05, feedbackLoop: 0.05, label: 'NEVER_TRIED' },
+  '只买过课/看过教程，没真正做过':      { experimentation: 0.15, marketEvidence: 0.1,  feedbackLoop: 0.1,  label: 'PLANNING' },
+  '坚持不到30天就停了':                { experimentation: 0.35, marketEvidence: 0.2,  feedbackLoop: 0.25, label: 'TRIED_ONCE' },
+  '做了一个产品/服务但没卖出去':        { experimentation: 0.55, marketEvidence: 0.35, feedbackLoop: 0.45, label: 'TRIED_ONCE' },
+  '卖出过几个，有少量收入':            { experimentation: 0.7,  marketEvidence: 0.65, feedbackLoop: 0.6,  label: 'TRIED_MULTIPLE' },
+  '已有稳定的副业/兼职收入':            { experimentation: 0.85, marketEvidence: 0.75, feedbackLoop: 0.75, label: 'ONGOING' },
 }
 
 const INCOME_STRUCTURE_STRENGTHS = {
