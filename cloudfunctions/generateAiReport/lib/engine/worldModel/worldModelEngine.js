@@ -82,7 +82,7 @@ function calculateDimensionScore(supporting, contradicting) {
     : supporting.reduce(function(s, sig) { return s + (sig.score || 0.3) }, 0) / supporting.length
 
   var conPenalty = contradicting.length === 0 ? 0
-    : contradicting.reduce(function(s, sig) { return s + (sig.score || 0) }, 0) * 0.25
+    : contradicting.reduce(function(s, sig) { return s + (sig.score || 0.3) }, 0) * 0.25
 
   // Weight active signals more heavily
   var activeCount = supporting.filter(function(s) { return s.state === 'ACTIVE' }).length
