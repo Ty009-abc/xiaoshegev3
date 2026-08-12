@@ -119,7 +119,9 @@
         "AI_API_KEY": "sk-1e22630f6ba74bc58b27232da7ea05d4",
         "AI_API_BASE_URL": "https://api.deepseek.com/v1",
         "AI_MODEL_FLASH": "deepseek-chat",
-        "AI_MODEL_PRO": "deepseek-chat"
+        "AI_MODEL_PRO": "deepseek-chat",
+        "RC83_WORLD_MODEL_MODE": "SELECTIVE_PRIMARY",
+        "RC83_WORLD_MODEL_ALLOWLIST": "oZa463Yb2VY0k9Es_pGzdHFtigNo"
       }
     },
     {

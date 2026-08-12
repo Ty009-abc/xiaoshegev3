@@ -478,8 +478,9 @@ Page({
     }
 
     // 打包：V4 权威合同优先，兼容字段在顶层向后兼容
+    // RC8.3 Phase-2 Canary: diagnosticVersion → world_model_v1
     const answers = {
-      diagnosticVersion: 'v4',
+      diagnosticVersion: 'world_model_v1',
       answers: v4Answers,
       ...v4Answers,
       ...compatAnswers,
@@ -488,7 +489,7 @@ Page({
     // V4 前端合同日志
     const v4Keys = Object.keys(v4Answers)
     console.log('[DiagnosticV4Answers]', {
-      diagnosticVersion: 'v4',
+      diagnosticVersion: 'world_model_v1',
       questionSteps: DIAGNOSTIC_QUESTIONS.length,
       keyCount: v4Keys.length,
       keys: v4Keys,
