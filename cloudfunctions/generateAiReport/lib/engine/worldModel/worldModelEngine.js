@@ -78,11 +78,15 @@ function calculateDimensionScore(supporting, contradicting) {
     return 0.3 // Default neutral — no evidence either way
   }
 
+  // Safe score extraction: valid numeric 0..1 preserved, invalid/missing → fallback
+  function safeSupScore(sig) { var v = Number(sig.score); return isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.3 }
+  function safeConScore(sig) { var v = Number(sig.score); return isFinite(v) ? Math.max(0, Math.min(1, v)) : 0 }
+
   var supScore = supporting.length === 0 ? 0
-    : supporting.reduce(function(s, sig) { return s + (sig.score || 0.3) }, 0) / supporting.length
+    : supporting.reduce(function(s, sig) { return s + safeSupScore(sig) }, 0) / supporting.length
 
   var conPenalty = contradicting.length === 0 ? 0
-    : contradicting.reduce(function(s, sig) { return s + (sig.score || 0.3) }, 0) * 0.25
+    : contradicting.reduce(function(s, sig) { return s + safeConScore(sig) }, 0) * 0.25
 
   // Weight active signals more heavily
   var activeCount = supporting.filter(function(s) { return s.state === 'ACTIVE' }).length
