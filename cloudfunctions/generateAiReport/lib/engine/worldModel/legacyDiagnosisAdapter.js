@@ -54,10 +54,18 @@ var BLIND_SPOT_WHY_ZH = {
 }
 
 var STRATEGY_LABEL_ZH = {
+  // v2 keys (strategyDefinitions.js)
   EXPAND_IDENTITY_BOUNDARY: '扩展身份边界',
   UPGRADE_PROBABILITY_THINKING: '升级概率思维',
-  BUILD_SYSTEMATIC_EXPERIMENTATION: '建立系统化实验习惯',
   EXTEND_TIME_HORIZON: '延伸时间视野',
+  BUILD_FEEDBACK_LOOP: '建立反馈回路',
+  INCREASE_EXPERIMENT_RATE: '提高实验密度',
+  BUILD_DECISION_SYSTEM: '建立决策系统',
+  BUILD_LEVERAGE_MODEL: '建立杠杆意识',
+  EXPAND_OPTIONALITY: '扩展可选择性',
+  REFRAME_RISK_MODEL: '重构风险认知',
+  // v1 aliases (retained for compatibility)
+  BUILD_SYSTEMATIC_EXPERIMENTATION: '建立系统化实验习惯',
   DEVELOP_FEEDBACK_LOOPS: '构建反馈回路',
   CALIBRATE_RISK_PERCEPTION: '校准风险感知',
   BROADEN_OPPORTUNITY_EXPOSURE: '拓宽机会视野',
@@ -66,10 +74,18 @@ var STRATEGY_LABEL_ZH = {
 }
 
 var COGNITIVE_UPGRADE_ZH = {
+  // v2 keys (strategyDefinitions.js)
   EXPAND_IDENTITY_BOUNDARY: '从"我是某种职业的人"升级到"我拥有这些能力，可以在多个领域创造价值"',
   UPGRADE_PROBABILITY_THINKING: '从"这个能不能做"升级到"做这件事的期望收益是多少，我愿意承担什么不确定性"',
-  BUILD_SYSTEMATIC_EXPERIMENTATION: '从"等想清楚再做"升级到"先做一个小实验看看真实反馈"',
   EXTEND_TIME_HORIZON: '从"今天必须要做"升级到"今天做一件让三个月后的自己感激的事"',
+  BUILD_FEEDBACK_LOOP: '从"假设-行动-猜测结果"升级到"假设-低成本实验-真实反馈-调整假设"',
+  INCREASE_EXPERIMENT_RATE: '从"准备充分再行动"升级到"用最小的成本最快的速度获得真实反馈，让行动驱动学习"',
+  BUILD_DECISION_SYSTEM: '从"每次重新想怎么办"升级到"建立可复用的决策框架，让今天的决策为明天的决策创造更好的条件"',
+  BUILD_LEVERAGE_MODEL: '从"一份时间换一份回报"升级到"识别并用好杠杆——系统、知识、分发——让一份投入产生多份回报"',
+  EXPAND_OPTIONALITY: '从"找到一条最好的路"升级到"同时培育多个可能路径，让时间带来更多信息后再做选择"',
+  REFRAME_RISK_MODEL: '从"避免所有风险"升级到"评估风险大小、可逆性和上行空间，为可逆风险果断行动"',
+  // v1 aliases (retained for compatibility)
+  BUILD_SYSTEMATIC_EXPERIMENTATION: '从"等想清楚再做"升级到"先做一个小实验看看真实反馈"',
   DEVELOP_FEEDBACK_LOOPS: '从"自己判断对不对"升级到"用真实世界的数据来判断对不对"',
   CALIBRATE_RISK_PERCEPTION: '从"这个有风险所以不做"升级到"这个风险是否可控，不可逆代价是什么"',
   BROADEN_OPPORTUNITY_EXPOSURE: '从"我只关注熟悉的领域"升级到"定期接触新的可能性，用真实反馈筛选"',
@@ -78,10 +94,18 @@ var COGNITIVE_UPGRADE_ZH = {
 }
 
 var FIRST_EXPERIMENT_ZH = {
+  // v2 keys (strategyDefinitions.js)
   EXPAND_IDENTITY_BOUNDARY: '在当前职业身份之外做一件小的输出——写一篇短文章、录一段视频、或者提供一次无偿咨询。重点不是质量，而是体验"我也可以做不同的事"的感觉',
   UPGRADE_PROBABILITY_THINKING: '下一次面临选择时，写下三个可能的走向和每个走向发生的概率，然后做一件能用一个周末完成的小实验来获取真实反馈',
-  BUILD_SYSTEMATIC_EXPERIMENTATION: '找一个想了很久但没动手的方向，在48小时内完成它的最简单版本，把它拿出来给三个人看并收集反馈',
   EXTEND_TIME_HORIZON: '每天早上拿出一小时，不处理紧急事务，只做一件对三个月后的自己有明确价值的事情',
+  BUILD_FEEDBACK_LOOP: '选一个最近做的决策，找三个不依赖自我判断的外部信息源——客观数据、非亲友的他人反馈、真实结果记录——来检验这个决策的依据是否站得住脚',
+  INCREASE_EXPERIMENT_RATE: '找一个想了很久但没动手的方向，在接下来一周内完成两次最小版本实验——每次只需几小时，目标不是做对而是快速获取真实反馈，记录每次学到的东西',
+  BUILD_DECISION_SYSTEM: '为接下来一周的主要决策建一个简单记录：写下来你要决定什么、选择理由和预期结果，一周后对照真实结果，看哪里判断准确、哪里出了偏差',
+  BUILD_LEVERAGE_MODEL: '盘点过去一个月的产出，标记出可以重复使用的部分——一个模板、一个流程、一个方法论——把它整理成下一次可以零成本调用的形式，观察复用效果',
+  EXPAND_OPTIONALITY: '写下当前面临的一个选择，然后强迫自己写出五个原本没想到的替代方案——质量不重要，数量优先——两周后回看是否有之前忽略的可行路径',
+  REFRAME_RISK_MODEL: '列出三个因为"有风险"而一直没做的事，对每一个分析：最坏情况是什么、是否可以逆转、实际发生概率有多高，选可逆性最高的一件，一周内迈出第一步',
+  // v1 aliases (retained for compatibility)
+  BUILD_SYSTEMATIC_EXPERIMENTATION: '找一个想了很久但没动手的方向，在48小时内完成它的最简单版本，把它拿出来给三个人看并收集反馈',
   DEVELOP_FEEDBACK_LOOPS: '找一件你最近做的决策，不依靠自己的判断，找三个外部信息来源来验证你的决策依据是否正确',
   CALIBRATE_RISK_PERCEPTION: '列出三个你因为"有风险"而一直没做的事，对每一个分析最坏情况、是否可逆、发生概率，选风险最低的一件，一周内迈出第一步',
   BROADEN_OPPORTUNITY_EXPOSURE: '接下来两周，接触三个你完全不熟悉的领域——读一本不同行业的书、和一个不同背景的人深聊、参加一个从未去过的活动，记录三条新线索',
@@ -90,10 +114,18 @@ var FIRST_EXPERIMENT_ZH = {
 }
 
 var SUCCESS_SIGNAL_ZH = {
+  // v2 keys (strategyDefinitions.js)
   EXPAND_IDENTITY_BOUNDARY: '你可以自然地用能力描述自己，而非仅用职业称谓',
   UPGRADE_PROBABILITY_THINKING: '做决策时不再只问成不成，会自然地评估可能性和期望值',
-  BUILD_SYSTEMATIC_EXPERIMENTATION: '遇到不确定的事情，你的第一反应是"先试试"，而不是"先想清楚"',
   EXTEND_TIME_HORIZON: '每天优先安排对长期有价值的事情，而非被紧急事务填满',
+  BUILD_FEEDBACK_LOOP: '你的核心决策中至少有一个关键假设被外部真实反馈修正过',
+  INCREASE_EXPERIMENT_RATE: '面对不确定的事情，你的第一反应是"先做个小实验看反馈"，而不是"等想清楚再说"',
+  BUILD_DECISION_SYSTEM: '你做决策时有可追溯的思考记录，回顾时能清晰看到哪些判断模式在持续改善',
+  BUILD_LEVERAGE_MODEL: '同样的时间投入，你产出的成果可以在多个场景被重复利用',
+  EXPAND_OPTIONALITY: '面对问题时，你自然能想到多个不同方向的解决方案，而非只有一个',
+  REFRAME_RISK_MODEL: '你能清晰区分可逆和不可逆风险，并据此做出不同的行动策略',
+  // v1 aliases (retained for compatibility)
+  BUILD_SYSTEMATIC_EXPERIMENTATION: '遇到不确定的事情，你的第一反应是"先试试"，而不是"先想清楚"',
   DEVELOP_FEEDBACK_LOOPS: '你的决策依据中，外部数据占比显著提高',
   CALIBRATE_RISK_PERCEPTION: '你能够清晰区分可逆风险和不可逆风险，并据此做出不同的行动策略',
   BROADEN_OPPORTUNITY_EXPOSURE: '你定期接触到以前不知道的可能性，并在其中做了有意义的尝试',
@@ -102,10 +134,18 @@ var SUCCESS_SIGNAL_ZH = {
 }
 
 var STOP_CONDITION_ZH = {
+  // v2 keys (strategyDefinitions.js)
   EXPAND_IDENTITY_BOUNDARY: '你已经在至少一个非职业身份的领域做出了有市场反馈的尝试',
   UPGRADE_PROBABILITY_THINKING: '你在做决策时能自然地想到"这里有几种可能"而不只是"能不能做"',
-  BUILD_SYSTEMATIC_EXPERIMENTATION: '你连续四周每周至少有一个完整的小实验闭环',
   EXTEND_TIME_HORIZON: '你的时间分配表上，非紧急重要事务占比超过百分之四十',
+  BUILD_FEEDBACK_LOOP: '你拥有至少三个稳定运转的外部反馈来源，核心决策不再依赖未经检验的假设',
+  INCREASE_EXPERIMENT_RATE: '你连续四周每周至少完成两个完整的实验-反馈-调整闭环，且不需要外部推动',
+  BUILD_DECISION_SYSTEM: '你的决策日志覆盖了至少四周的主要选择，复盘显示判断偏差在持续收窄',
+  BUILD_LEVERAGE_MODEL: '你有一个可重复使用的产出系统，已在至少两个不同场景中被独立验证',
+  EXPAND_OPTIONALITY: '你在不止一个原先陌生的领域发现了有价值的可行路径，并拥有初步的真实证据',
+  REFRAME_RISK_MODEL: '你能够清晰区分面临风险中哪些是可逆的、哪些是不可逆的，并用预期价值和可逆性而非恐惧来做风险决策',
+  // v1 aliases (retained for compatibility)
+  BUILD_SYSTEMATIC_EXPERIMENTATION: '你连续四周每周至少有一个完整的小实验闭环',
   DEVELOP_FEEDBACK_LOOPS: '你有至少三个稳定运转的外部信息来源持续为你的核心决策提供反馈',
   CALIBRATE_RISK_PERCEPTION: '你对风险有了更细致的分类，并能区分心理恐惧与真实概率',
   BROADEN_OPPORTUNITY_EXPOSURE: '你在两个以上原先陌生的领域找到了可执行的切入点',
