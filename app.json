@@ -14,6 +14,7 @@
     "pages/world-rule-detail/world-rule-detail",
     "pages/report-preview/report-preview",
     "pages/report-detail/report-detail",
+    "pages/v2-shadow-test/v2-shadow-test",
     "pages/membership/membership",
     "pages/membership-center/membership-center",
     "pages/payment-result/payment-result",

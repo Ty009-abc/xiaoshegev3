@@ -1,0 +1,49 @@
+<view class="v2-page">
+  <!-- 无权限 -->
+  <view wx:if="{{!loading && !allowed}}" class="v2-denied">
+    <text class="v2-denied-title">无内部测试权限</text>
+    <text class="v2-denied-sub">本入口仅对 U1-U5 内部白名单开放</text>
+  </view>
+
+  <!-- 已提交 -->
+  <view wx:elif="{{submitted}}" class="v2-done">
+    <text class="v2-done-title">V2 内部测试已提交</text>
+    <text class="v2-done-sub">{{resultMsg}}</text>
+    <text class="v2-done-note">本次仅产生 shadow 记录，不作为正式诊断报告</text>
+  </view>
+
+  <!-- 问卷 -->
+  <view wx:else class="v2-body">
+    <view class="v2-header">
+      <text class="v2-title">V2 内部测试（18 题）</text>
+      <text class="v2-progress">已答 {{answeredCount}} / {{total}}</text>
+    </view>
+
+    <view wx:for="{{questions}}" wx:key="id" class="v2-question">
+      <text class="v2-q-text">{{index + 1}}. {{item.text}}</text>
+      <view class="v2-options">
+        <view
+          wx:for="{{item.options}}"
+          wx:for-item="opt"
+          wx:key="optionId"
+          class="v2-option {{answers[item.id] === opt.optionId ? 'v2-option-active' : ''}}"
+          data-qid="{{item.id}}"
+          data-oid="{{opt.optionId}}"
+          bindtap="onSelectOption"
+        >
+          <text class="v2-option-letter">{{opt.optionId}}</text>
+          <text class="v2-option-text">{{opt.text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="v2-footer">
+      <button
+        class="v2-submit {{answeredCount === total ? '' : 'v2-submit-disabled'}}"
+        bindtap="onSubmit"
+        disabled="{{answeredCount !== total || submitting}}"
+      >{{submitting ? '提交中…' : '提交（shadow）'}}</button>
+      <text class="v2-footer-note">提交后不展示正式诊断，仅写入 shadow 记录</text>
+    </view>
+  </view>
+</view>

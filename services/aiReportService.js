@@ -41,4 +41,18 @@ function generateDiagnosticReport({ answers, personality, personalityEmoji, pers
   })
 }
 
-module.exports = { generateAiReport, getAiReport, generateDiagnosticReport }
+/**
+ * RC8.3 Stage 16B — world_model_v2 SHADOW-only submission.
+ * 发送稳定协议 { diagnosticVersion: 'world_model_v2', answers: [{questionId, optionId}] }。
+ * 客户端不期望得到正式诊断报告；服务端仅执行 shadow 并返回测试态应答。
+ * @param {Array<{questionId:string, optionId:string}>} answersArray
+ */
+function generateV2ShadowReport(answersArray) {
+  return call('generateAiReport', {
+    type: 'diagnostic',
+    diagnosticVersion: 'world_model_v2',
+    answers: answersArray,
+  })
+}
+
+module.exports = { generateAiReport, getAiReport, generateDiagnosticReport, generateV2ShadowReport }
