@@ -70,8 +70,16 @@ exports.main = async (event, context) => {
         return await runDiagnosticV4Branch({ event, openid, ts, db })
       }
 
-      // ═══ RC8.3 Stage 16A: world_model_v2 SHADOW-only (never primary) ═══
+      // ═══ RC8.3 Stage 17A: world_model_v2 — selective single-user primary ═══
+      // Independent V2 mode/allowlist (NEVER reuse V1 MODE/allowlist). Fail-closed:
+      // missing/invalid/empty config → SHADOW.
       if (diagnosticVersion === 'world_model_v2') {
+        const { parseV2Mode, getV2ModeFromEnv, getV2AllowlistFromEnv, isV2PrimaryAuthorized } = require('./lib/config/worldModelV2Mode')
+        const v2Mode = parseV2Mode(getV2ModeFromEnv())
+        const v2Allowlist = getV2AllowlistFromEnv()
+        if (v2Mode === 'SELECTIVE_PRIMARY' && isV2PrimaryAuthorized(openid, v2Allowlist)) {
+          return await runWorldModelV2Primary({ event, openid, ts, db })
+        }
         return await runWorldModelV2Shadow({ event, openid, ts, db })
       }
 
@@ -423,6 +431,119 @@ async function runWorldModelV2Shadow({ event, openid, ts, db }) {
     renderSource: 'v2_shadow_only',
     v2PrimaryActive: false,
     message: 'world_model_v2 当前仅执行 shadow 记录，未开放为主诊断',
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RC8.3 Stage 17A: World Model V2 — selective single-user PRIMARY
+// ═══════════════════════════════════════════════════════════════
+//
+// Only reached when RC83_WORLD_MODEL_V2_MODE === 'SELECTIVE_PRIMARY' AND the
+// caller openid is in RC83_WORLD_MODEL_V2_ALLOWLIST (see dispatch above).
+//
+// Produces a REAL V2 primary report via:
+//   validate 18 answers → runWorldModelPipelineV2 → adaptWorldModelToLegacyV2
+//   → validate adapter output → return V2 report.
+//
+// Persists to a SEPARATE primary namespace:
+//   type / recordType = diagnostic_world_model_v2
+// which never collides with diagnostic_world_model_v1 / diagnostic_v4 /
+// diagnostic_world_model_v2_shadow.
+//
+// Invalid / incomplete / pipeline-failed / adapter-failed payloads fail-closed
+// back to the SHADOW path (never emit a partial/unsafe primary report).
+// ═══════════════════════════════════════════════════════════════
+
+async function runWorldModelV2Primary({ event, openid, ts, db }) {
+  console.log('[V2Primary] world_model_v2 PRIMARY request, openid=' + (openid ? 'present' : 'missing'))
+
+  var validateV2Answers, runWorldModelPipelineV2, adaptWorldModelToLegacyV2
+  try {
+    var v2mod = require('./lib/engine/worldModel/v2')
+    validateV2Answers = v2mod.validateV2Answers
+    runWorldModelPipelineV2 = v2mod.runWorldModelPipelineV2
+    adaptWorldModelToLegacyV2 = v2mod.adaptWorldModelToLegacyV2
+  } catch (requireErr) {
+    console.error('[V2Primary] v2 module require failed:', requireErr.message)
+    return runWorldModelV2Shadow({ event, openid, ts, db }) // fail-safe
+  }
+
+  var answersPayload = event.answers || event.v2Answers || null
+  var verdict = validateV2Answers(answersPayload)
+  if (!verdict.valid) {
+    console.log('[V2Primary] payload invalid/incomplete → shadow fallback')
+    return runWorldModelV2Shadow({ event, openid, ts, db })
+  }
+
+  var result = runWorldModelPipelineV2(verdict.answersObj)
+  if (!result || !result.valid || !result.diagnosis) {
+    console.log('[V2Primary] pipeline invalid → shadow fallback')
+    return runWorldModelV2Shadow({ event, openid, ts, db })
+  }
+
+  var diagnosis = result.diagnosis
+  var report = adaptWorldModelToLegacyV2(diagnosis)
+  if (!report || report._renderSource !== 'world_model_v2') {
+    console.log('[V2Primary] adapter output invalid → shadow fallback')
+    return runWorldModelV2Shadow({ event, openid, ts, db })
+  }
+
+  var bs = diagnosis.cognitiveBlindSpot || {}
+  var blindSpot = bs.id || null
+  var strategy = (diagnosis.worldStrategy && diagnosis.worldStrategy.id) || null
+  var candidates = bs.candidates || []
+  var primary = candidates[0] || null
+  var second = candidates[1] || null
+
+  // Persist a SEPARATE primary record (never shadow / v1 / v4 namespace).
+  var primaryRecord = {
+    openid: openid,
+    type: 'diagnostic_world_model_v2',
+    recordType: 'diagnostic_world_model_v2',
+    diagnosticVersion: 'world_model_v2',
+    engineVersion: 'world_model_v2',
+    renderSource: 'world_model_v2',
+    inputHash: diagnosis.inputHash,
+    blindSpot: blindSpot,
+    strategy: strategy,
+    dimensions: diagnosis.worldModel || null,
+    // Primary ranking observability (STEP 11) — explicit, never hidden.
+    primaryRanking: {
+      primaryBlindSpot: blindSpot,
+      secondBlindSpot: second ? second.id : null,
+      primaryRawScore: primary ? primary.gapScore : null,
+      secondRawScore: second ? second.gapScore : null,
+      rawGap: bs.rawGap,
+      tieDetected: !!bs.tieDetected,
+      tieBrokenBy: bs.tieBrokenBy || null,
+      lowSeparation: (bs.rawGap != null && bs.rawGap < 0.05),
+    },
+    createdAt: ts,
+    updatedAt: ts,
+  }
+
+  try {
+    await db.collection('ai_reports').add({ data: primaryRecord })
+  } catch (recErr) {
+    console.error('[V2Primary] record persist failed:', recErr.message)
+    // Do not block the primary response on record-write failure.
+  }
+
+  console.log('[V2Primary] PRIMARY executed. blindSpot=' + (blindSpot || 'null') +
+    ' strategy=' + (strategy || 'null') +
+    ' rawGap=' + (bs.rawGap != null ? bs.rawGap : 'null') +
+    ' tieDetected=' + !!bs.tieDetected)
+
+  return ok({
+    reportId: event.reportId || null,
+    reportType: 'diagnostic_v2',
+    diagnosticVersion: 'world_model_v2',
+    engineVersion: 'world_model_v2',
+    renderSource: 'world_model_v2',
+    report: report,
+    diagnosis: diagnosis,
+    inputHash: diagnosis.inputHash,
+    v2PrimaryActive: true,
   })
 }
 
