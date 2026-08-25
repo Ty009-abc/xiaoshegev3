@@ -1,0 +1,70 @@
+<view class="v2r-page">
+  <view wx:if="{{loading}}" class="v2r-state">加载中…</view>
+  <view wx:elif="{{error}}" class="v2r-state">{{error}}</view>
+
+  <block wx:else>
+    <!-- 标题 -->
+    <view class="v2r-header">
+      <text class="v2r-title">{{report.headline.title}}</text>
+      <text class="v2r-subtitle">{{report.headline.subtitle}}</text>
+    </view>
+
+    <!-- 核心诊断 -->
+    <view class="v2r-card">
+      <text class="v2r-card-title">核心认知盲区</text>
+      <text class="v2r-main">{{report.fatalDiagnosis.mainProblem}}</text>
+      <text class="v2r-reason">{{report.fatalDiagnosis.reason}}</text>
+    </view>
+
+    <!-- 认知升级方向 -->
+    <view class="v2r-card">
+      <text class="v2r-card-title">认知升级方向</text>
+      <text class="v2r-main">{{report.cognitiveVerdict.summary}}</text>
+      <text class="v2r-strategy">推荐策略：{{report.cognitiveVerdict.recommendedStrategy}}</text>
+    </view>
+
+    <!-- 身份升级 -->
+    <view class="v2r-card">
+      <text class="v2r-card-title">身份升级</text>
+      <text class="v2r-reason">{{report.identityUpgrade.current}}</text>
+      <text class="v2r-arrow">↓</text>
+      <text class="v2r-main">{{report.identityUpgrade.target}}</text>
+    </view>
+
+    <!-- 行动计划 -->
+    <view class="v2r-card">
+      <text class="v2r-card-title">行动路径</text>
+      <view class="v2r-step">
+        <text class="v2r-step-label">第一步</text>
+        <text class="v2r-step-text">{{report.actionPlan.day1.goal}}</text>
+      </view>
+      <view class="v2r-step">
+        <text class="v2r-step-label">第一周</text>
+        <text class="v2r-step-text">{{report.actionPlan.day7.goal}}</text>
+      </view>
+      <view class="v2r-step">
+        <text class="v2r-step-label">30 天</text>
+        <text class="v2r-step-text">{{report.actionPlan.day30.goal}}</text>
+      </view>
+    </view>
+
+    <!-- 停止做的事 -->
+    <view class="v2r-card">
+      <text class="v2r-card-title">停止做什么</text>
+      <text wx:for="{{report.stopDoing.items}}" wx:key="*this" class="v2r-reason">· {{item}}</text>
+    </view>
+
+    <!-- 结论 -->
+    <view class="v2r-card">
+      <text class="v2r-card-title">结论</text>
+      <text class="v2r-main">{{report.finalStrike}}</text>
+    </view>
+
+    <!-- 推演说明（非预测声明） -->
+    <view class="v2r-note">
+      <text>{{report.destinySimulator.note}}</text>
+    </view>
+
+    <button class="v2r-back" bindtap="onBack">返回</button>
+  </block>
+</view>

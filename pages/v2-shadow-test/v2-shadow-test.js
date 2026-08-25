@@ -59,11 +59,19 @@ Page({
     this.setData({ submitting: true })
     generateV2ShadowReport(answersArray)
       .then(function (res) {
+        const renderSource = res && res.data && res.data.renderSource
+        if (renderSource === 'world_model_v2') {
+          // V2 primary（单用户 canary）— 进入正式 V2 报告页
+          app.globalData.v2PrimaryReport = res.data
+          wx.navigateTo({ url: '/pages/v2-report/v2-report' })
+          return
+        }
+        // shadow — 仅测试态确认，绝不当正式诊断
         this.setData({
           submitted: true,
           resultMsg: 'V2 内部测试已提交（shadow 记录中，非正式诊断）',
         })
-        console.log('[V2ShadowTest] server response:', JSON.stringify(res))
+        console.log('[V2ShadowTest] renderSource=', renderSource, JSON.stringify(res))
       }.bind(this))
       .catch(function (err) {
         this.setData({ resultMsg: '提交失败：' + ((err && err.message) || '未知错误') })

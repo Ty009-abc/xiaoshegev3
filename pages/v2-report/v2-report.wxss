@@ -1,0 +1,97 @@
+.v2r-page {
+  min-height: 100vh;
+  background: #f7f7fb;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+.v2r-state {
+  padding: 120rpx 40rpx;
+  text-align: center;
+  color: #8a90a6;
+  font-size: 28rpx;
+}
+.v2r-header {
+  padding: 24rpx 8rpx;
+}
+.v2r-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1f2333;
+}
+.v2r-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #8a90a6;
+}
+.v2r-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+.v2r-card-title {
+  display: block;
+  font-size: 24rpx;
+  color: #7f56d9;
+  font-weight: 600;
+  margin-bottom: 12rpx;
+}
+.v2r-main {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #1f2333;
+  line-height: 1.5;
+}
+.v2r-reason {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: #5a6078;
+  line-height: 1.6;
+}
+.v2r-strategy {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: #7f56d9;
+}
+.v2r-arrow {
+  display: block;
+  text-align: center;
+  color: #b0b4c5;
+  font-size: 28rpx;
+  padding: 8rpx 0;
+}
+.v2r-step {
+  display: flex;
+  margin-top: 12rpx;
+}
+.v2r-step-label {
+  width: 120rpx;
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #7f56d9;
+}
+.v2r-step-text {
+  font-size: 26rpx;
+  color: #3a3f52;
+  line-height: 1.5;
+}
+.v2r-note {
+  padding: 16rpx 8rpx;
+}
+.v2r-note text {
+  font-size: 22rpx;
+  color: #b0b4c5;
+  line-height: 1.6;
+}
+.v2r-back {
+  margin-top: 24rpx;
+  background: #eceef4;
+  color: #5a6078;
+  border-radius: 44rpx;
+  font-size: 28rpx;
+}
