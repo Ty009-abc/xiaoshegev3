@@ -18,7 +18,10 @@ const { DIAGNOSTIC_VERSION_V2 } = require('./questionnaireV2')
 
 function generateInputHashV2(answers) {
   if (!answers || typeof answers !== 'object') return 'v2_empty'
-  var keys = Object.keys(answers).sort()
+  // Only Q_* question keys form the inference identity. Context fields
+  // (lifeStage / incomeStructure / occupationDetail / ...) have zero inference
+  // weight and must NOT alter the input hash.
+  var keys = Object.keys(answers).filter(function (k) { return k.indexOf('Q_') === 0 }).sort()
   var parts = keys.map(function (k) { return k + '=' + String(answers[k]) })
   var str = parts.join('|')
   var hash = 0

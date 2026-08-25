@@ -14,6 +14,7 @@ const { selectStrategyV2, BLIND_SPOT_TO_STRATEGY_V2 } = require('./strategyEngin
 const { computeArchetypeV2 } = require('./archetypeV2')
 const { runWorldModelPipelineV2 } = require('./pipelineV2')
 const { adaptWorldModelToLegacyV2 } = require('./adapterV2')
+const { validateV2Answers, REQUIRED_COUNT_V2 } = require('./payloadValidatorV2')
 
 module.exports = {
   DIAGNOSTIC_VERSION_V2,
@@ -33,4 +34,6 @@ module.exports = {
   computeArchetypeV2,
   runWorldModelPipelineV2,
   adaptWorldModelToLegacyV2,
+  validateV2Answers,
+  REQUIRED_COUNT_V2,
 }

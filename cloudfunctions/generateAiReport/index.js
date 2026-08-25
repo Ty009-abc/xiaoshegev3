@@ -70,6 +70,11 @@ exports.main = async (event, context) => {
         return await runDiagnosticV4Branch({ event, openid, ts, db })
       }
 
+      // ═══ RC8.3 Stage 16A: world_model_v2 SHADOW-only (never primary) ═══
+      if (diagnosticVersion === 'world_model_v2') {
+        return await runWorldModelV2Shadow({ event, openid, ts, db })
+      }
+
       // ═══ V3 原有链路（不变）═══
       const { buildDiagnosticPrompt } = require('./lib/ai.js')
 
@@ -315,6 +320,110 @@ exports.main = async (event, context) => {
     console.error('[generateAiReport] 异常:', err)
     return fail(CODES.AI_ERROR, err.message)
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RC8.3 Stage 16A: World Model V2 — SHADOW-only runtime hook
+// ═══════════════════════════════════════════════════════════════
+//
+// A world_model_v2 request is recognized, validated, and executed in SHADOW
+// only. The client-visible PRIMARY response is a safe acknowledgment
+// (renderSource = 'v2_shadow_only'); v2 is NEVER returned as primary.
+//
+// Shadow trace is persisted to a SEPARATE namespace:
+//   type / recordType = diagnostic_world_model_v2_shadow
+// which never collides with diagnostic_world_model_v1 / diagnostic_v4.
+//
+// Constraints honored:
+//   - never overwrites primary report / v1 diagnosis
+//   - never changes legacy fallback decision
+//   - never calls legacy AI as a v2 shadow dependency
+//   - only a legal v2 questionId+optionId payload reaches the v2 pipeline
+// ═══════════════════════════════════════════════════════════════
+
+async function runWorldModelV2Shadow({ event, openid, ts, db }) {
+  console.log('[V2Shadow] world_model_v2 SHADOW request, openid=' + (openid ? 'present' : 'missing'))
+
+  var shadow = {
+    attempted: false,
+    succeeded: false,
+    diagnosticVersion: 'world_model_v2',
+    inputHash: null,
+    blindSpot: null,
+    strategy: null,
+    dimensions: null,
+    insufficient: false,
+    validationError: null,
+    error: null,
+  }
+
+  var answersPayload = event.answers || event.v2Answers || null
+
+  try {
+    var { validateV2Answers, runWorldModelPipelineV2 } = require('./lib/engine/worldModel/v2')
+    var verdict = validateV2Answers(answersPayload)
+    shadow.attempted = true
+    shadow.insufficient = verdict.insufficient
+    shadow.validationError = verdict.validationError
+
+    // Run the v2 pipeline on the normalized { questionId: optionId } object.
+    // INSUFFICIENT / VALIDATION_FAILED payloads still run for observability —
+    // the pipeline degrades gracefully (unknown options ignored, missing
+    // evidence → UNKNOWN dimension, empty → insufficient/null).
+    var result = runWorldModelPipelineV2(verdict.answersObj)
+    var diagnosis = result.diagnosis
+    shadow.inputHash = diagnosis.inputHash
+    shadow.blindSpot = (diagnosis.cognitiveBlindSpot && diagnosis.cognitiveBlindSpot.id) || null
+    shadow.strategy = (diagnosis.worldStrategy && diagnosis.worldStrategy.id) || null
+    shadow.dimensions = diagnosis.worldModel || null
+    // succeeded only when the payload was fully valid (18/18, no errors) AND
+    // the pipeline produced a complete diagnosis. INSUFFICIENT / VALIDATION_FAILED
+    // payloads are marked failed (with the corresponding flag set).
+    shadow.succeeded = verdict.valid === true && result.valid === true
+    if (!shadow.succeeded && !shadow.validationError && !verdict.insufficient) {
+      shadow.error = 'PIPELINE_INVALID_RESULT'
+    }
+  } catch (e) {
+    shadow.attempted = true
+    shadow.succeeded = false
+    shadow.error = e.message ? e.message.split('\n')[0].substring(0, 200) : 'UNKNOWN'
+    console.error('[V2Shadow] Exception:', shadow.error)
+  }
+
+  // Persist shadow trace to a SEPARATE namespace (never the primary cache).
+  try {
+    await db.collection('ai_reports').add({
+      data: {
+        openid,
+        type: 'diagnostic_world_model_v2_shadow',
+        recordType: 'diagnostic_world_model_v2_shadow',
+        diagnosticVersion: 'world_model_v2',
+        shadowWorldModelV2: shadow,
+        createdAt: ts,
+        updatedAt: ts,
+      },
+    })
+  } catch (recErr) {
+    console.error('[V2Shadow] Record persist failed:', recErr.message)
+  }
+
+  console.log('[V2Shadow] SHADOW executed. attempted=' + shadow.attempted +
+    ' succeeded=' + shadow.succeeded +
+    ' insufficient=' + shadow.insufficient +
+    ' validationError=' + (shadow.validationError || 'none') +
+    ' blindSpot=' + (shadow.blindSpot || 'null') +
+    ' strategy=' + (shadow.strategy || 'null'))
+
+  // SAFE PRIMARY RESPONSE — v2 is NOT primary. No report, no v2 diagnosis as
+  // primary. Client-visible content is a shadow acknowledgment only.
+  return ok({
+    reportId: null,
+    reportType: 'diagnostic_v2_shadow',
+    diagnosticVersion: 'world_model_v2',
+    renderSource: 'v2_shadow_only',
+    v2PrimaryActive: false,
+    message: 'world_model_v2 当前仅执行 shadow 记录，未开放为主诊断',
+  })
 }
 
 // ═══════════════════════════════════════════════════════════════
