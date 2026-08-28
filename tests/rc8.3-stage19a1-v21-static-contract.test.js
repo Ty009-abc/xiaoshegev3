@@ -153,12 +153,33 @@ test('F. forbidden content: displayPosition=0, legacy wealth fields=0', () => {
     assert.strictEqual(countOccurrences(es, banned), 0, `${banned} leaked into evidence`)
   }
 
-  // forbidden inference concepts must not be implemented (no exported functions)
+  // forbidden inference/runtime concepts must not be implemented as exports.
+  // Stage19A4 candidate-container APIs are explicitly authorized (narrow allowlist);
+  // primary/ranking/follow-up/strategy/report semantics remain forbidden.
   const idx = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/v2_1/index.js')
-  for (const banned of ['responseValidity', 'blindspot', 'blindSpot', 'followup', 'followUp', 'strategy', 'report']) {
-    for (const key of Object.keys(idx)) {
-      assert.ok(!key.toLowerCase().includes(banned.toLowerCase()), `forbidden export: ${key}`)
-    }
+  const violations = forbiddenExportViolations(Object.keys(idx))
+  assert.deepStrictEqual(violations, [], `forbidden export(s): ${violations.join(', ')}`)
+})
+
+test('F2. regression-gate self-test: authorized A4 exports pass, forbidden semantics rejected', () => {
+  // AUTHORIZED_A4_EXPORTS_PASS
+  for (const key of ['buildBlindSpotCandidatesV21', 'resolveBlindSpotStatusV21']) {
+    assert.ok(AUTHORIZED_EXPORTS_V21.has(key), `${key} must be authorized`)
+    assert.deepStrictEqual(forbiddenExportViolations([key]), [], `${key} must not be flagged`)
+  }
+  // forbidden semantics still rejected (isolated probes, not real exports)
+  const probes = [
+    'buildPrimaryBlindSpotV21',
+    'rankBlindSpotCandidatesV21',
+    'selectPrimaryBlindSpotV21',
+    'buildStrategyV21',
+    'buildReportV21',
+    'selectFollowUpV21',
+    'secondaryBlindSpotV21',
+    'tieBreakBlindSpotsV21',
+  ]
+  for (const key of probes) {
+    assert.strictEqual(forbiddenExportViolations([key]).length, 1, `${key} must be rejected`)
   }
 })
 
@@ -180,6 +201,49 @@ test('G. derived metadata unresolved accounting', () => {
 })
 
 // ── helpers ────────────────────────────────────────────────────────────────
+// Narrow allowlist: A4 candidate-container APIs (explicit, NOT a broad exemption).
+const AUTHORIZED_EXPORTS_V21 = new Set([
+  'buildBlindSpotCandidatesV21',
+  'resolveBlindSpotStatusV21',
+])
+
+// Forbidden export semantics (normalized to lowercase alphanumeric for matching).
+const FORBIDDEN_EXPORT_TOKENS = [
+  'responsevalidity',
+  'followup',
+  'strategy',
+  'report',
+  'primaryblindspot',
+  'secondaryblindspot',
+  'rankblindspot',
+  'rankcandidates',
+  'topcandidate',
+  'bestcandidate',
+  'selectprimary',
+  'argmax',
+  'tiebreak',
+  'tiebreaker',
+]
+
+function normalizeKey(key) {
+  return String(key).toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function forbiddenExportViolations(exportKeys) {
+  const violations = []
+  for (const key of exportKeys) {
+    if (AUTHORIZED_EXPORTS_V21.has(key)) continue
+    const k = normalizeKey(key)
+    for (const tok of FORBIDDEN_EXPORT_TOKENS) {
+      if (k.includes(tok)) {
+        violations.push(key)
+        break
+      }
+    }
+  }
+  return violations
+}
+
 function countOccurrences(haystack, needle) {
   if (typeof haystack !== 'string') return 0
   let count = 0
