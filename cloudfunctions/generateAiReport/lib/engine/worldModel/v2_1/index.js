@@ -1,17 +1,19 @@
 /**
  * engine/worldModel/v2_1/index.js
  *
- * World Model v2.1 public surface — STATIC CONTRACT + EVIDENCE/SIGNAL LAYER
- * (Stage19A1 static tables + Stage19A2 evidence normalizer & typed signal extractor).
+ * World Model v2.1 public surface — STATIC CONTRACT + EVIDENCE/SIGNAL/DIMENSION
+ * LAYER (Stage19A1 static tables + Stage19A2 evidence normalizer & typed signal
+ * extractor + Stage19A3 dimension state engine).
  *
- * SHADOW ONLY. Exposes frozen static tables plus the A2 semantic layer:
- * normalizeEvidenceV21 (answers → atomic evidence) and extractSignalsV21
- * (atomic evidence → typed signals). It MUST NOT expose dimension scoring,
- * blindspot, primary selection, follow-up, response-validity, strategy, report,
- * adapter, pipeline, or runtime (all later stages).
+ * SHADOW ONLY. Exposes frozen static tables plus the semantic layers:
+ * normalizeEvidenceV21 (answers → atomic evidence), extractSignalsV21 (atomic
+ * evidence → typed signals), computeDimensionsV21 / resolveDimensionStateV21
+ * (evidence → 9 dimension orientation/state). It MUST NOT expose blindspot,
+ * primary selection, follow-up, response-validity, strategy, report, adapter,
+ * pipeline, or runtime (all later stages).
  *
- * Authority priority: R3C > R3B > R3A > R3 > R2 > R1.
- * displayPosition is FORBIDDEN in the static contract.
+ * Authority priority: R3D > R3C > R3B > R3A > R3 > R2 > R1.
+ * displayPosition is FORBIDDEN in cognition.
  *
  * @version world_model_v2_1
  */
@@ -32,6 +34,7 @@ const {
 
 const { normalizeEvidenceV21 } = require('./evidenceNormalizerV21')
 const { extractSignalsV21 } = require('./signalExtractorV21')
+const { computeDimensionsV21, resolveDimensionStateV21 } = require('./dimensionEngineV21')
 
 module.exports = {
   QUESTIONNAIRE_VERSION_V21,
@@ -44,4 +47,6 @@ module.exports = {
   EVIDENCE_CATALOG_V21,
   normalizeEvidenceV21,
   extractSignalsV21,
+  computeDimensionsV21,
+  resolveDimensionStateV21,
 }
