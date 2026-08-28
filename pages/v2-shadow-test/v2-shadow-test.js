@@ -24,16 +24,30 @@ Page({
   },
 
   onLoad() {
-    const openid = app.globalData.openid || ''
-    const allowed = V2_INTERNAL_ALLOWLIST.indexOf(openid) >= 0
-    this.setData({
-      allowed,
-      loading: false,
-      questions: V2_QUESTIONS.map(function (q) {
-        return { id: q.id, text: q.text, options: q.options }
-      }),
-      total: V2_QUESTIONS.length,
-    })
+    // 直连入口（体验/预览二维码指定 pagePath）时，openid 由 app.onLaunch 异步加载。
+    // 必须在登录就绪后再判定白名单，否则 onLoad 读到的 openid 为空，会误显示「无内部测试权限」。
+    this._applied = false
+    const apply = () => {
+      if (this._applied) return
+      this._applied = true
+      const openid = app.globalData.openid || ''
+      const allowed = V2_INTERNAL_ALLOWLIST.indexOf(openid) >= 0
+      this.setData({
+        allowed,
+        loading: false,
+        questions: V2_QUESTIONS.map(function (q) {
+          return { id: q.id, text: q.text, options: q.options }
+        }),
+        total: V2_QUESTIONS.length,
+      })
+    }
+    app.onReady(apply)
+    // 兜底：3s 后即使登录未完成也按当前 openid 判定一次，避免一直 loading
+    this._fallbackTimer = setTimeout(apply, 3000)
+  },
+
+  onUnload() {
+    if (this._fallbackTimer) clearTimeout(this._fallbackTimer)
   },
 
   onSelectOption(e) {
