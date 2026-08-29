@@ -12,7 +12,8 @@
  *   - docs/RC8.3_STAGE18_R3_WORLD_OS_CONTRACT_REPAIR.md §B (Response Validity Layer)
  *   - docs/RC8.3_STAGE18_R3B_RESPONSE_VALIDITY_ADDENDUM.md (deterministic formulas)
  *   - docs/RC8.3_STAGE18_R3C_DISPLAY_POSITION_SOURCE_ADDENDUM.md (position source)
- *   Authority priority: R3C > R3B > R3A > R3 > R2 > R1.
+ *   - docs/RC8.3_STAGE18_R3C_R1_RESPONSE_VALIDITY_VERDICT_CLOSURE.md (verdict closure)
+ *   Authority priority: R3C-R1 > R3C > R3B > R3A > R3 > R2 > R1.
  *
  * FROZEN RULES:
  *   - Position source = DISPLAY_POSITION (R3C). displayPosition ∈ {0,1,2,3}
@@ -20,11 +21,13 @@
  *     ABOLISHED for v2.1. Never infer displayPosition from optionId.
  *   - Strict data separation: optionId → cognition only; displayPosition →
  *     response-validity only. No cross-channel paths.
- *   - Verdict tree (R3B §5, deterministic):
- *       1. n == 0            → INSUFFICIENT_RESPONSE_QUALITY
- *       2. 1 ≤ n < 4         → INSUFFICIENT_RESPONSE_QUALITY
- *       3. all_same | alternating | sequential → RESPONSE_QUALITY_LOW
- *       4. otherwise         → RESPONSE_VALID
+ *   - Verdict tree (R3C-R1 §11 precedence, deterministic):
+ *       STEP 1 — STRUCTURAL SUFFICIENCY (highest priority):
+ *         n == 0 | n < 4 | duplicate questionId | missing displayPosition |
+ *         invalid displayPosition → INSUFFICIENT_RESPONSE_QUALITY
+ *       STEP 2 — POSITION QUALITY (only if STEP 1 passes):
+ *         all_same | alternating | sequential → RESPONSE_QUALITY_LOW
+ *       STEP 3 — otherwise → RESPONSE_VALID
  *   - Mechanical patterns (R3B §4, applied to canonical position sequence):
  *       all_same    : n ≥ 1 AND ∀i L[i]==L[0]   (⟺ SAME_POSITION_RATE==1.0 AND ENTROPY==0)
  *       alternating : n ≥ 4 AND |distinct(L)|==2 AND ∀i L[i]==L[i%2]
@@ -32,9 +35,11 @@
  *   - Single suspicious signal never auto-triggers LOW; LOW only from the
  *     frozen mechanical patterns (joint conditions), never from single-signal
  *     rules like "entropy < X".
- *   - Missing / invalid displayPosition → position-derived signals = UNKNOWN.
- *     Never cognitive deficit. Verdict falls through to RESPONSE_VALID when
- *     n ≥ 4 but no pattern can be confirmed (do not fabricate LOW).
+ *   - Missing / invalid displayPosition → position-derived signals = UNKNOWN
+ *     AND structural insufficiency → INSUFFICIENT_RESPONSE_QUALITY (R3C-R1
+ *     fail-closed; never RESPONSE_VALID, never fabricated LOW).
+ *   - Duplicate questionId → INSUFFICIENT_RESPONSE_QUALITY (R3C-R1 §8). It is
+ *     NOT a cognitive signal, never silently deduplicated, never take first/last.
  *   - Deferred signals (R3B §6.3): COMPLETION_TIME_ANOMALY,
  *     DUPLICATE_SCENARIO_INCONSISTENCY, and SEMANTIC_CONTRADICTION_RATE are
  *     DEFERRED_NOT_OBSERVABLE here (need runtime timing / paired observations /
@@ -141,7 +146,7 @@ function assessResponseValidityV21(responses) {
 
   const n = entries.length
 
-  // ── Duplicate questionId detection (structural flag, non-gating) ────────
+  // ── Duplicate questionId detection (R3C-R1 §8: structural insufficiency) ──
   const qCount = new Map()
   for (const e of entries) qCount.set(e.questionId, (qCount.get(e.questionId) || 0) + 1)
   const duplicateQuestionIds = [...qCount.entries()].filter(([, c]) => c > 1).map(([q]) => q)
@@ -197,20 +202,28 @@ function assessResponseValidityV21(responses) {
     detectedPatterns = detectPatterns(L)
   }
 
-  // ── Verdict tree (R3B §5) ───────────────────────────────────────────────
+  // ── Verdict tree (R3C-R1 §11 precedence, deterministic) ────────────────
+  // STEP 1 — STRUCTURAL SUFFICIENCY (highest priority).
+  // STEP 2 — POSITION QUALITY (mechanical patterns).
+  // STEP 3 — otherwise.
   let status
   let verdictReason
 
-  if (n === 0) {
+  const structuralInsufficiency =
+    n === 0 ||
+    n < MIN_RESPONSES ||
+    duplicateQuestionIds.length > 0 ||
+    positionMissingCount > 0 ||
+    positionInvalidCount > 0
+
+  if (structuralInsufficiency) {
     status = 'INSUFFICIENT_RESPONSE_QUALITY'
-    verdictReason = 'EMPTY_RESPONSE'
-  } else if (n < MIN_RESPONSES) {
-    status = 'INSUFFICIENT_RESPONSE_QUALITY'
-    verdictReason = 'SPARSE_RESPONSE'
-  } else if (positionUnknown) {
-    // Cannot confirm a mechanical pattern from incomplete position metadata.
-    status = 'RESPONSE_VALID'
-    verdictReason = 'POSITION_SIGNALS_UNKNOWN'
+    if (n === 0) verdictReason = 'EMPTY_RESPONSE'
+    else if (n < MIN_RESPONSES) verdictReason = 'SPARSE_RESPONSE'
+    else if (duplicateQuestionIds.length > 0) verdictReason = 'DUPLICATE_QUESTION_SUBMISSION'
+    else if (positionMissingCount > 0 && positionInvalidCount === 0) verdictReason = 'MISSING_DISPLAY_POSITION'
+    else if (positionInvalidCount > 0 && positionMissingCount === 0) verdictReason = 'INVALID_DISPLAY_POSITION'
+    else verdictReason = 'STRUCTURAL_INSUFFICIENCY'
   } else if (detectedPatterns.length > 0) {
     status = 'RESPONSE_QUALITY_LOW'
     verdictReason = detectedPatterns.includes('all_same')

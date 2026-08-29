@@ -9,6 +9,7 @@
  *   - docs/RC8.3_STAGE18_R3_WORLD_OS_CONTRACT_REPAIR.md §B
  *   - docs/RC8.3_STAGE18_R3B_RESPONSE_VALIDITY_ADDENDUM.md
  *   - docs/RC8.3_STAGE18_R3C_DISPLAY_POSITION_SOURCE_ADDENDUM.md
+ *   - docs/RC8.3_STAGE18_R3C_R1_RESPONSE_VALIDITY_VERDICT_CLOSURE.md
  *
  * Uses `node --test`.
  *
@@ -86,18 +87,13 @@ test('6. sparse n<4 → INSUFFICIENT_RESPONSE_QUALITY', () => {
   assert.ok(r.reasons.includes('SPARSE_RESPONSE'))
 })
 
-test('7. duplicate questionId flagged (non-gating when n≥4 and varied)', () => {
+test('7. duplicate questionId → INSUFFICIENT_RESPONSE_QUALITY (R3C-R1 §8)', () => {
   const r = rv.assessResponseValidityV21([
-    R('SC_DEC_01', 0), R('SC_DEC_01', 1), R('SC_FB_01', 2), R('SC_FB_02', 3),
-  ])
-  // duplicate drops answered count to 3 distinct? No: answered = 4 entries.
-  // The position sequence uses all 4 entries (0,1,2,3) → sequential → LOW.
-  // Use a non-mechanical position set to isolate the duplicate flag.
-  const r2 = rv.assessResponseValidityV21([
     R('SC_DEC_01', 0), R('SC_DEC_01', 2), R('SC_FB_01', 1), R('SC_FB_02', 3),
   ])
-  assert.ok(r2.observedSignals.some((s) => s.signal === 'DUPLICATE_QUESTION_SUBMISSION'))
-  assert.ok(r2.reasons.includes('DUPLICATE_QUESTION_SUBMISSION'))
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+  assert.ok(r.observedSignals.some((s) => s.signal === 'DUPLICATE_QUESTION_SUBMISSION'))
+  assert.ok(r.reasons.includes('DUPLICATE_QUESTION_SUBMISSION'))
 })
 
 test('8. invalid displayPosition → position signals UNKNOWN, no fabricated LOW', () => {
@@ -107,8 +103,8 @@ test('8. invalid displayPosition → position signals UNKNOWN, no fabricated LOW
   assert.ok(r.observedSignals.some((s) => s.signal === 'INVALID_DISPLAY_POSITION'))
   const spr = r.observedSignals.find((s) => s.signal === 'SAME_POSITION_RATE')
   assert.strictEqual(spr.status, 'UNKNOWN')
-  assert.strictEqual(r.status, 'RESPONSE_VALID') // must NOT fabricate LOW
-  assert.ok(r.reasons.includes('POSITION_SIGNALS_UNKNOWN'))
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+  assert.ok(r.reasons.includes('INVALID_DISPLAY_POSITION'))
 })
 
 test('9. missing displayPosition → position signals UNKNOWN, non-gating', () => {
@@ -121,7 +117,8 @@ test('9. missing displayPosition → position signals UNKNOWN, non-gating', () =
   assert.ok(r.observedSignals.some((s) => s.signal === 'MISSING_DISPLAY_POSITION'))
   const spr = r.observedSignals.find((s) => s.signal === 'SAME_POSITION_RATE')
   assert.strictEqual(spr.status, 'UNKNOWN')
-  assert.strictEqual(r.status, 'RESPONSE_VALID')
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+  assert.ok(r.reasons.includes('MISSING_DISPLAY_POSITION'))
 })
 
 // ── 10. answer order shuffled ─────────────────────────────────────────────
@@ -161,13 +158,13 @@ test('12. same displayPosition pattern + changed semantic optionIds → validity
   assert.strictEqual(rv.assessResponseValidityV21(a).status, rv.assessResponseValidityV21(b).status)
 })
 
-// ── 13. single suspicious signal does NOT auto-INVALID ────────────────────
-test('13. single suspicious signal (duplicate) alone does not force LOW', () => {
+// ── 13. duplicate is structural insufficiency, not a quality signal ──────
+test('13. duplicate questionId is structural insufficiency (R3C-R1 §8)', () => {
   const r = rv.assessResponseValidityV21([
     R('SC_DEC_01', 0), R('SC_DEC_01', 2), R('SC_FB_01', 1), R('SC_FB_02', 3),
   ])
-  // duplicate present, but positions varied and non-mechanical → VALID
-  assert.strictEqual(r.status, 'RESPONSE_VALID')
+  // duplicate → IRQ regardless of otherwise-varied positions
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
   assert.ok(r.reasons.includes('DUPLICATE_QUESTION_SUBMISSION'))
 })
 
@@ -260,4 +257,108 @@ test('isolation: displayPosition change does not alter cognition (optionId-only 
   for (const s of [...r1.observedSignals, ...r2.observedSignals]) {
     assert.ok(!('optionId' in s))
   }
+})
+
+// ── R3C-R1 §14 adversarial truth table ────────────────────────────────────
+// NOTE: kept in questionId-sorted (canonical) order so that index-based
+// mechanical patterns (sequential/alternating) align with the implementation's
+// order-invariant canonicalization (sort by questionId).
+const QIDS_18 = [
+  'SC_DEC_01', 'SC_DEC_02', 'SC_FB_01', 'SC_FB_02',
+  'SC_ID_01', 'SC_ID_02', 'SC_LEV_01', 'SC_LEV_02',
+  'SC_OPP_01', 'SC_OPP_02', 'SC_PROB_01', 'SC_PROB_02',
+  'SC_RISK_01', 'SC_RISK_02', 'SC_SYS_01', 'SC_SYS_02',
+  'SC_TIME_01', 'SC_TIME_02',
+]
+function ans18(posFn) {
+  return QIDS_18.map((q, i) => ({ questionId: q, optionId: 'A', displayPosition: posFn(i) }))
+}
+
+test('R3C-R1 A: 18 valid all-same → RESPONSE_QUALITY_LOW', () => {
+  const r = rv.assessResponseValidityV21(ans18(() => 0))
+  assert.strictEqual(r.status, 'RESPONSE_QUALITY_LOW')
+})
+
+test('R3C-R1 B: same answers, all positions removed → INSUFFICIENT_RESPONSE_QUALITY', () => {
+  const answers = QIDS_18.map((q) => ({ questionId: q, optionId: 'A' }))
+  const r = rv.assessResponseValidityV21(answers)
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+})
+
+test('R3C-R1 C: same answers, all positions invalid → INSUFFICIENT_RESPONSE_QUALITY', () => {
+  const r = rv.assessResponseValidityV21(ans18(() => 9))
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+})
+
+test('R3C-R1 D: 17 valid + 1 missing → INSUFFICIENT_RESPONSE_QUALITY', () => {
+  const answers = QIDS_18.map((q, i) => {
+    if (i === 0) return { questionId: q, optionId: 'A' }
+    return { questionId: q, optionId: 'A', displayPosition: (i % 4) }
+  })
+  const r = rv.assessResponseValidityV21(answers)
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+})
+
+test('R3C-R1 E: 17 valid + 1 invalid → INSUFFICIENT_RESPONSE_QUALITY', () => {
+  const answers = QIDS_18.map((q, i) => {
+    const pos = i === 0 ? 7 : (i % 4)
+    return { questionId: q, optionId: 'A', displayPosition: pos }
+  })
+  const r = rv.assessResponseValidityV21(answers)
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+})
+
+test('R3C-R1 F: 18 structurally valid varied positions → RESPONSE_VALID', () => {
+  const answers = QIDS_18.map((q, i) => ({ questionId: q, optionId: 'A', displayPosition: ((i * 3) % 4) }))
+  const r = rv.assessResponseValidityV21(answers)
+  assert.strictEqual(r.status, 'RESPONSE_VALID')
+})
+
+test('R3C-R1 G: duplicate questionId → INSUFFICIENT_RESPONSE_QUALITY', () => {
+  const answers = QIDS_18.map((q, i) => {
+    // duplicate SC_DEC_01 instead of SC_SYS_02 (last entry)
+    const qid = i === 17 ? 'SC_DEC_01' : q
+    return { questionId: qid, optionId: 'A', displayPosition: (i % 4) }
+  })
+  const r = rv.assessResponseValidityV21(answers)
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+})
+
+test('R3C-R1 H: n == 0 → INSUFFICIENT_RESPONSE_QUALITY', () => {
+  const r = rv.assessResponseValidityV21([])
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+})
+
+test('R3C-R1 I: 1 <= n < 4 → INSUFFICIENT_RESPONSE_QUALITY', () => {
+  const r = rv.assessResponseValidityV21([R('SC_DEC_01', 0), R('SC_DEC_02', 1), R('SC_FB_01', 2)])
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+})
+
+test('R3C-R1 J: alternating valid structure → RESPONSE_QUALITY_LOW', () => {
+  const r = rv.assessResponseValidityV21(ans18((i) => i % 2))
+  assert.strictEqual(r.status, 'RESPONSE_QUALITY_LOW')
+})
+
+test('R3C-R1 K: sequential valid structure → RESPONSE_QUALITY_LOW', () => {
+  const r = rv.assessResponseValidityV21(ans18((i) => i % 4))
+  assert.strictEqual(r.status, 'RESPONSE_QUALITY_LOW')
+})
+
+// ── R3C-R1 §10 bypass mutation test ───────────────────────────────────────
+test('bypass mutation: removing one position from LOW must become IRQ (not VALID)', () => {
+  const low = ans18(() => 0)
+  assert.strictEqual(rv.assessResponseValidityV21(low).status, 'RESPONSE_QUALITY_LOW')
+  const mutated = low.map((a, i) => i === 5 ? { questionId: a.questionId, optionId: a.optionId } : a)
+  const r = rv.assessResponseValidityV21(mutated)
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+  assert.notStrictEqual(r.status, 'RESPONSE_VALID')
+})
+
+test('bypass mutation: invalidating one position from LOW must become IRQ (not VALID)', () => {
+  const low = ans18(() => 0)
+  assert.strictEqual(rv.assessResponseValidityV21(low).status, 'RESPONSE_QUALITY_LOW')
+  const mutated = low.map((a, i) => i === 5 ? { questionId: a.questionId, optionId: a.optionId, displayPosition: 11 } : a)
+  const r = rv.assessResponseValidityV21(mutated)
+  assert.strictEqual(r.status, 'INSUFFICIENT_RESPONSE_QUALITY')
+  assert.notStrictEqual(r.status, 'RESPONSE_VALID')
 })
