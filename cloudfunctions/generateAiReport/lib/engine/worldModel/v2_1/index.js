@@ -38,6 +38,7 @@ const { normalizeEvidenceV21 } = require('./evidenceNormalizerV21')
 const { extractSignalsV21 } = require('./signalExtractorV21')
 const { computeDimensionsV21, resolveDimensionStateV21 } = require('./dimensionEngineV21')
 const { buildBlindSpotCandidatesV21, resolveBlindSpotStatusV21 } = require('./blindSpotCandidateEngineV21')
+const { decidePrimaryV21, PRIMARY_STATUS_SET_V21 } = require('./primaryDecisionEngineV21')
 
 module.exports = {
   QUESTIONNAIRE_VERSION_V21,
@@ -54,4 +55,6 @@ module.exports = {
   resolveDimensionStateV21,
   buildBlindSpotCandidatesV21,
   resolveBlindSpotStatusV21,
+  decidePrimaryV21,
+  PRIMARY_STATUS_SET_V21,
 }
