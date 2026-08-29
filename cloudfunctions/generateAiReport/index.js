@@ -83,6 +83,20 @@ exports.main = async (event, context) => {
         return await runWorldModelV2Shadow({ event, openid, ts, db })
       }
 
+      // ═══ RC8.3 Stage20: world_model_v2_1 — SHADOW-ONLY runtime hook ═══
+      // Independent V2.1 mode (NEVER reuse V1/V2 MODE/allowlist). Fail-closed:
+      // missing/invalid/empty config → OFF (no runtime, no record write).
+      // SHADOW executes the isolated V2.1 shadow adapter; V2.1 is NEVER primary.
+      if (diagnosticVersion === 'world_model_v2_1') {
+        const { parseV21Mode, getV21ModeFromEnv } = require('./lib/config/worldModelV21Mode')
+        const v21Mode = parseV21Mode(getV21ModeFromEnv())
+        if (v21Mode === 'SHADOW') {
+          return await runWorldModelV21Shadow({ event, openid, ts, db })
+        }
+        // OFF (default / fail-closed): V2.1 runtime never executes, no record write.
+        return runWorldModelV21Off()
+      }
+
       // ═══ V3 原有链路（不变）═══
       const { buildDiagnosticPrompt } = require('./lib/ai.js')
 
@@ -544,6 +558,64 @@ async function runWorldModelV2Primary({ event, openid, ts, db }) {
     diagnosis: diagnosis,
     inputHash: diagnosis.inputHash,
     v2PrimaryActive: true,
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RC8.3 Stage20: World Model V2.1 — SHADOW-ONLY runtime hook
+// ═══════════════════════════════════════════════════════════════
+//
+// A world_model_v2_1 request, under RC83_WORLD_MODEL_V2_1_MODE=SHADOW, is
+// executed through the isolated V2.1 shadow adapter. V2.1 is NEVER primary:
+//   - never selects renderSource
+//   - never replaces V1/V2 result
+//   - failure never blocks the production response (fail-open)
+//
+// Shadow record persists to a SEPARATE namespace:
+//   type / recordType = diagnostic_world_model_v2_1_shadow
+// which never collides with diagnostic_world_model_v1 / diagnostic_v4 /
+// diagnostic_world_model_v2 / diagnostic_world_model_v2_shadow.
+//
+// V2.1 does not mutate renderSource / wealth / cashflow / destinySimulator.
+// ═══════════════════════════════════════════════════════════════
+
+async function runWorldModelV21Shadow({ event, openid, ts, db }) {
+  console.log('[V21Shadow] world_model_v2_1 SHADOW request, openid=' + (openid ? 'present' : 'missing'))
+
+  var record = null
+  try {
+    var { runRuntimeShadowV21 } = require('./lib/engine/worldModel/v2_1/runtimeShadowAdapterV21')
+    var out = await runRuntimeShadowV21({ event, openid, ts, db })
+    record = out.record
+  } catch (e) {
+    // V2.1 failure is isolated: never propagates into the production path.
+    console.error('[V21Shadow] adapter exception:', (e && e.message) || e)
+    record = null
+  }
+
+  // SAFE PRIMARY RESPONSE — V2.1 is NOT primary. No report, no V2.1 diagnosis
+  // as primary. Client-visible content is a shadow acknowledgment only.
+  return ok({
+    reportId: event.reportId || null,
+    reportType: 'diagnostic_v2_1_shadow',
+    diagnosticVersion: 'world_model_v2_1',
+    renderSource: 'v2_1_shadow_only',
+    v21PrimaryActive: false,
+    shadowRecord: record,
+    message: 'world_model_v2_1 当前仅执行 shadow 记录，未开放为主诊断',
+  })
+}
+
+// V2.1 OFF mode: runtime never executes, no record write, no user-visible effect.
+function runWorldModelV21Off() {
+  return ok({
+    reportId: null,
+    reportType: 'diagnostic_v2_1_off',
+    diagnosticVersion: 'world_model_v2_1',
+    renderSource: 'v2_1_shadow_only',
+    v21PrimaryActive: false,
+    v21Mode: 'OFF',
+    message: 'world_model_v2_1 当前关闭，未执行',
   })
 }
 
