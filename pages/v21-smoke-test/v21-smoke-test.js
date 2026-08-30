@@ -94,8 +94,18 @@ Page({
       const authGatePassed = code !== null && code !== AUTH_FAILED_CODE
       // V21_OFF_BRANCH_REACHED：服务端返回了精确的 V2.1 OFF 分支签名。
       const v21OffBranchReached = code === 0 && reportType === 'diagnostic_v2_1_off'
-      // OFF_SIGNATURE_PASS：OFF 分支 + v21Mode=OFF + v21PrimaryActive=false 三者精确匹配。
-      const offSignaturePass = v21OffBranchReached === true && v21Mode === 'OFF' && v21PrimaryActive === false
+      // OFF_SIGNATURE_PASS：五个语义条件全部强制匹配，任一不满足即 FAIL（无部分匹配 PASS）。
+      //   (1) code === 0
+      //   (2) reportType === 'diagnostic_v2_1_off'
+      //   (3) diagnosticVersion === 'world_model_v2_1'
+      //   (4) v21Mode === 'OFF'
+      //   (5) v21PrimaryActive === false
+      const offSignaturePass =
+        code === 0 &&
+        reportType === 'diagnostic_v2_1_off' &&
+        diagnosticVersion === 'world_model_v2_1' &&
+        v21Mode === 'OFF' &&
+        v21PrimaryActive === false
 
       this.setData({
         calling: false,
