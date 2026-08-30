@@ -1,0 +1,82 @@
+<view class="v21-page">
+  <!-- 内部警告（始终可见） -->
+  <view class="v21-warning">
+    <text class="v21-warning-title">⚠️ 内部测试入口</text>
+    <text class="v21-warning-text">仅用于 RC8.3 V2.1 smoke。不执行正式诊断，不提交 18 题，不开启 SHADOW。</text>
+  </view>
+
+  <!-- 登录就绪中 -->
+  <view wx:if="{{loading}}" class="v21-denied">
+    <text class="v21-denied-title">正在校验内部测试权限…</text>
+  </view>
+
+  <!-- 无权限 -->
+  <view wx:elif="{{!allowed}}" class="v21-denied">
+    <text class="v21-denied-title">无内部测试权限</text>
+    <text class="v21-denied-sub">本入口仅对 U1-U5 内部白名单开放</text>
+  </view>
+
+  <!-- 测试主体 -->
+  <view wx:else class="v21-body">
+    <button class="v21-btn" bindtap="onSmoke" disabled="{{calling}}">
+      {{calling ? '调用中…' : 'V2.1 OFF Smoke'}}
+    </button>
+
+    <!-- 加载态 -->
+    <view wx:if="{{calling}}" class="v21-state">
+      <text class="v21-state-loading">正在调用 generateAiReport (world_model_v2_1)…</text>
+    </view>
+
+    <!-- 错误 -->
+    <view wx:elif="{{called && errorMsg}}" class="v21-error">
+      <text class="v21-error-title">调用失败</text>
+      <text class="v21-error-text">{{errorMsg}}</text>
+    </view>
+
+    <!-- 结果 -->
+    <view wx:elif="{{called}}" class="v21-result">
+      <view class="v21-row">
+        <text class="v21-label">code</text>
+        <text class="v21-value">{{code}}</text>
+      </view>
+      <view class="v21-row">
+        <text class="v21-label">reportType</text>
+        <text class="v21-value">{{reportType}}</text>
+      </view>
+      <view class="v21-row">
+        <text class="v21-label">diagnosticVersion</text>
+        <text class="v21-value">{{diagnosticVersion}}</text>
+      </view>
+      <view class="v21-row">
+        <text class="v21-label">v21Mode</text>
+        <text class="v21-value">{{v21Mode}}</text>
+      </view>
+      <view class="v21-row">
+        <text class="v21-label">v21PrimaryActive</text>
+        <text class="v21-value">{{v21PrimaryActive}}</text>
+      </view>
+
+      <view class="v21-check">
+        <view class="v21-check-item {{authGatePassed ? 'v21-pass' : 'v21-fail'}}">
+          <text>AUTH_GATE_PASSED</text>
+          <text>{{authGatePassed}}</text>
+        </view>
+        <view class="v21-check-item {{v21OffBranchReached ? 'v21-pass' : 'v21-fail'}}">
+          <text>V21_OFF_BRANCH_REACHED</text>
+          <text>{{v21OffBranchReached}}</text>
+        </view>
+        <view class="v21-check-item {{offSignaturePass ? 'v21-pass' : 'v21-fail'}}">
+          <text>OFF_SIGNATURE_PASS</text>
+          <text>{{offSignaturePass}}</text>
+        </view>
+      </view>
+
+      <view class="v21-raw">
+        <text class="v21-raw-title">原始返回 JSON</text>
+        <text class="v21-raw-body">{{rawResult}}</text>
+      </view>
+
+      <button class="v21-copy" bindtap="onCopyResult">复制结果</button>
+    </view>
+  </view>
+</view>
