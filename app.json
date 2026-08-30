@@ -16,6 +16,7 @@
     "pages/report-detail/report-detail",
     "pages/v2-shadow-test/v2-shadow-test",
     "pages/v21-smoke-test/v21-smoke-test",
+    "pages/v21-questionnaire-test/v21-questionnaire-test",
     "pages/v2-report/v2-report",
     "pages/membership/membership",
     "pages/membership-center/membership-center",

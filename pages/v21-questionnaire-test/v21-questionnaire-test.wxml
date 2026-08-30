@@ -1,0 +1,65 @@
+<!--
+  pages/v21-questionnaire-test/v21-questionnaire-test.wxml
+  RC8.3 Stage20 R6-R4 — V2.1 内部真人测试问卷（18 题 / SHADOW ONLY）
+-->
+<view class="page">
+
+  <!-- 未开始 -->
+  <view wx:if="{{!started}}" class="intro">
+    <view class="badge">SHADOW ONLY</view>
+    <view class="title">RC8.3 V2.1 内部真人测试</view>
+    <view class="desc">
+      这是一个内部测试问卷（18 题），仅用于收集真实回答并验证 V2.1 的 shadow 记录。
+      不会替代当前正式诊断结果，也不会影响你的正常报告。
+    </view>
+    <view class="notice">不会替代当前正式诊断结果</view>
+    <button class="btn-primary" bindtap="startSession">开始测试</button>
+  </view>
+
+  <!-- 答题中 -->
+  <view wx:if="{{started && !submitted}}" class="quiz">
+    <view class="progress-wrap">
+      <view class="progress-label">第 {{currentIndex + 1}} / 18 题</view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+    </view>
+
+    <view class="q-prompt">{{sessionQuestions[currentIndex].prompt}}</view>
+
+    <view class="options">
+      <view
+        wx:for="{{sessionQuestions[currentIndex].options}}"
+        wx:key="optionId"
+        class="option {{selectedOptionId === item.optionId ? 'option-selected' : ''}}"
+        data-option-id="{{item.optionId}}"
+        data-display-position="{{item.displayPosition}}"
+        bindtap="selectOption"
+      >
+        <view class="option-id">{{item.optionId}}</view>
+        <view class="option-text">{{item.text}}</view>
+      </view>
+    </view>
+
+    <view class="nav">
+      <button class="btn-ghost" bindtap="goBack" disabled="{{currentIndex === 0}}">上一题</button>
+      <button class="btn-primary" bindtap="goNext" wx:if="{{currentIndex < 17}}">下一题</button>
+      <button class="btn-primary" bindtap="submit" wx:if="{{currentIndex === 17}}">提交</button>
+    </view>
+  </view>
+
+  <!-- 提交结果反馈 -->
+  <view wx:if="{{submitted}}" class="result">
+    <view class="title">提交结果</view>
+    <view wx:if="{{resultError}}" class="result-error">{{resultError}}</view>
+    <block wx:else>
+      <view class="result-row"><text class="k">code</text><text class="v">{{resultCode}}</text></view>
+      <view class="result-row"><text class="k">message</text><text class="v">{{resultMessage}}</text></view>
+      <view class="result-row"><text class="k">reportType</text><text class="v">{{resultReportType}}</text></view>
+      <view wx:if="{{resultValidityStatus}}" class="result-row"><text class="k">response-validity</text><text class="v">{{resultValidityStatus}}</text></view>
+      <view class="hint">以上为 SHADOW 请求的操作反馈，不是诊断结论。</view>
+    </block>
+    <button class="btn-ghost" bindtap="restartSession">重新开始（新会话）</button>
+  </view>
+
+</view>
