@@ -42,7 +42,7 @@ const cognition = require('./index.js')
 
 const V21_SHADOW_RECORD_NAMESPACE = 'diagnostic_world_model_v2_1_shadow'
 const V21_DIAGNOSTIC_VERSION = 'world_model_v2_1'
-const V21_RECORD_SCHEMA_VERSION = '1'
+const V21_RECORD_SCHEMA_VERSION = '2'
 
 /**
  * Extract the response-validity payload from the runtime event.
@@ -67,7 +67,61 @@ function extractResponsesV21(answersPayload) {
 }
 
 /**
- * Build the minimal shadow record schema (R0 §8).
+ * Build the answer trace (schema-v2): a verbatim copy of the submitted
+ * { questionId, optionId, displayPosition } tuples used by the runtime.
+ *
+ * displayPosition is copied EXACTLY as submitted — never derived from optionId,
+ * canonical option order, evidenceId, or any fallback. The input array is never
+ * mutated (a fresh array of fresh objects is returned).
+ */
+function buildAnswerTraceV21(responses) {
+  if (!Array.isArray(responses)) return []
+  const trace = []
+  for (const r of responses) {
+    if (r && typeof r === 'object') {
+      trace.push({
+        questionId: r.questionId,
+        optionId: r.optionId,
+        displayPosition: r.displayPosition,
+      })
+    }
+  }
+  return trace
+}
+
+/**
+ * Build the evidence trace (schema-v2): five-field evidence-level provenance
+ * rows from the canonical normalizer output. Never persists semanticProposition,
+ * construct, or sourceQuestionIds (derivable from evidenceId + frozen catalog).
+ */
+function buildEvidenceTraceV21(evidenceArray) {
+  if (!Array.isArray(evidenceArray)) return null
+  return evidenceArray.map((e) => ({
+    evidenceId: e.evidenceId,
+    direction: e.direction,
+    distortionType: e.distortionType,
+    matchedQuestionIds: e.matchedQuestionIds,
+    matchedOptionIds: e.matchedOptionIds,
+  }))
+}
+
+/**
+ * Build the validity trace (schema-v2): four-field response-validity audit
+ * object. Persists the exact values already computed by assessResponseValidityV21.
+ * Never persists internal step trace, deferredSignals, or any numeric score.
+ */
+function buildValidityTraceV21(validityResult) {
+  if (!validityResult) return null
+  return {
+    status: validityResult.status,
+    reasons: Array.isArray(validityResult.reasons) ? validityResult.reasons : null,
+    counts: validityResult.counts == null ? null : validityResult.counts,
+    observedSignals: Array.isArray(validityResult.observedSignals) ? validityResult.observedSignals : null,
+  }
+}
+
+/**
+ * Build the minimal shadow record schema (R0 §8, Gate-B R0 §8 schema-v2).
  *
  * NO invented probability/confidence/severity scores. NO legacy wealth fields.
  * Blocked validity → exact null/omission semantics (R0 §8).
@@ -88,6 +142,9 @@ function buildShadowRecordV21(params) {
     evidenceTraceSummary,
     errorCode,
     requestId,
+    answerTrace,
+    evidenceTrace,
+    validityTrace,
   } = params
 
   return {
@@ -105,6 +162,9 @@ function buildShadowRecordV21(params) {
     evidenceTraceSummary: evidenceTraceSummary == null ? null : evidenceTraceSummary,
     errorCode: errorCode == null ? null : errorCode,
     requestId: requestId == null ? null : requestId,
+    answerTrace: answerTrace == null ? null : answerTrace,
+    evidenceTrace: evidenceTrace == null ? null : evidenceTrace,
+    validityTrace: validityTrace == null ? null : validityTrace,
   }
 }
 
@@ -120,7 +180,7 @@ function runCognitionChainV21(responses) {
   const dims = cognition.computeDimensionsV21(norm)
   const { candidates, contractViolations } = cognition.buildBlindSpotCandidatesV21(dims)
   const decision = cognition.decidePrimaryV21({ candidates, contractViolations })
-  return { decision, dimensions: dims.dimensions, signals }
+  return { decision, dimensions: dims.dimensions, signals, evidence: norm.evidence }
 }
 
 /**
@@ -138,11 +198,15 @@ function runCognitionChainV21(responses) {
 async function runRuntimeShadowV21({ event, openid, ts, db }) {
   const requestId = (event && event.reportId) || (event && event.traceId) || null
 
+  // Raw submitted answers — single source of truth for validity AND cognition.
+  // answerTrace mirrors these exact values (never derives position).
+  const responses = extractResponsesV21(event && (event.answers || event.v21Answers))
+  const answerTrace = buildAnswerTraceV21(responses)
+
   // ── 1. Response validity gate (isolated) ────────────────────────────────
   let validityResult = null
   let errorCode = null
   try {
-    const responses = extractResponsesV21(event && (event.answers || event.v21Answers))
     validityResult = responseValidity.assessResponseValidityV21(responses)
   } catch (e) {
     errorCode = 'VALIDITY_EXCEPTION'
@@ -159,10 +223,10 @@ async function runRuntimeShadowV21({ event, openid, ts, db }) {
   let followUpPair = null
   let dimensionSummary = null
   let evidenceTraceSummary = null
+  let evidenceTrace = null
 
   if (validityResult && validityResult.status === 'RESPONSE_VALID') {
     try {
-      const responses = extractResponsesV21(event && (event.answers || event.v21Answers))
       const chain = runCognitionChainV21(responses)
       const decision = chain.decision
       cognitionExecuted = true
@@ -188,6 +252,8 @@ async function runRuntimeShadowV21({ event, openid, ts, db }) {
         distortionType: s.distortionType,
         evidenceCount: s.evidenceCount,
       }))
+      // Evidence-level provenance trace (schema-v2 additive; 5 fields only).
+      evidenceTrace = buildEvidenceTraceV21(chain.evidence)
     } catch (e) {
       errorCode = errorCode || 'COGNITION_EXCEPTION'
       console.error('[V21Shadow] cognition exception:', (e && e.message) || e)
@@ -199,12 +265,15 @@ async function runRuntimeShadowV21({ event, openid, ts, db }) {
       followUpPair = null
       dimensionSummary = null
       evidenceTraceSummary = null
+      evidenceTrace = null
     }
   } else if (validityResult) {
     // LOW / INSUFFICIENT → blocked (R0 §3). No cognition.
     cognitionExecuted = false
     cognitionTerminalStatus = 'NOT_EXECUTED'
   }
+
+  const validityTrace = buildValidityTraceV21(validityResult)
 
   const record = buildShadowRecordV21({
     validityResult,
@@ -218,6 +287,9 @@ async function runRuntimeShadowV21({ event, openid, ts, db }) {
     evidenceTraceSummary,
     errorCode,
     requestId,
+    answerTrace,
+    evidenceTrace,
+    validityTrace,
   })
 
   // ── 3. Persistence (isolated; write failure only logs, never blocks) ────
@@ -247,6 +319,9 @@ module.exports = {
   V21_DIAGNOSTIC_VERSION,
   V21_RECORD_SCHEMA_VERSION,
   extractResponsesV21,
+  buildAnswerTraceV21,
+  buildEvidenceTraceV21,
+  buildValidityTraceV21,
   buildShadowRecordV21,
   runCognitionChainV21,
   runRuntimeShadowV21,

@@ -224,7 +224,7 @@ test('buildShadowRecordV21: blocked validity → exact null/omission semantics',
   assert.strictEqual(rec.dimensionSummary, null)
   assert.strictEqual(rec.followUpRequired, false)
   assert.strictEqual(rec.followUpPair, null)
-  assert.strictEqual(rec.schemaVersion, '1')
+  assert.strictEqual(rec.schemaVersion, '2')
   assert.strictEqual(rec.diagnosticVersion, 'world_model_v2_1')
 })
 
