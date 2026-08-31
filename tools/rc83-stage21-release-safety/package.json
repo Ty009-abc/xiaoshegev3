@@ -1,0 +1,14 @@
+{
+  "name": "rc83-stage21-release-safety",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stage21 release-safety foundation tooling (W3/W4/W5/W9) — read-only, secret-safe, identity-safe. Not part of the inference decision path.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ../../../tests/rc8.3-stage21-release-safety.test.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "license": "UNLICENSED"
+}
