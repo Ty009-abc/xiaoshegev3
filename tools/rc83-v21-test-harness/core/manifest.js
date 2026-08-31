@@ -26,4 +26,8 @@ module.exports = {
   inferenceFilesChanged: false,
   gateBProtocolChanged: false,
   primaryModeChanged: false,
+
+  // P0-A3 additions.
+  displayPositionCanonicalDomain: { validValues: [0, 1, 2, 3], semantics: '0-based integer render index (R3C)', dynamicByOptionCount: false },
+  securityMode: 'INTERNAL_LOCALHOST_ONLY',
 }

@@ -12,16 +12,26 @@ const {
 
 const QUESTION_COUNT = 18
 
+// Canonical sorted order (alphabetical by questionId) — the runtime canonicalizes
+// the position sequence by this order before mechanical-pattern detection
+// (order-invariant per R3C). Position sequences are therefore expressed in THIS
+// sorted order, then mapped back to each question.
+const SORTED_ORDER = [...QUESTION_ORDER].sort()
+
 // Build a full 18-tuple answers array from a per-question option chooser and a
-// position sequence. Answers are built in canonical question order; the
-// displayPosition is an explicit input value at generation time.
+// position sequence. The position sequence is in canonical SORTED order (matching
+// the runtime's order-invariant canonicalization); each question receives the
+// displayPosition assigned to its sorted-order slot. displayPosition is an
+// explicit input value at generation time (never derived from optionId).
 function buildAnswers(optionChooser, positions) {
+  const posByQid = {}
+  SORTED_ORDER.forEach((qid, i) => { posByQid[qid] = positions[i] })
   return QUESTION_ORDER.map((qid, i) => {
     const q = QUESTION_BY_ID.get(qid)
     return {
       questionId: qid,
       optionId: optionChooser(q, i),
-      displayPosition: positions[i],
+      displayPosition: posByQid[qid],
     }
   })
 }

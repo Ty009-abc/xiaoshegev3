@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RC8.3 V2.1 Test Harness — Internal Dashboard</title>
+  <style>
+    :root { --bg:#0f1220; --card:#1a1e30; --fg:#e6e9f5; --muted:#8b93b0; --ok:#39d98a; --fail:#ff5d5d; --acc:#5b8cff; --warn:#ffb84d; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC",sans-serif; background:var(--bg); color:var(--fg); }
+    header { padding:18px 24px; border-bottom:1px solid #262b45; }
+    header h1 { margin:0; font-size:19px; font-weight:600; }
+    header .sub { color:var(--muted); font-size:12px; margin-top:4px; }
+    .banner { background:#3a2a12; color:var(--warn); font-size:12px; padding:8px 24px; border-bottom:1px solid #5a421f; }
+    main { padding:20px 24px; display:grid; gap:16px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+    .card { background:var(--card); border:1px solid #262b45; border-radius:12px; padding:16px; }
+    .card h2 { margin:0 0 12px; font-size:13px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+    .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+    .stat { background:#12162a; border-radius:8px; padding:12px; text-align:center; }
+    .stat .v { font-size:20px; font-weight:700; }
+    .stat .k { font-size:10px; color:var(--muted); margin-top:4px; }
+    .ok { color:var(--ok); } .fail { color:var(--fail); } .acc { color:var(--acc); } .warn { color:var(--warn); }
+    .bar { height:8px; border-radius:4px; background:#12162a; overflow:hidden; margin:6px 0; }
+    .bar > span { display:block; height:100%; }
+    .btn { display:inline-block; padding:8px 14px; border-radius:8px; border:1px solid #2c3358; background:#1a1e30; color:var(--fg); cursor:pointer; font-size:13px; margin:4px 4px 0 0; }
+    .btn:hover { border-color:var(--acc); }
+    .btn:disabled { opacity:.4; cursor:not-allowed; }
+    #status { font-size:12px; color:var(--muted); margin-top:10px; min-height:16px; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #262b45; vertical-align:top; }
+    th { color:var(--muted); font-weight:500; }
+    .kv { display:grid; grid-template-columns:140px 1fr; gap:6px 10px; font-size:12px; }
+    .kv .k { color:var(--muted); }
+    .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; word-break:break-all; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; }
+    .pill.VALID { background:#123c28; color:var(--ok); }
+    .pill.LOW { background:#3a2a12; color:var(--warn); }
+    .pill.IRQ { background:#3a1218; color:var(--fail); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>RC8.3 V2.1 Synthetic Test Harness — Internal Dashboard</h1>
+    <div class="sub">LOCAL_DIRECT_ENGINE · db:null · no production traffic · no user identity</div>
+  </header>
+  <div class="banner">⚠️ INTERNAL / DEVELOPMENT ONLY — do not expose publicly. No secrets, keys, or credentials are served.</div>
+  <main>
+    <div class="card">
+      <h2>Run Controls</h2>
+      <button class="btn" id="btn-run1" onclick="runMode('run-1')">Run 1 Case</button>
+      <button class="btn" onclick="runMode('run-100')">Run 100 Matrix</button>
+      <button class="btn" onclick="runMode('negative')">Run Negative</button>
+      <button class="btn" onclick="runMode('determinism')">Run Determinism</button>
+      <button class="btn" onclick="runMode('stress:500')">Run 500 Stress</button>
+      <div id="status">idle — no bulk run runs automatically on load</div>
+    </div>
+
+    <div class="card">
+      <h2>Summary</h2>
+      <div class="stat-grid">
+        <div class="stat"><div class="v" id="s-total">—</div><div class="k">TOTAL</div></div>
+        <div class="stat"><div class="v ok" id="s-pass">—</div><div class="k">PASS</div></div>
+        <div class="stat"><div class="v fail" id="s-fail">—</div><div class="k">FAIL</div></div>
+        <div class="stat"><div class="v warn" id="s-crash">—</div><div class="k">CRASH</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Validity Distribution</h2>
+      <div id="validity-dist">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Cognition Executed / Blocked</h2>
+      <div id="cog-dist">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Trace Status</h2>
+      <table>
+        <tr><th>Validator</th><th>Status</th></tr>
+        <tr><td>AnswerTrace</td><td id="t-answer">—</td></tr>
+        <tr><td>ValidityTrace</td><td id="t-validity">—</td></tr>
+        <tr><td>EvidenceTrace</td><td id="t-evidence">—</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Violations</h2>
+      <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Privacy Violations</td><td id="v-privacy">—</td></tr>
+        <tr><td>Prohibited Fields</td><td id="v-prohibited">—</td></tr>
+        <tr><td>Determinism Violations</td><td id="v-determinism">—</td></tr>
+      </table>
+    </div>
+
+    <div class="card" style="grid-column:1 / -1;">
+      <h2>Case Inspector</h2>
+      <div class="kv" id="inspector"><div class="k">No case</div><div>Run 1 Case to inspect.</div></div>
+    </div>
+  </main>
+
+  <script>
+    // Never auto-runs bulk modes on load.
+    async function runMode(mode) {
+      const status = document.getElementById('status');
+      const btns = document.querySelectorAll('.btn');
+      btns.forEach((b) => { b.disabled = true; });
+      status.textContent = 'running ' + mode + ' …';
+      try {
+        const res = await fetch('/harness/run?mode=' + encodeURIComponent(mode));
+        const data = await res.json();
+        render(data);
+        status.textContent = 'done: ' + mode;
+      } catch (e) {
+        status.textContent = 'error: ' + e.message;
+      } finally {
+        btns.forEach((b) => { b.disabled = false; });
+      }
+    }
+
+    function pill(v) {
+      if (v === 'RESPONSE_VALID') return '<span class="pill VALID">RESPONSE_VALID</span>';
+      if (v === 'RESPONSE_QUALITY_LOW') return '<span class="pill LOW">RESPONSE_QUALITY_LOW</span>';
+      if (v === 'INSUFFICIENT_RESPONSE_QUALITY') return '<span class="pill IRQ">INSUFFICIENT_RESPONSE_QUALITY</span>';
+      return v;
+    }
+
+    function render(data) {
+      const s = data.summary || {};
+      document.getElementById('s-total').textContent = s.total ?? '—';
+      document.getElementById('s-pass').textContent = s.pass ?? '—';
+      document.getElementById('s-fail').textContent = s.fail ?? '—';
+      document.getElementById('s-crash').textContent = s.crash ?? '—';
+      document.getElementById('v-privacy').textContent = s.privacyViolations ?? '—';
+      document.getElementById('v-prohibited').textContent = s.prohibitedFields ?? '—';
+      document.getElementById('v-determinism').textContent = s.determinismViolations ?? '—';
+
+      const vd = s.validityDistribution;
+      const vdEl = document.getElementById('validity-dist');
+      if (vd) {
+        const total = Object.values(vd).reduce((a, b) => a + b, 0) || 1;
+        vdEl.innerHTML = Object.entries(vd).map(([k, v]) =>
+          `<div>${pill(k)} : ${v}</div><div class="bar"><span style="width:${(v/total*100).toFixed(1)}%;background:var(--acc)"></span></div>`
+        ).join('');
+      } else vdEl.textContent = '—';
+
+      const cd = s.cognitionExecuted;
+      const cdEl = document.getElementById('cog-dist');
+      if (cd) {
+        const total = (cd.true || 0) + (cd.false || 0) || 1;
+        cdEl.innerHTML =
+          `<div>executed: ${cd.true || 0}</div><div class="bar"><span style="width:${((cd.true||0)/total*100).toFixed(1)}%;background:var(--ok)"></span></div>` +
+          `<div>blocked: ${cd.false || 0}</div><div class="bar"><span style="width:${((cd.false||0)/total*100).toFixed(1)}%;background:var(--warn)"></span></div>`;
+      } else cdEl.textContent = '—';
+
+      // Trace status: pass if 0 validator failures in that family across rows.
+      const rows = data.rows || [];
+      function traceOk(name) {
+        const errs = rows.flatMap((r) => (r.validatorErrors || []).filter((e) => e.startsWith(name)));
+        return errs.length === 0;
+      }
+      document.getElementById('t-answer').innerHTML = traceOk('answerTrace') ? '<span class="ok">OK</span>' : '<span class="fail">FAIL</span>';
+      document.getElementById('t-validity').innerHTML = traceOk('validityTrace') ? '<span class="ok">OK</span>' : '<span class="fail">FAIL</span>';
+      document.getElementById('t-evidence').innerHTML = traceOk('evidenceTrace') ? '<span class="ok">OK</span>' : '<span class="fail">FAIL</span>';
+
+      // Case inspector (first row only).
+      const insp = document.getElementById('inspector');
+      const r = rows && rows[0];
+      if (r) {
+        insp.innerHTML =
+          `<div class="k">testCaseId</div><div class="mono">${r.testCaseId}</div>` +
+          `<div class="k">familyId</div><div>${r.familyId ?? '—'}</div>` +
+          `<div class="k">seed</div><div class="mono">${r.seed ?? '—'}</div>` +
+          `<div class="k">actualValidity</div><div>${pill(r.actualValidity)}</div>` +
+          `<div class="k">cognitionExecuted</div><div>${r.cognitionExecuted}</div>` +
+          `<div class="k">validatorErrors</div><div class="mono">${(r.validatorErrors || []).join('; ') || 'none'}</div>` +
+          `<div class="k">answers</div><div class="mono">${JSON.stringify(r.answers || 'n/a')}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
