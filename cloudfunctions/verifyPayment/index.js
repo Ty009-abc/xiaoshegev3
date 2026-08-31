@@ -13,6 +13,7 @@ const db = cloud.database()
 const { ok, fail, CODES } = require('./lib/response.js')
 const { now } = require('./lib/permission.js')
 const { queryOrder } = require('./lib/payment.js')
+const { isMockPaymentResult } = require('./lib/paymentAuthority.js')
 const { checkOrderExpired } = require('./lib/antiFraud.js')
 
 exports.main = async (event) => {
@@ -53,6 +54,14 @@ exports.main = async (event) => {
 
     // ═══ 5. 调微信查单 ═══
     const queryResult = await queryOrder(orderId)
+
+    // ═══ 5.1 mock 权威守卫（fail-closed）═══
+    // mock 支付结果永远不能进入权威 paid / entitlement 转换。
+    // 前端短路不可靠（UX 行为），此守卫独立于前端，直连调用亦生效。
+    if (isMockPaymentResult(queryResult)) {
+      console.warn(`[verifyPayment] 拒绝 mock 支付结果 orderId=${orderId} txn=${queryResult && queryResult.transactionId}`)
+      return fail(CODES.PAYMENT_ERROR, '模拟支付结果不可作为真实支付')
+    }
 
     // ═══ 6. 写 payment_logs ═══
     await db.collection('payment_logs').add({

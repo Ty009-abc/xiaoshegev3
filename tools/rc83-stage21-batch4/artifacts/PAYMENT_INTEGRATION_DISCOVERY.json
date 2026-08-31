@@ -43,25 +43,34 @@
     "rawCredentialExported": false,
     "evidence": "OBSERVED_FROM_SOURCE"
   },
+  "originalFinding": "PAYMENT_MOCK_SUCCESS_ESCALATION_CONFIRMED",
+  "r1Mitigation": "SERVER_SIDE_MOCK_AUTHORITY_GUARD",
+  "r1Qualification": "PASS",
   "mockSemantics": {
     "commentSemantics": "common/payment.js header claims \"不再静默 fallback 到 mock 模式\" (no silent mock fallback)",
     "actualRuntimeSemantics": "getConfig() sets isMock = !mchid; jsapiOrder returns success:true + _mock:true when isMock; queryOrder returns tradeState=SUCCESS + MOCK_TXN_ when isMock",
     "mockSuccessReturnedBy": "common/payment.js jsapiOrder (success:true, _mock:true) AND queryOrder (success:true, tradeState:SUCCESS, MOCK_TXN_)",
     "mockSuccessConsumedBy": "verifyPayment/index.js: queryOrder().tradeState === SUCCESS -> mark order paid + grantEntitlements",
     "mockFlagCheckedUpstream": "PARTIAL",
-    "orderMarkedPaidOnMock": "YES",
-    "entitlementGrantedOnMock": "YES",
+    "orderMarkedPaidOnMock": "NO (post-R1: server-side guard rejects before paid mutation)",
+    "entitlementGrantedOnMock": "NO (post-R1: server-side guard rejects before grantEntitlements)",
     "evidence": "OBSERVED_FROM_SOURCE"
   },
-  "mockFallbackPresent": true,
-  "mockSuccessIsNotPaymentSuccess": true,
-  "mockMarkers": [
-    "_mock",
-    "MOCK_PREPAY_",
-    "MOCK_SIGN",
-    "MOCK_TXN_"
-  ],
-  "paymentMockSuccessEscalationRisk": true,
+  "r1Guard": {
+    "location": "cloudfunctions/verifyPayment/index.js (step 5.1) + cloudfunctions/verifyPayment/lib/paymentAuthority.js",
+    "predicate": "isMockPaymentResult(queryResult) -> (queryResult._mock === true) OR transactionId matches ^MOCK_TXN_",
+    "serverDerivedMockState": "MOCK_TXN_ prefix written by server-side common/payment.js mock queryOrder branch (not client-controlled)",
+    "_mockPropagation": "NOT_PROPAGATED_INTO_QUERYORDER_RESULT (present only in jsapiOrder paymentParams); defensive _mock===true check retained",
+    "rejectionSemantics": "return fail(CODES.PAYMENT_ERROR=10009, '模拟支付结果不可作为真实支付') — non-success code, no uncontrolled throw",
+    "guardPlacement": "BEFORE payment_logs write, BEFORE paid mutation, BEFORE grantEntitlements",
+    "independentOfFrontend": true
+  },
+  "verifyPaymentChecksMockResult": "YES",
+  "verifyPaymentChecksMockTxn": "YES (^MOCK_TXN_ prefix)",
+  "mockResultCanMarkOrderPaid": "NO",
+  "mockResultCanGrantEntitlement": "NO",
+  "paymentMockSuccessEscalation": "BLOCKED (NOT_CONFIRMED post-R1)",
+  "paymentMockSuccessEscalationRisk": false,
   "p1Candidate": true,
   "amountAuthority": {
     "classification": "SERVER_AUTHORITATIVE",
