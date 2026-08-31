@@ -1,7 +1,7 @@
 {
   "artifactType": "REAL_DEVICE_SMOKE_PROTOCOL",
   "protocolVersion": "1.0.0",
-  "candidateSha": "55023741368977390724ac4141c140868992c844",
+  "candidateSha": "e25863f706841649d3a0c5fe9b4cf3f5ff1a950d",
   "appId": "NOT_PROVIDED",
   "environmentId": "fanshex-d2g0adgv7dfbc9bdc",
   "requiredSteps": [
