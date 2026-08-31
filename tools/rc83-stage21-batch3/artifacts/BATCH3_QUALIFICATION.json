@@ -1,0 +1,82 @@
+{
+  "artifact": "BATCH3_QUALIFICATION",
+  "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
+  "baseCanonicalSha": "0874254ede490d7fef6c20942ff663c0970a445c",
+  "candidateSha": "PENDING_COMMIT",
+  "batch1AcceptedSha": "3bfbd2fea2d1f0acfcbf280e0824daea718bc6cc",
+  "batch2AcceptedSha": "5a4d12f6beb0a2301a4fe600456c0bfa07a68678",
+  "designAcceptedSha": "ff519be1244d5493fd73474f11d632096db2a1ba",
+  "implementationPlanSha": "1083e0b0b4daf8162d2f3411edbfce746f793239",
+  "workstreams": {
+    "W6_COHORT_ASSIGNMENT": "IMPLEMENTED",
+    "W7_PRE_SELECTIVE_GATE": "IMPLEMENTED",
+    "W8_ROLLBACK_TOOLING": "IMPLEMENTED"
+  },
+  "dependencyStrategy": "ISOLATED_NEW_TOOLING_UNDER_tools_rc83_stage21_batch3; self-contained; no implicit feature-stack onto Batch1/Batch2 (those are accepted evidence only); pure Node built-ins (crypto SHA-256); zero production/runtime/inference files touched",
+  "cohort": {
+    "algorithm": "SHA-256 deterministic bucket (first 4 bytes -> u32 mod 10000)",
+    "cohortAlgorithmVersion": "V1",
+    "rolloutSaltVersion": "V1",
+    "rolloutUnit": "BASIS_POINTS",
+    "rolloutDomain": [0, 10000],
+    "cohortLabels": ["PRIMARY_COHORT", "SHADOW_COHORT"],
+    "determinism": "same subjectToken + same rolloutSalt + same version = same cohort",
+    "entropyForbidden": ["Math.random", "Date.now", "request-order", "process-local counter"],
+    "privacyBoundary": "subjectToken is ephemeral input; never returned/logged/persisted/exported; no raw OPENID/unionid/nickname/phone/avatar read; no stable per-user hash/bucket in public result"
+  },
+  "preSelectiveGate": {
+    "evidenceStates": ["PASS", "FAIL", "NOT_RUN", "NOT_APPLICABLE", "BLOCKED"],
+    "thresholdClasses": ["HARD_BLOCKER", "ROLLOUT_ABORT", "ROLLOUT_PAUSE", "OBSERVATIONAL_ONLY"],
+    "requiredEvidence": ["GATE_B_STATUS", "BATCH1_STATUS", "BATCH2_STATUS", "RC_QUALIFICATION_STATUS", "REAL_DEVICE_SMOKE_STATUS", "CONFIG_DRIFT_STATUS", "ROLLBACK_READINESS", "PRODUCTION_REGRESSION_STATUS"],
+    "nonSubstitutableEvidence": ["GATE_B_STATUS", "REAL_DEVICE_SMOKE_STATUS", "PRODUCTION_REGRESSION_STATUS"],
+    "gateBHardRule": "only GATE_B=PASS may continue; ACTIVE/INSUFFICIENT_SAMPLE/FAIL/PAUSED_FOR_REVIEW -> BLOCKED",
+    "unknownEvidenceFailClosed": true,
+    "noBooleanBypass": true
+  },
+  "rollback": {
+    "model": "SELECTIVE_PRIMARY->SHADOW, PRIMARY->SHADOW (planning only)",
+    "defaultMode": "DRY_RUN",
+    "executionAllowedByDefault": false,
+    "failClosedPreconditions": ["ENVIRONMENT_MISMATCH", "CONFIG_FINGERPRINT_MISMATCH", "UNKNOWN_DEPLOYMENT_STATE", "MISSING_ROLLBACK_SHA", "INVALID_ROLLBACK_SHA_FORMAT", "INVALID_TARGET_MODE", "AUTHORITY_UNREADABLE", "MISSING_CONFIG_FINGERPRINT"],
+    "killSwitchModel": "single-purpose SELECTIVE_PRIMARY->SHADOW, machine-readable, auditable, fail-closed",
+    "rollbackCapabilityGap": "UNKNOWN (no authoritative control-plane evidence injected; not fabricated)",
+    "codeDeployNotConfigRollback": true
+  },
+  "activation": {
+    "selectiveActivationAllowed": false,
+    "activationStates": ["NOT_AUTHORIZED", "DRY_RUN"],
+    "gateBActiveBlocksActivation": true
+  },
+  "qualification": {
+    "cohortTestsPass": 6,
+    "cohortTestsTotal": 6,
+    "gateTestsPass": 6,
+    "gateTestsTotal": 6,
+    "rollbackTestsPass": 8,
+    "rollbackTestsTotal": 8,
+    "mutationTestsPass": 12,
+    "mutationTestsTotal": 12
+  },
+  "security": {
+    "identityLeakageCount": 0,
+    "secretLeakageCount": 0,
+    "productionMutationCount": 0,
+    "inferenceOutputDiffCount": 0
+  },
+  "regression": {
+    "stage20RuntimeShadow": "34/34",
+    "batch1Reference": "ACCEPTED_SHA_3bfbd2f (not feature-stacked; referenced read-only)",
+    "batch2Reference": "ACCEPTED_SHA_5a4d12f (not feature-stacked; referenced read-only)"
+  },
+  "architectureIntegrationRequired": false,
+  "knownDebts": [
+    "W8 rollback executor abstraction is inject-only; no production writer wired (correct for this batch — activation/execution is a separate authorized workstream)",
+    "Threshold numeric values NOT invented where Stage21 design does not specify them (schema + required evidence only)",
+    "Kill-switch mode-only capability is UNKNOWN until authoritative control-plane evidence is supplied (not fabricated)"
+  ],
+  "readyForIndependentAudit": true,
+  "readyForCanonicalMerge": false,
+  "readyForDeploy": false,
+  "readyForConfigChange": false,
+  "readyForPrimary": false
+}

@@ -1,0 +1,14 @@
+{
+  "name": "rc83-stage21-batch3",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stage21 Batch3 selective-primary control plane (W6/W7/W8) — deterministic cohort assignment, pre-selective threshold governance, rollback operational tooling. DRY_RUN by default, identity/secret-free, no production access. Not part of the inference decision path.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ../../../tests/rc8.3-stage21-batch3.test.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "license": "UNLICENSED"
+}
