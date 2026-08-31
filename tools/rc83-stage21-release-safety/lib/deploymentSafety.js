@@ -26,24 +26,48 @@ var KNOWN_STALE_CONFIG_RISK = {
   effect: 'auto-sync would set production to SELECTIVE_PRIMARY and shrink allowlist',
 }
 
-// ── Exact structured deployment identifiers (SAFE_CODE_ONLY allowlist) ──
+// ── Strict positive structured schema (R2) ──
 //
-// FAIL-CLOSED model (R1): SAFE_CODE_ONLY is returned ONLY for an exact
-// allowlisted structured identifier. Free-text strings are normalized and
-// then matched against an exact DANGER-signal list; anything ambiguous (or
-// mixed safe+unsafe tokens) becomes UNKNOWN_REQUIRES_REVIEW. SAFE is NEVER
-// inferred from a substring/regex.
+// SAFE_CODE_ONLY for a structured identifier requires an EXACT positive match:
+//   - plain object (own enumerable keys only, no prototype-inherited fields)
+//   - ALLOWED_KEYS exactly {tool, operation, syncEnvironment}
+//   - all three required, exact types, exact values
+// Any extra/unknown key ⇒ NOT SAFE. SAFE is NEVER inferred; it is only
+// granted on strict positive schema match.
 
-var SAFE_CODE_ONLY_OPERATIONS = {
-  'tcb:code_update': { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false },
-  'scf:update_function_code': { tool: 'scf', operation: 'CODE_UPDATE', syncEnvironment: false },
+var APPROVED_STRUCTURED_TOOLS = { 'tcb': true, 'scf': true }
+
+var STRUCTURED_SCHEMA = {
+  allowedKeys: ['tool', 'operation', 'syncEnvironment'],
+  requiredKeys: ['tool', 'operation', 'syncEnvironment'],
+  tool: { type: 'string' },
+  operation: { type: 'string' },
+  syncEnvironment: { type: 'boolean' },
 }
 
-// Exact (normalized) DANGER identifiers → UNSAFE_CONFIG_SYNC.
-var UNSAFE_CONFIG_SYNC_OPERATIONS = {
-  'tcb:deploy': { tool: 'tcb', operation: 'DEPLOY', syncEnvironment: true },
-  'tcb:fn_deploy': { tool: 'tcb', operation: 'DEPLOY', syncEnvironment: true },
-  'cloudbaserc:deploy': { tool: 'cloudbaserc', operation: 'DEPLOY', syncEnvironment: true },
+// Extra structured field names that clearly express config/deploy mutation → UNSAFE.
+var STRUCTURED_DANGER_FIELD_NAMES = [
+  'deploy', 'syncconfig', 'syncconfiguration', 'command', 'configfile', 'config',
+  'environmentmutation', 'env', 'environment', 'variables', 'sync',
+  'metadata', 'options', 'flags',
+]
+
+function isPlainObject(v) {
+  if (typeof v !== 'object' || v === null) return false
+  if (Array.isArray(v)) return false
+  var proto = Object.getPrototypeOf(v)
+  return proto === Object.prototype || proto === null
+}
+
+function structuredLooksDangerous(value) {
+  var s
+  try { s = JSON.stringify(value) } catch (e) { s = String(value) }
+  if (s === undefined) s = String(value)
+  s = (s || '').toLowerCase()
+  for (var i = 0; i < DANGER_TOKENS.length; i++) {
+    if (s.indexOf(DANGER_TOKENS[i]) !== -1) return true
+  }
+  return false
 }
 
 // Legacy string registry (exact, normalized, trimmed) for backward compat.
@@ -60,6 +84,80 @@ var DANGER_TOKENS = ['deploy', 'cloudbaserc', 'env', 'config', 'variables', 'syn
 
 function normalizeMethodString(s) {
   return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Classify a structured deployment identifier (strict positive schema).
+ * SAFE only on exact schema match. Unknown/extra/wrong-type/non-plain → NOT SAFE.
+ */
+function classifyStructured(method) {
+  // Non-plain-object (array, class instance, custom-proto, Date, function… ) → NOT SAFE.
+  if (!isPlainObject(method)) {
+    return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured input is not a plain object (rejected)' }
+  }
+
+  var keys = Object.keys(method)
+  var allowed = STRUCTURED_SCHEMA.allowedKeys
+  var extra = []
+  for (var i = 0; i < keys.length; i++) {
+    if (allowed.indexOf(keys[i]) === -1) extra.push(keys[i])
+  }
+
+  // Any extra/unknown key ⇒ NOT SAFE (fail-closed).
+  if (extra.length > 0) {
+    var dangerous = false
+    for (var j = 0; j < extra.length; j++) {
+      var ek = extra[j]
+      if (STRUCTURED_DANGER_FIELD_NAMES.indexOf(String(ek).toLowerCase()) !== -1) dangerous = true
+      else if (structuredLooksDangerous(method[ek])) dangerous = true
+    }
+    if (dangerous) {
+      return { method: method, classification: 'UNSAFE_CONFIG_SYNC', reason: 'structured identifier has unknown/config-sync field(s): ' + extra.join(', ') }
+    }
+    return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured identifier has unknown field(s): ' + extra.join(', ') }
+  }
+
+  // Required keys presence.
+  var required = STRUCTURED_SCHEMA.requiredKeys
+  for (var r = 0; r < required.length; r++) {
+    if (!Object.prototype.hasOwnProperty.call(method, required[r])) {
+      return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured identifier missing required key: ' + required[r] }
+    }
+  }
+
+  // Strict type validation (no coercion).
+  if (typeof method.tool !== 'string') {
+    return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured tool must be a string' }
+  }
+  if (typeof method.operation !== 'string') {
+    return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured operation must be a string' }
+  }
+  if (typeof method.syncEnvironment !== 'boolean') {
+    return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured syncEnvironment must be a boolean' }
+  }
+
+  var tool = method.tool
+  var operation = method.operation
+  var syncEnvironment = method.syncEnvironment
+
+  // Approved tool set.
+  if (!APPROVED_STRUCTURED_TOOLS[tool]) {
+    return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured tool not in approved set: ' + JSON.stringify(tool) }
+  }
+
+  // Danger signals first (fail-closed toward unsafe).
+  if (syncEnvironment === true) {
+    return { method: method, classification: 'UNSAFE_CONFIG_SYNC', reason: 'structured syncEnvironment=true' }
+  }
+  if (operation !== 'CODE_UPDATE') {
+    if (operation === 'DEPLOY' || structuredLooksDangerous(operation)) {
+      return { method: method, classification: 'UNSAFE_CONFIG_SYNC', reason: 'structured operation implies config sync: ' + JSON.stringify(operation) }
+    }
+    return { method: method, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured operation is not CODE_UPDATE: ' + JSON.stringify(operation) }
+  }
+
+  // Exact positive match → SAFE.
+  return { method: method, classification: 'SAFE_CODE_ONLY', reason: 'structured identifier exactly matches approved schema (allowed tool, CODE_UPDATE, syncEnvironment=false)' }
 }
 
 /**
@@ -85,23 +183,9 @@ function normalizeMethodString(s) {
 function classifyDeploymentPath(method, opts) {
   opts = opts || {}
 
-  // ── Structured identifier path (preferred, authoritative) ──
+  // ── Structured identifier path (strict positive schema, R2) ──
   if (method && typeof method === 'object') {
-    var op = String(method.operation || '').toUpperCase()
-    var syncEnv = method.syncEnvironment === true
-    var structured = {
-      tool: method.tool || null,
-      operation: op,
-      syncEnvironment: syncEnv,
-    }
-    if (op === 'CODE_UPDATE' && !syncEnv) {
-      return { method: structured, classification: 'SAFE_CODE_ONLY', reason: 'structured CODE_UPDATE, syncEnvironment=false (explicit allowlist)' }
-    }
-    if (syncEnv) {
-      return { method: structured, classification: 'UNSAFE_CONFIG_SYNC', reason: 'structured identifier has syncEnvironment=true' }
-    }
-    // Structured but neither explicit-safe nor explicit-danger ⇒ require review.
-    return { method: structured, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured identifier is not in the safe allowlist' }
+    return classifyStructured(method)
   }
 
   // ── String path (conservative, fail-closed) ──
@@ -229,11 +313,14 @@ function diffPayloads(pre, post) {
 
 module.exports = {
   KNOWN_STALE_CONFIG_RISK: KNOWN_STALE_CONFIG_RISK,
-  SAFE_CODE_ONLY_OPERATIONS: SAFE_CODE_ONLY_OPERATIONS,
-  UNSAFE_CONFIG_SYNC_OPERATIONS: UNSAFE_CONFIG_SYNC_OPERATIONS,
+  APPROVED_STRUCTURED_TOOLS: APPROVED_STRUCTURED_TOOLS,
+  STRUCTURED_SCHEMA: STRUCTURED_SCHEMA,
+  STRUCTURED_DANGER_FIELD_NAMES: STRUCTURED_DANGER_FIELD_NAMES,
   DEPLOY_METHODS: DEPLOY_METHODS,
   DANGER_TOKENS: DANGER_TOKENS,
+  isPlainObject: isPlainObject,
   normalizeMethodString: normalizeMethodString,
+  classifyStructured: classifyStructured,
   classifyDeploymentPath: classifyDeploymentPath,
   assertCodeOnlyDeploySafe: assertCodeOnlyDeploySafe,
   detectStaleCloudbaserc: detectStaleCloudbaserc,

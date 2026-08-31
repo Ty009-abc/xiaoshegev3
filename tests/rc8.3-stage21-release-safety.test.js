@@ -412,6 +412,117 @@ T('MT09 (M11): missing environmentId must be rejected', function () {
   ok(/environmentId/.test(v.errors.join('|')), 'environmentId specifically flagged')
 })
 
+// ═══════════════════════════════════════════════════════════
+// R2 — Structured Identifier Attack Matrix (strict positive schema)
+// ═══════════════════════════════════════════════════════════
+
+function sc(obj) { return ds.classifyDeploymentPath(obj).classification }
+
+T('S01: exact valid structured schema → SAFE_CODE_ONLY', function () {
+  eq(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false }), 'SAFE_CODE_ONLY')
+})
+
+T('S02: extra deploy:true → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, deploy: true }) === 'SAFE_CODE_ONLY')
+})
+
+T('S03: extra syncConfig:true → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, syncConfig: true }) === 'SAFE_CODE_ONLY')
+})
+
+T('S04: extra command:"deploy" → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, command: 'deploy' }) === 'SAFE_CODE_ONLY')
+})
+
+T('S05: extra configFile:"cloudbaserc.json" → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, configFile: 'cloudbaserc.json' }) === 'SAFE_CODE_ONLY')
+})
+
+T('S06: extra environmentMutation:true → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, environmentMutation: true }) === 'SAFE_CODE_ONLY')
+})
+
+T('S07: arbitrary unknown field → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, foo: 1 }) === 'SAFE_CODE_ONLY')
+})
+
+T('S08: nested dangerous field → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, metadata: { deploy: true } }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, options: { syncConfig: true } }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, flags: ['deploy'] }) === 'SAFE_CODE_ONLY')
+})
+
+T('S09: wrong types → NOT SAFE', function () {
+  notOk(sc({ tool: 'tcb', operation: ['CODE_UPDATE'], syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: { op: 'CODE_UPDATE' }, syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: null, syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: 'false' }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: 0 }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: null }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: undefined }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: ['tcb'], operation: 'CODE_UPDATE', syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: {}, operation: 'CODE_UPDATE', syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: '', operation: 'CODE_UPDATE', syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+})
+
+T('S10: missing required key → NOT SAFE', function () {
+  notOk(sc({ operation: 'CODE_UPDATE', syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'tcb', operation: 'CODE_UPDATE' }) === 'SAFE_CODE_ONLY')
+})
+
+T('S11: unknown tool → NOT SAFE', function () {
+  notOk(sc({ tool: 'mystery-tool', operation: 'CODE_UPDATE', syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+  notOk(sc({ tool: 'cloudbaserc', operation: 'CODE_UPDATE', syncEnvironment: false }) === 'SAFE_CODE_ONLY')
+})
+
+T('S12: non-plain object → NOT SAFE', function () {
+  notOk(sc([{ tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false }]) === 'SAFE_CODE_ONLY')
+  notOk(sc(new Date()) === 'SAFE_CODE_ONLY')
+  notOk(sc(function () {}) === 'SAFE_CODE_ONLY')
+  // prototype-inherited extra field must not make it safe / must be rejected.
+  var proto = { deploy: true }
+  var obj = Object.create(proto)
+  obj.tool = 'tcb'; obj.operation = 'CODE_UPDATE'; obj.syncEnvironment = false
+  notOk(sc(obj) === 'SAFE_CODE_ONLY')
+})
+
+T('S13: structured attack matrix false-safe count = 0', function () {
+  var attacks = [
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, deploy: true },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, syncConfig: true },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, command: 'deploy' },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, configFile: 'cloudbaserc.json' },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, environmentMutation: true },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, foo: 1 },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, metadata: { deploy: true } },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, options: { syncConfig: true } },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false, flags: ['deploy'] },
+    { tool: 'tcb', operation: ['CODE_UPDATE'], syncEnvironment: false },
+    { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: 'false' },
+    { operation: 'CODE_UPDATE', syncEnvironment: false },
+    { tool: 'mystery-tool', operation: 'CODE_UPDATE', syncEnvironment: false },
+  ]
+  var falseSafe = 0
+  for (var i = 0; i < attacks.length; i++) {
+    if (sc(attacks[i]) === 'SAFE_CODE_ONLY') falseSafe++
+  }
+  eq(falseSafe, 0, 'STRUCTURED_FALSE_SAFE_COUNT must be 0')
+})
+
+T('R2A: string-path P1 still closed (mixed tokens not SAFE)', function () {
+  var inputs = ['tcb deploy code update', 'deploy code only', 'run deploy then code update', 'code update with deploy']
+  var safe = 0
+  for (var i = 0; i < inputs.length; i++) {
+    if (ds.classifyDeploymentPath(inputs[i]).classification === 'SAFE_CODE_ONLY') safe++
+  }
+  eq(safe, 0, 'STRING_FALSE_SAFE_COUNT must be 0')
+})
+
+T('R2B: approved exact string still SAFE (tcb fn code update)', function () {
+  eq(ds.classifyDeploymentPath('tcb fn code update').classification, 'SAFE_CODE_ONLY')
+})
+
 // ── Summary ──
 console.log('\n===== Stage21 Release Safety tests =====')
 console.log('TOTAL=' + t + ' PASS=' + p + ' FAIL=' + f)
