@@ -15,10 +15,12 @@ var fingerprint = require('./lib/fingerprint')
 var configReadback = require('./lib/configReadback')
 var deploymentSafety = require('./lib/deploymentSafety')
 var releaseManifest = require('./lib/releaseManifest')
+var allowlistGovernance = require('./lib/allowlistGovernance')
 
 module.exports = {
   fingerprint: fingerprint,
   configReadback: configReadback,
   deploymentSafety: deploymentSafety,
   releaseManifest: releaseManifest,
+  allowlistGovernance: allowlistGovernance,
 }
