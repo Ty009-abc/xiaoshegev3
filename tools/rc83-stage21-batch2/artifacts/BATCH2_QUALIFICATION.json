@@ -1,0 +1,86 @@
+{
+  "artifact": "BATCH2_QUALIFICATION",
+  "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
+  "baseCanonicalSha": "0874254ede490d7fef6c20942ff663c0970a445c",
+  "candidateSha": "cce3cc73879881af3f3c34a0f56ec9865303f17c",
+  "designAcceptedSha": "ff519be1244d5493fd73474f11d632096db2a1ba",
+  "implementationPlanSha": "1083e0b0b4daf8162d2f3411edbfce746f793239",
+  "batch1AcceptedSha": "3bfbd2fea2d1f0acfcbf280e0824daea718bc6cc",
+  "harnessAcceptedSha": "2a5f606b90312e509f651002cb119732bc335c85",
+  "workstreams": {
+    "W1_AI_AUTHORITY_GUARD": "IMPLEMENTED",
+    "W2_DETERMINISTIC_FALLBACK": "IMPLEMENTED",
+    "W10_QUALIFICATION_RUNNER": "IMPLEMENTED"
+  },
+  "dependencyStrategy": "ISOLATED_NEW_TOOLING_UNDER_tools_rc83_stage21_batch2; self-contained util.js (no Batch1 copy); references canonical V2.1 engine read-only via require + db:null LOCAL_DIRECT (same pattern as ACCEPTED harness); zero production/runtime/inference files touched",
+  "aiAuthorityModel": {
+    "principle": "ENGINE=DIAGNOSTIC_AUTHORITY; AI=EXPRESSION_AUTHORITY_ONLY",
+    "protectedPaths": [
+      "responseValidityStatus",
+      "cognitionExecuted",
+      "cognitionTerminalStatus",
+      "primaryBlindSpotId",
+      "primaryConstruct",
+      "followupPair",
+      "eligibleCandidateIds",
+      "eligibleConstructs",
+      "dimensionSummary"
+    ],
+    "designAbstractNameMapping": {
+      "cognitiveArchetype": "primaryConstruct + eligibleConstructs + dimensionSummary[].construct",
+      "cognitiveBlindSpot": "primaryBlindSpotId + eligibleCandidateIds",
+      "worldStrategy": "cognitionTerminalStatus",
+      "scenarioSimulation": "followupPair + dimensionSummary[].{orientation,state}"
+    },
+    "aiAllowedPaths": ["headline", "summary", "explanation", "narrative", "actionWording", "humanReadableCopy"],
+    "preAiSnapshot": "deterministic deep-frozen canonical-ordered snapshot of protected fields only",
+    "postAiValidation": "deep immutable equality; changed/missing/nullified/retyped → REJECTED (no partial accept)",
+    "authorityViolationBehavior": "discard AI mutation; preserve engine; deterministic fallback expression",
+    "semanticSmugglingGuard": "unexpected diagnostic-semantic top-level keys rejected; prose must be string|null"
+  },
+  "fallback": {
+    "implemented": true,
+    "adapter": "fallbackAdapterV21 (V2.1 shape, carries engine snapshot unchanged)",
+    "referenceInvestigated": "generateFallbackReport (reportGuardV4.js) — deterministic no-AI deep-copy, classified REUSABLE_WITH_ADAPTER (V4 shape; V2.1 needs adapter)",
+    "renderSource": "DETERMINISTIC_FALLBACK (never disguised as AI_RENDERED)",
+    "fallbackTriggers": ["AUTHORITY_VIOLATION", "MISSING_AI_OUTPUT", "AI_EXCEPTION", "MALFORMED_OUTPUT", "INVALID_SCHEMA"],
+    "determinismMatch": 100,
+    "determinismTotal": 100,
+    "determinismMismatch": 0
+  },
+  "qualification": {
+    "casesPass": 15,
+    "casesTotal": 15,
+    "mutationTestsPass": 10,
+    "mutationTestsTotal": 10,
+    "authorityViolationsDetected": 14,
+    "authorityViolationsMissed": 0
+  },
+  "inferenceOutputDiffCount": 0,
+  "regression": {
+    "stage20V21RuntimeShadow": "34/34",
+    "worldModelContract": {
+      "staticContract": "8/8",
+      "dimensionEngine": "15/15",
+      "blindspotCandidates": "12/12",
+      "primaryDecision": "30/30",
+      "responseValidity": "33/33"
+    }
+  },
+  "productionIsolation": {
+    "productionTrafficSent": false,
+    "productionDbWrites": 0,
+    "productionConfigWrites": 0,
+    "deployments": 0,
+    "gateBChanged": false,
+    "primaryChanged": false
+  },
+  "knownDebts": [
+    "V2.1 has no live AI render path in canonical (SHADOW-only); W1/W2 are forward tooling, wiring deferred to post-Gate-B release reconciliation",
+    "Semantic-smuggling guard uses structural isolation only (no open-ended NLP truth judgement, per frozen §7)"
+  ],
+  "readyForIndependentAudit": true,
+  "readyForCanonicalMerge": false,
+  "readyForDeploy": false,
+  "readyForPrimary": false
+}
