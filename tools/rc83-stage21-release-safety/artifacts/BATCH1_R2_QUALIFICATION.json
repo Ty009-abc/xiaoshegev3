@@ -1,0 +1,78 @@
+{
+  "artifact": "BATCH1_R2_QUALIFICATION",
+  "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
+  "baseR1Sha": "ca2a0e7d866cb9e6f5a8e59f0391037fc0af25dc",
+  "r2Sha": "d57df9cf9969da99e22121e2bfee1bdf3624b5ce",
+  "baseCanonicalSha": "0874254ede490d7fef6c20942ff663c0970a445c",
+  "p1Fixed": {
+    "id": "STRUCTURED_IDENTIFIER_FALSE_SAFE",
+    "status": "FIXED",
+    "model": "STRICT_POSITIVE_SCHEMA",
+    "allowedKeys": ["tool", "operation", "syncEnvironment"],
+    "requiredKeys": ["tool", "operation", "syncEnvironment"],
+    "plainObjectRequired": true,
+    "typeValidationFailClosed": true,
+    "unknownFieldsFailClosed": true
+  },
+  "structuredSchema": {
+    "approvedTools": ["tcb", "scf"],
+    "toolType": "string",
+    "operationType": "string",
+    "syncEnvironmentType": "boolean",
+    "operationRequiredValue": "CODE_UPDATE",
+    "syncEnvironmentRequiredValue": false
+  },
+  "attackMatrix": {
+    "S1_exactValidSchema": "SAFE_CODE_ONLY",
+    "S2_extraDeploy": "NOT_SAFE",
+    "S3_extraSyncConfig": "NOT_SAFE",
+    "S4_extraCommand": "NOT_SAFE",
+    "S5_extraConfigFile": "NOT_SAFE",
+    "S6_extraEnvironmentMutation": "NOT_SAFE",
+    "S7_unknownField": "NOT_SAFE",
+    "S8_nestedDanger": "NOT_SAFE",
+    "S9_wrongType": "NOT_SAFE",
+    "S10_missingKey": "NOT_SAFE",
+    "S11_unknownTool": "NOT_SAFE",
+    "S12_nonPlainObject": "NOT_SAFE",
+    "structuredFalseSafeCount": 0
+  },
+  "stringPathRegression": {
+    "originalStringP1StillClosed": true,
+    "stringFalseSafeCount": 0,
+    "approvedExactStringSafe": "tcb fn code update"
+  },
+  "existingR1Hardening": {
+    "M8_sameCountMemberSwap": "REQUIRES_PRIVILEGED_VERIFICATION",
+    "M10_malformedSha": "REJECTED",
+    "M11_missingEnvironmentId": "REJECTED",
+    "manifestFalsePassCount": 0
+  },
+  "deferredDebts": {
+    "P2": ["redactConfig unexpected-extension"],
+    "P3": ["unused GATE_B_GUARD"]
+  },
+  "tests": {
+    "pass": 59,
+    "total": 59,
+    "structuredAttackMatrixCases": 13,
+    "stringRegressionCases": 2
+  },
+  "regression": {
+    "stage20V21RuntimeShadowPass": 34,
+    "stage20V21RuntimeShadowTotal": 34,
+    "inferenceOutputDiffCount": 0
+  },
+  "productionIsolation": {
+    "productionTrafficSent": false,
+    "productionDbWrites": 0,
+    "productionConfigWrites": 0,
+    "deployments": 0,
+    "gateBChanged": false,
+    "primaryChanged": false
+  },
+  "readyForTargetedIndependentReaudit": true,
+  "readyForBatch2": false,
+  "readyForCanonicalMerge": false,
+  "readyForDeploy": false
+}
