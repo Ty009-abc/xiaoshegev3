@@ -26,44 +26,118 @@ var KNOWN_STALE_CONFIG_RISK = {
   effect: 'auto-sync would set production to SELECTIVE_PRIMARY and shrink allowlist',
 }
 
-// ── Deployment method registry ──
+// ── Exact structured deployment identifiers (SAFE_CODE_ONLY allowlist) ──
+//
+// FAIL-CLOSED model (R1): SAFE_CODE_ONLY is returned ONLY for an exact
+// allowlisted structured identifier. Free-text strings are normalized and
+// then matched against an exact DANGER-signal list; anything ambiguous (or
+// mixed safe+unsafe tokens) becomes UNKNOWN_REQUIRES_REVIEW. SAFE is NEVER
+// inferred from a substring/regex.
+
+var SAFE_CODE_ONLY_OPERATIONS = {
+  'tcb:code_update': { tool: 'tcb', operation: 'CODE_UPDATE', syncEnvironment: false },
+  'scf:update_function_code': { tool: 'scf', operation: 'CODE_UPDATE', syncEnvironment: false },
+}
+
+// Exact (normalized) DANGER identifiers → UNSAFE_CONFIG_SYNC.
+var UNSAFE_CONFIG_SYNC_OPERATIONS = {
+  'tcb:deploy': { tool: 'tcb', operation: 'DEPLOY', syncEnvironment: true },
+  'tcb:fn_deploy': { tool: 'tcb', operation: 'DEPLOY', syncEnvironment: true },
+  'cloudbaserc:deploy': { tool: 'cloudbaserc', operation: 'DEPLOY', syncEnvironment: true },
+}
+
+// Legacy string registry (exact, normalized, trimmed) for backward compat.
+// Only EXACT matches are honored. No substring inference.
 var DEPLOY_METHODS = {
-  'tcb fn deploy': {
-    classification: 'UNSAFE_CONFIG_SYNC',
-    reason: 'applies cloudbaserc.json envVariables (config sync risk)',
-  },
-  'tcb fn code update': {
-    classification: 'SAFE_CODE_ONLY',
-    reason: 'function code only; no env/config fields (verified precedent)',
-  },
-  'cloudbaserc deploy': {
-    classification: 'UNSAFE_CONFIG_SYNC',
-    reason: 'applies cloudbaserc.json envVariables',
-  },
+  'tcb fn deploy': 'UNSAFE_CONFIG_SYNC',
+  'tcb deploy': 'UNSAFE_CONFIG_SYNC',
+  'cloudbaserc deploy': 'UNSAFE_CONFIG_SYNC',
+  'tcb fn code update': 'SAFE_CODE_ONLY',
+}
+
+// DANGER tokens: presence (in the absence of an exact safe match) ⇒ UNSAFE.
+var DANGER_TOKENS = ['deploy', 'cloudbaserc', 'env', 'config', 'variables', 'sync', 'environment']
+
+function normalizeMethodString(s) {
+  return String(s == null ? '' : s).toLowerCase().replace(/\s+/g, ' ').trim()
 }
 
 /**
- * Classify a deployment path given a method name and optional description.
- * @param {string} method - deployment command/method identifier.
- * @param {Object} [opts] - { description }
+ * Classify a deployment path.
+ *
+ * Accepts EITHER:
+ *   (a) a structured identifier: { tool, operation, syncEnvironment }
+ *   (b) a string method name (backward compat, conservative).
+ *
+ * Priority (fail-closed):
+ *   1. structured exact allowlist (SAFE only if operation=CODE_UPDATE &&
+ *      syncEnvironment===false)
+ *   2. structured exact danger match (syncEnvironment===true ⇒ UNSAFE)
+ *   3. exact normalized string match
+ *   4. DANGER token present ⇒ UNSAFE_CONFIG_SYNC
+ *   5. otherwise ⇒ UNKNOWN_REQUIRES_REVIEW (NEVER SAFE by inference)
+ *
+ * @param {string|Object} method - deployment identifier.
+ * @param {Object} [opts] - { description } (ignored for structured input;
+ *   only used to append text for string normalization, NOT to infer SAFE).
  * @returns {Object} { method, classification, reason }
  */
 function classifyDeploymentPath(method, opts) {
   opts = opts || {}
-  var m = String(method || '').trim()
-  var known = DEPLOY_METHODS[m]
-  if (known) {
-    return { method: m, classification: known.classification, reason: known.reason }
+
+  // ── Structured identifier path (preferred, authoritative) ──
+  if (method && typeof method === 'object') {
+    var op = String(method.operation || '').toUpperCase()
+    var syncEnv = method.syncEnvironment === true
+    var structured = {
+      tool: method.tool || null,
+      operation: op,
+      syncEnvironment: syncEnv,
+    }
+    if (op === 'CODE_UPDATE' && !syncEnv) {
+      return { method: structured, classification: 'SAFE_CODE_ONLY', reason: 'structured CODE_UPDATE, syncEnvironment=false (explicit allowlist)' }
+    }
+    if (syncEnv) {
+      return { method: structured, classification: 'UNSAFE_CONFIG_SYNC', reason: 'structured identifier has syncEnvironment=true' }
+    }
+    // Structured but neither explicit-safe nor explicit-danger ⇒ require review.
+    return { method: structured, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'structured identifier is not in the safe allowlist' }
   }
-  // Heuristic scan over the raw method string (and description) for config-sync hints.
-  var hay = (m + ' ' + (opts.description || '')).toLowerCase()
-  if (/deploy\b/.test(hay) && /(env|config|cloudbaserc|variables|sync)/.test(hay)) {
-    return { method: m, classification: 'UNSAFE_CONFIG_SYNC', reason: 'method string suggests env/config sync' }
+
+  // ── String path (conservative, fail-closed) ──
+  var m = normalizeMethodString(method)
+  var desc = normalizeMethodString(opts.description || '')
+  var hay = (m + ' ' + desc).trim()
+
+  // 1. Exact normalized match (safe or unsafe).
+  var exact = DEPLOY_METHODS[m]
+  if (exact) {
+    return {
+      method: m,
+      classification: exact,
+      reason: exact === 'SAFE_CODE_ONLY'
+        ? 'exact allowlisted code-only method'
+        : 'exact matched config-sync method',
+    }
   }
-  if (/code\s*(only|update)/.test(hay)) {
-    return { method: m, classification: 'SAFE_CODE_ONLY', reason: 'method string suggests code-only update' }
+
+  // 2. DANGER token present ⇒ UNSAFE (fail-closed toward unsafe, never safe).
+  for (var i = 0; i < DANGER_TOKENS.length; i++) {
+    if (hay.indexOf(DANGER_TOKENS[i]) !== -1) {
+      return {
+        method: m,
+        classification: 'UNSAFE_CONFIG_SYNC',
+        reason: 'danger token present: ' + DANGER_TOKENS[i],
+      }
+    }
   }
-  return { method: m, classification: 'UNKNOWN_REQUIRES_REVIEW', reason: 'cannot determine from available evidence' }
+
+  // 3. No exact match, no danger token ⇒ ambiguous ⇒ UNKNOWN (NOT SAFE).
+  return {
+    method: m,
+    classification: 'UNKNOWN_REQUIRES_REVIEW',
+    reason: 'no exact match and no decisive signal (fail-closed; never inferred SAFE)',
+  }
 }
 
 /**
@@ -155,7 +229,11 @@ function diffPayloads(pre, post) {
 
 module.exports = {
   KNOWN_STALE_CONFIG_RISK: KNOWN_STALE_CONFIG_RISK,
+  SAFE_CODE_ONLY_OPERATIONS: SAFE_CODE_ONLY_OPERATIONS,
+  UNSAFE_CONFIG_SYNC_OPERATIONS: UNSAFE_CONFIG_SYNC_OPERATIONS,
   DEPLOY_METHODS: DEPLOY_METHODS,
+  DANGER_TOKENS: DANGER_TOKENS,
+  normalizeMethodString: normalizeMethodString,
   classifyDeploymentPath: classifyDeploymentPath,
   assertCodeOnlyDeploySafe: assertCodeOnlyDeploySafe,
   detectStaleCloudbaserc: detectStaleCloudbaserc,

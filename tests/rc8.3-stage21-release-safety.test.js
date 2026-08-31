@@ -27,6 +27,7 @@ var fp = require('../tools/rc83-stage21-release-safety/lib/fingerprint')
 var cfg = require('../tools/rc83-stage21-release-safety/lib/configReadback')
 var ds = require('../tools/rc83-stage21-release-safety/lib/deploymentSafety')
 var rm = require('../tools/rc83-stage21-release-safety/lib/releaseManifest')
+var ag = require('../tools/rc83-stage21-release-safety/lib/allowlistGovernance')
 
 var t = 0, p = 0, f = 0
 function T(n, fn) { t++; try { fn(); p++ } catch (e) { f++; console.error('FAIL [' + n + ']:', e.message) } }
@@ -175,12 +176,16 @@ T('F02: drift diff is secret-safe (no secret value in diff)', function () {
 
 T('K01: manifest schema validation (valid manifest)', function () {
   var m = rm.buildManifest({
-    canonicalSha: '0874254ede490d7fef6c20942ff663c0970a445c',
-    candidateSha: 'TEST_FIXTURE',
-    harnessSha: '2a5f606b90312e509f651002cb119732bc335c85',
+    canonicalSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    candidateSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    deployedSha: 'cccccccccccccccccccccccccccccccccccccccc',
+    harnessSha: 'dddddddddddddddddddddddddddddddddddddddd',
     environmentId: 'TEST_FIXTURE_env',
     rolloutMode: 'SHADOW',
     featureFlagState: 'OFF',
+    deploymentMethod: 'tcb fn code update',
+    deploymentToolIdentifier: 'tcb-cli',
+    deployedConfigFingerprint: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
     rollbackTarget: 'legacy_rc8',
     releaseOwner: 'TEST_FIXTURE',
     releaseTimestamp: 'SYNTHETIC_METADATA',
@@ -249,6 +254,101 @@ T('O01: no production mutation capability (no write API exported)', function () 
 })
 
 // ═══════════════════════════════════════════════════════════
+// R1 — Deploy Classifier Adversarial Matrix (fail-closed)
+// ═══════════════════════════════════════════════════════════
+
+function isSafe(r) { return r.classification === 'SAFE_CODE_ONLY' }
+
+T('R1A: mixed deploy tokens NOT safe (tcb deploy code update)', function () {
+  var r = ds.classifyDeploymentPath('tcb deploy code update')
+  eq(isSafe(r), false, 'mixed tokens must not be SAFE')
+})
+
+T('R1B: wrapper adversarial NOT safe (deploy code only)', function () {
+  var r = ds.classifyDeploymentPath('deploy code only')
+  eq(isSafe(r), false, 'wrapper string must not be SAFE')
+})
+
+T('R1C: unknown fail-closed (mystery command)', function () {
+  var r = ds.classifyDeploymentPath('some-mystery-command')
+  eq(r.classification, 'UNKNOWN_REQUIRES_REVIEW')
+})
+
+T('R1D: malformed/empty deployment input NOT safe', function () {
+  eq(isSafe(ds.classifyDeploymentPath('')), false, 'empty → not safe')
+  eq(isSafe(ds.classifyDeploymentPath(null)), false, 'null → not safe')
+  eq(isSafe(ds.classifyDeploymentPath(undefined)), false, 'undefined → not safe')
+})
+
+T('R1E: malformed SHA rejected (abc)', function () {
+  var m = rm.buildManifest({ canonicalSha: 'abc' })
+  var v = rm.validateManifest(m)
+  eq(v.valid, false)
+  ok(/malformed|missing/.test(v.errors.join('|')), 'abc should be rejected')
+})
+
+T('R1F: short SHA rejected (1083e0b...)', function () {
+  var m = rm.buildManifest({ canonicalSha: '1083e0b' })
+  var v = rm.validateManifest(m)
+  eq(v.valid, false)
+  ok(/malformed/.test(v.errors.join('|')), 'short sha should be rejected')
+})
+
+T('R1G: missing mandatory manifest field rejected', function () {
+  var m = rm.buildManifest({ canonicalSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' })
+  var v = rm.validateManifest(m)
+  eq(v.valid, false)
+  ok(/mandatory field missing/.test(v.errors.join('|')), 'missing mandatory fields should be flagged')
+})
+
+T('R1H: malformed fingerprint rejected', function () {
+  var m = rm.buildManifest({
+    canonicalSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    candidateSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    deployedSha: 'cccccccccccccccccccccccccccccccccccccccc',
+    environmentId: 'X', featureFlagState: 'OFF', deploymentMethod: 'tcb fn code update',
+    deploymentToolIdentifier: 'tcb-cli', rollbackTarget: 'legacy_rc8',
+    deployedConfigFingerprint: 'not-a-fingerprint',
+  })
+  var v = rm.validateManifest(m)
+  eq(v.valid, false)
+  ok(/fingerprint malformed/.test(v.errors.join('|')), 'malformed fingerprint should be rejected')
+})
+
+T('R1I: missing required fingerprint when deployment claimed rejected', function () {
+  var m = rm.buildManifest({
+    canonicalSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    candidateSha: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    deployedSha: 'cccccccccccccccccccccccccccccccccccccccc',
+    environmentId: 'X', featureFlagState: 'OFF', deploymentMethod: 'tcb fn code update',
+    deploymentToolIdentifier: 'tcb-cli', rollbackTarget: 'legacy_rc8',
+  })
+  var v = rm.validateManifest(m)
+  eq(v.valid, false)
+  ok(/deployedConfigFingerprint required/.test(v.errors.join('|')), 'missing required fingerprint should be flagged')
+})
+
+T('R1J: allowlist same-count limitation documented', function () {
+  eq(ag.ALLOWLIST_CAPABILITY.privacyFingerprintModel, 'PRESENCE_COUNT_ABSTRACTION')
+  eq(ag.ALLOWLIST_CAPABILITY.allowlistMembershipDriftDetection, 'REQUIRES_PRIVILEGED_CONTROL_PLANE_VERIFICATION')
+  eq(ag.ALLOWLIST_CAPABILITY.sameCountMemberSwapDetectableByFingerprint, false)
+})
+
+T('R1K: privileged verification status enum valid', function () {
+  eq(ag.isValidVerificationStatus('AUTHORIZED_MATCH'), true)
+  eq(ag.isValidVerificationStatus('DRIFT_DETECTED'), true)
+  eq(ag.isValidVerificationStatus('NOT_VERIFIED'), true)
+  eq(ag.isValidVerificationStatus('SOME_MEMBER_LIST'), false, 'member list output must be invalid')
+  eq(ag.PRIVILEGED_VERIFICATION_CONTRACT.noRawIdentityArtifact, true)
+  eq(ag.PRIVILEGED_VERIFICATION_CONTRACT.noStablePerUserHash, true)
+})
+
+T('R1L: secret/identity regression (no leak via new module)', function () {
+  var json = JSON.stringify(ag)
+  notOk(/openid|unionid|nickname|phone|apiKey|token/i.test(json), 'allowlistGovernance must be identity/secret-free')
+})
+
+// ═══════════════════════════════════════════════════════════
 // Mutation Tests (must be caught by guards)
 // ═══════════════════════════════════════════════════════════
 
@@ -278,6 +378,38 @@ T('MT04: fake Gate-B PASS must be caught (no protocol hash)', function () {
 T('MT05: unsafe deploy method must be classified UNSAFE_CONFIG_SYNC', function () {
   var r = ds.classifyDeploymentPath('tcb fn deploy')
   eq(r.classification, 'UNSAFE_CONFIG_SYNC')
+})
+
+T('MT06 (M_DEPLOY_MIXED_TOKEN): mixed-token deploy must NOT be SAFE', function () {
+  var inputs = ['tcb deploy code update', 'deploy code only', 'run deploy then code update', 'code update with deploy']
+  for (var i = 0; i < inputs.length; i++) {
+    var r = ds.classifyDeploymentPath(inputs[i])
+    if (isSafe(r)) throw new Error('mixed token classified SAFE: ' + inputs[i])
+  }
+})
+
+T('MT07 (M8): same-count allowlist member swap → limitation semantics', function () {
+  // Same count, different members ⇒ fingerprint identical (design limitation).
+  var a = { environmentId: 'X', allowlistState: ['oAAA', 'oBBB', 'oCCC'] }
+  var b = { environmentId: 'X', allowlistState: ['oXXX', 'oYYY', 'oZZZ'] }
+  eq(fp.fingerprintConfig(a), fp.fingerprintConfig(b), 'same-count swap is fingerprint-invisible (by design)')
+  // The limitation is documented as requiring privileged verification.
+  eq(ag.ALLOWLIST_CAPABILITY.allowlistMembershipDriftDetection, 'REQUIRES_PRIVILEGED_CONTROL_PLANE_VERIFICATION')
+})
+
+T('MT08 (M10): malformed SHA must be rejected', function () {
+  var m = rm.buildManifest({ canonicalSha: '1234567890abcdef', candidateSha: 'zzz' })
+  var v = rm.validateManifest(m)
+  eq(v.valid, false)
+  ok(/malformed/.test(v.errors.join('|')))
+})
+
+T('MT09 (M11): missing environmentId must be rejected', function () {
+  var m = rm.buildManifest({ canonicalSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' })
+  var v = rm.validateManifest(m)
+  eq(v.valid, false)
+  ok(/mandatory field missing/.test(v.errors.join('|')))
+  ok(/environmentId/.test(v.errors.join('|')), 'environmentId specifically flagged')
 })
 
 // ── Summary ──
