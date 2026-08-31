@@ -19,6 +19,8 @@ const HOST = '127.0.0.1'
 // Restrict runnable modes (no arbitrary shell, no production reach).
 const ALLOWED_MODES = new Set(['run-1', 'run-100', 'negative', 'determinism', 'stress:500'])
 
+const ARTIFACT_PATH = path.join(HARNESS_ROOT, 'artifacts', 'P0_B_QUALIFICATION.json')
+
 function serveFile(res, filePath, contentType) {
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('not found'); return }
@@ -31,6 +33,10 @@ const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost')
   if (url.pathname === '/' || url.pathname === '/index.html') {
     serveFile(res, path.join(UI_DIR, 'index.html'), 'text/html; charset=utf-8')
+    return
+  }
+  if (url.pathname === '/harness/artifact') {
+    serveFile(res, ARTIFACT_PATH, 'application/json; charset=utf-8')
     return
   }
   if (url.pathname === '/harness/run') {

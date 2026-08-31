@@ -52,6 +52,7 @@
       <button class="btn" onclick="runMode('negative')">Run Negative</button>
       <button class="btn" onclick="runMode('determinism')">Run Determinism</button>
       <button class="btn" onclick="runMode('stress:500')">Run 500 Stress</button>
+      <button class="btn" id="btn-artifact" onclick="loadArtifact()">Load P0-B Artifact</button>
       <div id="status">idle — no bulk run runs automatically on load</div>
     </div>
 
@@ -103,6 +104,58 @@
 
   <script>
     // Never auto-runs bulk modes on load.
+    async function loadArtifact() {
+      const status = document.getElementById('status');
+      status.textContent = 'loading P0-B artifact …';
+      try {
+        const res = await fetch('/harness/artifact');
+        const data = await res.json();
+        renderArtifact(data);
+        status.textContent = 'artifact loaded: ' + (data.candidateSha || 'n/a');
+      } catch (e) {
+        status.textContent = 'artifact error: ' + e.message;
+      }
+    }
+
+    function renderArtifact(d) {
+      const r100 = d.run100 || {};
+      document.getElementById('s-total').textContent = r100.total ?? '—';
+      document.getElementById('s-pass').textContent = r100.pass ?? '—';
+      document.getElementById('s-fail').textContent = r100.fail ?? '—';
+      document.getElementById('s-crash').textContent = r100.crash ?? '—';
+      document.getElementById('v-privacy').textContent = d.aggregateMetrics?.totalIdentityLeakageCount ?? '—';
+      document.getElementById('v-prohibited').textContent = d.aggregateMetrics?.totalProhibitedFieldCount ?? '—';
+      document.getElementById('v-determinism').textContent = (d.determinism?.mismatch ?? '—');
+
+      const vd = r100.validityDistribution;
+      const vdEl = document.getElementById('validity-dist');
+      if (vd) {
+        const total = Object.values(vd).reduce((a, b) => a + b, 0) || 1;
+        vdEl.innerHTML = Object.entries(vd).map(([k, v]) =>
+          `<div>${pill(k)} : ${v}</div><div class="bar"><span style="width:${(v/total*100).toFixed(1)}%;background:var(--acc)"></span></div>`
+        ).join('');
+      }
+
+      const cdEl = document.getElementById('cog-dist');
+      cdEl.innerHTML =
+        `<div>executed: ${r100.cognitionExecuted ?? '—'}</div>` +
+        `<div>blocked: ${r100.cognitionBlocked ?? '—'}</div>`;
+
+      const rates = r100.validatorPassRates || {};
+      function rt(k) { const v = rates[k]; return v === undefined ? '—' : (v === 100 ? '<span class="ok">'+v+'%</span>' : '<span class="fail">'+v+'%</span>'); }
+      document.getElementById('t-answer').innerHTML = rt('answerTrace');
+      document.getElementById('t-validity').innerHTML = rt('validityTrace');
+      document.getElementById('t-evidence').innerHTML = rt('evidenceTrace');
+
+      document.getElementById('inspector').innerHTML =
+        `<div class="k">candidateSha</div><div class="mono">${d.candidateSha ?? '—'}</div>` +
+        `<div class="k">generatorVersion</div><div>${d.generatorVersion ?? '—'}</div>` +
+        `<div class="k">determinism</div><div>${d.determinism?.match ?? '—'}/${d.determinism?.comparisons ?? '—'} match, ${d.determinism?.mismatch ?? '—'} mismatch</div>` +
+        `<div class="k">run500</div><div>${d.run500?.total ?? '—'} total, ${d.run500?.crash ?? '—'} crash</div>` +
+        `<div class="k">negative</div><div>${d.negative?.total ?? '—'} total, ${d.negative?.crashes ?? '—'} crash</div>` +
+        `<div class="k">knownDefects</div><div>${(d.knownDefects || []).length}</div>`;
+    }
+
     async function runMode(mode) {
       const status = document.getElementById('status');
       const btns = document.querySelectorAll('.btn');

@@ -1,0 +1,131 @@
+{
+  "candidateSha": "737f8dc4dd3e937ca867474fccf547532204fdbb",
+  "canonicalBaseSha": "737f8dc4dd3e937ca867474fccf547532204fdbb",
+  "generatorVersion": "P0-A2.1",
+  "runSeed": "LOCAL_DIRECT_ENGINE:DETERMINISTIC:FIXED_TIMESTAMP",
+  "executionArchitecture": "LOCAL_DIRECT_ENGINE",
+  "productionTrafficUsed": false,
+  "productionDbWrites": 0,
+  "syntheticRecordsEnteredGateBN": 0,
+  "run100": {
+    "total": 100,
+    "pass": 100,
+    "fail": 0,
+    "crash": 0,
+    "validityDistribution": {
+      "RESPONSE_VALID": 60,
+      "RESPONSE_QUALITY_LOW": 30,
+      "INSUFFICIENT_RESPONSE_QUALITY": 10
+    },
+    "cognitionExecuted": 60,
+    "cognitionBlocked": 40,
+    "validatorPassRates": {
+      "answerTrace": 100,
+      "validityTrace": 100,
+      "evidenceTrace": 100,
+      "privacy": 100,
+      "cognitionInvariant": 100,
+      "shadowIsolation": 100
+    },
+    "identityLeakageCount": 0,
+    "prohibitedFieldCount": 0
+  },
+  "negative": {
+    "total": 10,
+    "safeHandled": 10,
+    "crashes": 0,
+    "handledStatuses": [
+      {
+        "testCaseId": "N01",
+        "validityStatus": "RESPONSE_VALID",
+        "cognitionExecuted": true
+      },
+      {
+        "testCaseId": "N02",
+        "validityStatus": "INSUFFICIENT_RESPONSE_QUALITY",
+        "cognitionExecuted": false
+      },
+      {
+        "testCaseId": "N03",
+        "validityStatus": "RESPONSE_VALID",
+        "cognitionExecuted": true
+      },
+      {
+        "testCaseId": "N04",
+        "validityStatus": "RESPONSE_VALID",
+        "cognitionExecuted": true
+      },
+      {
+        "testCaseId": "N05",
+        "validityStatus": "INSUFFICIENT_RESPONSE_QUALITY",
+        "cognitionExecuted": false
+      },
+      {
+        "testCaseId": "N06",
+        "validityStatus": "INSUFFICIENT_RESPONSE_QUALITY",
+        "cognitionExecuted": false
+      },
+      {
+        "testCaseId": "N07",
+        "validityStatus": "RESPONSE_VALID",
+        "cognitionExecuted": true
+      },
+      {
+        "testCaseId": "N08",
+        "validityStatus": "INSUFFICIENT_RESPONSE_QUALITY",
+        "cognitionExecuted": false
+      },
+      {
+        "testCaseId": "N09",
+        "validityStatus": "INSUFFICIENT_RESPONSE_QUALITY",
+        "cognitionExecuted": false
+      },
+      {
+        "testCaseId": "N10",
+        "validityStatus": "INSUFFICIENT_RESPONSE_QUALITY",
+        "cognitionExecuted": false
+      }
+    ]
+  },
+  "determinism": {
+    "comparisons": 100,
+    "match": 100,
+    "mismatch": 0,
+    "mismatches": []
+  },
+  "run500": {
+    "total": 500,
+    "pass": 500,
+    "fail": 0,
+    "crash": 0,
+    "validityDistribution": {
+      "RESPONSE_VALID": 300,
+      "RESPONSE_QUALITY_LOW": 150,
+      "INSUFFICIENT_RESPONSE_QUALITY": 50
+    },
+    "cognitionExecuted": 300,
+    "cognitionBlocked": 200,
+    "validatorPassRates": {
+      "answerTrace": 100,
+      "validityTrace": 100,
+      "evidenceTrace": 100,
+      "privacy": 100,
+      "cognitionInvariant": 100,
+      "shadowIsolation": 100
+    },
+    "identityLeakageCount": 0,
+    "prohibitedFieldCount": 0
+  },
+  "aggregateMetrics": {
+    "allThreeValidityStatesExercised": {
+      "RESPONSE_VALID": 364,
+      "RESPONSE_QUALITY_LOW": 180,
+      "INSUFFICIENT_RESPONSE_QUALITY": 66
+    },
+    "totalIdentityLeakageCount": 0,
+    "totalProhibitedFieldCount": 0,
+    "totalCrashes": 0
+  },
+  "caseFailures": [],
+  "knownDefects": []
+}
