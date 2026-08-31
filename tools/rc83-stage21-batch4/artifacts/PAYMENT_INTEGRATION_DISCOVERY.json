@@ -40,7 +40,18 @@
         "sourceClass": "ENV"
       }
     },
-    "rawCredentialExported": false
+    "rawCredentialExported": false,
+    "evidence": "OBSERVED_FROM_SOURCE"
+  },
+  "mockSemantics": {
+    "commentSemantics": "common/payment.js header claims \"不再静默 fallback 到 mock 模式\" (no silent mock fallback)",
+    "actualRuntimeSemantics": "getConfig() sets isMock = !mchid; jsapiOrder returns success:true + _mock:true when isMock; queryOrder returns tradeState=SUCCESS + MOCK_TXN_ when isMock",
+    "mockSuccessReturnedBy": "common/payment.js jsapiOrder (success:true, _mock:true) AND queryOrder (success:true, tradeState:SUCCESS, MOCK_TXN_)",
+    "mockSuccessConsumedBy": "verifyPayment/index.js: queryOrder().tradeState === SUCCESS -> mark order paid + grantEntitlements",
+    "mockFlagCheckedUpstream": "PARTIAL",
+    "orderMarkedPaidOnMock": "YES",
+    "entitlementGrantedOnMock": "YES",
+    "evidence": "OBSERVED_FROM_SOURCE"
   },
   "mockFallbackPresent": true,
   "mockSuccessIsNotPaymentSuccess": true,
@@ -50,8 +61,17 @@
     "MOCK_SIGN",
     "MOCK_TXN_"
   ],
-  "amountAuthority": "SERVER_AUTHORITATIVE_AMOUNT",
-  "clientControlledAmount": false,
+  "paymentMockSuccessEscalationRisk": true,
+  "p1Candidate": true,
+  "amountAuthority": {
+    "classification": "SERVER_AUTHORITATIVE",
+    "clientSubmittedAmount": "PRESENT (clientPrice field, optional, VALIDATED not authoritative)",
+    "serverRecomputedAmount": "PRESENT (createOrder: totalAmount = product.price from products DB)",
+    "paymentProviderAmount": "PRESENT (jsapiOrder body amount.total = totalAmount from server)",
+    "callbackVerifiedAmount": "PRESENT (payCallback: amount.total !== order.totalAmount -> log + _ok, no entitlement)",
+    "clientControlledAmount": false,
+    "evidence": "OBSERVED_FROM_SOURCE"
+  },
   "orderLifecycle": {
     "orderIdGeneration": "PRESENT",
     "idempotencyCreate": "PRESENT",
@@ -60,13 +80,15 @@
     "amountValidation": "PRESENT",
     "transactionIdIdempotency": "PRESENT"
   },
-  "callbackHandler": {
-    "present": "PRESENT",
+  "callbackChain": {
+    "callbackHandler": "PRESENT",
     "signatureVerification": "PRESENT",
     "orderLookup": "PRESENT",
-    "amountVerification": "PRESENT",
+    "amountMatch": "PRESENT",
+    "idempotency": "PRESENT",
     "statusTransition": "PRESENT",
-    "idempotency": "PRESENT"
+    "entitlementUpdate": "PRESENT",
+    "evidence": "OBSERVED_FROM_SOURCE"
   },
   "entitlement": {
     "update": "PRESENT",
@@ -116,16 +138,58 @@
       "role": "frontend payment facade (wx.requestPayment)"
     }
   ],
-  "notExecutableAdversarial": [
-    "P2_MALFORMED_AMOUNT",
-    "P3_CLIENT_AMOUNT_TAMPERING",
-    "P4_DUPLICATE_ORDER_CALLBACK",
-    "P6_INVALID_SIGNATURE",
-    "P7_CALLBACK_AMOUNT_MISMATCH",
-    "P8_PAYMENT_API_EXCEPTION",
-    "P9_TIMEOUT",
-    "P10_DUPLICATE_ENTITLEMENT"
-  ],
+  "adversarial": {
+    "P1_MISSING_MCHID": {
+      "result": "PASS",
+      "evidence": "VERIFIED_BY_LOCAL_TEST",
+      "note": "mock fallback confirmed: isMock=true, success:true, _mock:true, queryOrder SUCCESS"
+    },
+    "P2_MALFORMED_AMOUNT": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "NOT_EXECUTABLE",
+      "note": "requires products DB + createOrder cloud fn"
+    },
+    "P3_CLIENT_AMOUNT_TAMPERING": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "OBSERVED_FROM_SOURCE",
+      "note": "server-authoritative (DB price); clientPrice only validated"
+    },
+    "P4_DUPLICATE_ORDER_CALLBACK": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "OBSERVED_FROM_SOURCE",
+      "note": "checkDuplicateOrder + transactionId idempotency present in source"
+    },
+    "P5_MISSING_SIGNATURE": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "OBSERVED_FROM_SOURCE",
+      "note": "payCallback requires 4 wechatpay headers; missing -> 400 MISSING_HEADERS (source)"
+    },
+    "P6_INVALID_SIGNATURE": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "OBSERVED_FROM_SOURCE",
+      "note": "RSA-SHA256 verify present; requires platform cert env"
+    },
+    "P7_CALLBACK_AMOUNT_MISMATCH": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "OBSERVED_FROM_SOURCE",
+      "note": "amount.total !== order.totalAmount -> log + _ok (no entitlement)"
+    },
+    "P8_PAYMENT_API_EXCEPTION": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "NOT_EXECUTABLE",
+      "note": "requires network to api.mch.weixin.qq.com"
+    },
+    "P9_TIMEOUT": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "NOT_EXECUTABLE",
+      "note": "requires network; axios timeout 15000/10000 present in source"
+    },
+    "P10_DUPLICATE_ENTITLEMENT": {
+      "result": "NOT_EXECUTABLE_FROM_CURRENT_ARCHITECTURE",
+      "evidence": "OBSERVED_FROM_SOURCE",
+      "note": "transactionId idempotency present; membership renewal extends"
+    }
+  },
   "amountUnit": "FEN (分) — totalAmount in fen; DAILY_AI_BUDGET_FEN=50000 分=¥500",
   "releaseReadiness": {
     "codePresent": true,
