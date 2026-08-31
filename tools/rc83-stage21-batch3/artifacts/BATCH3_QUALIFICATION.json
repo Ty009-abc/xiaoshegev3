@@ -2,7 +2,7 @@
   "artifact": "BATCH3_QUALIFICATION",
   "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
   "baseCanonicalSha": "0874254ede490d7fef6c20942ff663c0970a445c",
-  "candidateSha": "PENDING_COMMIT",
+  "candidateSha": "1411edf28d28784254dc194977c187e9d7ba5f76",
   "batch1AcceptedSha": "3bfbd2fea2d1f0acfcbf280e0824daea718bc6cc",
   "batch2AcceptedSha": "5a4d12f6beb0a2301a4fe600456c0bfa07a68678",
   "designAcceptedSha": "ff519be1244d5493fd73474f11d632096db2a1ba",
