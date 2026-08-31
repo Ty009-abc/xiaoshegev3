@@ -1,0 +1,72 @@
+{
+  "artifact": "BATCH3_R1_QUALIFICATION",
+  "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
+  "baseBatch3Sha": "9c385f76afca9ceb88ba9294364c19b66fd77f9c",
+  "r1Sha": "PENDING_COMMIT",
+  "r1Purpose": "ROLLBACK_MODE_TRANSITION_GUARD (close P1 ILLEGAL_ROLLBACK_TRANSITION_ALLOWED)",
+  "p1Target": "ILLEGAL_ROLLBACK_TRANSITION_ALLOWED",
+  "p1Fixed": true,
+  "allowedRollbackTransitions": [
+    "SELECTIVE_PRIMARY->SHADOW",
+    "PRIMARY->SHADOW"
+  ],
+  "rejectedTransitions": [
+    "SHADOW->PRIMARY",
+    "SHADOW->SELECTIVE_PRIMARY",
+    "SHADOW->SHADOW",
+    "SELECTIVE_PRIMARY->PRIMARY",
+    "SELECTIVE_PRIMARY->SELECTIVE_PRIMARY",
+    "PRIMARY->SELECTIVE_PRIMARY",
+    "PRIMARY->PRIMARY",
+    "PRIMARY->UNKNOWN",
+    "UNKNOWN->SHADOW",
+    "null->SHADOW",
+    "missing_currentMode->SHADOW"
+  ],
+  "illegalRollbackTransitionAllowed": false,
+  "currentModeAuthority": "OBSERVED_STATE_MODE (state.mode is authoritative; plan.currentMode is expected-only; mismatch -> CURRENT_MODE_MISMATCH fail-closed)",
+  "targetModePolicy": "ROLLBACK_TARGET_MODE = SHADOW only; SELECTIVE_PRIMARY/PRIMARY retained in VALID_TARGET_MODES enum for planning schema only, but rejected as rollback target",
+  "validRollbackTransitionsPass": 2,
+  "invalidRollbackTransitionsRejected": 9,
+  "currentModeMismatchFailClosed": true,
+  "failOpenConfigEnvCases": 0,
+  "realMutationReachableByDefault": false,
+  "behaviorDiff": {
+    "W6_BEHAVIOR_DIFF_COUNT": 0,
+    "W7_BEHAVIOR_DIFF_COUNT": 0,
+    "W8_BEHAVIOR_DIFF_ALLOWED_ONLY_FOR": "MODE_TRANSITION_VALIDATION"
+  },
+  "qualification": {
+    "transitionMatrixTests": "T1-T14 = 14/14",
+    "existingBatch3Tests": "32/32 (unchanged)",
+    "totalBatch3Tests": "46/46"
+  },
+  "regression": {
+    "stage20RuntimeShadow": "34/34",
+    "inferenceOutputDiffCount": 0
+  },
+  "deferredP2": [
+    "P2_SERIALIZATION_AMBIGUITY",
+    "P2_ROLLBACK_SHA_EXISTENCE_VERIFICATION",
+    "P2_ARCHITECTURE_INTEGRATION_WORDING",
+    "P3_BUCKET_EXPORT",
+    "P3_MODULO_BIAS"
+  ],
+  "productionIsolation": {
+    "PRODUCTION_FILES_CHANGED": 0,
+    "RUNTIME_FILES_CHANGED": 0,
+    "INFERENCE_FILES_CHANGED": 0,
+    "PRODUCTION_TRAFFIC_SENT": false,
+    "PRODUCTION_DB_WRITES": 0,
+    "PRODUCTION_CONFIG_WRITES": 0,
+    "DEPLOYMENTS": 0,
+    "GATE_B_CHANGED": false,
+    "PRIMARY_CHANGED": false
+  },
+  "readyForTargetedIndependentReaudit": true,
+  "readyForNextStage21Batch": false,
+  "readyForCanonicalMerge": false,
+  "readyForDeploy": false,
+  "readyForConfigChange": false,
+  "readyForPrimary": false
+}

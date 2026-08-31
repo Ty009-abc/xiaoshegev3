@@ -154,6 +154,7 @@ function validState() {
     liveConfigFingerprint: 'abc123def456',
     knownDeploymentState: true,
     authorityReadable: true,
+    mode: 'SELECTIVE_PRIMARY', // authoritative observed current mode
   }
 }
 
@@ -217,6 +218,108 @@ T('R8: activation plan while Gate-B ACTIVE remains unauthorized', function () {
   var plan = activation.buildActivationPlan({ environmentId: 'env-x', preSelectiveGateResult: gateResult })
   eq(plan.activationAllowed, false)
   eq(plan.activationState, 'NOT_AUTHORIZED')
+})
+
+// ═══════════════════════════════════════════════════════════
+// R1 — Mode-transition legality matrix (T1–T14)
+// ═══════════════════════════════════════════════════════════
+
+function planForMode(current, target) {
+  var p = validPlan()
+  p.currentMode = current
+  p.targetMode = target
+  return p
+}
+function stateForMode(mode) {
+  var s = validState()
+  s.mode = mode
+  return s
+}
+
+T('T1: SELECTIVE_PRIMARY→SHADOW = allowed', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SELECTIVE_PRIMARY', 'SHADOW'), stateForMode('SELECTIVE_PRIMARY'))
+  eq(r.rollbackExecutionAllowed, 'YES')
+})
+
+T('T2: PRIMARY→SHADOW = allowed', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('PRIMARY', 'SHADOW'), stateForMode('PRIMARY'))
+  eq(r.rollbackExecutionAllowed, 'YES')
+})
+
+T('T3: SHADOW→PRIMARY = rejected', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SHADOW', 'PRIMARY'), stateForMode('SHADOW'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T4: SHADOW→SELECTIVE_PRIMARY = rejected', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SHADOW', 'SELECTIVE_PRIMARY'), stateForMode('SHADOW'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T5: PRIMARY→SELECTIVE_PRIMARY = rejected', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('PRIMARY', 'SELECTIVE_PRIMARY'), stateForMode('PRIMARY'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T6: SELECTIVE_PRIMARY→PRIMARY = rejected', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SELECTIVE_PRIMARY', 'PRIMARY'), stateForMode('SELECTIVE_PRIMARY'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T7: SHADOW→SHADOW = rejected', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SHADOW', 'SHADOW'), stateForMode('SHADOW'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T8: PRIMARY→PRIMARY = rejected', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('PRIMARY', 'PRIMARY'), stateForMode('PRIMARY'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T9: UNKNOWN→SHADOW = rejected', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('UNKNOWN', 'SHADOW'), stateForMode('UNKNOWN'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T10: missing current mode = rejected', function () {
+  var s = validState(); s.mode = null
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SELECTIVE_PRIMARY', 'SHADOW'), s)
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('INVALID_MODE_TRANSITION') !== -1)
+})
+
+T('T11: plan.currentMode != observed state.mode = rejected (CURRENT_MODE_MISMATCH)', function () {
+  var r = rollback.evaluateRollbackPreconditions(planForMode('PRIMARY', 'SHADOW'), stateForMode('SELECTIVE_PRIMARY'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('CURRENT_MODE_MISMATCH') !== -1)
+})
+
+T('T12: valid transition + fingerprint mismatch = rejected', function () {
+  var s = stateForMode('SELECTIVE_PRIMARY'); s.liveConfigFingerprint = 'DIFFERENT'
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SELECTIVE_PRIMARY', 'SHADOW'), s)
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('CONFIG_FINGERPRINT_MISMATCH') !== -1)
+})
+
+T('T13: valid transition + env mismatch = rejected', function () {
+  var s = stateForMode('SELECTIVE_PRIMARY'); s.liveEnvironmentId = 'other'
+  var r = rollback.evaluateRollbackPreconditions(planForMode('SELECTIVE_PRIMARY', 'SHADOW'), s)
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('ENVIRONMENT_MISMATCH') !== -1)
+})
+
+T('T14: valid transition + missing rollback SHA = rejected', function () {
+  var p = planForMode('SELECTIVE_PRIMARY', 'SHADOW'); p.rollbackTargetSha = null
+  var r = rollback.evaluateRollbackPreconditions(p, stateForMode('SELECTIVE_PRIMARY'))
+  eq(r.rollbackExecutionAllowed, 'NO')
+  ok(r.reasons.indexOf('MISSING_ROLLBACK_SHA') !== -1)
 })
 
 // ═══════════════════════════════════════════════════════════

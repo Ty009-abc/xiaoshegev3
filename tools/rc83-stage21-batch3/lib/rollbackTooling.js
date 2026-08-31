@@ -27,6 +27,26 @@ var VALID_TARGET_MODES = {
   PRIMARY: true,
 }
 
+// ── Valid current (observed) modes ──
+var VALID_MODES = {
+  SHADOW: true,
+  SELECTIVE_PRIMARY: true,
+  PRIMARY: true,
+}
+
+// ── FROZEN legal rollback transitions (R1) ──
+// Only these two are legal for rollback execution:
+//   SELECTIVE_PRIMARY → SHADOW
+//   PRIMARY → SHADOW
+// ALL other transitions fail-closed (INVALID_MODE_TRANSITION).
+var ALLOWED_ROLLBACK_TRANSITIONS = {
+  SELECTIVE_PRIMARY: { SHADOW: true },
+  PRIMARY: { SHADOW: true },
+}
+
+// ── The ONLY legal rollback target mode ──
+var ROLLBACK_TARGET_MODE = 'SHADOW'
+
 var TRIGGER_CLASS = {
   HARD_BLOCKER: 'HARD_BLOCKER',
   ROLLOUT_ABORT: 'ROLLOUT_ABORT',
@@ -116,7 +136,7 @@ function evaluateRollbackPreconditions(plan, state) {
     allowed = false
     reasons.push('MISSING_CONFIG_FINGERPRINT')
   }
-  // Invalid target mode
+  // Invalid target mode (general enum check; kept for planning schemas)
   if (!VALID_TARGET_MODES[plan.targetMode]) {
     allowed = false
     reasons.push('INVALID_TARGET_MODE')
@@ -125,6 +145,39 @@ function evaluateRollbackPreconditions(plan, state) {
   if (state.authorityReadable !== true) {
     allowed = false
     reasons.push('AUTHORITY_UNREADABLE')
+  }
+
+  // ── Mode-transition legality (R1) ──
+  // AUTHORITY: observed state.mode is authoritative; plan.currentMode is only
+  // an expected value. If both exist and disagree → CURRENT_MODE_MISMATCH.
+  var observedMode = state.mode
+  var expectedMode = plan.currentMode
+  var hasObserved = observedMode !== undefined && observedMode !== null && observedMode !== ''
+  var hasExpected = expectedMode !== undefined && expectedMode !== null && expectedMode !== ''
+
+  if (hasObserved && hasExpected &&
+      String(expectedMode).toUpperCase() !== String(observedMode).toUpperCase()) {
+    allowed = false
+    reasons.push('CURRENT_MODE_MISMATCH')
+  }
+
+  // Current mode must be an authoritative observed mode (no silent normalize).
+  var currentMode = hasObserved ? String(observedMode).toUpperCase() : null
+  if (!currentMode || !VALID_MODES[currentMode]) {
+    allowed = false
+    reasons.push('INVALID_MODE_TRANSITION')
+  } else {
+    var target = plan.targetMode === undefined || plan.targetMode === null
+      ? null
+      : String(plan.targetMode).toUpperCase()
+    if (target !== ROLLBACK_TARGET_MODE) {
+      allowed = false
+      reasons.push('INVALID_MODE_TRANSITION')
+    } else if (!ALLOWED_ROLLBACK_TRANSITIONS[currentMode] ||
+               !ALLOWED_ROLLBACK_TRANSITIONS[currentMode][target]) {
+      allowed = false
+      reasons.push('INVALID_MODE_TRANSITION')
+    }
   }
 
   return {
@@ -235,6 +288,9 @@ function assessKillSwitchCapability(evidence) {
 
 module.exports = {
   VALID_TARGET_MODES: VALID_TARGET_MODES,
+  VALID_MODES: VALID_MODES,
+  ALLOWED_ROLLBACK_TRANSITIONS: ALLOWED_ROLLBACK_TRANSITIONS,
+  ROLLBACK_TARGET_MODE: ROLLBACK_TARGET_MODE,
   TRIGGER_CLASS: TRIGGER_CLASS,
   MODE: MODE,
   buildRollbackPlan: buildRollbackPlan,
