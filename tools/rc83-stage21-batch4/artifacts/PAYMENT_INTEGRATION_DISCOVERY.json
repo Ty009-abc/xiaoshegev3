@@ -1,0 +1,135 @@
+{
+  "artifactType": "PAYMENT_INTEGRATION_DISCOVERY",
+  "baseCanonicalSha": "0874254ede490d7fef6c20942ff663c0970a445c",
+  "paymentCodePresent": true,
+  "paymentPrimaryEntrypoint": "createOrder (JSAPI prepay)",
+  "paymentIntegrationMode": "MOCK_FALLBACK",
+  "credentialState": {
+    "summary": "ENV_CONFIGURED_OR_MOCK",
+    "credentials": {
+      "WXPAY_MCHID": {
+        "state": "ENV",
+        "sourceClass": "ENV"
+      },
+      "WXPAY_APPID": {
+        "state": "ENV",
+        "sourceClass": "ENV"
+      },
+      "WXPAY_SERIAL_NO": {
+        "state": "ENV",
+        "sourceClass": "ENV"
+      },
+      "WXPAY_PRIVATE_KEY": {
+        "state": "ENV_OR_FILE",
+        "sourceClass": "ENV"
+      },
+      "WXPAY_PRIVATE_KEY_PATH": {
+        "state": "ENV_OR_FILE",
+        "sourceClass": "ENV"
+      },
+      "WXPAY_API_V3_KEY": {
+        "state": "ENV",
+        "sourceClass": "ENV"
+      },
+      "WXPAY_NOTIFY_URL": {
+        "state": "ENV",
+        "sourceClass": "ENV"
+      },
+      "WXPAY_PLATFORM_CERT": {
+        "state": "ENV",
+        "sourceClass": "ENV"
+      }
+    },
+    "rawCredentialExported": false
+  },
+  "mockFallbackPresent": true,
+  "mockSuccessIsNotPaymentSuccess": true,
+  "mockMarkers": [
+    "_mock",
+    "MOCK_PREPAY_",
+    "MOCK_SIGN",
+    "MOCK_TXN_"
+  ],
+  "amountAuthority": "SERVER_AUTHORITATIVE_AMOUNT",
+  "clientControlledAmount": false,
+  "orderLifecycle": {
+    "orderIdGeneration": "PRESENT",
+    "idempotencyCreate": "PRESENT",
+    "orderStates": "PRESENT",
+    "expirePending": "PRESENT",
+    "amountValidation": "PRESENT",
+    "transactionIdIdempotency": "PRESENT"
+  },
+  "callbackHandler": {
+    "present": "PRESENT",
+    "signatureVerification": "PRESENT",
+    "orderLookup": "PRESENT",
+    "amountVerification": "PRESENT",
+    "statusTransition": "PRESENT",
+    "idempotency": "PRESENT"
+  },
+  "entitlement": {
+    "update": "PRESENT",
+    "duplicateProtection": "PARTIAL",
+    "revokeOnRefund": "PRESENT"
+  },
+  "refundRealApi": "NOT_PRESENT",
+  "entrypoints": [
+    {
+      "name": "createOrder",
+      "path": "cloudfunctions/createOrder/index.js",
+      "role": "order creation + JSAPI prepay"
+    },
+    {
+      "name": "payCallback",
+      "path": "cloudfunctions/payCallback/index.js",
+      "role": "wechatpay notify + signature verify + grant"
+    },
+    {
+      "name": "verifyPayment",
+      "path": "cloudfunctions/verifyPayment/index.js",
+      "role": "client-side poll verify + grant"
+    },
+    {
+      "name": "getPaymentResult",
+      "path": "cloudfunctions/getPaymentResult/index.js",
+      "role": "order status poll"
+    },
+    {
+      "name": "refundOrder",
+      "path": "cloudfunctions/refundOrder/index.js",
+      "role": "refund (mock/TODO real API)"
+    },
+    {
+      "name": "getProductList",
+      "path": "cloudfunctions/getProductList/index.js",
+      "role": "product catalog + tier"
+    },
+    {
+      "name": "getMembership",
+      "path": "cloudfunctions/getMembership/index.js",
+      "role": "membership state read"
+    },
+    {
+      "name": "paymentService",
+      "path": "services/paymentService.js",
+      "role": "frontend payment facade (wx.requestPayment)"
+    }
+  ],
+  "notExecutableAdversarial": [
+    "P2_MALFORMED_AMOUNT",
+    "P3_CLIENT_AMOUNT_TAMPERING",
+    "P4_DUPLICATE_ORDER_CALLBACK",
+    "P6_INVALID_SIGNATURE",
+    "P7_CALLBACK_AMOUNT_MISMATCH",
+    "P8_PAYMENT_API_EXCEPTION",
+    "P9_TIMEOUT",
+    "P10_DUPLICATE_ENTITLEMENT"
+  ],
+  "amountUnit": "FEN (分) — totalAmount in fen; DAILY_AI_BUDGET_FEN=50000 分=¥500",
+  "releaseReadiness": {
+    "codePresent": true,
+    "architectureUnderstood": true,
+    "releaseReady": false
+  }
+}

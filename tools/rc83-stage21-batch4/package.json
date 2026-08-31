@@ -1,0 +1,12 @@
+{
+  "name": "rc83-stage21-batch4",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stage21 Batch4 — W11 Real-Device Minimum Smoke Protocol + W12 Payment Integration Verification Discovery (read-only discovery + local/direct qualification)",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ../../../tests/rc8.3-stage21-batch4.test.js",
+    "run": "node index.js"
+  },
+  "license": "UNLICENSED"
+}
