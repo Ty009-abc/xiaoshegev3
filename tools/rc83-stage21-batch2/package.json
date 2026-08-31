@@ -1,0 +1,14 @@
+{
+  "name": "rc83-stage21-batch2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stage21 Batch2 — V2.1 AI Authority Guard (W1) + Deterministic Fallback (W2) + RC Qualification Runner (W10). LOCAL_DIRECT/synthetic only, no production, no real AI.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ../../../tests/rc8.3-stage21-batch2.test.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "license": "UNLICENSED"
+}
