@@ -1,0 +1,79 @@
+{
+  "artifact": "BATCH1_R1_QUALIFICATION",
+  "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
+  "baseCandidateSha": "aa5e242bfb0761c7c994bafacc67faf6366f3337",
+  "r1CandidateSha": "f9e8090fa603e946ab08b5836ed54d3885fa8e1a",
+  "baseCanonicalSha": "0874254ede490d7fef6c20942ff663c0970a445c",
+  "p1Fixed": {
+    "id": "DEPLOY_CLASSIFIER_FALSE_SAFE",
+    "status": "FIXED",
+    "model": "FAIL_CLOSED",
+    "safeClassification": "EXACT_ALLOWLIST_ONLY",
+    "falseSafeCount": 0
+  },
+  "p2Hardened": {
+    "manifestSemanticValidation": "HARDENED",
+    "mandatoryFields": ["canonicalSha", "candidateSha", "deployedSha", "environmentId", "featureFlagState", "deploymentMethod", "deploymentToolIdentifier", "rollbackTarget"],
+    "gitShaValidation": "40-hex mandatory for claimed commits",
+    "fingerprintValidation": "64-hex sha256 when present; required when deployment claimed",
+    "allowlistDriftGovernance": "DOCUMENTED"
+  },
+  "allowlistPrivacy": {
+    "model": "PRESENCE_COUNT_ABSTRACTION",
+    "membershipDriftDetection": "REQUIRES_PRIVILEGED_CONTROL_PLANE_VERIFICATION",
+    "sameCountMemberSwapDetectableByFingerprint": false,
+    "privilegedVerificationStatuses": ["AUTHORIZED_MATCH", "DRIFT_DETECTED", "NOT_VERIFIED"],
+    "contract": {
+      "access": "PRIVILEGED_CONTROL_PLANE_READ_ONLY",
+      "ephemeral": true,
+      "noRawIdentityArtifact": true,
+      "noIdentityLogging": true,
+      "noStablePerUserHash": true
+    }
+  },
+  "mutationResults": {
+    "M8_sameCountMemberSwap": "DETECTED_AS_LIMITATION / REQUIRES_PRIVILEGED_VERIFICATION",
+    "M10_malformedSha": "REJECTED",
+    "M11_missingEnvironmentId": "REJECTED",
+    "M_DEPLOY_MIXED_TOKEN": "REJECTED_AS_SAFE"
+  },
+  "deferredDebts": {
+    "P2": ["redactConfig unexpected-extension"],
+    "P3": ["unused GATE_B_GUARD"]
+  },
+  "tests": {
+    "pass": 44,
+    "total": 44,
+    "mutationTestsPass": 9,
+    "mutationTestsTotal": 9,
+    "adversarialDeployMatrix": {
+      "knownSafe": 1,
+      "knownUnsafe": 1,
+      "unknown": 1,
+      "ambiguous": 1,
+      "wrapper": 1,
+      "mixedTokens": 1,
+      "extraFlags": 0,
+      "empty": 1,
+      "malformed": 1,
+      "falseSafeCount": 0
+    }
+  },
+  "regression": {
+    "stage20V21RuntimeShadowPass": 34,
+    "stage20V21RuntimeShadowTotal": 34,
+    "inferenceOutputDiffCount": 0
+  },
+  "productionIsolation": {
+    "productionTrafficSent": false,
+    "productionDbWrites": 0,
+    "productionConfigWrites": 0,
+    "deployments": 0,
+    "gateBChanged": false,
+    "primaryChanged": false
+  },
+  "readyForTargetedIndependentReaudit": true,
+  "readyForBatch2": false,
+  "readyForCanonicalMerge": false,
+  "readyForDeploy": false
+}
