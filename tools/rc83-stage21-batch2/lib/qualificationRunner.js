@@ -40,7 +40,6 @@ function makeEngineResult(overrides) {
 }
 
 // ── Build a VALID AI expression (echoes engine conclusion verbatim) ──
-// ── Build a VALID AI expression (echoes engine conclusion verbatim) ──
 // NOTE: uses a MUTABLE deep copy so tests can mutate it; the guard's own
 // snapshot remains deep-frozen.
 function makeValidAiOutput(engineResult) {
@@ -79,25 +78,25 @@ function runQualificationCases() {
   var engine = makeEngineResult()
   results.push(runCase('Q01', engine, makeValidAiOutput(engine)))
 
-  // Q02 — AI changes archetype id (primaryConstruct) → reject/fallback.
+  // Q02 — AI changes primary construct (primaryConstruct) → reject/fallback.
   var q2engine = makeEngineResult()
   var q2ai = makeValidAiOutput(q2engine)
   q2ai.authoritativeDiagnosis.primaryConstruct = 'RISK'
   results.push(runCase('Q02', q2engine, q2ai))
 
-  // Q03 — AI changes blindSpot id (primaryBlindSpotId) → reject/fallback.
+  // Q03 — AI changes blind-spot identity (primaryBlindSpotId) → reject/fallback.
   var q3engine = makeEngineResult()
   var q3ai = makeValidAiOutput(q3engine)
   q3ai.authoritativeDiagnosis.primaryBlindSpotId = 'TIME_HORIZON_TRAP'
   results.push(runCase('Q03', q3engine, q3ai))
 
-  // Q04 — AI changes strategy id (cognitionTerminalStatus) → reject/fallback.
+  // Q04 — AI changes terminal inference/decision state (cognitionTerminalStatus) → reject/fallback.
   var q4engine = makeEngineResult()
   var q4ai = makeValidAiOutput(q4engine)
   q4ai.authoritativeDiagnosis.cognitionTerminalStatus = 'INSUFFICIENT_EVIDENCE'
   results.push(runCase('Q04', q4engine, q4ai))
 
-  // Q05 — AI changes scenario semantic identity (followupPair / dimensionSummary).
+  // Q05 — AI changes dimension evidence/state summary (dimensionSummary).
   var q5engine = makeEngineResult()
   var q5ai = makeValidAiOutput(q5engine)
   q5ai.authoritativeDiagnosis.dimensionSummary = [
@@ -188,19 +187,19 @@ function runMutationTests() {
 
   var e
 
-  // M1 archetype swap
+  // M1 primary construct swap
   e = makeEngineResult(); var m1 = makeValidAiOutput(e); m1.authoritativeDiagnosis.primaryConstruct = 'RISK'
   expectCaught('M1', m1, e)
 
-  // M2 blindSpot swap
+  // M2 blind-spot identity swap
   e = makeEngineResult(); var m2 = makeValidAiOutput(e); m2.authoritativeDiagnosis.primaryBlindSpotId = 'RISK_MODEL_DISTORTION'
   expectCaught('M2', m2, e)
 
-  // M3 strategy swap
+  // M3 terminal decision state swap
   e = makeEngineResult(); var m3 = makeValidAiOutput(e); m3.authoritativeDiagnosis.cognitionTerminalStatus = 'FOLLOW_UP_REQUIRED'
   expectCaught('M3', m3, e)
 
-  // M4 scenario swap
+  // M4 follow-up pair swap
   e = makeEngineResult(); var m4 = makeValidAiOutput(e); m4.authoritativeDiagnosis.followupPair = ['DECISION', 'FEEDBACK']
   expectCaught('M4', m4, e)
 

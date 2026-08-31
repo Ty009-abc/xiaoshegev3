@@ -1,0 +1,100 @@
+{
+  "artifact": "BATCH2_R1_QUALIFICATION",
+  "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
+  "baseBatch2Sha": "cf7b8b65762b9068340b251e989fd7ad860b9a69",
+  "r1Sha": "PENDING_COMMIT",
+  "r1Purpose": "SEMANTIC_CONTRACT_TRUTHFULNESS_REMEDIATION (close P1 INCORRECT_SEMANTIC_ALIAS_MASKING_CONTRACT_GAP)",
+  "p1Target": "INCORRECT_SEMANTIC_ALIAS_MASKING_CONTRACT_GAP",
+  "p1Fixed": true,
+  "canonicalAuthorityFields": [
+    "responseValidityStatus",
+    "cognitionExecuted",
+    "cognitionTerminalStatus",
+    "primaryBlindSpotId",
+    "primaryConstruct",
+    "followupPair",
+    "eligibleCandidateIds",
+    "eligibleConstructs",
+    "dimensionSummary"
+  ],
+  "canonicalAuthorityCount": 9,
+  "canonicalAuthorityModel": {
+    "blindSpotIdentity": {
+      "status": "PRESENT_EXACT_SEMANTIC_MATCH",
+      "fields": ["primaryBlindSpotId"]
+    },
+    "constructSemantics": {
+      "status": "PRESENT_PARTIAL_SEMANTIC_MATCH_TO_TIER0_ARCHETYPE",
+      "fields": ["primaryConstruct", "eligibleConstructs", "dimensionSummary[].construct"]
+    },
+    "worldStrategy": {
+      "status": "NOT_PRESENT_IN_CANONICAL_CONTRACT"
+    },
+    "scenarioSimulation": {
+      "status": "NOT_PRESENT_IN_CANONICAL_CONTRACT"
+    }
+  },
+  "contractGap": {
+    "CURRENT_CONTRACT_GAP": true,
+    "CURRENT_CANONICAL_HAS_COGNITIVE_ARCHETYPE": false,
+    "CURRENT_CANONICAL_HAS_WORLD_STRATEGY": false,
+    "CURRENT_CANONICAL_HAS_SCENARIO_SIMULATION": false,
+    "CURRENT_CANONICAL_HAS_BLIND_SPOT_IDENTITY": true
+  },
+  "futureTier0Requirements": [
+    "COGNITIVE_ARCHETYPE_CONTRACT",
+    "WORLD_STRATEGY_CONTRACT",
+    "SCENARIO_SIMULATION_CONTRACT"
+  ],
+  "futureIntegrationRule": "Future Tier-0 concepts must (1) gain independent authoritative fields, (2) join protected paths, (3) join mutation tests, (4) join fallback preservation, (5) join qualification runner, (6) pass independent audit — NOT be 'pre-implemented' via alias.",
+  "incorrectAliasOccurrencesAfterR1": 0,
+  "authorityGuardLogicChanged": false,
+  "authorityGuardBehaviorDiffCount": 0,
+  "securityInvariants": {
+    "AUTHORITATIVE_FIELDS_TOTAL": 9,
+    "AUTHORITATIVE_FIELDS_PROTECTED": 9,
+    "AUTHORITATIVE_FIELDS_UNPROTECTED": 0,
+    "STRUCTURED_SEMANTIC_SMUGGLING_MISSED": 0,
+    "FALLBACK_DIAGNOSIS_SOURCE": "ENGINE_ONLY",
+    "FALLBACK_DETERMINISM_MATCH": 100,
+    "FALLBACK_DETERMINISM_TOTAL": 100,
+    "FALLBACK_DETERMINISM_MISMATCH": 0,
+    "INFERENCE_OUTPUT_DIFF_COUNT": 0
+  },
+  "regression": {
+    "batch2Tests": "36/36",
+    "qualificationCasesPass": 15,
+    "qualificationCasesTotal": 15,
+    "mutationTestsPass": 10,
+    "mutationTestsTotal": 10,
+    "stage20RuntimeShadow": "34/34",
+    "worldModelContract": {
+      "staticContract": "8/8",
+      "dimensionEngine": "15/15",
+      "blindspotCandidates": "12/12",
+      "primaryDecision": "30/30",
+      "responseValidity": "33/33"
+    },
+    "semanticContractTests": "T1-T7 = 7/7"
+  },
+  "deferredP2": [
+    "P2_AI_EXPRESSION_RESIDUAL_RENDER_SOURCE (not stripped; render pipeline unchanged)",
+    "P2_CURRENT_CONTRACT_GAP (recorded as FUTURE_INTEGRATION_REQUIREMENT, NOT 'fixed')"
+  ],
+  "productionIsolation": {
+    "PRODUCTION_FILES_CHANGED": 0,
+    "RUNTIME_FILES_CHANGED": 0,
+    "INFERENCE_FILES_CHANGED": 0,
+    "PRODUCTION_TRAFFIC_SENT": false,
+    "PRODUCTION_DB_WRITES": 0,
+    "PRODUCTION_CONFIG_WRITES": 0,
+    "DEPLOYMENTS": 0,
+    "GATE_B_CHANGED": false,
+    "PRIMARY_CHANGED": false
+  },
+  "readyForTargetedIndependentReaudit": true,
+  "readyForBatch3": false,
+  "readyForCanonicalMerge": false,
+  "readyForDeploy": false,
+  "readyForPrimary": false
+}

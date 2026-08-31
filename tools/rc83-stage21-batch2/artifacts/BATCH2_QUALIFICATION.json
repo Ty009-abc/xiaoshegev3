@@ -26,12 +26,34 @@
       "eligibleConstructs",
       "dimensionSummary"
     ],
-    "designAbstractNameMapping": {
-      "cognitiveArchetype": "primaryConstruct + eligibleConstructs + dimensionSummary[].construct",
-      "cognitiveBlindSpot": "primaryBlindSpotId + eligibleCandidateIds",
-      "worldStrategy": "cognitionTerminalStatus",
-      "scenarioSimulation": "followupPair + dimensionSummary[].{orientation,state}"
+    "canonicalAuthorityModel": {
+      "blindSpotIdentity": {
+        "status": "PRESENT_EXACT_SEMANTIC_MATCH",
+        "fields": ["primaryBlindSpotId"]
+      },
+      "constructSemantics": {
+        "status": "PRESENT_PARTIAL_SEMANTIC_MATCH_TO_TIER0_ARCHETYPE",
+        "fields": ["primaryConstruct", "eligibleConstructs", "dimensionSummary[].construct"]
+      },
+      "worldStrategy": {
+        "status": "NOT_PRESENT_IN_CANONICAL_CONTRACT"
+      },
+      "scenarioSimulation": {
+        "status": "NOT_PRESENT_IN_CANONICAL_CONTRACT"
+      }
     },
+    "contractGap": {
+      "CURRENT_CONTRACT_GAP": true,
+      "CURRENT_CANONICAL_HAS_COGNITIVE_ARCHETYPE": false,
+      "CURRENT_CANONICAL_HAS_WORLD_STRATEGY": false,
+      "CURRENT_CANONICAL_HAS_SCENARIO_SIMULATION": false,
+      "CURRENT_CANONICAL_HAS_BLIND_SPOT_IDENTITY": true
+    },
+    "futureTier0Requirements": [
+      "COGNITIVE_ARCHETYPE_CONTRACT",
+      "WORLD_STRATEGY_CONTRACT",
+      "SCENARIO_SIMULATION_CONTRACT"
+    ],
     "aiAllowedPaths": ["headline", "summary", "explanation", "narrative", "actionWording", "humanReadableCopy"],
     "preAiSnapshot": "deterministic deep-frozen canonical-ordered snapshot of protected fields only",
     "postAiValidation": "deep immutable equality; changed/missing/nullified/retyped → REJECTED (no partial accept)",

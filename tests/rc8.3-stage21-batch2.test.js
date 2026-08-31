@@ -58,25 +58,25 @@ T('A04: valid AI echo accepted', function () {
 // W1 — Authority violations (each must be rejected)
 // ═══════════════════════════════════════════════════════════
 
-T('V01: archetype swap rejected', function () {
+T('V01: primary construct (primaryConstruct) swap rejected', function () {
   var e = qr.makeEngineResult(); var ai = qr.makeValidAiOutput(e)
   ai.authoritativeDiagnosis.primaryConstruct = 'RISK'
   eq(ag.validateAuthority(e, ai).status, 'AI_RENDER_REJECTED_AUTHORITY_VIOLATION')
 })
 
-T('V02: blindSpot swap rejected', function () {
+T('V02: blind-spot identity (primaryBlindSpotId) swap rejected', function () {
   var e = qr.makeEngineResult(); var ai = qr.makeValidAiOutput(e)
   ai.authoritativeDiagnosis.primaryBlindSpotId = 'TIME_HORIZON_TRAP'
   eq(ag.validateAuthority(e, ai).status, 'AI_RENDER_REJECTED_AUTHORITY_VIOLATION')
 })
 
-T('V03: strategy (terminal status) swap rejected', function () {
+T('V03: terminal decision state (cognitionTerminalStatus) swap rejected', function () {
   var e = qr.makeEngineResult(); var ai = qr.makeValidAiOutput(e)
   ai.authoritativeDiagnosis.cognitionTerminalStatus = 'INSUFFICIENT_EVIDENCE'
   eq(ag.validateAuthority(e, ai).status, 'AI_RENDER_REJECTED_AUTHORITY_VIOLATION')
 })
 
-T('V04: scenario (dimensionSummary) swap rejected', function () {
+T('V04: dimension evidence summary (dimensionSummary) swap rejected', function () {
   var e = qr.makeEngineResult(); var ai = qr.makeValidAiOutput(e)
   ai.authoritativeDiagnosis.dimensionSummary = [{ construct: 'RISK', orientation: 'DISTORTED', state: 'STRONG', hSupport: 0, dSupport: 2, nSupport: 0 }]
   eq(ag.validateAuthority(e, ai).status, 'AI_RENDER_REJECTED_AUTHORITY_VIOLATION')
@@ -237,6 +237,57 @@ T('M1-M10: all mutations caught', function () {
   for (var i = 0; i < muts.length; i++) {
     if (!muts[i].caught) throw new Error('mutation not caught: ' + muts[i].mutationId + ' (' + muts[i].detail + ')')
   }
+})
+
+// ═══════════════════════════════════════════════════════════
+// R1 — Semantic-contract truthfulness tests (T1–T7)
+// ═══════════════════════════════════════════════════════════
+
+T('T1: terminal decision state is NOT mapped to worldStrategy', function () {
+  var cg = ag.CONTRACT_GAP
+  ok(cg.CURRENT_CANONICAL_HAS_WORLD_STRATEGY === false, 'worldStrategy must be declared absent from canonical contract')
+  // No export maps cognitionTerminalStatus → worldStrategy.
+  notOk(ag.worldStrategy !== undefined, 'no worldStrategy alias exported')
+})
+
+T('T2: followupPair is NOT mapped to scenarioSimulation', function () {
+  var cg = ag.CONTRACT_GAP
+  ok(cg.CURRENT_CANONICAL_HAS_SCENARIO_SIMULATION === false, 'scenarioSimulation must be declared absent from canonical contract')
+  notOk(ag.scenarioSimulation !== undefined, 'no scenarioSimulation alias exported')
+})
+
+T('T3: construct semantics marked partial / archetype not full Tier0 contract', function () {
+  var cg = ag.CONTRACT_GAP
+  ok(cg.CURRENT_CANONICAL_HAS_COGNITIVE_ARCHETYPE === false, 'cognitive archetype must be declared absent as full Tier0 contract')
+})
+
+T('T4: blind-spot identity mapping preserved (exact)', function () {
+  var cg = ag.CONTRACT_GAP
+  ok(cg.CURRENT_CANONICAL_HAS_BLIND_SPOT_IDENTITY === true, 'blind-spot identity must be declared present')
+  // primaryBlindSpotId remains a protected path.
+  ok(ag.PROTECTED_PATHS.indexOf('primaryBlindSpotId') !== -1, 'primaryBlindSpotId protected')
+})
+
+T('T5: CURRENT_CONTRACT_GAP=true', function () {
+  ok(ag.CONTRACT_GAP.CURRENT_CONTRACT_GAP === true, 'CURRENT_CONTRACT_GAP must be true')
+})
+
+T('T6: future integration requirements list complete', function () {
+  var req = ag.FUTURE_INTEGRATION_REQUIREMENTS
+  ok(req.indexOf('COGNITIVE_ARCHETYPE_CONTRACT') !== -1, 'archetype req present')
+  ok(req.indexOf('WORLD_STRATEGY_CONTRACT') !== -1, 'world strategy req present')
+  ok(req.indexOf('SCENARIO_SIMULATION_CONTRACT') !== -1, 'scenario req present')
+})
+
+T('T7: artifact contains no false complete-authority claim', function () {
+  var art = require('../tools/rc83-stage21-batch2/artifacts/BATCH2_QUALIFICATION.json')
+  notOk(art.aiAuthorityModel && art.aiAuthorityModel.designAbstractNameMapping,
+    'designAbstractNameMapping must be removed (no false complete-authority aliases)')
+  ok(art.aiAuthorityModel.canonicalAuthorityModel.worldStrategy.status === 'NOT_PRESENT_IN_CANONICAL_CONTRACT',
+    'worldStrategy must be declared NOT_PRESENT_IN_CANONICAL_CONTRACT')
+  ok(art.aiAuthorityModel.canonicalAuthorityModel.scenarioSimulation.status === 'NOT_PRESENT_IN_CANONICAL_CONTRACT',
+    'scenarioSimulation must be declared NOT_PRESENT_IN_CANONICAL_CONTRACT')
+  ok(art.aiAuthorityModel.contractGap.CURRENT_CONTRACT_GAP === true, 'contract gap declared')
 })
 
 // ═══════════════════════════════════════════════════════════

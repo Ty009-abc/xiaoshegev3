@@ -15,14 +15,27 @@
  * V2.1 engine contract (docs/RC8.3_STAGE20_R0_V21_RUNTIME_SHADOW_CONTRACT.md
  * + runtimeShadowAdapterV21.js + primaryDecisionEngineV21.js).
  *
- * DESIGN ABSTRACT NAME → CANONICAL V2.1 CONTRACT MAPPING (reported per §2/§3):
- *   cognitiveArchetype      → primaryConstruct (+ eligibleConstructs,
- *                             dimensionSummary[].construct)
- *   cognitiveBlindSpot      → primaryBlindSpotId (+ eligibleCandidateIds)
- *   worldStrategy           → cognitionTerminalStatus (terminal decision)
- *   scenarioSimulation      → followupPair (follow-up semantic identity)
- *                             + dimensionSummary[].{orientation,state}
- *   (plus the validity gate + cognition-executed flag)
+ * TWO-LAYER AUTHORITY MODEL (truthful contract declaration):
+ *
+ *   CURRENT_CANONICAL_AUTHORITY = the 9 fields that actually exist in the
+ *   canonical V2.1 SHADOW contract today. These are protected verbatim.
+ *
+ *   FUTURE_TIER0_AUTHORITY_REQUIREMENTS = higher-level concepts (cognitive
+ *   archetype / world strategy / scenario simulation) that are NOT present
+ *   in the canonical V2.1 contract. They must NOT be "implemented" by
+ *   aliasing existing fields. See CONTRACT_GAP declaration below.
+ *
+ * Honest field semantics (NOT abstract-name equivalences):
+ *   cognitionTerminalStatus = A5A terminal inference/decision state
+ *       (PRIMARY_ALLOWED|FOLLOW_UP_REQUIRED|NO_PRIMARY_DEFICIT|INSUFFICIENT_EVIDENCE)
+ *       — inference/evidence terminal semantics, NOT Tier-0 world strategy.
+ *   followupPair    = follow-up mechanics (pair of dimensions for follow-up)
+ *   dimensionSummary = current cognition dimension evidence/state summary
+ *       — NOT scenario simulation.
+ *   primaryBlindSpotId = current canonical blind-spot identity
+ *       (exact semantic match to Tier-0 cognitive blind-spot concept).
+ *   primaryConstruct = current canonical construct semantics
+ *       (PARTIAL semantic match to Tier-0 cognitive archetype; NOT equivalent).
  *
  * AI MAY CHANGE (expression-only): headline, summary, explanation, narrative,
  *   actionWording, humanReadableCopy — but only to EXPRESS facts already
@@ -68,6 +81,25 @@ var RENDER_SOURCE = {
   AI_RENDERED: 'AI_RENDERED',
   DETERMINISTIC_FALLBACK: 'DETERMINISTIC_FALLBACK',
 }
+
+// ── Contract-gap declaration (capability declaration, NOT inference output) ──
+// These are machine-readable truthfulness declarations: they describe what
+// the canonical V2.1 SHADOW contract DOES and DOES NOT currently contain.
+// They do NOT modify runtime diagnosis and do NOT "pre-implement" Tier-0.
+var CONTRACT_GAP = {
+  CURRENT_CONTRACT_GAP: true,
+  CURRENT_CANONICAL_HAS_COGNITIVE_ARCHETYPE: false,
+  CURRENT_CANONICAL_HAS_WORLD_STRATEGY: false,
+  CURRENT_CANONICAL_HAS_SCENARIO_SIMULATION: false,
+  CURRENT_CANONICAL_HAS_BLIND_SPOT_IDENTITY: true,
+}
+
+// ── Future Tier-0 integration requirements (must NOT be aliased today) ──
+var FUTURE_INTEGRATION_REQUIREMENTS = [
+  'COGNITIVE_ARCHETYPE_CONTRACT',
+  'WORLD_STRATEGY_CONTRACT',
+  'SCENARIO_SIMULATION_CONTRACT',
+]
 
 /**
  * Build a deterministic authority snapshot containing ONLY the protected
@@ -206,6 +238,8 @@ module.exports = {
   AUTHORITATIVE_BLOCK: AUTHORITATIVE_BLOCK,
   DIAGNOSTIC_SEMANTIC_KEY_RE: DIAGNOSTIC_SEMANTIC_KEY_RE,
   RENDER_SOURCE: RENDER_SOURCE,
+  CONTRACT_GAP: CONTRACT_GAP,
+  FUTURE_INTEGRATION_REQUIREMENTS: FUTURE_INTEGRATION_REQUIREMENTS,
   buildAuthoritySnapshot: buildAuthoritySnapshot,
   validateAuthority: validateAuthority,
 }
