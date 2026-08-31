@@ -1,0 +1,70 @@
+{
+  "artifact": "BATCH1_QUALIFICATION",
+  "syntheticMetadata": "TEST_FIXTURE / SYNTHETIC_METADATA — NOT a real release manifest",
+  "candidateSha": "7cbb122785df621a6044302a69c439e84bc138eb",
+  "baseCanonicalSha": "0874254ede490d7fef6c20942ff663c0970a445c",
+  "designAcceptedSha": "ff519be1244d5493fd73474f11d632096db2a1ba",
+  "implementationPlanSha": "1083e0b0b4daf8162d2f3411edbfce746f793239",
+  "harnessAcceptedSha": "2a5f606b90312e509f651002cb119732bc335c85",
+  "workstreams": {
+    "W3_CONFIG_READBACK": "IMPLEMENTED",
+    "W4_CONFIG_FINGERPRINT": "IMPLEMENTED",
+    "W5_DEPLOYMENT_SAFETY": "IMPLEMENTED",
+    "W9_RELEASE_MANIFEST": "IMPLEMENTED"
+  },
+  "configAuthority": "DEPLOYED_CLOUDBASE_FUNCTION_ENV",
+  "nonAuthorities": ["cloudbaserc.json", "local .env", "repository config"],
+  "fingerprintAlgorithm": "SHA-256 over canonical-ordered JSON payload",
+  "privacy": {
+    "secretExclusion": true,
+    "identityExclusion": true,
+    "allowlistPrivacySafe": true,
+    "noReversibleIdentityHash": true
+  },
+  "deploymentSafety": {
+    "codeDeployConfigSeparation": true,
+    "staleCloudbasercDetected": true,
+    "safeCodeOnlyPath": "tcb fn code update",
+    "unsafeConfigSyncPath": "tcb fn deploy"
+  },
+  "manifest": {
+    "schemaImplemented": true,
+    "evidenceStatusSemantics": ["PASS", "FAIL", "NOT_RUN", "NOT_APPLICABLE", "BLOCKED"],
+    "gateBFalsePassGuard": true
+  },
+  "tests": {
+    "pass": 28,
+    "total": 28,
+    "mutationTestsPass": 5,
+    "mutationTestsTotal": 5
+  },
+  "regression": {
+    "stage20V21RuntimeShadowPass": 34,
+    "stage20V21RuntimeShadowTotal": 34,
+    "inferenceOutputDiffCount": 0
+  },
+  "securityChecks": {
+    "credentialLogging": "NONE",
+    "identityExport": "NONE",
+    "rawAllowlistArtifact": "NONE",
+    "productionMutationEndpoint": "NONE",
+    "publicHttpServer": "NONE"
+  },
+  "productionIsolation": {
+    "productionTrafficSent": false,
+    "productionDbWrites": 0,
+    "productionConfigWrites": 0,
+    "deployments": 0
+  },
+  "knownDebts": [
+    "P2_STAGE21_DAG_W1_W2_DIRECTION_AMBIGUITY",
+    "P2_STAGE21_DAG_MISSING_EDGES"
+  ],
+  "gateBState": "ACTIVE",
+  "v2Mode": "SHADOW",
+  "v21Mode": "SHADOW",
+  "primaryMode": "OFF",
+  "readyForIndependentAudit": true,
+  "readyForCanonicalMerge": false,
+  "readyForDeploy": false
+}
