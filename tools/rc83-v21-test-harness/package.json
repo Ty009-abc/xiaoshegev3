@@ -1,0 +1,9 @@
+{
+  "name": "rc83-v21-test-harness",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal scaffold for RC8.3 V2.1 synthetic test harness (P0-A1). No deps.",
+  "scripts": {
+    "boot": "node core/runner.js --boot"
+  }
+}
