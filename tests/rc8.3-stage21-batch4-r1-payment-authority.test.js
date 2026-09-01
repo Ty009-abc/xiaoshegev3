@@ -1,10 +1,26 @@
 /**
  * tests/rc8.3-stage21-batch4-r1-payment-authority.test.js
  *
- * Stage21 Batch4 R1 — PAYMENT_MOCK_AUTHORITY_GUARD 权威回归测试.
+ * Stage21 Batch4 R1/R2 — PAYMENT_MOCK_AUTHORITY_GUARD 权威回归测试.
  *
- * 目标：证明 mock 支付结果永远不能进入 verifyPayment 的权威 paid /
- * entitlement 转换，且该保障独立于前端短路（直连云函数亦安全）。
+ * R1 建立服务端 mock 权威守卫；R2 修复其 harness 自欺缺陷并补齐
+ * production module-load 验证（antiFraud vendored 副本缺失导致的
+ * CRITICAL_MODULE_LOAD_FAILURE）。
+ *
+ * R2 变更（相对 R1）：
+ *   - 移除对 ./lib/antiFraud.js 的 stub（原 L94 掩盖生产模块加载失败）。
+ *   - 新增 VERIFY_PAYMENT_PRODUCTION_MODULE_LOAD：子进程只 stub wx-server-sdk，
+ *     真实加载 verifyPayment/index.js（含真实 antiFraud.js / payment.js /
+ *     paymentAuthority.js），要求无 throw 且 antiFraud 真实模块被加载。
+ *   - 新增 antiFraud import/call 契约测试（checkOrderExpired 为 function，
+ *     覆盖 verifyPayment 当前实际使用的最小输入空间）。
+ *   - 新增变异 M3（删除 antiFraud.js 文件）、M4（重新引入 antiFraud stub），
+ *     证明 module-load 测试能捕获缺失文件与 harness 自欺。
+ *
+ * 目标：
+ *   1. mock 支付结果永远不能进入 verifyPayment 的权威 paid / entitlement 转换；
+ *   2. 该保障独立于前端短路（直连云函数亦安全）；
+ *   3. verifyPayment 云函数可被真实加载（无 MODULE_NOT_FOUND）。
  *
  * 测试策略：
  *   - 通过 Module._load 打桩 wx-server-sdk（内存 mock DB，无网络/无真实 DB）。
@@ -17,23 +33,30 @@
  *   T2  mock 不能把 order 标记为 paid（paid 写次数 = 0）
  *   T3  mock 不能发放权益（entitlement/membership 写次数 = 0）
  *   T4  前端完全绕过（直连云函数）依然安全
- *   T5  restorePendingOrder 覆盖（静态证明：不存在该调用方，verifyPayment 是唯一权威入口）
+ *   T5  restorePendingOrder 覆盖（静态证明：不存在该调用方）
  *   T6  真实非 mock SUCCESS 控制例仍走通 paid/entitlement 路径
  *   T7  非 SUCCESS 状态（NOTPAY/USERPAYING/CLOSED/REVOKED/PAYERROR）不回归
+ *   ML  VERIFY_PAYMENT_PRODUCTION_MODULE_LOAD（子进程，仅 stub wx-server-sdk）
+ *   CT  antiFraud import/call 契约（checkOrderExpired）
  *   变异 M1 移除 mock 守卫
  *   变异 M2 接受 MOCK_TXN_（谓词失效）
- *   变异 M3 守卫移动到 paid 写入之后
- *   变异 M4 守卫移动到 grantEntitlements 之后
+ *   变异 M3 删除 antiFraud.js 文件（module-load 必须捕获）
+ *   变异 M4 重新引入 antiFraud stub（harness 自欺必须被捕获）
+ *   变异 M5 守卫移动到 paid 写入之后
+ *   变异 M6 守卫移动到 grantEntitlements 之后
  *   谓词单元  paymentAuthority.isMockPaymentResult / isMockTransactionId
  */
 
 var path = require('path')
 var fs = require('fs')
 var Module = require('module')
+var os = require('os')
+var cp = require('child_process')
 
 var ROOT = path.join(__dirname, '..')
 var INDEX = path.join(ROOT, 'cloudfunctions', 'verifyPayment', 'index.js')
 var PAYMENT_AUTHORITY = path.join(ROOT, 'cloudfunctions', 'verifyPayment', 'lib', 'paymentAuthority.js')
+var ANTI_FRAUD = path.join(ROOT, 'cloudfunctions', 'verifyPayment', 'lib', 'antiFraud.js')
 
 var t = 0, p = 0, f = 0
 var chain = Promise.resolve()
@@ -87,11 +110,13 @@ var mockSdk = {
   },
 }
 
+// NOTE (R2): antiFraud stub REMOVED. Only wx-server-sdk (external) and
+// ./lib/payment.js (provider network API / queryOrder) are stubbed.
+// ./lib/antiFraud.js and ./lib/paymentAuthority.js load their REAL files.
 var origLoad = Module._load
 Module._load = function (request, parent, isMain) {
   if (request === 'wx-server-sdk') return mockSdk
   if (request === './lib/payment.js') return { queryOrder: function () { return Promise.resolve(__qo) } }
-  if (request === './lib/antiFraud.js') return { checkOrderExpired: function () { return { expired: false } } }
   return origLoad.apply(this, arguments)
 }
 
@@ -197,8 +222,6 @@ T('T3: mock cannot grant entitlement (grant calls = 0)', function () {
 })
 
 T('T4: frontend fully bypassed (direct invocation) still safe', function () {
-  // 本测试从不加载/咨询前端 paymentService；verifyPayment 直连语义下，
-  // mock 结果必须被服务端守卫独立拒绝。
   return runMockScenario().then(function (r) {
     ok(r.resp.code !== 0 && r.paid === 0 && r.ent === 0, 'CLIENT_GUARD_BYPASSED_IN_TEST must still be safe')
   })
@@ -248,8 +271,6 @@ T('T7: non-success states unchanged (no paid, no entitlement)', function () {
 // ═══════════════════════════════════════════════════════════
 
 T('T5: restore path statically proven protected', function () {
-  // 静态扫描：不存在 restorePendingOrder 调用方；verifyPayment 是唯一
-  // queryOrder-based SUCCESS → paid/entitlement 的权威入口。
   var hits = []
   ;(function walk(dir) {
     var entries = fs.readdirSync(dir, { withFileTypes: true })
@@ -268,6 +289,92 @@ T('T5: restore path statically proven protected', function () {
 })
 
 // ═══════════════════════════════════════════════════════════
+// VERIFY_PAYMENT_PRODUCTION_MODULE_LOAD — 子进程真实加载
+// ═══════════════════════════════════════════════════════════
+
+// 子进程脚本：只 stub wx-server-sdk，真实加载 index.js（含真实 antiFraud）。
+// 通过 Module._load 探测 antiFraud 是否走了真实文件路径；可选注入 antiFraud
+// stub（M4 变异）以证明模块加载测试能识别 harness 自欺。
+var CHILD_SCRIPT = [
+  'var path = require("path")',
+  'var Module = require("module")',
+  'var root = process.env.AUDIT_ROOT',
+  'var mockSdk = {',
+  '  DYNAMIC_CURRENT_ENV: "mock-env",',
+  '  init: function () {},',
+  '  getWXContext: function () { return { OPENID: "u1" }; },',
+  '  database: function () { return { command: {}, collection: function () { return { where: function(){return this}, limit: function(){return this}, get: function(){ return Promise.resolve({ data: [] }) }, add: function(){return Promise.resolve({})}, update: function(){return Promise.resolve({})}, doc: function(){return { update: function(){return Promise.resolve({})} }} }; } }; },',
+  '}',
+  'var antiFraudRealLoaded = false',
+  'var origLoad = Module._load',
+  'Module._load = function (request, parent, isMain) {',
+  '  if (request === "wx-server-sdk") return mockSdk',
+  '  if (request === "./lib/antiFraud.js") {',
+  '    if (process.env.INJECT_ANTIFRAUD_STUB === "1") {',
+  '      return { checkOrderExpired: function () { return { expired: false } } }',
+  '    }',
+  '    antiFraudRealLoaded = true',
+  '  }',
+  '  return origLoad.apply(this, arguments)',
+  '}',
+  'try {',
+  '  require(path.join(root, "cloudfunctions", "verifyPayment", "index.js"))',
+  '  process.stdout.write(JSON.stringify({ loadOk: true, antiFraudRealLoaded: antiFraudRealLoaded }))',
+  '  process.exit(0)',
+  '} catch (e) {',
+  '  process.stdout.write(JSON.stringify({ loadOk: false, antiFraudRealLoaded: antiFraudRealLoaded, errorClass: e.code || e.name }))',
+  '  process.exit(1)',
+  '}',
+].join('\n')
+
+function runModuleLoadChild(injectStub) {
+  var tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'rc83-b4r2-'))
+  var childPath = path.join(tmp, 'child.js')
+  fs.writeFileSync(childPath, CHILD_SCRIPT)
+  return new Promise(function (resolve) {
+    cp.execFile(process.execPath, [childPath], {
+      env: Object.assign({}, process.env, { AUDIT_ROOT: ROOT, INJECT_ANTIFRAUD_STUB: injectStub ? '1' : '0' }),
+    }, function (err, stdout, stderr) {
+      var out = null
+      try { out = JSON.parse(stdout) } catch (e) { out = { parseError: true, stdout: stdout, stderr: stderr, err: err && err.message } }
+      resolve({ exitCode: err ? err.code : 0, out: out })
+    })
+  })
+}
+
+T('ML: VERIFY_PAYMENT_PRODUCTION_MODULE_LOAD (only wx-server-sdk stubbed)', function () {
+  return runModuleLoadChild(false).then(function (r) {
+    eq(r.out.loadOk, true, 'module load must not throw; got ' + JSON.stringify(r.out))
+    eq(r.out.antiFraudRealLoaded, true, 'ANTI_FRAUD_REAL_MODULE_LOADED must be YES')
+  })
+})
+
+// ═══════════════════════════════════════════════════════════
+// antiFraud import/call 契约测试
+// ═══════════════════════════════════════════════════════════
+
+T('CT: antiFraud import contract valid (checkOrderExpired is function)', function () {
+  var af = require(ANTI_FRAUD)
+  eq(typeof af.checkOrderExpired, 'function', 'checkOrderExpired must be a function')
+})
+
+T('CT: checkOrderExpired minimal input space (pending/paid/no-createdAt)', function () {
+  var af = require(ANTI_FRAUD)
+  var now = Date.now()
+  // 未过期 pending_payment
+  eq(af.checkOrderExpired({ status: 'pending_payment', createdAt: now - 60 * 1000 }).expired, false, 'fresh pending not expired')
+  // 已过期 pending_payment（> 30min）
+  eq(af.checkOrderExpired({ status: 'pending_payment', createdAt: now - 31 * 60 * 1000 }).expired, true, 'stale pending expired')
+  // paid 状态不参与过期判定（verifyPayment 只在 pending 状态前调用）
+  eq(af.checkOrderExpired({ status: 'paid', createdAt: now - 999 * 60 * 1000 }).expired, false, 'paid never expired')
+  // 缺 createdAt → 不 expired（fail-safe，不误关）
+  eq(af.checkOrderExpired({ status: 'pending_payment' }).expired, false, 'missing createdAt not expired')
+  // 空/null
+  eq(af.checkOrderExpired(null).expired, false, 'null order not expired')
+  eq(af.checkOrderExpired({}).expired, false, 'empty order not expired')
+})
+
+// ═══════════════════════════════════════════════════════════
 // 变异测试 — 每个变异必须被现有断言捕获（违反不变式）
 // ═══════════════════════════════════════════════════════════
 
@@ -279,36 +386,58 @@ var M2 = function (src) {
   if (src.indexOf('isMockPaymentResult(queryResult)') < 0) throw new Error('M2: predicate call not found')
   return src.split('isMockPaymentResult(queryResult)').join('false')
 }
-var M3 = function (src) {
-  var r = guardRange(src); if (!r) throw new Error('M3: guard not found')
+var M5 = function (src) {
+  var r = guardRange(src); if (!r) throw new Error('M5: guard not found')
   var s = src.slice(0, r.start) + src.slice(r.end)
   var anchor = '      // 写 payments 流水'
-  var i = s.indexOf(anchor); if (i < 0) throw new Error('M3: payments anchor not found')
+  var i = s.indexOf(anchor); if (i < 0) throw new Error('M5: payments anchor not found')
   return s.slice(0, i) + r.block + '\n\n' + s.slice(i)
 }
-var M4 = function (src) {
-  var r = guardRange(src); if (!r) throw new Error('M4: guard not found')
+var M6 = function (src) {
+  var r = guardRange(src); if (!r) throw new Error('M6: guard not found')
   var s = src.slice(0, r.start) + src.slice(r.end)
   var anchor = 'const grantResult = await grantEntitlements(db, order, ts)'
-  var i = s.indexOf(anchor); if (i < 0) throw new Error('M4: grantEntitlements anchor not found')
+  var i = s.indexOf(anchor); if (i < 0) throw new Error('M6: grantEntitlements anchor not found')
   return s.slice(0, i + anchor.length) + '\n' + r.block + s.slice(i + anchor.length)
 }
 
-var mutations = [
+var guardMutations = [
   ['M1: remove mock guard', M1],
   ['M2: accept MOCK_TXN_ (predicate disabled)', M2],
-  ['M3: guard moved after paid mutation', M3],
-  ['M4: guard moved after grantEntitlements', M4],
+  ['M5: guard moved after paid mutation', M5],
+  ['M6: guard moved after grantEntitlements', M6],
 ]
 
-mutations.forEach(function (entry) {
+guardMutations.forEach(function (entry) {
   var name = entry[0], mut = entry[1]
   T('mutation detected: ' + name, function () {
     return runMockScenario(mut).then(function (r) {
-      // 安全不变式被破坏 → paid 或 entitlement 写发生 → 变异被测试捕获
       var violated = r.paid > 0 || r.ent > 0
       ok(violated, name + ' must violate invariant (paid=' + r.paid + ', ent=' + r.ent + ')')
     })
+  })
+})
+
+// M3 — 删除 antiFraud.js 文件 → module-load 必须失败（MODULE_NOT_FOUND）
+T('M3: remove antiFraud.js file is caught by module-load test', function () {
+  if (!fs.existsSync(ANTI_FRAUD)) throw new Error('M3 precondition: antiFraud.js missing before test')
+  var bak = ANTI_FRAUD + '.r2bak'
+  fs.renameSync(ANTI_FRAUD, bak)
+  return runModuleLoadChild(false).then(function (r) {
+    fs.renameSync(bak, ANTI_FRAUD) // restore
+    eq(r.out.loadOk, false, 'module load must fail when antiFraud.js removed')
+    eq(r.out.errorClass, 'MODULE_NOT_FOUND', 'failure class must be MODULE_NOT_FOUND')
+  }).catch(function (e) {
+    if (fs.existsSync(bak) && !fs.existsSync(ANTI_FRAUD)) fs.renameSync(bak, ANTI_FRAUD)
+    throw e
+  })
+})
+
+// M4 — 重新引入 antiFraud stub → 真实模块加载探测必须返回 NO
+T('M4: reintroduce antiFraud stub is caught (ANTI_FRAUD_REAL_MODULE_LOADED=NO)', function () {
+  return runModuleLoadChild(true).then(function (r) {
+    eq(r.out.loadOk, true, 'with stub the function still loads (stub masks the real file)')
+    eq(r.out.antiFraudRealLoaded, false, 'real-module detector must report NO when stub is injected')
   })
 })
 
@@ -317,9 +446,10 @@ mutations.forEach(function (entry) {
 // ═══════════════════════════════════════════════════════════
 
 chain.then(function () {
-  console.log('\n===== Stage21 Batch4 R1 payment-authority tests =====')
+  console.log('\n===== Stage21 Batch4 R1/R2 payment-authority tests =====')
   console.log('TOTAL=' + t + ' PASS=' + p + ' FAIL=' + f)
-  console.log('MUTATION_SANITY_TOTAL=' + mutations.length)
+  console.log('GUARD_MUTATION_TOTAL=' + guardMutations.length)
+  console.log('MODULE_LOAD_MUTATION_TOTAL=' + 2) // M3 + M4
   if (f > 0) { console.log('RESULT=FAIL'); process.exit(1) }
   console.log('RESULT=PASS')
   process.exit(0)
