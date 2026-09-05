@@ -30,6 +30,12 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const crypto = require('crypto')
 const { grantEntitlements } = require('./lib/entitlementService.js')
+const {
+  buildAuthorities,
+  routeAuthority,
+  verifySignature,
+  REASONS,
+} = require('./lib/paymentAuthority.js')
 
 const now = () => Date.now()
 
@@ -79,26 +85,32 @@ exports.main = async (event) => {
   }
 
   // ═══════════════════════════════════════
-  // 步骤 5: 根据 serial 找到平台证书
+  // 步骤 5: 按 Wechatpay-Serial 权威路由（公钥 / 证书双模式，fail-closed）
   // ═══════════════════════════════════════
-  const platformCert = _getPlatformCert(wechatpaySerial)
-  if (!platformCert) {
-    console.error('[payCallback] 平台证书未配置或 serial 不匹配')
-    return _err(401, 'CERT_NOT_FOUND', '平台证书未配置')
+  const { authorities, errors } = buildAuthorities()
+  if (errors.length > 0) {
+    // 配置告警：不打印任何密钥/证书内容，只打印分类
+    console.error(`[payCallback] 权威配置告警: ${errors.length} 项`)
+  }
+
+  const authority = routeAuthority(wechatpaySerial, authorities)
+  if (!authority) {
+    console.error('[payCallback] 平台证书/公钥未配置或 serial 不匹配')
+    return _err(401, REASONS.CERT_OR_KEY_NOT_FOUND, '平台证书/公钥未配置')
   }
 
   // ═══════════════════════════════════════
-  // 步骤 6: 验证 RSA-SHA256 签名
+  // 步骤 6: 验证 RSA-SHA256 签名（仅使用路由命中的权威）
   // ═══════════════════════════════════════
   const signatureMessage = `${wechatpayTimestamp}\n${wechatpayNonce}\n${rawBody}\n`
-  const signatureValid = _verifySignature(platformCert, signatureMessage, wechatpaySignature)
+  const signatureValid = verifySignature(authority, signatureMessage, wechatpaySignature)
 
   if (!signatureValid) {
     console.error('[payCallback] 签名验证失败')
-    return _err(401, 'SIGNATURE_ERROR', 'signature verification failed')
+    return _err(401, REASONS.SIGNATURE_ERROR, 'signature verification failed')
   }
 
-  console.log(`[payCallback] ✅ 签名验证通过 serial=${_maskSerial(wechatpaySerial)}`)
+  console.log(`[payCallback] ✅ 签名验证通过 serial=${_maskSerial(wechatpaySerial)} type=${authority.type}`)
 
   // ═══════════════════════════════════════
   // 步骤 7-12: 原有业务逻辑
@@ -202,82 +214,8 @@ exports.main = async (event) => {
 }
 
 // ═══════════════════════════════════════
-// 签名验证
+// 解密
 // ═══════════════════════════════════════
-
-/**
- * _getPlatformCert — 获取平台证书（按 serial 匹配）
- *
- * 来源优先级：
- *   1. WXPAY_PLATFORM_CERT_SERIAL_<SERIAL>=<PEM>  精确匹配
- *   2. WXPAY_PLATFORM_CERT     默认证书（无 serial 多选时）
- *
- * 证书格式：PEM with \n as literal newlines
- */
-function _getPlatformCert(expectedSerial) {
-  // 精确 serial 匹配：WXPAY_PLATFORM_CERT_SERIAL_<SERIAL>
-  const serialKey = `WXPAY_PLATFORM_CERT_SERIAL_${expectedSerial}`
-  const exactCert = process.env[serialKey]
-  if (exactCert) {
-    return exactCert.replace(/\\n/g, '\n')
-  }
-
-  // 默认证书（单证书部署场景）
-  const defaultCertRaw = process.env.WXPAY_PLATFORM_CERT || ''
-  if (!defaultCertRaw) {
-    console.error('[payCallback] WXPAY_PLATFORM_CERT 未配置')
-    return null
-  }
-
-  const defaultCert = defaultCertRaw.replace(/\\n/g, '\n')
-
-  // 如果只有单个默认证书，直接返回
-  // serial 校验由调用方在获取后处理（提取证书 serial 比对）
-  const certSerial = _extractSerialFromPEM(defaultCert)
-  if (certSerial && certSerial.toUpperCase() !== expectedSerial.toUpperCase()) {
-    console.error(`[payCallback] serial 不匹配: cert=${certSerial} header=${expectedSerial}`)
-    return null
-  }
-
-  return defaultCert
-}
-
-/**
- * _extractSerialFromPEM — 从 PEM 证书提取序列号
- *
- * 微信平台证书 serial 是 40 位十六进制字符串
- * 此处通过解析 DER 格式提取（简化版：直接按环境变量预存 serial）
- *
- * 若无法从 PEM 提取，则信任调用方比对；
- * 建议在生产环境同时配置 WXPAY_PLATFORM_CERT_SERIAL 用于显式比对。
- */
-function _extractSerialFromPEM(pem) {
-  try {
-    const cert = new crypto.X509Certificate(pem)
-    // serialNumber 是十六进制字符串，如 "5157F09EFDC096EF15E..."
-    return cert.serialNumber
-  } catch (_) {
-    return null
-  }
-}
-
-/**
- * _verifySignature — RSA-SHA256 验签
- *
- * 微信支付回调签名构造：
- *   timestamp + "\n" + nonce + "\n" + body + "\n"
- */
-function _verifySignature(publicKeyPEM, message, signatureBase64) {
-  try {
-    const verifier = crypto.createVerify('RSA-SHA256')
-    verifier.update(message)
-    verifier.end()
-    return verifier.verify(publicKeyPEM, signatureBase64, 'base64')
-  } catch (err) {
-    console.error('[payCallback] 验签异常:', err.message)
-    return false
-  }
-}
 
 /**
  * _decryptResource — AEAD_AES_256_GCM 解密
