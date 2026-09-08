@@ -1,5 +1,13 @@
 @import '../../styles/tokens.wxss';
-.mask{position:fixed;inset:0;background:var(--bg-overlay);z-index:2000;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity var(--dur-normal);}
+/* Z-INDEX LAYER MAP (deterministic overlay hierarchy — FIX2)
+ * 1000  permission-modal            (permission/cancel confirm sheet)
+ * 2000  report-preview .upgrade-mask (upgrade/membership prompt)
+ * 2500  pay-modal                    (payment sheet — above upgrade prompt)
+ * 3000  ai-generating                (fullscreen generation overlay)
+ * 4000  level-up-modal               (level-up celebration, highest)
+ * No two simultaneously-reachable top-level overlays may share a value.
+ */
+.mask{position:fixed;inset:0;background:var(--bg-overlay);z-index:2500;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity var(--dur-normal);}
 .mask.show{opacity:1;pointer-events:auto;}
 .modal{width:100%;background:var(--bg-secondary);border-radius:var(--radius-modal) var(--radius-modal) 0 0;padding:var(--sp-32);text-align:center;max-height:85vh;overflow-y:auto;transform:translateY(100%);transition:transform var(--dur-normal) var(--ease-out);}
 .modal.slide-up{transform:translateY(0);}

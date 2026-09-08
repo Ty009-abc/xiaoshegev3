@@ -146,7 +146,9 @@ page {
   display: flex;
   flex-direction: column;
   gap: 16rpx;
-  padding: 0 0 32rpx;
+  /* FIX4: bottom safe-area — preserve existing 32rpx spacing, then add inset
+     so the payment controls clear the home indicator on notched devices. */
+  padding: 0 0 calc(32rpx + env(safe-area-inset-bottom));
 }
 
 /* ═══════════ 取消按钮 ═══════════ */
