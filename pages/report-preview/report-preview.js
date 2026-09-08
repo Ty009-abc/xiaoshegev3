@@ -8,6 +8,11 @@ const permissionService = require('../../services/permissionService.js')
 const analytics = require('../../utils/analytics.js')
 const app = getApp()
 
+// ── FIX A (RC8.3_UI_QA_STAGE1A_R2): canonical full-report permission key.
+// Backend authoritative identifier is 'full_report' (permissionEngine
+// ALL_PERMISSIONS / PRODUCT_PERMISSIONS / entitlementService). NOT 'report_full'.
+const FULL_REPORT_PERMISSION_KEY = 'full_report'
+
 Page({
   data: {
     recordId:'', reportType:'',
@@ -282,16 +287,6 @@ Page({
 
   onUnload(){ analytics.flush() },
 
-  async load(){
-    try{
-      const r=await aiReportService.getAiReport(this.data.recordId)
-      if(r.code===0){
-        const pRes=await permissionService.checkPermission('report_full')
-        this.setData({ report:r.data, locked:!pRes.data?.granted })
-      }
-    }catch(_){} finally { this.setData({ loading:false }) }
-  },
-
   onGenerate(){
     analytics.track('report_view')
     this.setData({ showGenerating:true })
@@ -332,7 +327,9 @@ Page({
             hasReportType: !!report.reportType,
             hasContent: !!report.content,
           })
-          this.setData({ report: report, locked: report.locked !== undefined ? report.locked : false });
+          // FIX A: fail-closed. Only an explicit server `locked:false` unlocks.
+          // Missing/unknown locked state must NOT authorize protected navigation.
+          this.setData({ report: report, locked: report.locked !== false });
           this._syncReportToReportData()
         } else {
           console.error('[report-preview] 生成报告失败:', r.message)
@@ -353,14 +350,45 @@ Page({
 
   onUnlock(){ wx.navigateTo({ url:'/pages/membership/membership' }) },
 
-  goFull(){
-    analytics.track('report_detail_view')
-    const isVip = app.globalData.isVip
-    if(!isVip) this.setData({ showUpgradeModal:true })
-    else wx.navigateTo({ url:'/pages/report-detail/report-detail?reportId='+(this.data.report?._id||this.data.recordId) })
+  // ── FIX A: single shared full-report navigation authority path ──
+  // Both goFull() and onCloseUpgrade() MUST route through here before any
+  // navigation to the protected report-detail. isVip is NOT authority;
+  // report.locked is NOT authority. Only permissionService with the canonical
+  // 'full_report' key authorizes; any error/unknown fails closed.
+  async requestFullReportAccess() {
+    try {
+      const res = await permissionService.checkPermission(FULL_REPORT_PERMISSION_KEY)
+      return !!(res && res.granted === true)
+    } catch (_) {
+      return false
+    }
   },
 
-  onCloseUpgrade(){ this.setData({ showUpgradeModal:false }); wx.navigateTo({ url:'/pages/report-detail/report-detail?reportId='+(this.data.report?._id||this.data.recordId) }) },
+  async _goFullReport() {
+    const authorized = await this.requestFullReportAccess()
+    if (!authorized) {
+      this.setData({ showUpgradeModal: true, locked: true })
+      return false
+    }
+    // FIX B: canonical business report ID only. Never _id / recordId.
+    const reportId = this.data.report && this.data.report.reportId
+    if (!reportId) {
+      wx.showToast({ title: '报告信息缺失，请重新生成', icon: 'none' })
+      return false
+    }
+    wx.navigateTo({ url: '/pages/report-detail/report-detail?reportId=' + reportId })
+    return true
+  },
+
+  goFull(){
+    analytics.track('report_detail_view')
+    return this._goFullReport()
+  },
+
+  onCloseUpgrade(){
+    this.setData({ showUpgradeModal: false })
+    return this._goFullReport()
+  },
   onUpgrade(){ analytics.track('membership_visit'); wx.navigateTo({ url:'/pages/membership/membership' }) },
 
   onShareAppMessage() {

@@ -3,9 +3,14 @@
  *   Progressive Reveal → 8-layer V4 report / 5-layer V3 legacy
  */
 const aiReportService = require('../../services/aiReportService.js')
+const permissionService = require('../../services/permissionService.js')
 const n4 = require('../../utils/reportNormalizerV4.js')
 const app = getApp()
 const REVEAL_DELAYS = [200, 500, 900, 1300, 1700, 2100, 2500, 2900]
+
+// ── FIX B (RC8.3_UI_QA_STAGE1A_R2): canonical full-report permission key.
+// Must match FIX A's authority key exactly ('full_report').
+const FULL_REPORT_PERMISSION_KEY = 'full_report'
 
 // ══════════════════════════════════════════════
 // RC8.1: Payload Normalizer — flatten nested answers
@@ -61,6 +66,35 @@ function recoverAnswersFromV3Report(report) {
   if (Array.isArray(report.next90days)) recovered.product = report.next90days.join('；')
   recovered._recoveredFromV3 = true
   return Object.keys(recovered).length > 1 ? recovered : null
+}
+
+/**
+ * FIX B (RC8.3_UI_QA_R2): challenge_final content normalizer.
+ * Mirrors canonical report-preview normalization semantics. In-repo reference
+ * only — no subpkg-ai code copied. Does not invent missing fields.
+ */
+function normalizeChallengeFinalContent(content) {
+  var c = content || {}
+  var thirtyDay = c.thirtyDayActions
+  var actionAdvice = ''
+  if (Array.isArray(thirtyDay)) {
+    actionAdvice = thirtyDay.map(function (a) {
+      return typeof a === 'object' ? (a.text || a.action || JSON.stringify(a)) : String(a)
+    }).join('\n')
+  } else if (typeof thirtyDay === 'string') {
+    actionAdvice = thirtyDay
+  }
+  return {
+    basicInsight: c.oneSentence || '',
+    systemTrap: c.whyNotRich || '',
+    coreProblem: c.biggestCognitiveGap || '',
+    turnaroundPath: c.bestPath || '',
+    actionAdvice: actionAdvice,
+    fatalSentence: c.finalStrike || '',
+    worldModelType: c.worldModelType || '',
+    turnaroundProbability: (typeof c.turnaroundProbability === 'number') ? c.turnaroundProbability : 0,
+    threeYearRisk: c.threeYearRisk || '',
+  }
 }
 
 Page({
@@ -199,33 +233,17 @@ Page({
       snapshotSource = 'VIEWMODEL_RECOVERY'
     }
 
-    // Level 3: URL params (share / history entry with reportId)
-    if (!answers) {
-      var urlReportId = this.data._urlParams && this.data._urlParams.reportId
-      if (urlReportId) {
-        try {
-          var cached = wx.getStorageSync('diag_snapshot_' + urlReportId) || wx.getStorageSync('reportData_' + urlReportId)
-          if (cached && cached.answers) {
-            answers = cached.answers
-            snapshotSource = 'HISTORY_SNAPSHOT'
-          }
-        } catch (e) {}
-      }
-    }
-
-    // Level 4: wx storage cache (app-level snapshot)
-    if (!answers) {
-      try {
-        var storageSnapshot = wx.getStorageSync('diagnostic_snapshot')
-        if (storageSnapshot && storageSnapshot.normalizedAnswers) {
-          answers = storageSnapshot.normalizedAnswers
-          snapshotSource = 'CACHE_SNAPSHOT'
-        }
-      } catch (e) { }
+    // Level 3: canonical reportId → cloud recovery (challenge_final only).
+    // The dead _urlParams.reportId + storage-key lookup is removed. Recovery is
+    // awaited fully (authority + normalize/render OR failure) before the safe
+    // fallback below, so no timer/redirect can preempt pending recovery.
+    if (!answers && this.data.reportId) {
+      const recovered = await this._recoverChallengeFinal(this.data.reportId)
+      if (recovered) return
     }
 
     if (!answers) {
-      console.error('[PosterRC8][SNAPSHOT] ALL 5 levels exhausted — no source found')
+      console.error('[PosterRC8][SNAPSHOT] ALL levels exhausted — no source found')
       this.setData({ loading: false, error: '诊断数据丢失，请重新开始' })
       setTimeout(function() { wx.redirectTo({ url: '/pages/challenge-play/challenge-play?mode=diagnostic' }) }, 1500)
       return
@@ -379,6 +397,100 @@ Page({
       console.error('🚨 [report-detail CATCH] 错误堆栈:', e.stack)
       this._showError('AI 诊断引擎暂时离线: ' + (e.message || e.errMsg || 'unknown'))
     }
+  },
+
+  /* ═══════════════════════════════════
+     FIX B: challenge_final reportId recovery (cloud)
+     Envelope { code, message, data }; code===0 → payload = data.
+     Only payload.type === 'challenge_final' is supported here.
+     Known reportId is NOT authorization — full_report re-checked.
+     Any failure → fail closed (returns false, no protected render).
+     ═══════════════════════════════════ */
+  async _recoverChallengeFinal(reportId) {
+    try {
+      const r = await aiReportService.getAiReport(reportId)
+      if (!r || r.code !== 0) {
+        console.error('[report-detail][RECOVERY] getAiReport failed:', (r && r.code), (r && r.message))
+        return false
+      }
+
+      const payload = r.data || {}
+      if (payload.type !== 'challenge_final') {
+        console.error('[report-detail][RECOVERY] unsupported type:', payload.type)
+        return false
+      }
+
+      // Locked payload → no protected full render.
+      if (payload.locked === true) {
+        console.warn('[report-detail][RECOVERY] locked payload — fail closed')
+        return false
+      }
+
+      // Known reportId is NOT authorization. Re-check full_report authority.
+      let authorized = false
+      try {
+        const auth = await permissionService.checkPermission(FULL_REPORT_PERMISSION_KEY)
+        authorized = !!(auth && auth.granted === true)
+      } catch (_) {
+        authorized = false
+      }
+      if (!authorized) {
+        console.warn('[report-detail][RECOVERY] full_report denied — fail closed')
+        return false
+      }
+
+      const n = normalizeChallengeFinalContent(payload.content)
+      this._renderChallengeFinal(n)
+      return true
+    } catch (e) {
+      console.error('[report-detail][RECOVERY] exception:', e && e.message)
+      return false
+    }
+  },
+
+  /* ═══════════════════════════════════
+     FIX B: challenge_final → V3 sections route (no WXML change).
+     Reuses the existing V3 reveal block + REVEAL_DELAYS.
+     ═══════════════════════════════════ */
+  _renderChallengeFinal(n) {
+    const self = this
+    const sections = [
+      { key: 'fatal',   label: '致命一句话',   revealed: false, text: '' },
+      { key: 'trapped', label: '🔗 系统困局',   revealed: false, text: '' },
+      { key: 'core',    label: '🧠 核心问题',   revealed: false, text: '' },
+      { key: 'path',    label: '🚀 翻身路径',   revealed: false, text: '' },
+      { key: 'next',    label: '📅 30天行动',   revealed: false, text: '' },
+    ]
+    const fieldsText = [
+      n.basicInsight || '分析未命中此维度',
+      n.systemTrap || '分析未命中此维度',
+      n.coreProblem || '分析未命中此维度',
+      n.turnaroundPath || '分析未命中此维度',
+      n.actionAdvice || '分析未命中此维度',
+    ]
+
+    this.setData({
+      loading: false,
+      reportVersion: 'v3',
+      sections: sections.map(function (s) { return Object.assign({}, s) }),
+      _cfMeta: {
+        worldModelType: n.worldModelType,
+        turnaroundProbability: n.turnaroundProbability,
+        threeYearRisk: n.threeYearRisk,
+      },
+    })
+    this._stopLoadingCarousel()
+
+    REVEAL_DELAYS.slice(0, 5).forEach((delay, i) => {
+      setTimeout(() => {
+        const newSections = [...this.data.sections]
+        if (newSections[i]) {
+          newSections[i].revealed = true
+          newSections[i].text = fieldsText[i]
+          self.setData({ sections: newSections })
+        }
+      }, delay)
+    })
   },
 
   /* ═══════════════════════════════════
