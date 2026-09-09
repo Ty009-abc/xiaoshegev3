@@ -1,64 +1,101 @@
 /**
  * pages/v21-cognitive-report/v21-cognitive-report.js
  *
- * RC8.3 Stage1B R3 — V2.1 认知报告渲染页（TEST_PREVIEW_ONLY）。
+ * RC8.3 Stage1C-D1 — North Star report UI (information architecture).
  *
- * 渲染 `runCognitiveReportBuilderV21` 产出的确定性认知报告。
- * 引擎诊断为权威，AI 仅可丰富表达（此处为确定性表达，未调用 AI）。
+ * Renders a `north_star_report_v1` report object (produced by Stage1C-C).
+ * This page is PURE PRESENTATION: it answers "HOW TO PRESENT", never
+ * "WHAT IS TRUE". It consumes the report content model verbatim; it does
+ * NOT reinterpret diagnosis semantics, does NOT map the blind-spot id to custom
+ * copy/principle/strategy/archetype/scenario, and carries no duplicate copy
+ * tables.
  *
- * R4.4 变更：
- *   - P1 自定义导航安全区（与 R4.1 问卷页同款运行时测量，无机型检测）；
- *   - P2 展示层本地化（内部枚举 token 不直接暴露给用户）。
+ * UI INFORMATION ARCHITECTURE (frozen by Stage1C-D1 §4):
+ *   PRIMARY FLOW = 8 sections (verdict → current model → world-rule alignment
+ *   → evidence → consequence → upgrade → protocol → scenario contrast).
+ *   SECONDARY (collapsed by default) = 完整认知地图 (archetype / strengths /
+ *   primary distortion / related dimensions / full model map).
  *
- * 严格安全边界：
- *   - 不渲染财富 / 收入 / 职业 / 债务 / 概率 / 置信度 / 严重度；
- *   - 不预测未来结果（所有后果均为条件语言）；
- *   - 仅展示世界模型 9 维度 / 认知盲区 / 策略 / 场景推演 / 确定性表达。
+ * RAW TOKEN SAFETY: provenance fields (blind-spot id / strategy id / reason code /
+ * signal id / question id / option id / raw dimension enum) are dropped in the
+ * view-model builder and never reach WXML binding.
  *
- * @version world_model_v2_1 (cognitive report render)
+ * R4.4 preserved: custom-nav safe-area (runtime measurement, no device
+ * detection); no raw enum token exposure.
+ *
+ * State-aware foundation (§17): supports UNIQUE / MULTIPLE / NO_PRIMARY /
+ * INSUFFICIENT / CONTRADICTORY / BLOCKED via section presence, never
+ * fabricating missing sections. Full state acceptance is Stage1C-D2.
+ *
+ * @version north_star_report_v1 (UI)
  */
 
+'use strict'
+
 const app = getApp()
-const labels = require('../../utils/v21DisplayLabels.js')
+const { buildNorthStarReportViewModel } = require('../../utils/northStarReportViewModel.js')
 
 Page({
   data: {
     loading: true,
+    unsupported: false,
     error: '',
-    report: null,
-    worldModel: null,
-    blindSpot: null,
-    strategy: null,
-    archetype: null,
-    scenario: null,
-    verdict: null,
-    expression: '',
-    multiModel: null,
     totalNavHeight: 0,
+
+    // Rendered view model (flat, raw-token-free)
+    uiState: '',
+    hasPrimary: false,
+    stateMessage: '',
+    retakeAvailable: false,
+    verdict: null,
+    currentModel: null,
+    worldRule: null,
+    evidence: null,
+    consequence: null,
+    upgrade: null,
+    protocol: null,
+    scenario: null,
+    secondary: null,
+
+    // Secondary context collapsed by default (§13)
+    secondaryExpanded: false,
   },
 
   onLoad() {
     this._initNavBar()
     const report = app.globalData.v21CognitiveReport
-    if (report && report.worldModel) {
+
+    if (report && report.version === 'north_star_report_v1') {
+      const vm = buildNorthStarReportViewModel(report)
+      if (!vm.supported) {
+        this.setData({ unsupported: true, loading: false })
+        return
+      }
       this.setData({
-        report,
-        worldModel: this._localizeDimensions(report.worldModel),
-        blindSpot: report.cognitiveBlindSpot || null,
-        strategy: report.worldStrategy || null,
-        archetype: report.cognitiveArchetype || null,
-        scenario: report.scenarioSimulation || null,
-        verdict: report.finalVerdict || null,
-        expression: report.expression || '',
-        multiModel: this._localizeMultiModel(report.multiModelSummary),
+        uiState: vm.uiState,
+        hasPrimary: vm.hasPrimary,
+        stateMessage: vm.stateMessage,
+        retakeAvailable: vm.retakeAvailable,
+        verdict: vm.verdict,
+        currentModel: vm.currentModel,
+        worldRule: vm.worldRule,
+        evidence: vm.evidence,
+        consequence: vm.consequence,
+        upgrade: vm.upgrade,
+        protocol: vm.protocol,
+        scenario: vm.scenario,
+        secondary: vm.secondary,
         loading: false,
       })
+    } else if (report && report.worldModel) {
+      // Legacy diagnostic_v2_1 object (pre-Stage1C): not rendered by this page.
+      this.setData({ unsupported: true, loading: false })
     } else {
       this.setData({ error: '未找到认知报告数据，请重新测评', loading: false })
     }
   },
 
-  // ── 自定义导航安全区（R4.1 同款，仅布局，不改任何渲染逻辑）───────────
+  // ── 自定义导航安全区（R4.1 同款，仅布局，不改渲染逻辑）───────────────
   _initNavBar() {
     try {
       const s = (typeof wx.getWindowInfo === 'function') ? wx.getWindowInfo() : wx.getSystemInfoSync()
@@ -71,29 +108,8 @@ Page({
     }
   },
 
-  // ── 展示层本地化（不改内部值，仅构造渲染视图模型）──────────────────────
-  _localizeDimensions(worldModel) {
-    const dims = (worldModel && Array.isArray(worldModel.dimensions)) ? worldModel.dimensions : []
-    return {
-      dimensions: dims.map((d) => ({
-        constructLabel: labels.constructLabel(d.construct),
-        orientationLabel: labels.orientationLabel(d.orientation),
-        stateLabel: labels.stateLabel(d.state),
-      })),
-    }
-  },
-
-  _localizeMultiModel(multiModelSummary) {
-    if (!multiModelSummary || !Array.isArray(multiModelSummary.models)) return null
-    return {
-      state: multiModelSummary.state,
-      supportedModelCount: multiModelSummary.supportedModelCount,
-      models: multiModelSummary.models.map((m) => ({
-        label: m.label,
-        questionAnswered: m.questionAnswered || '',
-        dimensionStateLabel: labels.stateLabel(m.dimensionState),
-      })),
-    }
+  toggleSecondary() {
+    this.setData({ secondaryExpanded: !this.data.secondaryExpanded })
   },
 
   onBack() {

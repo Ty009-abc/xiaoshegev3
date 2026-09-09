@@ -1,85 +1,185 @@
 <!--
   pages/v21-cognitive-report/v21-cognitive-report.wxml
-  RC8.3 Stage1B R3 — V2.1 认知报告渲染（TEST_PREVIEW_ONLY）
-  R4.4: 自定义导航安全区 + 展示层本地化 + 多模型状态卡
+  RC8.3 Stage1C-D1 — North Star report UI (信息架构)
+
+  消费 Stage1C-C 产出的 north_star_report_v1 内容模型，纯展示层。
+  只回答「如何呈现」，不回答「什么是真」。
+
+  主流程 = 8 个 section；完整认知地图（secondary）默认折叠。
+  原型的卡片/维度看板绝不作为主卡。
 -->
 <view class="page">
 
-  <!-- 自定义导航安全区：避免内容顶到状态栏/胶囊区（仅布局） -->
+  <!-- 自定义导航安全区（仅布局，R4.1 同款） -->
   <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
 
   <view wx:if="{{loading}}" class="state">加载中…</view>
   <view wx:elif="{{error}}" class="state">{{error}}</view>
+  <view wx:elif="{{unsupported}}" class="state">报告数据格式不支持，请重新测评</view>
+
+  <!-- 非 UNIQUE 中性状态：只显示状态文案，不渲染诊断内容 -->
+  <view wx:elif="{{!hasPrimary}}" class="state-block">
+    <text class="state-title">认知诊断</text>
+    <text class="state-message">{{stateMessage}}</text>
+    <button wx:if="{{retakeAvailable}}" class="retake" bindtap="onBack">重新测评</button>
+    <button wx:else class="back" bindtap="onBack">返回</button>
+  </view>
 
   <block wx:else>
-    <!-- 标题 -->
-    <view class="header">
-      <text class="badge">认知测评 · 预览</text>
-      <text class="title">认知世界模型报告</text>
-      <text class="subtitle">基于 18 题认知测评的确定性诊断</text>
+
+    <!-- ═══ 01 核心认知诊断（首屏最高视觉层级：人类可读诊断优先）═══ -->
+    <view class="hero">
+      <text class="hero-eyebrow">核心认知诊断</text>
+      <text class="hero-verdict">{{verdict.summary}}</text>
+      <text class="hero-label" wx:if="{{verdict.blindSpotLabel}}">{{verdict.blindSpotLabel}}</text>
     </view>
 
-    <!-- 核心表达（确定性，条件语言，非预测） -->
-    <view class="card">
-      <text class="card-title">核心发现</text>
-      <text class="expression">{{expression}}</text>
+    <!-- ═══ 02 你的默认世界模型 ═══ -->
+    <view class="card" wx:if="{{currentModel}}">
+      <text class="card-title">{{currentModel.title}}</text>
+      <text class="card-body">{{currentModel.statement}}</text>
     </view>
 
-    <!-- 多模型状态 / 主要认知风险群（MULTIPLE_SUPPORTED_MODELS） -->
-    <view class="card" wx:if="{{multiModel}}">
-      <text class="card-title">主要认知风险群</text>
-      <text class="reason">系统识别到 {{multiModel.supportedModelCount}} 个相互竞争的认知盲区，因此未武断指定唯一主因：</text>
-      <view class="risk-item" wx:for="{{multiModel.models}}" wx:key="label">
-        <text class="risk-label">{{item.label}}</text>
-        <text class="risk-q">{{item.questionAnswered}}</text>
-        <text class="risk-state">{{item.dimensionStateLabel}}</text>
+    <!-- ═══ 03 你与现实规则的错位（北极星视觉中心）═══ -->
+    <view class="card" wx:if="{{worldRule}}">
+      <text class="card-title">{{worldRule.title}}</text>
+
+      <view class="contrast-block">
+        <text class="contrast-label">你的默认模型</text>
+        <text class="contrast-text">{{worldRule.userModel}}</text>
+      </view>
+
+      <view class="vs-mark">↓ VS ↓</view>
+
+      <view class="contrast-block contrast-world">
+        <text class="contrast-label">世界运行规则</text>
+        <text class="contrast-text">{{worldRule.worldRule}}</text>
+      </view>
+
+      <view class="vs-mark">↓</view>
+
+      <view class="contrast-block contrast-gap">
+        <text class="contrast-label">真正的错位</text>
+        <text class="contrast-text">{{worldRule.misalignment}}</text>
+      </view>
+
+      <view class="why-matters" wx:if="{{worldRule.whyItMatters}}">
+        <text class="why-matters-title">为什么这很重要</text>
+        <text class="why-matters-text" wx:if="{{worldRule.whyItMatters.mechanism}}">{{worldRule.whyItMatters.mechanism}}</text>
+        <text class="why-matters-text" wx:if="{{worldRule.whyItMatters.consequence}}">{{worldRule.whyItMatters.consequence}}</text>
       </view>
     </view>
 
-    <!-- 认知盲区（唯一主因时展示） -->
-    <view class="card" wx:if="{{blindSpot}}">
-      <text class="card-title">主要认知盲区</text>
-      <text class="main">{{blindSpot.label}}</text>
-      <text class="reason">{{blindSpot.questionAnswered}}</text>
-    </view>
-
-    <view class="card" wx:if="{{verdict && verdict.status === 'NO_PRIMARY_DEFICIT'}}">
-      <text class="card-title">结论</text>
-      <text class="main">未发现明确的主要认知盲区</text>
-    </view>
-
-    <!-- 策略状态 -->
-    <view class="card" wx:if="{{strategy}}">
-      <text class="card-title">认知升级策略</text>
-      <text class="main">{{strategy.label}}</text>
-      <text class="reason">{{strategy.mechanism}}</text>
-    </view>
-    <view class="card" wx:elif="{{multiModel}}">
-      <text class="card-title">策略状态</text>
-      <text class="reason">暂不生成单一路径策略：多个认知模型仍处于并列支持状态，系统不为其臆造唯一方案。</text>
-    </view>
-
-    <!-- 认知原型（描述性，非经济含义） -->
-    <view class="card" wx:if="{{archetype}}">
-      <text class="card-title">认知原型</text>
-      <text class="main">{{archetype.label}}</text>
-      <text class="reason">{{archetype.description}}</text>
-    </view>
-
-    <!-- 世界模型 9 维度（分类状态，非数值评分） -->
-    <view class="card" wx:if="{{worldModel}}">
-      <text class="card-title">世界模型维度</text>
-      <view class="dim" wx:for="{{worldModel.dimensions}}" wx:key="constructLabel">
-        <text class="dim-construct">{{item.constructLabel}}</text>
-        <text class="dim-state">{{item.orientationLabel}} · {{item.stateLabel}}</text>
+    <!-- ═══ 04 为什么这样判断你（用户专属证据）═══ -->
+    <view class="card" wx:if="{{evidence && evidence.items.length}}">
+      <text class="card-title">{{evidence.title}}</text>
+      <view class="evidence-item" wx:for="{{evidence.items}}" wx:key="order">
+        <text class="evidence-q">{{item.questionMeaning}}</text>
+        <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
+        <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+        <text class="evidence-support">{{item.howItSupportsDiagnosis}}</text>
       </view>
     </view>
 
-    <!-- 场景推演（条件语言，非预测） -->
-    <view class="card" wx:if="{{scenario && scenario.currentModelScenario}}">
-      <text class="card-title">情景推演（条件性，非预测）</text>
-      <text class="reason">当前模式下的可能后果：</text>
-      <text wx:for="{{scenario.currentModelScenario.possibleConsequences}}" wx:key="*this" class="li">· {{item}}</text>
+    <!-- ═══ 05 这个模型如何影响决策 ═══ -->
+    <view class="card" wx:if="{{consequence}}">
+      <text class="card-title">{{consequence.title}}</text>
+      <text class="card-body">{{consequence.consequence}}</text>
+    </view>
+
+    <!-- ═══ 06 你的认知升级 ═══ -->
+    <view class="card" wx:if="{{upgrade}}">
+      <text class="card-title">{{upgrade.title}}</text>
+      <text class="card-body">{{upgrade.upgradedModel}}</text>
+    </view>
+
+    <!-- ═══ 07 下一次怎么做（最可执行）═══ -->
+    <view class="card" wx:if="{{protocol}}">
+      <text class="card-title">{{protocol.title}}</text>
+
+      <view class="protocol-trigger" wx:if="{{protocol.trigger}}">
+        <text class="protocol-step-label">触发条件</text>
+        <text class="protocol-step-text">{{protocol.trigger}}</text>
+      </view>
+
+      <view class="protocol-step" wx:for="{{protocol.steps}}" wx:key="order">
+        <text class="protocol-step-num">步骤 {{item.order}}</text>
+        <text class="protocol-step-name">{{item.name}}</text>
+        <text class="protocol-step-text">{{item.description}}</text>
+      </view>
+
+      <view class="protocol-step" wx:if="{{protocol.successSignal}}">
+        <text class="protocol-step-label">成功信号</text>
+        <text class="protocol-step-text">{{protocol.successSignal}}</text>
+      </view>
+
+      <view class="protocol-step" wx:if="{{protocol.reviewWindow}}">
+        <text class="protocol-step-label">复盘周期</text>
+        <text class="protocol-step-text">{{protocol.reviewWindow}}</text>
+      </view>
+
+      <view class="protocol-step" wx:if="{{protocol.stopCondition}}">
+        <text class="protocol-step-label">停止条件</text>
+        <text class="protocol-step-text">{{protocol.stopCondition}}</text>
+      </view>
+    </view>
+
+    <!-- ═══ 08 旧模型 vs 新模型（情景推演，非预测）═══ -->
+    <view class="card" wx:if="{{scenario}}">
+      <text class="card-title">{{scenario.title}}</text>
+
+      <view class="scenario-side">
+        <text class="scenario-side-label">旧模型继续</text>
+        <text class="scenario-li" wx:for="{{scenario.currentModel.likelyDecisionPattern}}" wx:key="*this">· {{item}}</text>
+      </view>
+
+      <view class="vs-mark">VS</view>
+
+      <view class="scenario-side scenario-upgraded">
+        <text class="scenario-side-label">升级模型运行</text>
+        <text class="scenario-li" wx:for="{{scenario.upgradedModel.likelyDecisionPattern}}" wx:key="*this">· {{item}}</text>
+      </view>
+
+      <text class="scenario-note" wx:if="{{scenario.simulationNote}}">{{scenario.simulationNote}}</text>
+    </view>
+
+    <!-- ═══ 09 完整认知地图（默认折叠，secondary）═══ -->
+    <view class="card card-collapsible" wx:if="{{secondary}}">
+      <view class="collapsible-head" bindtap="toggleSecondary">
+        <text class="card-title">{{secondary.title}}</text>
+        <text class="collapsible-arrow">{{secondaryExpanded ? '收起' : '展开'}}</text>
+      </view>
+
+      <view wx:if="{{secondaryExpanded}}" class="collapsible-body">
+        <view class="secondary-block" wx:if="{{secondary.archetype}}">
+          <text class="secondary-label">认知原型</text>
+          <text class="secondary-main">{{secondary.archetype.label}}</text>
+          <text class="secondary-text">{{secondary.archetype.description}}</text>
+        </view>
+
+        <view class="secondary-block" wx:if="{{secondary.primaryDistortion}}">
+          <text class="secondary-label">核心失真</text>
+          <text class="secondary-text">{{secondary.primaryDistortion}}</text>
+        </view>
+
+        <view class="secondary-block" wx:if="{{secondary.strengths.length}}">
+          <text class="secondary-label">优势维度</text>
+          <text class="secondary-text">{{secondary.strengths}}</text>
+        </view>
+
+        <view class="secondary-block" wx:if="{{secondary.relatedDimensions.length}}">
+          <text class="secondary-label">关联维度</text>
+          <text class="secondary-text">{{secondary.relatedDimensions}}</text>
+        </view>
+
+        <view class="secondary-block" wx:if="{{secondary.fullModelMap.length}}">
+          <text class="secondary-label">完整模型地图</text>
+          <view class="map-row" wx:for="{{secondary.fullModelMap}}" wx:key="label">
+            <text class="map-dim">{{item.label}}</text>
+            <text class="map-state">{{item.orientationLabel}} · {{item.stateLabel}}</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <button class="back" bindtap="onBack">返回</button>
