@@ -1,0 +1,117 @@
+.page {
+  min-height: 100vh;
+  background: #f4f5f7;
+  padding: 40rpx;
+  box-sizing: border-box;
+}
+
+.intro, .result {
+  padding-top: 120rpx;
+}
+
+.title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.desc {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  color: #5a6078;
+  line-height: 1.6;
+}
+
+.btn-primary {
+  margin-top: 48rpx;
+  background: #7f56d9;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+}
+
+.btn-ghost {
+  margin-top: 24rpx;
+  background: #fff;
+  color: #5a6078;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+}
+
+.progress-wrap {
+  margin-bottom: 40rpx;
+}
+
+.progress-label {
+  font-size: 26rpx;
+  color: #5a6078;
+  margin-bottom: 12rpx;
+}
+
+.progress-bar {
+  height: 12rpx;
+  background: #e5e7ef;
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #7f56d9;
+  border-radius: 8rpx;
+  transition: width 0.25s ease;
+}
+
+.q-prompt {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #1a1a2e;
+  line-height: 1.5;
+  margin-bottom: 40rpx;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.option {
+  background: #fff;
+  border: 2rpx solid #e5e7ef;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  font-size: 30rpx;
+  color: #1a1a2e;
+}
+
+.option-selected {
+  border-color: #7f56d9;
+  background: #f5f3ff;
+}
+
+.option-text {
+  line-height: 1.5;
+}
+
+.nav {
+  display: flex;
+  gap: 24rpx;
+  margin-top: 48rpx;
+}
+
+.nav button {
+  flex: 1;
+}
+
+.result-error {
+  margin-top: 24rpx;
+  color: #d9534f;
+  font-size: 28rpx;
+}
+
+.hint {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  color: #5a6078;
+}

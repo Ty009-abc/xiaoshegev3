@@ -1,0 +1,55 @@
+<!--
+  pages/v21-questionnaire/v21-questionnaire.wxml
+  RC8.3 Stage1B R3 — V2.1 正式 18 题认知问卷
+-->
+<view class="page">
+
+  <!-- 未开始 -->
+  <view wx:if="{{!started}}" class="intro">
+    <view class="title">认知世界模型测评</view>
+    <view class="desc">18 道题，测一测你的决策、风险、反馈与时间等 9 个认知维度。</view>
+    <button class="btn-primary" bindtap="startSession">开始测评</button>
+  </view>
+
+  <!-- 答题中 -->
+  <view wx:if="{{started && !submitted}}" class="quiz">
+    <view class="progress-wrap">
+      <view class="progress-label">第 {{currentIndex + 1}} / 18 题</view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+    </view>
+
+    <view class="q-prompt">{{sessionQuestions[currentIndex].prompt}}</view>
+
+    <view class="options">
+      <view
+        wx:for="{{sessionQuestions[currentIndex].options}}"
+        wx:key="optionId"
+        class="option {{selectedOptionId === item.optionId ? 'option-selected' : ''}}"
+        data-option-id="{{item.optionId}}"
+        data-display-position="{{item.displayPosition}}"
+        bindtap="selectOption"
+      >
+        <view class="option-text">{{item.text}}</view>
+      </view>
+    </view>
+
+    <view class="nav">
+      <button class="btn-ghost" bindtap="goBack" disabled="{{currentIndex === 0}}">上一题</button>
+      <button class="btn-primary" bindtap="goNext" wx:if="{{currentIndex < 17}}">下一题</button>
+      <button class="btn-primary" bindtap="submit" wx:if="{{currentIndex === 17}}">提交</button>
+    </view>
+  </view>
+
+  <!-- 提交结果反馈 -->
+  <view wx:if="{{submitted}}" class="result">
+    <view class="title">已提交</view>
+    <view wx:if="{{error}}" class="result-error">{{error}}</view>
+    <block wx:else>
+      <view class="hint">正在生成认知报告…</view>
+    </block>
+    <button class="btn-ghost" bindtap="restartSession">重新测评</button>
+  </view>
+
+</view>

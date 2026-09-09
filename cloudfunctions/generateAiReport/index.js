@@ -88,6 +88,15 @@ exports.main = async (event, context) => {
       // missing/invalid/empty config → OFF (no runtime, no record write).
       // SHADOW executes the isolated V2.1 shadow adapter; V2.1 is NEVER primary.
       if (diagnosticVersion === 'world_model_v2_1') {
+        // ── RC8.3 Stage1B R3.1: TRUSTED server-side preview authority ──
+        // Client `previewMode === 'TEST_PREVIEW'` is NEVER sufficient. Preview
+        // executes ONLY when the dedicated trusted config explicitly enables it
+        // AND the server-derived OPENID is eligible (when allowlist configured).
+        // Otherwise the request is REJECTED with an explicit preview-unavailable
+        // response — never silently falling into shadow/OFF/V1/V4.
+        if (event.previewMode === 'TEST_PREVIEW') {
+          return await runWorldModelV21TestPreview({ event, openid, ts, db })
+        }
         const { parseV21Mode, getV21ModeFromEnv } = require('./lib/config/worldModelV21Mode')
         const v21Mode = parseV21Mode(getV21ModeFromEnv())
         if (v21Mode === 'SHADOW') {
@@ -616,6 +625,208 @@ function runWorldModelV21Off() {
     v21PrimaryActive: false,
     v21Mode: 'OFF',
     message: 'world_model_v2_1 当前关闭，未执行',
+  })
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RC8.3 Stage1B R3.1: World Model V2.1 — TEST_PREVIEW_ONLY report route
+// ═══════════════════════════════════════════════════════════════
+//
+// Reached ONLY when the client sets `previewMode === 'TEST_PREVIEW'` on a
+// world_model_v2_1 diagnostic request (see dispatch above). The client string
+// is NEVER sufficient: the TRUSTED server-side preview authority must also
+// explicitly enable V2.1 cognitive preview AND (when an allowlist is
+// configured) the server-derived OPENID must be eligible. Otherwise the request
+// is REJECTED with an explicit preview-unavailable response.
+//
+// Flow (deterministic, no AI call):
+//   trusted authority gate → strict canonical 18/18 validation
+//   → response-validity gate → canonical V2.1 cognition chain
+//   → runCognitiveReportBuilderV21 → validateCognitiveReportV21
+//   → (valid only) persist + return cognitive report.
+//
+// Engine diagnosis is AUTHORITATIVE. AI is EXPRESSION ONLY (not invoked here).
+// Invalid report / validation failure → NO DB WRITE.
+// ═══════════════════════════════════════════════════════════════
+
+async function runWorldModelV21TestPreview({ event, openid, ts, db }) {
+  console.log('[V21TestPreview] world_model_v2_1 TEST_PREVIEW request, openid=' + (openid ? 'present' : 'missing'))
+
+  var {
+    resolveV21CognitivePreviewAuthority,
+  } = require('./lib/config/v21CognitivePreviewMode')
+  var { validateCanonicalAnswersV21 } = require('./lib/engine/worldModel/v2_1/canonicalAnswerValidatorV21')
+  var { assessResponseValidityV21 } = require('./lib/engine/worldModel/v2_1/responseValidityV21')
+  var { runCognitionChainV21 } = require('./lib/engine/worldModel/v2_1/runtimeShadowAdapterV21')
+  var { runCognitiveReportBuilderV21 } = require('./lib/engine/worldModel/v2_1/cognitiveReportBuilderV21')
+  var { validateCognitiveReportV21 } = require('./lib/engine/worldModel/v2_1/cognitiveReportContractV21')
+
+  // ── 1. TRUSTED server-side preview authority (fail-closed) ──────────────
+  var authority = null
+  try {
+    authority = resolveV21CognitivePreviewAuthority(openid)
+  } catch (e) {
+    console.error('[V21TestPreview] authority exception:', (e && e.message) || e)
+    authority = { enabled: false, authorized: false, reason: 'AUTHORITY_EXCEPTION' }
+  }
+
+  if (!authority || !authority.enabled || !authority.authorized) {
+    // REJECT: client string alone cannot enable preview. No shadow/OFF/V1/V4
+    // fallback — explicit preview-unavailable response.
+    return ok({
+      reportId: null,
+      reportType: 'diagnostic_v2_1',
+      diagnosticVersion: 'world_model_v2_1',
+      engineAuthority: 'WORLD_MODEL_V2_1_ENGINE',
+      mode: 'TEST_PREVIEW_ONLY',
+      renderSource: 'v2_1_test_preview',
+      v21PrimaryActive: false,
+      previewAvailable: false,
+      previewRejected: true,
+      previewReason: (authority && authority.reason) || 'PREVIEW_DISABLED',
+      message: 'world_model_v2_1 认知预览未开放',
+    })
+  }
+
+  // ── 2. STRICT canonical 18/18 validation (fail-closed) ─────────────────
+  var responses = event.answers
+  if (!Array.isArray(responses)) responses = event.v21Answers || null
+  if (!Array.isArray(responses)) responses = []
+
+  var canonical = validateCanonicalAnswersV21(responses)
+  if (!canonical.ok) {
+    // 17/18, duplicate, unknown questionId, invalid optionId, invalid
+    // displayPosition, missing questionId → all REJECT. No UNKNOWN-dimension
+    // continuation, no DB write.
+    return ok({
+      reportId: null,
+      reportType: 'diagnostic_v2_1',
+      diagnosticVersion: 'world_model_v2_1',
+      engineAuthority: 'WORLD_MODEL_V2_1_ENGINE',
+      mode: 'TEST_PREVIEW_ONLY',
+      renderSource: 'v2_1_test_preview',
+      v21PrimaryActive: false,
+      previewAvailable: true,
+      inputRejected: true,
+      inputErrors: canonical.errors,
+      message: '回答不完整或无效，无法生成认知报告',
+    })
+  }
+
+  // ── 3. Response-validity gate (frozen shadow layer) ─────────────────────
+  var validityResult = null
+  try {
+    validityResult = assessResponseValidityV21(responses)
+  } catch (e) {
+    console.error('[V21TestPreview] validity exception:', (e && e.message) || e)
+    validityResult = { status: 'INSUFFICIENT_RESPONSE_QUALITY', reasons: ['VALIDITY_EXCEPTION'] }
+  }
+
+  // ── 4. Canonical V2.1 cognition chain (only when RESPONSE_VALID) ────────
+  var cognition = null
+  if (validityResult && validityResult.status === 'RESPONSE_VALID') {
+    try {
+      cognition = runCognitionChainV21(responses)
+    } catch (e) {
+      console.error('[V21TestPreview] cognition exception:', (e && e.message) || e)
+      cognition = null
+    }
+  }
+
+  // ── 5. Deterministic report build (never throws) ────────────────────────
+  var report = null
+  try {
+    report = runCognitiveReportBuilderV21({ responses, validityResult, cognition })
+  } catch (e) {
+    console.error('[V21TestPreview] report build exception:', (e && e.message) || e)
+    report = null
+  }
+
+  var validation = report ? validateCognitiveReportV21(report) : null
+  var reportValid = !!(report && validation && validation.valid)
+  if (report && !reportValid) {
+    console.error('[V21TestPreview] report contract invalid:', JSON.stringify(validation))
+  }
+
+  // ── 6. Persist ONLY when valid (authority + input + contract all pass) ──
+  // Request key is deterministic over the canonical answer trace (order-
+  // independent) + openid, giving cheap idempotency against accidental double
+  // submission without a schema migration: if a record with the same requestKey
+  // already exists, we skip the write (no duplicate preview rows).
+  var requestKey = null
+  var persisted = false
+  var idempotentDeduped = false
+  if (reportValid && db && typeof db.collection === 'function') {
+    var requestKeyStr = ''
+    try {
+      requestKeyStr = String(openid || '') + ':' + (report.inputHash || '')
+      const crypto = require('crypto')
+      requestKey = 'v21_prev_' + crypto.createHash('sha256').update(requestKeyStr).digest('hex').substring(0, 32)
+    } catch (e) {
+      requestKey = null
+    }
+
+    // Idempotency check: skip write if an identical preview request already exists.
+    var existing = null
+    if (requestKey) {
+      try {
+        const dup = await db.collection('ai_reports')
+          .where({ requestKey })
+          .limit(1)
+          .get()
+        existing = dup && dup.data && dup.data[0] ? dup.data[0] : null
+      } catch (e) {
+        existing = null // dedup check failure must not block report display
+      }
+    }
+    if (existing) {
+      idempotentDeduped = true
+      console.log('[V21TestPreview] duplicate preview request deduped (requestKey=' + requestKey + ')')
+    } else {
+      try {
+        await db.collection('ai_reports').add({
+          data: {
+            openid: openid || null,
+            type: 'diagnostic_v2_1_test_preview',
+            recordType: 'diagnostic_v2_1_test_preview',
+            diagnosticVersion: 'world_model_v2_1',
+            mode: 'TEST_PREVIEW_ONLY',
+            accessTier: 'FREE_COGNITIVE_PREVIEW',
+            requestKey: requestKey,
+            reportValid: true,
+            contractValidation: { valid: true, errors: [], forbiddenHits: validation ? validation.forbiddenHits : [] },
+            cognitiveReportV21: report,
+            createdAt: ts,
+            updatedAt: ts,
+          },
+        })
+        persisted = true
+      } catch (e) {
+        // Persistence failure may fail-open for report display (preview has no
+        // payment entitlement), but it is explicit and never fabricates data.
+        console.error('[V21TestPreview] record persist failed:', (e && e.message) || e)
+      }
+    }
+  }
+
+  return ok({
+    reportId: event.reportId || null,
+    reportType: 'diagnostic_v2_1',
+    diagnosticVersion: 'world_model_v2_1',
+    engineAuthority: 'WORLD_MODEL_V2_1_ENGINE',
+    mode: 'TEST_PREVIEW_ONLY',
+    accessTier: 'FREE_COGNITIVE_PREVIEW',
+    renderSource: 'v2_1_test_preview',
+    v21PrimaryActive: false,
+    previewAvailable: true,
+    previewRejected: false,
+    inputRejected: false,
+    reportValid: reportValid,
+    persisted: persisted,
+    idempotentDeduped: idempotentDeduped,
+    requestKey: requestKey,
+    contractValidation: validation ? { valid: validation.valid, errors: validation.errors, forbiddenHits: validation.forbiddenHits } : null,
+    report: report,
   })
 }
 

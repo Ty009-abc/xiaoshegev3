@@ -1,0 +1,69 @@
+<!--
+  pages/v21-cognitive-report/v21-cognitive-report.wxml
+  RC8.3 Stage1B R3 — V2.1 认知报告渲染（TEST_PREVIEW_ONLY）
+-->
+<view class="page">
+
+  <view wx:if="{{loading}}" class="state">加载中…</view>
+  <view wx:elif="{{error}}" class="state">{{error}}</view>
+
+  <block wx:else>
+    <!-- 标题 -->
+    <view class="header">
+      <text class="badge">认知测评 · 预览</text>
+      <text class="title">认知世界模型报告</text>
+      <text class="subtitle">引擎诊断：WORLD_MODEL_V2_1_ENGINE</text>
+    </view>
+
+    <!-- 核心表达（确定性，条件语言，非预测） -->
+    <view class="card">
+      <text class="card-title">核心发现</text>
+      <text class="expression">{{expression}}</text>
+    </view>
+
+    <!-- 认知盲区 -->
+    <view class="card" wx:if="{{blindSpot}}">
+      <text class="card-title">主要认知盲区</text>
+      <text class="main">{{blindSpot.label}}</text>
+      <text class="reason">{{blindSpot.questionAnswered}}</text>
+    </view>
+
+    <view class="card" wx:if="{{verdict && verdict.status === 'NO_PRIMARY_DEFICIT'}}">
+      <text class="card-title">结论</text>
+      <text class="main">未发现明确的主要认知盲区</text>
+    </view>
+
+    <!-- 认知升级策略 -->
+    <view class="card" wx:if="{{strategy}}">
+      <text class="card-title">认知升级策略</text>
+      <text class="main">{{strategy.label}}</text>
+      <text class="reason">{{strategy.mechanism}}</text>
+    </view>
+
+    <!-- 认知原型（描述性，非经济含义） -->
+    <view class="card" wx:if="{{archetype}}">
+      <text class="card-title">认知原型</text>
+      <text class="main">{{archetype.label}}</text>
+      <text class="reason">{{archetype.description}}</text>
+    </view>
+
+    <!-- 世界模型 9 维度（分类状态，非数值评分） -->
+    <view class="card" wx:if="{{worldModel}}">
+      <text class="card-title">世界模型维度</text>
+      <view class="dim" wx:for="{{worldModel.dimensions}}" wx:key="construct">
+        <text class="dim-construct">{{item.construct}}</text>
+        <text class="dim-state">{{item.orientation}} · {{item.state}}</text>
+      </view>
+    </view>
+
+    <!-- 场景推演（条件语言，非预测） -->
+    <view class="card" wx:if="{{scenario && scenario.currentModelScenario}}">
+      <text class="card-title">情景推演（条件性，非预测）</text>
+      <text class="reason">当前模式下的可能后果：</text>
+      <text wx:for="{{scenario.currentModelScenario.possibleConsequences}}" wx:key="*this" class="li">· {{item}}</text>
+    </view>
+
+    <button class="back" bindtap="onBack">返回</button>
+  </block>
+
+</view>

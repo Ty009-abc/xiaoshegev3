@@ -97,7 +97,9 @@ test('HOME: navigation intents (goStrategy/goChallenge/goMembership/goAIChat)', 
   assert.ok(nav.some(c => c.type === 'switchTab' && c.url.includes('challenge-start')))
   assert.ok(nav.some(c => c.type === 'navigateTo' && c.url.includes('membership')))
   assert.ok(nav.some(c => c.type === 'switchTab' && c.url.includes('ai-chat')))
-  assert.ok(nav.some(c => c.type === 'navigateTo' && c.url.includes('challenge-play?mode=diagnostic')))
+  // RC8.3 Stage1B R3.1: main CTA now enters 18Q V2.1 questionnaire, not 10Q.
+  assert.ok(nav.some(c => c.type === 'navigateTo' && c.url.includes('v21-questionnaire')))
+  assert.ok(!nav.some(c => c.type === 'navigateTo' && c.url.includes('challenge-play?mode=diagnostic')))
   assert.strictEqual(harness.data.strategyLoading, false)
 })
 

@@ -49,8 +49,8 @@ Page({
   async goStrategy() {
     analytics.track('strategy_start')
     this.setData({ strategyLoading: true })
-    // 诊断模式直接跳转 challenge-play，无需先调 startChallenge
-    wx.navigateTo({ url:'/pages/challenge-play/challenge-play?mode=diagnostic' })
+    // RC8.3 Stage1B R3.1：主 CTA “开始翻身策略” 直接进入 18 题 V2.1 认知问卷。
+    wx.navigateTo({ url:'/pages/v21-questionnaire/v21-questionnaire' })
     this.setData({ strategyLoading: false })
   },
 
