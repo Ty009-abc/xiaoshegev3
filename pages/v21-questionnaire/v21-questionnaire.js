@@ -36,11 +36,26 @@ Page({
     submitting: false,
     submitted: false,
     error: '',
+    totalNavHeight: 0,      // 自定义导航下的状态栏+胶囊区安全高度（px，运行时测量）
   },
 
   onLoad() {
     this._sessionAnswers = {}
     this._submitted = false
+    this._initNavBar()
+  },
+
+  // ── 自定义导航安全区（仅布局，不改任何答题逻辑）────────────────────────
+  _initNavBar() {
+    try {
+      const s = (typeof wx.getWindowInfo === 'function') ? wx.getWindowInfo() : wx.getSystemInfoSync()
+      const m = wx.getMenuButtonBoundingClientRect()
+      const sbh = s.statusBarHeight || 0
+      const nbh = (m.top - sbh) * 2 + m.height
+      this.setData({ totalNavHeight: sbh + nbh })
+    } catch (_) {
+      this.setData({ totalNavHeight: 88 })
+    }
   },
 
   onUnload() {

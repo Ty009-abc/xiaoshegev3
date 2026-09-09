@@ -4,6 +4,9 @@
 -->
 <view class="page">
 
+  <!-- 自定义导航安全区：避免内容顶到状态栏/胶囊区（仅布局，不影响答题） -->
+  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
+
   <!-- 未开始 -->
   <view wx:if="{{!started}}" class="intro">
     <view class="title">认知世界模型测评</view>

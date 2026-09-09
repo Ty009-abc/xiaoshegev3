@@ -1,12 +1,23 @@
 .page {
   min-height: 100vh;
   background: #f4f5f7;
-  padding: 40rpx;
+  padding: 0 40rpx 40rpx;
   box-sizing: border-box;
+  /* 底部安全区（全面屏 home indicator） */
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom, 0rpx));
+}
+
+/* 自定义导航安全区占位：高度由 JS 运行时测量（状态栏+胶囊区），
+   仅用于把内容推到胶囊下方，不参与答题逻辑 */
+.nav-safe {
+  width: 100%;
+  flex-shrink: 0;
+  /* 胶囊下方的小额安全视觉间距 */
+  margin-bottom: 20rpx;
 }
 
 .intro, .result {
-  padding-top: 120rpx;
+  padding-top: 40rpx;
 }
 
 .title {
@@ -102,6 +113,13 @@
 
 .nav button {
   flex: 1;
+}
+
+/* 上一题禁用态：明确可辨（仅视觉，不改导航逻辑） */
+.nav button[disabled] {
+  background: #eceef3;
+  color: #b5b9c5;
+  opacity: 1;
 }
 
 .result-error {
