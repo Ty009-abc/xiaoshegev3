@@ -222,31 +222,122 @@ function buildFinalVerdictV21(decision, blindSpot, validityStatus) {
 }
 
 /**
+ * MULTIPLE_SUPPORTED_MODELS user-facing expression (§3).
+ *
+ * The questionnaire evidence is VALID and SEVERAL cognitive models are
+ * simultaneously STRONG. The engine intentionally refuses to invent a unique
+ * primary. This MUST NOT claim "回答不足" and MUST NOT advise retaking the
+ * same 18 questions.
+ */
+function buildMultiModelExpressionV21() {
+  return (
+    '你的问题不是没有暴露出来，而是同时暴露得太多。' +
+    '本次回答中，多个认知维度同时出现明显偏差，系统识别到多条相互竞争的盲区路径，' +
+    '因此没有武断地把其中一个定义为你的唯一主因。' +
+    '这意味着当前更值得关注的，不是寻找一个简单标签，而是这些认知偏差如何彼此强化。'
+  )
+}
+
+/**
+ * Deterministic multi-model summary (§4).
+ *
+ * When primaryBlindSpotId is null because of MULTIPLE_SUPPORTED_MODELS, expose
+ * the already-existing engine truth (eligible candidates) as a deterministic,
+ * non-ranked list. Ordering derives from decision.trace (already sorted by
+ * construct in decidePrimaryV21) — NO AI ranking, NO fabricated primary.
+ * Returns null for every other reasonCode/state.
+ */
+function buildMultiModelSummaryV21(decision, dimensions) {
+  const reasonCode = decision && decision.reasonCode
+  if (reasonCode !== 'MULTIPLE_SUPPORTED_MODELS') return null
+
+  const trace = decision && Array.isArray(decision.trace) ? decision.trace : []
+  const dims = Array.isArray(dimensions) ? dimensions : []
+
+  const models = trace
+    .filter((t) => t && t.eligible === true)
+    .map((t) => {
+      const def = BLIND_SPOT_DEFINITIONS[t.blindSpotId] || {}
+      const dim = dims.find((d) => d && d.construct === t.construct) || {}
+      return {
+        construct: t.construct,
+        blindSpotId: t.blindSpotId,
+        label: def.label || t.blindSpotId,
+        questionAnswered: def.questionAnswered || '',
+        dimensionState: dim.state || t.dimensionState || 'UNKNOWN',
+      }
+    })
+
+  return {
+    state: 'MULTIPLE_SUPPORTED_MODELS',
+    reasonCode: 'MULTIPLE_SUPPORTED_MODELS',
+    supportedModelCount: models.length,
+    models,
+  }
+}
+
+/**
  * Deterministic fallback expression. Conditional language only — no income,
  * no probability, no fate/destiny, no guaranteed outcome.
+ *
+ * State semantics (§2): branches on the verdict REASON CODE, not merely on
+ * blindSpot null, so MULTIPLE_SUPPORTED_MODELS is never conflated with true
+ * evidence insufficiency.
  */
 function buildDeterministicExpressionV21(blindSpot, strategy, verdict) {
   const status = verdict ? verdict.status : 'NOT_EXECUTED'
+  const reasonCode = verdict ? verdict.reasonCode : null
 
-  if (!blindSpot) {
-    if (status === 'NO_PRIMARY_DEFICIT') {
-      return '当前证据未发现明确的主要认知盲区。你在被测量的认知维度上没有出现一致性的扭曲模式。这描述的是当前回答所反映的认知结构，不是对你未来结果的判断。'
-    }
+  // D. Unique primary blind spot → normal primary expression.
+  if (blindSpot) {
+    const strategyLabel = strategy ? strategy.label : '（暂无对应策略）'
+    const strategyMechanism = strategy && strategy.mechanism ? strategy.mechanism : ''
+
+    return (
+      '本次诊断识别出的主要认知盲区是「' + blindSpot.label + '」。' +
+      '它描述的是：' + (blindSpot.questionAnswered || blindSpot.mechanism || '一个当前认知结构中难以被自己察觉的结构性缺口') + '。' +
+      '对应的认知升级策略是「' + strategyLabel + '」' +
+      (strategyMechanism ? '：' + strategyMechanism : '') + '。' +
+      '需要说明的是：这描述的是你当前的认知结构，而不是对你未来结果的预测。' +
+      '认知升级能否带来改变，取决于执行的一致性、外部反馈和外部环境；' +
+      '它不会保证任何特定结果，但会改变你在面对同类情境时可用的决策选项。'
+    )
+  }
+
+  // A. MULTIPLE_SUPPORTED_MODELS — several competing models, NOT insufficient.
+  if (reasonCode === 'MULTIPLE_SUPPORTED_MODELS') {
+    return buildMultiModelExpressionV21()
+  }
+
+  // C. NO_PRIMARY_DEFICIT.
+  if (reasonCode === 'NO_SUPPORTED_DEFICIT' || status === 'NO_PRIMARY_DEFICIT') {
+    return '当前证据未发现明确的主要认知盲区。你在被测量的认知维度上没有出现一致性的扭曲模式。这描述的是当前回答所反映的认知结构，不是对你未来结果的判断。'
+  }
+
+  // Contradictory evidence — signals conflict, not simply insufficient.
+  if (reasonCode === 'CONTRADICTORY_EVIDENCE') {
+    return '本次回答中，部分认知维度出现了相互矛盾的信号，系统暂无法确定一致的主要认知盲区。这描述的是当前回答所反映的认知结构，不是对你未来结果的判断。'
+  }
+
+  // Follow-up required — two relevant candidates compete; NOT evidence shortage.
+  if (reasonCode === 'FOLLOWUP_RELEVANT_PAIR' || status === 'FOLLOW_UP_REQUIRED') {
+    return '本次诊断识别出两个相互关联、且都具备较强证据的认知盲区，系统需要进一步辨析才能确定主因。这描述的是当前回答所反映的认知结构，不是对你未来结果的判断。'
+  }
+
+  // Validity blocked → no cognition executed (not an evidence verdict).
+  if (reasonCode === 'BLOCKED_BY_RESPONSE_VALIDITY' || status === 'NOT_EXECUTED') {
+    return '本次提交未能通过回答有效性校验，系统未执行认知诊断。'
+  }
+
+  // B. Actual insufficient directional evidence — the ONLY branch allowed to
+  //    claim "回答不足" / advise retaking (gated by explicit reasonCode).
+  if (reasonCode === 'INSUFFICIENT_DIRECTIONAL_EVIDENCE') {
     return '当前回答不足以形成可靠的认知诊断，系统未识别出明确的主要认知盲区。建议在稳定状态下重新完成 18 题问卷，以获得更充分的证据。'
   }
 
-  const strategyLabel = strategy ? strategy.label : '（暂无对应策略）'
-  const strategyMechanism = strategy && strategy.mechanism ? strategy.mechanism : ''
-
-  return (
-    '本次诊断识别出的主要认知盲区是「' + blindSpot.label + '」。' +
-    '它描述的是：' + (blindSpot.questionAnswered || blindSpot.mechanism || '一个当前认知结构中难以被自己察觉的结构性缺口') + '。' +
-    '对应的认知升级策略是「' + strategyLabel + '」' +
-    (strategyMechanism ? '：' + strategyMechanism : '') + '。' +
-    '需要说明的是：这描述的是你当前的认知结构，而不是对你未来结果的预测。' +
-    '认知升级能否带来改变，取决于执行的一致性、外部反馈和外部环境；' +
-    '它不会保证任何特定结果，但会改变你在面对同类情境时可用的决策选项。'
-  )
+  // Defensive fallback for any unhandled reasonCode: neutral, never claims
+  // insufficiency and never advises retaking.
+  return '系统已完成认知分析，但当前证据暂无法确定唯一的主要认知盲区。这描述的是当前回答所反映的认知结构，不是对你未来结果的判断。'
 }
 
 /**
@@ -276,6 +367,7 @@ function runCognitiveReportBuilderV21({ responses, validityResult, cognition }) 
   const archetype = buildCognitiveArchetypeV21(blindSpot)
   const scenarioSimulation = buildScenarioSimulationV21(blindSpot, strategy, worldModel.dimensions)
   const finalVerdict = buildFinalVerdictV21(decision, blindSpot, validityStatus)
+  const multiModelSummary = buildMultiModelSummaryV21(decision, worldModel.dimensions)
   const expression = buildDeterministicExpressionV21(blindSpot, strategy, finalVerdict)
 
   const trace = {
@@ -327,6 +419,7 @@ function runCognitiveReportBuilderV21({ responses, validityResult, cognition }) 
     cognitiveBlindSpot: blindSpot,
     worldStrategy: strategy,
     scenarioSimulation,
+    multiModelSummary,
     trace,
     finalVerdict,
     expression,
@@ -343,6 +436,8 @@ module.exports = {
   buildCognitiveArchetypeV21,
   buildScenarioSimulationV21,
   buildFinalVerdictV21,
+  buildMultiModelExpressionV21,
+  buildMultiModelSummaryV21,
   buildDeterministicExpressionV21,
   runCognitiveReportBuilderV21,
 }
