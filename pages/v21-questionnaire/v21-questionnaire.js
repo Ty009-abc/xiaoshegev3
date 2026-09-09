@@ -172,7 +172,15 @@ Page({
         app.globalData.v21CognitiveReport = report
         wx.navigateTo({ url: '/pages/v21-cognitive-report/v21-cognitive-report' })
       } else {
-        this.setData({ error: (result && result.message) || '未返回认知报告' })
+        // R4.2: 业务错误优先。服务端失败时业务 message 位于 result.data.message
+        //（信封 result.message 恒为 'success'，不可作为错误文案）。
+        const inputErrors = data && Array.isArray(data.inputErrors) ? data.inputErrors : []
+        const businessMsg =
+          (data && typeof data.message === 'string' && data.message) ||
+          (inputErrors.length > 0 ? ('回答校验未通过: ' + inputErrors.join('、')) : '') ||
+          (result && typeof result.message === 'string' && result.message !== 'success' ? result.message : '') ||
+          '未返回认知报告'
+        this.setData({ error: businessMsg })
       }
     }).catch((err) => {
       this.setData({

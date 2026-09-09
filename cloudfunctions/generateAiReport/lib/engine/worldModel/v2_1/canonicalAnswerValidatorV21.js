@@ -17,7 +17,11 @@
  *   - no unknown questionId
  *   - optionId is a valid optionId for that question
  *   - displayPosition is an integer in [0, options.length-1]
- *   - displayPosition maps back to the submitted optionId (position↔optionId consistent)
+ *
+ * optionId is the SOLE option-identity authority. displayPosition is the
+ * CLIENT RENDER POSITION after option shuffle (identity authority = NO); the
+ * server does NOT possess the shuffle permutation and MUST NOT assert
+ * canonicalOptionAt(displayPosition) === optionId.
  *
  * Does NOT perform cognition, does NOT mutate shadow semantics, does NOT
  * produce UNKNOWN dimensions. Pure and deterministic.
@@ -89,11 +93,10 @@ function validateCanonicalAnswersV21(answers) {
       errors.push('OUT_OF_RANGE_DISPLAY_POSITION:' + questionId)
       continue
     }
-    const atPos = q.options[displayPosition]
-    if (!atPos || atPos.optionId !== optionId) {
-      errors.push('POSITION_OPTION_MISMATCH:' + questionId)
-      continue
-    }
+    // NOTE (R4.2): displayPosition is the CLIENT RENDER POSITION after option
+    // shuffle. The server does NOT possess the client shuffle permutation, so
+    // it MUST NOT assert canonicalOptionAt(displayPosition) === optionId.
+    // optionId remains the sole option-identity authority.
   }
 
   // No missing questionId (after the loop).
