@@ -34,6 +34,9 @@
 const {
   getBlindSpotVerdict,
   getBlindSpotCurrentModel,
+  getBlindSpotLabel,
+  getMultipleStateCopy,
+  getMultipleObservation,
   getWorldRuleStatement,
   getWorldRuleConsequence,
   getWorldRuleMechanism,
@@ -67,7 +70,16 @@ function section(id, title, summary, body, sourceRefs) {
 // ── 01 COGNITIVE_VERDICT ──────────────────────────────────────────────────
 function buildVerdictSection(pm) {
   const primary = pm.primaryDiagnosis
-  if (!primary) return section('01_COGNITIVE_VERDICT', '核心发现', '本次未得出唯一的核心认知发现。', null, ['presentation.diagnosisState'])
+  if (!primary) {
+    const reasonCode = pm.diagnosisState && pm.diagnosisState.reasonCode
+    if (reasonCode === 'MULTIPLE_SUPPORTED_MODELS') {
+      // MULTIPLE is NOT "no conclusion" and NOT insufficient evidence: the
+      // neutral verdict states that two directions are both strongly supported.
+      const mcopy = getMultipleStateCopy()
+      return section('01_COGNITIVE_VERDICT', '核心发现', mcopy.summary, null, ['presentation.diagnosisState'])
+    }
+    return section('01_COGNITIVE_VERDICT', '核心发现', '本次未得出唯一的核心认知发现。', null, ['presentation.diagnosisState'])
+  }
   const blindSpotId = primary.blindSpotId
   const verdict = getBlindSpotVerdict(blindSpotId)
   return section(
@@ -330,6 +342,52 @@ function buildSecondaryContextSection(pm) {
   )
 }
 
+// ── MULTIPLE (multi-direction) report block ─────────────────────────────
+// When two or more cognitive directions are equally well supported
+// (reasonCode MULTIPLE_SUPPORTED_MODELS), the report exposes EACH supported
+// direction with its own evidence. It NEVER fabricates a primary verdict /
+// strategy / world-rule / upgraded-model / scenario. It consumes ONLY
+// pm.multiModelEvidence + pm.diagnosisState (no candidate is inferred).
+function buildMultiModelSection(pm) {
+  const ds = pm.diagnosisState || {}
+  const isMultiple = ds.reasonCode === 'MULTIPLE_SUPPORTED_MODELS'
+  const raw = Array.isArray(pm.multiModelEvidence) ? pm.multiModelEvidence : []
+  const models = raw.map((m) => ({
+    label: getBlindSpotLabel(m.blindSpotId) || '',
+    statement: getBlindSpotCurrentModel(m.blindSpotId) || '',
+    evidence: (Array.isArray(m.rows) ? m.rows : []).map((row, i) => ({
+      order: i + 1,
+      questionMeaning: row.prompt || '',
+      selectedAnswerMeaning: row.answerText || '',
+      whatSignalItShows: row.semanticProposition || '',
+      howItSupportsDiagnosis: '与该方向的模式一致',
+      // provenance-only (never user copy; dropped by the view-model)
+      source: {
+        questionId: row.questionId,
+        optionId: row.optionId,
+        evidenceId: row.evidenceId,
+        signalId: row.behaviorSignalId,
+      },
+    })),
+    observation: getMultipleObservation(m.blindSpotId) || '',
+    source: { blindSpotId: m.blindSpotId, construct: m.construct },
+  }))
+  if (!isMultiple || models.length < 2) return null
+  const mcopy = getMultipleStateCopy()
+  return {
+    uiState: 'MULTIPLE',
+    eyebrow: mcopy.eyebrow,
+    headline: mcopy.headline,
+    summary: mcopy.summary,
+    evidenceHeading: mcopy.evidenceHeading,
+    supportedModels: models,
+    synthesisTitle: mcopy.synthesisTitle,
+    synthesis: mcopy.synthesis,
+    nextObservationTitle: mcopy.nextObservationTitle,
+    source: { reasonCode: ds.reasonCode || null },
+  }
+}
+
 // ── Main entry ────────────────────────────────────────────────────────────
 /**
  * Build the North Star report content model from a presentation model.
@@ -354,11 +412,15 @@ function buildNorthStarReportV21(pm) {
     buildSecondaryContextSection(pm),
   ]
 
-  return {
+  const multiModel = buildMultiModelSection(pm)
+  const report = {
     version: REPORT_VERSION,
     diagnosisState: pm.diagnosisState,
     sections,
   }
+  // Preserve the exact shape for non-MULTIPLE states (byte-identical outputs).
+  if (multiModel) report.multiModel = multiModel
+  return report
 }
 
 module.exports = {
@@ -372,5 +434,6 @@ module.exports = {
   buildProtocolSection,
   buildScenarioSection,
   buildSecondaryContextSection,
+  buildMultiModelSection,
   buildNorthStarReportV21,
 }

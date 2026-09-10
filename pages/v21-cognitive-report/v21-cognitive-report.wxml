@@ -17,6 +17,32 @@
   <view wx:elif="{{error}}" class="state">{{error}}</view>
   <view wx:elif="{{unsupported}}" class="state">报告数据格式不支持，请重新测评</view>
 
+  <!-- MULTIPLE：多个方向并列，各自带证据，不做主次排序，不伪造主因 -->
+  <block wx:elif="{{uiState === 'MULTIPLE'}}">
+    <view class="hero">
+      <text class="hero-eyebrow">{{multiple.eyebrow}}</text>
+      <text class="hero-verdict">{{multiple.headline}}</text>
+    </view>
+
+    <view class="card" wx:for="{{multiple.supportedModels}}" wx:for-item="model" wx:key="label">
+      <text class="card-title">{{model.label}}</text>
+      <text class="card-body" wx:if="{{model.statement}}">{{model.statement}}</text>
+      <view class="evidence-item" wx:for="{{model.evidence}}" wx:for-item="ev" wx:key="order">
+        <text class="evidence-q">{{ev.questionMeaning}}</text>
+        <text class="evidence-answer">你的选择：{{ev.selectedAnswerMeaning}}</text>
+        <text class="evidence-signal">暴露出的模式：{{ev.whatSignalItShows}}</text>
+      </view>
+      <text class="why-matters-text" wx:if="{{model.observation}}">{{model.observation}}</text>
+    </view>
+
+    <view class="card">
+      <text class="card-title">{{multiple.synthesisTitle}}</text>
+      <text class="card-body">{{multiple.synthesis}}</text>
+    </view>
+
+    <button class="back" bindtap="onBack">返回</button>
+  </block>
+
   <!-- 非 UNIQUE 中性状态：只显示状态文案，不渲染诊断内容 -->
   <view wx:elif="{{!hasPrimary}}" class="state-block">
     <text class="state-title">认知诊断</text>

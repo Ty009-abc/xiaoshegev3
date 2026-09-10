@@ -36,12 +36,18 @@ const ROOT = path.resolve(__dirname, '..')
 const INDEX_REL = 'cloudfunctions/generateAiReport/index.js'
 const FN_DIR = path.join(ROOT, 'cloudfunctions/generateAiReport')
 
+// Immutable F1 "before" reference. The pre-F1 source cannot be read from `HEAD`
+// (once F1 is committed, HEAD *is* the after-state, making a HEAD-relative
+// before-state self-referential). Anchor to the F1 parent SHA instead.
+const F1_PARENT_SHA = '95467fc9df196a5802a6aaeb5a94c723b220cfec'
+const F1_RUNTIME_WIRING_SHA = 'edcc27384ccbf43162d8c3463d8f98cce3b435ff'
+
 const { QUESTIONS_V21, CONSTRUCTS_V21 } = require('../cloudfunctions/generateAiReport/lib/engine/worldModel/v2_1/questionnaireV21.js')
 const reportBuilder = require('../cloudfunctions/generateAiReport/lib/presentation/worldModel/v2_1/report/index.js')
 const viewModel = require('../utils/northStarReportViewModel.js')
 const GOLDEN = require('./fixtures/reportGoldenV21.js')
 
-const BASE_INDEX = execSync('git show HEAD:' + INDEX_REL, { cwd: ROOT, encoding: 'utf8' })
+const BASE_INDEX = execSync('git show ' + F1_PARENT_SHA + ':' + INDEX_REL, { cwd: ROOT, encoding: 'utf8' })
 
 // ═══════════════════════════════════════════════════════════════
 // Fixtures (engine-identical to Stage1C-B/C/D)
@@ -400,7 +406,10 @@ test('§11 W6 silent fallback on build failure → caught', async () => {
 // §10 — file scope
 // ═══════════════════════════════════════════════════════════════
 test('§10 PRODUCTION_FILES_CHANGED = 1 (only index.js)', () => {
-  const out = execSync('git diff --name-only HEAD -- cloudfunctions pages utils app.js app.json', { cwd: ROOT, encoding: 'utf8' })
+  // Durable F1 scope assertion: the F1 exception commit may touch exactly one
+  // production file (index.js). Assert the immutable F1 commit range, not the
+  // live working tree (F2-M1 legitimately extends Stage1C-C/D files later).
+  const out = execSync('git diff --name-only ' + F1_PARENT_SHA + '..' + F1_RUNTIME_WIRING_SHA + ' -- cloudfunctions pages utils app.js app.json', { cwd: ROOT, encoding: 'utf8' })
     .split('\n').filter(Boolean)
   assert.deepStrictEqual(out, [INDEX_REL], 'only the authorized runtime file may change')
 })

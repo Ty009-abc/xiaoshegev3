@@ -127,6 +127,17 @@ function hasCjk(s) {
   return /[\u4e00-\u9fff]/.test(s)
 }
 
+// A user-visible string must not be (or contain) a raw internal SEMANTIC token.
+// UUID-ish evidence/signal ids are provenance, not semantic identity, and are
+// tolerated here (they never render to the user).
+function containsRawSemanticToken(s) {
+  const tokens = RAW_INTERNAL_TOKENS.filter((t) => !t.includes('/') && !/^[a-f0-9]{8}-/.test(t))
+  for (const t of tokens) {
+    if (s === t || s.indexOf(t) !== -1) return t
+  }
+  return null
+}
+
 /**
  * Validate the report content model.
  * @param {object} report  buildNorthStarReportV21 output
@@ -185,6 +196,67 @@ function validateNorthStarReportV21(report) {
     if (hasPrimary) errors.push('FABRICATED_PRIMARY_IN_MULTIPLE')
     if (verdict && verdict.body && verdict.body.blindSpotLabel) {
       errors.push('FABRICATED_PRIMARY_IN_MULTIPLE')
+    }
+
+    // ── §10 MULTIPLE structural + copy validation ──────────────────────────
+    const multi = report.multiModel
+    const eligibleIds = Array.isArray(diagnosisState.eligibleCandidateIds)
+      ? diagnosisState.eligibleCandidateIds
+      : []
+
+    // no fabricated primary strategy / world-rule / scenario for MULTIPLE
+    if (worldRule && worldRule.body && worldRule.body.worldRule) {
+      errors.push('MULTIPLE_WORLD_RULE_FABRICATION')
+    }
+    if (upgrade && upgrade.body && upgrade.body.upgradedModel) {
+      errors.push('MULTIPLE_STRATEGY_FABRICATION')
+    }
+    if (scenario && scenario.body) {
+      errors.push('MULTIPLE_SCENARIO_FABRICATION')
+    }
+    if (protocol && protocol.body && protocol.body.steps && protocol.body.steps.length) {
+      errors.push('MULTIPLE_STRATEGY_FABRICATION')
+    }
+
+    if (!multi || !Array.isArray(multi.supportedModels)) {
+      errors.push('MULTIPLE_MODELS_MISSING')
+    } else {
+      const models = multi.supportedModels
+      if (models.length < 2) errors.push('MULTIPLE_MODELS_INSUFFICIENT')
+      let totalEvidence = 0
+      const seen = new Set()
+      for (const m of models) {
+        const srcBid = m && m.source && m.source.blindSpotId
+        if (!srcBid) { errors.push('MULTIPLE_MODEL_SOURCE_MISSING'); continue }
+        if (eligibleIds.length && !eligibleIds.includes(srcBid)) {
+          errors.push('MULTIPLE_CANDIDATE_NOT_IN_ELIGIBLE:' + srcBid)
+        }
+        if (seen.has(srcBid)) errors.push('MULTIPLE_DUPLICATE_CANDIDATE:' + srcBid)
+        seen.add(srcBid)
+        const ev = Array.isArray(m.evidence) ? m.evidence : []
+        if (ev.length === 0) errors.push('MULTIPLE_MODEL_EVIDENCE_MISSING:' + srcBid)
+        const evSeen = new Set()
+        for (const e of ev) {
+          totalEvidence++
+          const src = e && e.source
+          if (!src || !src.questionId || !src.optionId || !src.evidenceId) {
+            errors.push('MULTIPLE_EVIDENCE_NOT_SOURCE_BACKED:' + srcBid)
+            continue
+          }
+          const key = src.questionId + '|' + src.optionId + '|' + src.evidenceId
+          if (evSeen.has(key)) errors.push('MULTIPLE_DUPLICATE_EVIDENCE:' + srcBid)
+          evSeen.add(key)
+        }
+      }
+      if (totalEvidence === 0) errors.push('MULTIPLE_ALL_EVIDENCE_MISSING')
+    }
+
+    // no false-insufficiency copy + no raw token in user-visible MULTIPLE copy
+    const multiStrings = multi ? collectUserStrings(multi) : []
+    for (const s of multiStrings) {
+      if (/回答不足|证据不足|不足以形成/.test(s)) errors.push('MULTIPLE_FALSE_INSUFFICIENT_COPY')
+      const tok = containsRawSemanticToken(s)
+      if (tok) errors.push('RAW_INTERNAL_TOKEN_IN_USER_COPY:' + tok)
     }
   }
   if (NO_PRIMARY_REASON_CODES.has(reasonCode) && hasPrimary) {

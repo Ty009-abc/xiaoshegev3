@@ -448,7 +448,54 @@ const ARCHETYPE_DESCRIPTION_COPY = Object.freeze({
   OPTIMIZER: '测量、改进、重复，持续优化既有系统。',
 })
 
+// ── §15 BLIND SPOT LABEL (deterministic translation of frozen labels) ─────
+// Keyed by the frozen blindSpotId. Used by the MULTIPLE report path, which has
+// no authoritative primary and therefore no `primaryDiagnosis.blindSpotLabel`.
+const BLIND_SPOT_LABEL_COPY = Object.freeze({
+  OPPORTUNITY_BLINDNESS: '机会盲区',
+  FEEDBACK_LOOP_GAP: '反馈回路断裂',
+  DECISION_INERTIA: '决策惯性',
+  RISK_MODEL_DISTORTION: '风险模型失真',
+  PROBABILITY_MISJUDGMENT: '概率误判',
+  IDENTITY_CONSTRAINT: '身份锁定',
+  LEVERAGE_MODEL_GAP: '杠杆模型缺失',
+  SYSTEM_THINKING_GAP: '系统思维缺失',
+  TIME_HORIZON_TRAP: '时间视野陷阱',
+})
+
+// ── §16 MULTIPLE_SUPPORTED_MODELS (multi-direction, non-ranked) ───────────
+// Deterministic, neutral copy for the MULTIPLE diagnosis state: ≥2 cognitive
+// directions are equally well supported and NONE is an authoritative primary.
+// The report describes each supported direction truthfully and refuses to
+// rank them. All strings are Chinese, neutral, non-predictive, non-wealth.
+const MULTIPLE_STATE_COPY = Object.freeze({
+  eyebrow: '认知诊断',
+  headline: '目前不是没有结论，而是有两个方向都得到了足够的证据支持。',
+  summary: '目前不是没有结论，而是有两个方向都得到了足够的证据支持，这次很难简单分出主次。',
+  evidenceHeading: '支持这个方向的回答',
+  synthesisTitle: '综合结论',
+  synthesis: '当前证据足以确认这两个模式都存在，但还不足以把它们中的某一个指定为唯一主因。',
+  nextObservationTitle: '接下来可以留意什么',
+})
+
+// Per-candidate neutral observation (deterministic, evidence-focused, no winner).
+const MULTIPLE_OBSERVATION_COPY = Object.freeze({
+  DECISION_INERTIA:
+    '留意自己「再等一等、把信息收集得更全再做决定」出现的时机——决定何时不再等待，往往比继续收集信息更能改变结果。',
+  TIME_HORIZON_TRAP:
+    '留意「先处理立刻见效的事」出现的时机——把一件长期才见效、但会持续复利的事，固定安排到不被紧急事务挤占的位置。',
+})
+
 // ── Getters ────────────────────────────────────────────────────────────────
+function getBlindSpotLabel(blindSpotId) {
+  return BLIND_SPOT_LABEL_COPY[blindSpotId] || null
+}
+function getMultipleStateCopy() {
+  return MULTIPLE_STATE_COPY
+}
+function getMultipleObservation(blindSpotId) {
+  return MULTIPLE_OBSERVATION_COPY[blindSpotId] || null
+}
 function getBlindSpotVerdict(blindSpotId) {
   return BLIND_SPOT_VERDICT_COPY[blindSpotId] || null
 }
@@ -512,6 +559,9 @@ module.exports = {
   STRATEGY_REVIEW_WINDOW_COPY,
   SCENARIO_PATTERN_LOCALIZATION,
   ARCHETYPE_DESCRIPTION_COPY,
+  BLIND_SPOT_LABEL_COPY,
+  MULTIPLE_STATE_COPY,
+  MULTIPLE_OBSERVATION_COPY,
   CONSTRUCT_LABEL_COPY,
   ORIENTATION_LABEL_COPY,
   STATE_LABEL_COPY,
@@ -531,4 +581,7 @@ module.exports = {
   getStrategyReviewWindow,
   getScenarioPatternLocalization,
   getArchetypeDescription,
+  getBlindSpotLabel,
+  getMultipleStateCopy,
+  getMultipleObservation,
 }

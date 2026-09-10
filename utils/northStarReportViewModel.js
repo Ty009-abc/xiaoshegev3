@@ -119,6 +119,35 @@ function mapProtocolSteps(steps) {
   }))
 }
 
+// MULTIPLE (multi-direction) block — pure pass-through, provenance dropped.
+// Never branches on blindSpotId; never re-derives diagnosis semantics.
+function mapMultiple(multiModel) {
+  if (!multiModel || !Array.isArray(multiModel.supportedModels)) return null
+  return {
+    eyebrow: multiModel.eyebrow || '',
+    headline: multiModel.headline || '',
+    summary: multiModel.summary || '',
+    evidenceHeading: multiModel.evidenceHeading || '',
+    supportedModels: multiModel.supportedModels.map((m) => ({
+      label: m.label || '',
+      statement: m.statement || '',
+      evidence: Array.isArray(m.evidence)
+        ? m.evidence.map((e) => ({
+            order: e.order || 0,
+            questionMeaning: e.questionMeaning || '',
+            selectedAnswerMeaning: e.selectedAnswerMeaning || '',
+            whatSignalItShows: e.whatSignalItShows || '',
+            howItSupportsDiagnosis: e.howItSupportsDiagnosis || '',
+          }))
+        : [],
+      observation: m.observation || '',
+    })),
+    synthesisTitle: multiModel.synthesisTitle || '',
+    synthesis: multiModel.synthesis || '',
+    nextObservationTitle: multiModel.nextObservationTitle || '',
+  }
+}
+
 function mapFullModelMap(fullModelMap) {
   if (!Array.isArray(fullModelMap)) return []
   // Keep only localized labels; drop source.{construct,orientation,state} raw enums.
@@ -151,7 +180,7 @@ function buildNorthStarReportViewModel(report) {
   // (Body-less "未得出" placeholder sections would mislead — e.g. MULTIPLE is
   // NOT insufficient evidence, BLOCKED must show no diagnosis content at all.)
   if (!hasPrimary) {
-    return {
+    const result = {
       supported: true,
       uiState,
       hasPrimary,
@@ -167,6 +196,9 @@ function buildNorthStarReportViewModel(report) {
       scenario: null,
       secondary: null,
     }
+    // Preserve exact shape for non-MULTIPLE states (byte-identical outputs).
+    if (uiState === UI_STATE.MULTIPLE) result.multiple = mapMultiple(report.multiModel)
+    return result
   }
 
   const verdict = byId(sections, SECTION.VERDICT)
