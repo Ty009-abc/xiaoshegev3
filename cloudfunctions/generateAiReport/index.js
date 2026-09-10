@@ -660,6 +660,9 @@ async function runWorldModelV21TestPreview({ event, openid, ts, db }) {
   var { runCognitionChainV21 } = require('./lib/engine/worldModel/v2_1/runtimeShadowAdapterV21')
   var { runCognitiveReportBuilderV21 } = require('./lib/engine/worldModel/v2_1/cognitiveReportBuilderV21')
   var { validateCognitiveReportV21 } = require('./lib/engine/worldModel/v2_1/cognitiveReportContractV21')
+  // Stage1C-F1: accepted North Star presentation → report pipeline (TEST_PREVIEW only).
+  var { buildNorthStarPresentationModelV21 } = require('./lib/presentation/worldModel/v2_1/index.js')
+  var { buildNorthStarReportV21, validateNorthStarReportV21 } = require('./lib/presentation/worldModel/v2_1/report/index.js')
 
   // ── 1. TRUSTED server-side preview authority (fail-closed) ──────────────
   var authority = null
@@ -748,6 +751,37 @@ async function runWorldModelV21TestPreview({ event, openid, ts, db }) {
     console.error('[V21TestPreview] report contract invalid:', JSON.stringify(validation))
   }
 
+  // ── 5b. North Star report (Stage1C-B/C) — TEST_PREVIEW only ─────────────
+  // Connect the ALREADY-ACCEPTED V2.1 diagnosis to the accepted North Star
+  // presentation → report pipeline. NO new diagnosis logic, NO re-selection of
+  // blind spot / strategy / archetype / world principle / scenario — the
+  // presentation layer consumes the engine result verbatim.
+  var northStarReport = null
+  var northStarValidation = null
+  var northStarValid = false
+  try {
+    var presentationModel = buildNorthStarPresentationModelV21({
+      diagnosis: cognition ? cognition.decision : null,
+      answerTrace: (report && report.trace && report.trace.answerTrace) ? report.trace.answerTrace : [],
+      dimensions: cognition ? cognition.dimensions : null,
+      cognitiveBlindSpot: report ? report.cognitiveBlindSpot : null,
+      worldStrategy: report ? report.worldStrategy : null,
+      cognitiveArchetype: report ? report.cognitiveArchetype : null,
+      scenarioSimulation: report ? report.scenarioSimulation : null,
+      validityStatus: validityResult ? validityResult.status : null,
+    })
+    northStarReport = buildNorthStarReportV21(presentationModel)
+    northStarValidation = validateNorthStarReportV21(northStarReport)
+    northStarValid = !!(northStarValidation && northStarValidation.valid)
+  } catch (e) {
+    console.error('[V21TestPreview] north star build exception:', (e && e.message) || e)
+    northStarReport = null
+    northStarValid = false
+  }
+  if (northStarReport && !northStarValid) {
+    console.error('[V21TestPreview] north star report invalid:', JSON.stringify(northStarValidation))
+  }
+
   // ── 6. Persist ONLY when valid (authority + input + contract all pass) ──
   // Request key is deterministic over the canonical answer trace (order-
   // independent) + openid, giving cheap idempotency against accidental double
@@ -809,10 +843,37 @@ async function runWorldModelV21TestPreview({ event, openid, ts, db }) {
     }
   }
 
+  // FAIL CLOSED: if the accepted engine report OR the North Star report cannot
+  // be built/validated, return EXPLICIT failure semantics. Never fabricate a
+  // North Star report, never silently promote legacy/V4 content as North Star.
+  if (!reportValid || !northStarValid) {
+    return ok({
+      reportId: event.reportId || null,
+      reportType: 'diagnostic_v2_1',
+      diagnosticVersion: 'world_model_v2_1',
+      engineAuthority: 'WORLD_MODEL_V2_1_ENGINE',
+      mode: 'TEST_PREVIEW_ONLY',
+      accessTier: 'FREE_COGNITIVE_PREVIEW',
+      renderSource: 'v2_1_test_preview',
+      v21PrimaryActive: false,
+      previewAvailable: true,
+      previewRejected: false,
+      inputRejected: false,
+      reportValid: false,
+      northStarValid: false,
+      northStarFailure: true,
+      northStarErrors: northStarValidation && Array.isArray(northStarValidation.errors)
+        ? northStarValidation.errors
+        : ['NORTH_STAR_BUILD_FAILED'],
+      message: '认知报告生成失败，请重试',
+    })
+  }
+
   return ok({
     reportId: event.reportId || null,
     reportType: 'diagnostic_v2_1',
     diagnosticVersion: 'world_model_v2_1',
+    version: 'north_star_report_v1',
     engineAuthority: 'WORLD_MODEL_V2_1_ENGINE',
     mode: 'TEST_PREVIEW_ONLY',
     accessTier: 'FREE_COGNITIVE_PREVIEW',
@@ -822,11 +883,13 @@ async function runWorldModelV21TestPreview({ event, openid, ts, db }) {
     previewRejected: false,
     inputRejected: false,
     reportValid: reportValid,
+    northStarValid: true,
     persisted: persisted,
     idempotentDeduped: idempotentDeduped,
     requestKey: requestKey,
     contractValidation: validation ? { valid: validation.valid, errors: validation.errors, forbiddenHits: validation.forbiddenHits } : null,
-    report: report,
+    northStarValidation: northStarValidation ? { valid: northStarValidation.valid, errors: northStarValidation.errors } : null,
+    report: northStarReport,
   })
 }
 
