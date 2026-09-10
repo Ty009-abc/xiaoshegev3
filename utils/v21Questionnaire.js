@@ -27,191 +27,191 @@ const V21_QUESTIONS = [
   // ── DECISION ──
   {
     questionId: 'SC_DEC_01',
-    prompt: "你有个想了一阵子的机会，条件七成成熟但没完全确定。你更可能？",
+    prompt: "有个机会你琢磨挺久了，大概七成把握。你会怎么做？",
     options: [
-      { optionId: 'A', text: '先投一点，试出结果再说' },
-      { optionId: 'B', text: '等更确定再动' },
-      { optionId: 'C', text: '问几个做过的人，他们说行我才敢' },
-      { optionId: 'D', text: '把能想到的风险都列清楚再决定' },
+      { optionId: 'A', text: '先小做一点，边做边看' },
+      { optionId: 'B', text: '再等等，稳一点再上' },
+      { optionId: 'C', text: '问问做过的人，有底了再动' },
+      { optionId: 'D', text: '先把问题都想全，再拍板' },
     ],
   },
   {
     questionId: 'SC_DEC_02',
-    prompt: "有一条可能改变你判断的新信息，但要再多等一天。你更可能？",
+    prompt: "一条新消息可能让你改主意，但要多等一天才拿到。你会怎么做？",
     options: [
-      { optionId: 'A', text: '等，信息值这一天' },
-      { optionId: 'B', text: '不等，先做，边做边看' },
-      { optionId: 'C', text: '没想过信息能改变判断' },
+      { optionId: 'A', text: '等等看，这消息可能有用' },
+      { optionId: 'B', text: '不等，先干起来再说' },
+      { optionId: 'C', text: '定了就不太回头，消息再说' },
     ],
   },
 
   // ── FEEDBACK ──
   {
     questionId: 'SC_FB_01',
-    prompt: "你做的东西被一个你尊重的人否定了，但他的理由你不同意。你更可能？",
+    prompt: "你敬重的人否定了你做的东西，但他给的理由你不太认同。你会怎么做？",
     options: [
-      { optionId: 'A', text: '找他当面问清楚分歧在哪' },
-      { optionId: 'B', text: '先放着，按自己判断继续' },
-      { optionId: 'C', text: '换个更懂行的人再问问' },
-      { optionId: 'D', text: '记下分歧，但继续不改' },
+      { optionId: 'A', text: '当面问他，分歧到底在哪' },
+      { optionId: 'B', text: '先放放，按自己的想法来' },
+      { optionId: 'C', text: '再找个信得过的人问问' },
+      { optionId: 'D', text: '记下来，但先照原计划来' },
     ],
   },
   {
     questionId: 'SC_FB_02',
-    prompt: "你的方案被否了两次，理由各不相同。你更可能认为？",
+    prompt: "你的方案连着被否了两次，两次说的原因还不一样。你怎么想？",
     options: [
-      { optionId: 'A', text: '我的方案有问题，该改' },
-      { optionId: 'B', text: '他们没看懂，我再解释清楚' },
-      { optionId: 'C', text: '意见不统一，听谁的都一样' },
-      { optionId: 'D', text: '各记一条，下次都验证' },
+      { optionId: 'A', text: '可能真有问题，改改看' },
+      { optionId: 'B', text: '他们没看明白，我再说一遍' },
+      { optionId: 'C', text: '说法对不上，先放一放' },
+      { optionId: 'D', text: '先都记下，回头一条条试' },
     ],
   },
 
   // ── PROBABILITY ──
   {
     questionId: 'SC_PROB_01',
-    prompt: "一个朋友创业成功了，劝你也做。你更可能先想？",
+    prompt: "一个朋友创业成了，劝你也一起干。你脑子里先冒出来的是什么？",
     options: [
-      { optionId: 'A', text: '像他这样成功的人里，失败的有多少' },
-      { optionId: 'B', text: '他挺靠谱，值得信' },
-      { optionId: 'C', text: '别人能成我也能' },
-      { optionId: 'D', text: '没想过概率这回事' },
+      { optionId: 'A', text: '干这行的，成的到底有多少' },
+      { optionId: 'B', text: '他趟过路了，跟着干心里有底' },
+      { optionId: 'C', text: '他都能成，我试一把也行' },
+      { optionId: 'D', text: '先不想这些，机会来了先上' },
     ],
   },
   {
     questionId: 'SC_PROB_02',
-    prompt: "你说一件事'八成把握'，如果有人能给你一条可能推翻或增强它的信息，但要花点时间。你更可能？",
+    prompt: "你觉得一件事八成能成。再花点时间，可能查到一条推翻它的消息。你会？",
     options: [
-      { optionId: 'A', text: '值得看，我的八成可能会变' },
-      { optionId: 'B', text: '都八成了，不用再看' },
-      { optionId: 'C', text: "我一般不说'几成'，凭感觉" },
+      { optionId: 'A', text: '查查，说不定我得改主意' },
+      { optionId: 'B', text: '都八成了，不用再折腾' },
+      { optionId: 'C', text: '我不太估几成，差不多就做' },
     ],
   },
 
   // ── RISK ──
   {
     questionId: 'SC_RISK_01',
-    prompt: "一个机会，最坏亏 1000（你能承受），最好赚 1 万。你更可能？",
+    prompt: "眼下有个事，最多亏一千（你亏得起），成了能赚一万。你会怎么做？",
     options: [
-      { optionId: 'A', text: '看赔率和最坏情况再定' },
-      { optionId: 'B', text: "只看到'会亏'，不想碰" },
-      { optionId: 'C', text: "只看到'能赚'，就上了" },
-      { optionId: 'D', text: '没想过最坏和最好' },
+      { optionId: 'A', text: '先看看最坏能亏多少，再定' },
+      { optionId: 'B', text: '想想那一千块，有点不想动' },
+      { optionId: 'C', text: '能赚一万，值得搏一把' },
+      { optionId: 'D', text: '没细看，感觉靠谱就上' },
     ],
   },
   {
     questionId: 'SC_RISK_02',
-    prompt: "一个失败后可退回的决定。'可退回'这一点会不会影响你的选择？",
+    prompt: "有件事，就算做砸了也能收回来。你会怎么决定？",
     options: [
-      { optionId: 'A', text: '会，可逆就敢试' },
-      { optionId: 'B', text: '不会，失败就是失败' },
-      { optionId: 'C', text: '从没区分过可逆不可逆' },
+      { optionId: 'A', text: '能收回来，那就先试试' },
+      { optionId: 'B', text: '做砸了就是砸了，得慎重' },
+      { optionId: 'C', text: '能不能收回，平时没太留意' },
     ],
   },
 
   // ── LEVERAGE ──
   {
     questionId: 'SC_LEV_01',
-    prompt: "你要花一周解决一个会反复出现的问题。你更倾向？",
+    prompt: "有个问题老反复出现，你得花一周处理。你会怎么弄？",
     options: [
-      { optionId: 'A', text: '直接解决这一次' },
-      { optionId: 'B', text: '先做个以后能反复用的方法/工具，哪怕这次慢' },
-      { optionId: 'C', text: '拉几个人分工一起弄' },
-      { optionId: 'D', text: '没想过这区别' },
+      { optionId: 'A', text: '先把这次弄利索' },
+      { optionId: 'B', text: '顺手做个以后能用的' },
+      { optionId: 'C', text: '喊人搭把手一起弄' },
+      { optionId: 'D', text: '还是照老办法来' },
     ],
   },
   {
     questionId: 'SC_LEV_02',
-    prompt: "你的产出，通常更接近？",
+    prompt: "你不盯着的时候，你做的那些事还会往前走吗？",
     options: [
-      { optionId: 'A', text: '我停手它就停' },
-      { optionId: 'B', text: '一部分能被别人/流程接着用' },
-      { optionId: 'C', text: '从没想过放大' },
+      { optionId: 'A', text: '我一停手，它就停了' },
+      { optionId: 'B', text: '有的做完，别人接着还能用' },
+      { optionId: 'C', text: '做完就交差，没再往下接' },
     ],
   },
 
   // ── TIME ──
   {
     questionId: 'SC_TIME_01',
-    prompt: "今天有件事能立刻出结果，还有件事三个月后才见效但能持续。你的时间更倾向？",
+    prompt: "有件事很快出结果；另一件得三个月才见效、好处能一直攒着。你先顾哪件？",
     options: [
-      { optionId: 'A', text: '先做立刻见效的' },
-      { optionId: 'B', text: '给长期的事留固定时间' },
-      { optionId: 'C', text: '忙起来长期的就先搁置' },
+      { optionId: 'A', text: '先顾马上能出结果的那件' },
+      { optionId: 'B', text: '宁可慢点，也给慢的那件留出时间' },
+      { optionId: 'C', text: '平时一忙，慢的那件就排后面了' },
     ],
   },
   {
     questionId: 'SC_TIME_02',
-    prompt: "过去三个月，你在同一件事上持续投入了吗？",
+    prompt: "过去三个月，你有没有一直往同一件事上使劲？",
     options: [
-      { optionId: 'A', text: '一直在同一方向' },
-      { optionId: 'B', text: '换过一两次' },
-      { optionId: 'C', text: '换来换去' },
+      { optionId: 'A', text: '就那一件，一直在弄' },
+      { optionId: 'B', text: '中间换过一两回' },
+      { optionId: 'C', text: '来来回回换了好几次' },
     ],
   },
 
   // ── IDENTITY ──
   {
     questionId: 'SC_ID_01',
-    prompt: "有个机会需要你做一个从没做过、和现在工作无关的事。你第一反应更接近？",
+    prompt: "一个机会，要你做件从没干过、跟现在工作也不沾边的事。你第一反应？",
     options: [
-      { optionId: 'A', text: '我可以学' },
-      { optionId: 'B', text: '这不是我的领域' },
-      { optionId: 'C', text: '我可以找会的人一起' },
-      { optionId: 'D', text: '我可能做不好' },
+      { optionId: 'A', text: '没干过，但可以学' },
+      { optionId: 'B', text: '这活不是我这块的' },
+      { optionId: 'C', text: '找懂行的人一起弄' },
+      { optionId: 'D', text: '心里没底，怕做不好' },
     ],
   },
   {
     questionId: 'SC_ID_02',
-    prompt: "描述你现在能做什么时，你更常从哪个角度说？",
+    prompt: "刚认识的人问你「你擅长什么」，你一般先怎么答？",
     options: [
-      { optionId: 'A', text: '我的职业/岗位' },
-      { optionId: 'B', text: '我具体做过的事' },
-      { optionId: 'C', text: '我学起来挺快' },
-      { optionId: 'D', text: '看对方是谁' },
+      { optionId: 'A', text: '先报一下自己做什么的' },
+      { optionId: 'B', text: '讲一件自己做出过的事' },
+      { optionId: 'C', text: '说自己上手快、能学' },
+      { optionId: 'D', text: '看对面是谁，挑着说' },
     ],
   },
 
   // ── OPPORTUNITY ──
   {
     questionId: 'SC_OPP_01',
-    prompt: "你最近一个新想法，最初是从哪冒出来的？",
+    prompt: "你最近冒出的一个新想法，最早是怎么来的？",
     options: [
-      { optionId: 'A', text: '接触了不同背景的人/信息' },
-      { optionId: 'B', text: '熟悉圈子里' },
-      { optionId: 'C', text: '很久没新想法了' },
-      { optionId: 'D', text: '主要靠等，碰上了才想' },
+      { optionId: 'A', text: '跟圈外的人聊着聊出来的' },
+      { optionId: 'B', text: '熟人圈子里聊出来的' },
+      { optionId: 'C', text: '想不起来最近有啥新想法' },
+      { optionId: 'D', text: '没特意想，碰上了才有' },
     ],
   },
   {
     questionId: 'SC_OPP_02',
-    prompt: "你平时接触的人，多大比例和你背景/行业不同？",
+    prompt: "你平时来往的人里，跟你背景、行业不一样的，多吗？",
     options: [
-      { optionId: 'A', text: '不少' },
-      { optionId: 'B', text: '有一些' },
-      { optionId: 'C', text: '基本同类' },
+      { optionId: 'A', text: '挺多的' },
+      { optionId: 'B', text: '有几个' },
+      { optionId: 'C', text: '基本一个圈子' },
     ],
   },
 
   // ── SYSTEMS ──
   {
     questionId: 'SC_SYS_01',
-    prompt: "一个团队里老出同样的问题，换了几个人还是老样子。你怎么看？",
+    prompt: "团队里总出同样的岔子，人换了好几拨还是老样子。你觉得是咋回事？",
     options: [
-      { optionId: 'A', text: '问题在流程/环境，换人也一样' },
-      { optionId: 'B', text: '是人不行，得找对人' },
-      { optionId: 'C', text: '每次原因都不一样' },
-      { optionId: 'D', text: '没想过' },
+      { optionId: 'A', text: '可能是安排的问题，换谁都差不多' },
+      { optionId: 'B', text: '可能是人不行，换个人看看' },
+      { optionId: 'C', text: '每次情况都不太一样，说不好' },
+      { optionId: 'D', text: '没怎么细想，出了先处理' },
     ],
   },
   {
     questionId: 'SC_SYS_02',
-    prompt: "你的方法在一个场合有效，换到另一个场合失效了。你更可能？",
+    prompt: "你有个方法，在这儿好使，换个地方就不灵了。你会怎么想？",
     options: [
-      { optionId: 'A', text: '场合变了，条件不同' },
-      { optionId: 'B', text: '方法本身有漏洞' },
-      { optionId: 'C', text: '运气成分大' },
-      { optionId: 'D', text: '继续用，多试几次' },
+      { optionId: 'A', text: '水土不服，也正常' },
+      { optionId: 'B', text: '这方法本身有短板' },
+      { optionId: 'C', text: '这次运气差了点' },
+      { optionId: 'D', text: '再多试几次看看' },
     ],
   },
 ]

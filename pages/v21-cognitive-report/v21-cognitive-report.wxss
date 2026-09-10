@@ -473,3 +473,117 @@
   color: #1a1a2e;
   font-weight: 500;
 }
+
+/* ═══ V5-M3 五张独立视觉卡片（首屏 IA）═══════════════════════════════
+   每张卡独立容器 / 间距 / 标题 / 视觉边界；首屏 = Card01 最强 + Card02 起。
+   不裁切内容（safe-area 动态文本要求）。 */
+.card-kicker {
+  display: block;
+  font-size: 24rpx;
+  color: #7f56d9;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  margin-bottom: 16rpx;
+}
+
+.card-01 {
+  border-left: 8rpx solid #7f56d9;
+  padding: 48rpx 36rpx;
+}
+
+/* 01 致命一句话 = 首屏最高视觉层级（最大字号 + 最强对比） */
+.card-01 .hero-verdict {
+  font-size: 42rpx;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.card-section {
+  border: 1rpx solid #ececf2;
+  box-shadow: 0 2rpx 12rpx rgba(31, 41, 55, 0.04);
+}
+
+.card-text {
+  display: block;
+  font-size: 30rpx;
+  line-height: 1.7;
+  color: #1a1a2e;
+}
+
+/* 03 系统困局：5 个因果步骤，逐条 + 下箭头，可扫读 */
+.card-loop .loop-step-text {
+  font-size: 30rpx;
+  color: #1a1a2e;
+}
+
+.card-loop .loop-step-arrow {
+  font-size: 28rpx;
+  color: #f0a020;
+  padding: 4rpx 0;
+}
+
+/* 04 翻身路径：现在 → 以后 对比框，上下分离不拥挤 */
+.upgrade-now {
+  background: #fafafc;
+  border-radius: 12rpx;
+  padding: 20rpx;
+}
+
+.upgrade-next {
+  background: #f5f3ff;
+  border-radius: 12rpx;
+  padding: 20rpx;
+}
+
+.upgrade-cell-label {
+  display: block;
+  font-size: 22rpx;
+  color: #8a90a6;
+  font-weight: 600;
+  margin-bottom: 8rpx;
+}
+
+.upgrade-cell-text {
+  display: block;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #1a1a2e;
+}
+
+/* 05 现在就做：1 个主行动最醒目，支持项弱化 */
+.first-action {
+  padding: 24rpx;
+  background: #f5f3ff;
+  border-left: 6rpx solid #7f56d9;
+  border-radius: 12rpx;
+}
+
+.first-action-tag {
+  display: inline-block;
+  font-size: 22rpx;
+  color: #fff;
+  background: #7f56d9;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  margin-bottom: 12rpx;
+}
+
+.first-action-text {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #1a1a2e;
+}
+
+.support-list {
+  margin-top: 18rpx;
+}
+
+.support-li {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: #5a6078;
+  margin-top: 6rpx;
+}

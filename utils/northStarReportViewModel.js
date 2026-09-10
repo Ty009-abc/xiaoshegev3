@@ -58,8 +58,11 @@ const IMPACT_TITLE = {
   FATAL_INSIGHT: '致命一句话',
   CORE_PROBLEM: '核心问题',
   SYSTEM_TRAP: '系统困局',
-  UPGRADE_PATH: '模型升级',
-  ACTION_PLAN: '行动建议',
+  // M3 IA: user-facing Card 04 is 翻身路径 (NOT the internal 模型升级 name);
+  // the internal field stays `upgradePath`.
+  UPGRADE_PATH: '翻身路径',
+  // M3 IA: Card 05 is 现在就做 (one dominant first action + ≤3 supporting).
+  ACTION_PLAN: '现在就做',
   EVIDENCE: '支持这个判断的回答',
   LAYER2: '为什么系统这样判断我',
   LAYER2_HINT: '展开查看完整证据与推理链条',
@@ -180,11 +183,17 @@ function mapImpactSummary(report) {
   if (!is) return null
   const preview = Array.isArray(is.evidencePreview) ? is.evidencePreview : []
   const loopSteps = Array.isArray(is.systemLoopSteps) ? is.systemLoopSteps : []
+  const actionPlan = Array.isArray(is.actionPlan) ? is.actionPlan.slice() : []
+  // Card 05: the single dominant first action + at most THREE supporting
+  // checks (never five equal-priority bullets).
+  const firstAction = is.firstAction || (actionPlan.length ? actionPlan[0] : '')
+  const supplementalActions = actionPlan.filter((a) => a && a !== firstAction).slice(0, 3)
   return {
     state: is.state || '',
     eyebrow: '认知诊断',
-    // Layer-1 logical cards: 01 FATAL_INSIGHT (hero) + 02/03/04 (sections)
-    // + 05 ACTION_PLAN (list) = exactly 5.
+    // Layer-1 renders FIVE distinct visual cards:
+    //   01 FATAL_INSIGHT (hero) + 02/03/04 (sections) + 05 ACTION_PLAN.
+    fatalTitle: IMPACT_TITLE.FATAL_INSIGHT,
     fatalInsight: is.fatalInsight || '',
     sections: [
       { key: 'CORE_PROBLEM', title: IMPACT_TITLE.CORE_PROBLEM, text: is.coreProblem || '' },
@@ -193,9 +202,10 @@ function mapImpactSummary(report) {
     ],
     layer1SectionCount: 5,
     actionTitle: IMPACT_TITLE.ACTION_PLAN,
-    actionPlan: Array.isArray(is.actionPlan) ? is.actionPlan.slice() : [],
-    // The single dominant first action (already the head of actionPlan).
-    firstAction: is.firstAction || (Array.isArray(is.actionPlan) && is.actionPlan.length ? is.actionPlan[0] : ''),
+    actionPlan,
+    // The single dominant first action (head of actionPlan).
+    firstAction,
+    supplementalActions,
     evidenceTitle: IMPACT_TITLE.EVIDENCE,
     evidencePreview: preview.map((e) => ({
       questionMeaning: e.questionMeaning || '',

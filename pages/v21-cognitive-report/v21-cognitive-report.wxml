@@ -2,12 +2,16 @@
   pages/v21-cognitive-report/v21-cognitive-report.wxml
   RC8.3 Stage1C-D1 — North Star report UI (信息架构)
   RC8.3 Stage1C-F2-M2 — two-layer report (Layer 1 影响摘要 / Layer 2 可解释性)
+  RC8.3 Stage1C-V5-M3 — 五张独立视觉卡片 + Layer1/Layer2 硬分离
 
   消费 Stage1C-C 产出的 north_star_report_v1 内容模型，纯展示层。
   只回答「如何呈现」，不回答「什么是真」。
 
-  LAYER 1（首屏）：致命一句话 / 核心问题 / 系统困局 / 模型升级 / 行动建议 + 证据预览。
-  LAYER 2（默认折叠）：完整证据与推理链条（「为什么系统这样判断我」）。
+  LAYER 1（首屏）：5 张独立卡片
+    01 致命一句话 / 02 核心问题 / 03 系统困局 / 04 翻身路径 / 05 现在就做
+    —— 不含任何完整问卷回放 / 证据回放。
+  LAYER 2（默认折叠）：「为什么系统这样判断我」——支持判断的回答 / 全部模型 /
+  世界规则 / 完整证据 / 认知地图。
   原型的卡片/维度看板绝不作为主卡。
 -->
 <view class="page">
@@ -22,48 +26,59 @@
   <!-- MULTIPLE：多个方向并列，各自带证据，不做主次排序，不伪造主因 -->
   <block wx:elif="{{uiState === 'MULTIPLE'}}">
 
-    <!-- LAYER 1：一句话总判断（P0：绑定 impactSummary.fatalInsight；
-         不再渲染冻结 meta 文案，不再展示盲区标签） -->
-    <view class="hero">
+    <!-- ═══ 01 致命一句话 ═══ -->
+    <view class="card card-01">
+      <text class="card-kicker">{{impactSummary.fatalTitle}}</text>
       <text class="hero-verdict">{{impactSummary.fatalInsight}}</text>
     </view>
 
-    <!-- LAYER 1：5-card impact summary（01 hero + 02-05 + 证据预览） -->
-    <view class="card" wx:if="{{impactSummary}}">
-      <view class="impact-section" wx:for="{{impactSummary.sections}}" wx:key="key">
-        <text class="impact-title">{{item.title}}</text>
-        <!-- 03 系统困局：重复出现的因果回路（≥4 步） -->
-        <block wx:if="{{item.loopSteps && item.loopSteps.length}}">
-          <view class="loop-step" wx:for="{{item.loopSteps}}" wx:for-item="step" wx:key="*this">
-            <text class="loop-step-text">{{step}}</text>
-            <text class="loop-step-arrow" wx:if="{{index < item.loopSteps.length - 1}}">↓</text>
-          </view>
-        </block>
-        <text class="impact-text" wx:else>{{item.text}}</text>
-        <!-- 04 模型升级：旧规则 → 新规则 -->
-        <view class="upgrade-fromto" wx:if="{{item.from}}">
-          <text class="upgrade-cell">现在：{{item.from}}</text>
-          <text class="upgrade-arrow">↓ 换成</text>
-          <text class="upgrade-cell upgrade-to">之后：{{item.to}}</text>
+    <!-- ═══ 02 核心问题 ═══ -->
+    <view class="card card-section card-02" wx:if="{{impactSummary.sections[0].text}}">
+      <text class="card-kicker">{{impactSummary.sections[0].title}}</text>
+      <text class="card-text">{{impactSummary.sections[0].text}}</text>
+    </view>
+
+    <!-- ═══ 03 系统困局（5 个因果步骤，逐条展示，不是一整段）═══ -->
+    <view class="card card-section card-loop card-03" wx:if="{{impactSummary.sections[1]}}">
+      <text class="card-kicker">{{impactSummary.sections[1].title}}</text>
+      <block wx:if="{{impactSummary.sections[1].loopSteps.length}}">
+        <view class="loop-step" wx:for="{{impactSummary.sections[1].loopSteps}}" wx:for-item="step" wx:key="*this">
+          <text class="loop-step-text">{{step}}</text>
+          <text class="loop-step-arrow" wx:if="{{index < impactSummary.sections[1].loopSteps.length - 1}}">↓</text>
         </view>
-      </view>
+      </block>
+      <text class="card-text" wx:else>{{impactSummary.sections[1].text}}</text>
+    </view>
 
-      <view class="impact-section" wx:if="{{impactSummary.actionPlan.length}}">
-        <text class="impact-title">{{impactSummary.actionTitle}}</text>
-        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">{{index === 0 ? '① 先做：' : '· '}}{{item}}</text>
-      </view>
-
-      <view class="impact-section" wx:if="{{impactSummary.evidencePreview.length}}">
-        <text class="impact-title">{{impactSummary.evidenceTitle}}</text>
-        <view class="evidence-item" wx:for="{{impactSummary.evidencePreview}}" wx:key="questionMeaning">
-          <text class="evidence-q">{{item.questionMeaning}}</text>
-          <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
-          <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+    <!-- ═══ 04 翻身路径（现在 → 以后 对比框）═══ -->
+    <view class="card card-section card-04" wx:if="{{impactSummary.sections[2].text}}">
+      <text class="card-kicker">{{impactSummary.sections[2].title}}</text>
+      <view class="upgrade-fromto">
+        <view class="upgrade-cell upgrade-now">
+          <text class="upgrade-cell-label">现在</text>
+          <text class="upgrade-cell-text">{{impactSummary.sections[2].from}}</text>
+        </view>
+        <text class="upgrade-arrow">↓ 换成</text>
+        <view class="upgrade-cell upgrade-next">
+          <text class="upgrade-cell-label">以后</text>
+          <text class="upgrade-cell-text">{{impactSummary.sections[2].to}}</text>
         </view>
       </view>
     </view>
 
-    <!-- LAYER 2：完整可解释性（默认折叠，全部方向均可见，不做排序） -->
+    <!-- ═══ 05 现在就做（1 个主行动 + ≤3 条支持）═══ -->
+    <view class="card card-section card-action card-05" wx:if="{{impactSummary.firstAction}}">
+      <text class="card-kicker">{{impactSummary.actionTitle}}</text>
+      <view class="first-action">
+        <text class="first-action-tag">今天先做</text>
+        <text class="first-action-text">{{impactSummary.firstAction}}</text>
+      </view>
+      <view class="support-list" wx:if="{{impactSummary.supplementalActions.length}}">
+        <text class="support-li" wx:for="{{impactSummary.supplementalActions}}" wx:key="*this">· {{item}}</text>
+      </view>
+    </view>
+
+    <!-- ═══ LAYER 2 · 为什么系统这样判断我（默认折叠：支持判断的回答 / 全部方向 / 完整证据）═══ -->
     <view class="card card-collapsible" wx:if="{{impactExplainer}}">
       <view class="collapsible-head" bindtap="toggleLayer2">
         <text class="card-title">{{impactSummary.layer2Title}}</text>
@@ -71,6 +86,17 @@
       </view>
 
       <view wx:if="{{layer2Expanded}}" class="collapsible-body">
+
+        <!-- 支持这个判断的回答（完整证据回放，仅在 Layer 2）-->
+        <view class="card" wx:if="{{impactSummary.evidencePreview.length}}">
+          <text class="card-title">{{impactSummary.evidenceTitle}}</text>
+          <view class="evidence-item" wx:for="{{impactSummary.evidencePreview}}" wx:key="questionMeaning">
+            <text class="evidence-q">{{item.questionMeaning}}</text>
+            <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
+            <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+          </view>
+        </view>
+
         <view class="card" wx:for="{{multiple.supportedModels}}" wx:for-item="model" wx:key="label">
           <text class="card-title">{{model.label}}</text>
           <text class="card-body" wx:if="{{model.statement}}">{{model.statement}}</text>
@@ -102,49 +128,60 @@
 
   <block wx:else>
 
-    <!-- ═══ LAYER 1 · 01 致命一句话（首屏最高视觉层级）═══ -->
-    <view class="hero">
-      <text class="hero-eyebrow">核心认知诊断</text>
-      <text class="hero-verdict">{{verdict.summary}}</text>
+    <!-- ═══ 01 致命一句话（首屏最高视觉层级）═══ -->
+    <view class="card card-01">
+      <text class="card-kicker">{{impactSummary.fatalTitle}}</text>
+      <text class="hero-verdict">{{impactSummary.fatalInsight}}</text>
       <text class="hero-label" wx:if="{{verdict.blindSpotLabel}}">{{verdict.blindSpotLabel}}</text>
     </view>
 
-    <!-- ═══ LAYER 1 · 02-05 影响摘要（核心问题 / 系统困局 / 模型升级 / 行动建议 + 证据预览）═══ -->
-    <view class="card" wx:if="{{impactSummary}}">
-      <view class="impact-section" wx:for="{{impactSummary.sections}}" wx:key="key">
-        <text class="impact-title">{{item.title}}</text>
-        <!-- 03 系统困局：重复出现的因果回路（≥4 步） -->
-        <block wx:if="{{item.loopSteps && item.loopSteps.length}}">
-          <view class="loop-step" wx:for="{{item.loopSteps}}" wx:for-item="step" wx:key="*this">
-            <text class="loop-step-text">{{step}}</text>
-            <text class="loop-step-arrow" wx:if="{{index < item.loopSteps.length - 1}}">↓</text>
-          </view>
-        </block>
-        <text class="impact-text" wx:else>{{item.text}}</text>
-        <!-- 04 模型升级：旧规则 → 新规则 -->
-        <view class="upgrade-fromto" wx:if="{{item.from}}">
-          <text class="upgrade-cell">现在：{{item.from}}</text>
-          <text class="upgrade-arrow">↓ 换成</text>
-          <text class="upgrade-cell upgrade-to">之后：{{item.to}}</text>
+    <!-- ═══ 02 核心问题 ═══ -->
+    <view class="card card-section card-02" wx:if="{{impactSummary.sections[0].text}}">
+      <text class="card-kicker">{{impactSummary.sections[0].title}}</text>
+      <text class="card-text">{{impactSummary.sections[0].text}}</text>
+    </view>
+
+    <!-- ═══ 03 系统困局（5 个因果步骤，逐条展示）═══ -->
+    <view class="card card-section card-loop card-03" wx:if="{{impactSummary.sections[1]}}">
+      <text class="card-kicker">{{impactSummary.sections[1].title}}</text>
+      <block wx:if="{{impactSummary.sections[1].loopSteps.length}}">
+        <view class="loop-step" wx:for="{{impactSummary.sections[1].loopSteps}}" wx:for-item="step" wx:key="*this">
+          <text class="loop-step-text">{{step}}</text>
+          <text class="loop-step-arrow" wx:if="{{index < impactSummary.sections[1].loopSteps.length - 1}}">↓</text>
         </view>
-      </view>
+      </block>
+      <text class="card-text" wx:else>{{impactSummary.sections[1].text}}</text>
+    </view>
 
-      <view class="impact-section" wx:if="{{impactSummary.actionPlan.length}}">
-        <text class="impact-title">{{impactSummary.actionTitle}}</text>
-        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">{{index === 0 ? '① 先做：' : '· '}}{{item}}</text>
-      </view>
-
-      <view class="impact-section" wx:if="{{impactSummary.evidencePreview.length}}">
-        <text class="impact-title">{{impactSummary.evidenceTitle}}</text>
-        <view class="evidence-item" wx:for="{{impactSummary.evidencePreview}}" wx:key="questionMeaning">
-          <text class="evidence-q">{{item.questionMeaning}}</text>
-          <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
-          <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+    <!-- ═══ 04 翻身路径（现在 → 以后 对比框）═══ -->
+    <view class="card card-section card-04" wx:if="{{impactSummary.sections[2].text}}">
+      <text class="card-kicker">{{impactSummary.sections[2].title}}</text>
+      <view class="upgrade-fromto">
+        <view class="upgrade-cell upgrade-now">
+          <text class="upgrade-cell-label">现在</text>
+          <text class="upgrade-cell-text">{{impactSummary.sections[2].from}}</text>
+        </view>
+        <text class="upgrade-arrow">↓ 换成</text>
+        <view class="upgrade-cell upgrade-next">
+          <text class="upgrade-cell-label">以后</text>
+          <text class="upgrade-cell-text">{{impactSummary.sections[2].to}}</text>
         </view>
       </view>
     </view>
 
-    <!-- ═══ LAYER 2 · 为什么系统这样判断我（默认折叠：完整证据与推理链条）═══ -->
+    <!-- ═══ 05 现在就做（1 个主行动 + ≤3 条支持）═══ -->
+    <view class="card card-section card-action card-05" wx:if="{{impactSummary.firstAction}}">
+      <text class="card-kicker">{{impactSummary.actionTitle}}</text>
+      <view class="first-action">
+        <text class="first-action-tag">今天先做</text>
+        <text class="first-action-text">{{impactSummary.firstAction}}</text>
+      </view>
+      <view class="support-list" wx:if="{{impactSummary.supplementalActions.length}}">
+        <text class="support-li" wx:for="{{impactSummary.supplementalActions}}" wx:key="*this">· {{item}}</text>
+      </view>
+    </view>
+
+    <!-- ═══ LAYER 2 · 为什么系统这样判断我（默认折叠）═══ -->
     <view class="card card-collapsible" wx:if="{{impactExplainer}}">
       <view class="collapsible-head" bindtap="toggleLayer2">
         <text class="card-title">{{impactSummary.layer2Title}}</text>
@@ -152,6 +189,16 @@
       </view>
 
       <view wx:if="{{layer2Expanded}}" class="collapsible-body">
+
+        <!-- 支持这个判断的回答（完整证据回放，仅在 Layer 2）-->
+        <view class="card" wx:if="{{impactSummary.evidencePreview.length}}">
+          <text class="card-title">{{impactSummary.evidenceTitle}}</text>
+          <view class="evidence-item" wx:for="{{impactSummary.evidencePreview}}" wx:key="questionMeaning">
+            <text class="evidence-q">{{item.questionMeaning}}</text>
+            <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
+            <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+          </view>
+        </view>
 
         <!-- 02 你的默认世界模型 -->
         <view class="card" wx:if="{{currentModel}}">

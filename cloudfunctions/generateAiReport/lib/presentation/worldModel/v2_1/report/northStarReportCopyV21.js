@@ -516,12 +516,13 @@ const MULTIPLE_IMPACT_COPY = Object.freeze({
 // per-candidate observations cover only a subset of candidates). Not chicken
 // soup: each is a concrete decision-protocol step tied to the multi-model
 // tension. No numeral is hardcoded.
+// M3.1 COPY POLISH: the supporting checks are short self-questions (≤28 chars),
+// each a concrete pre-decision check tied to the multi-model tension.
 const MULTIPLE_ACTION_COPY = Object.freeze({
   base: [
-    '把同时成立的这几个方向列出来，标清每个方向分别在什么情境下最容易出现。',
-    '在这些情境里设一个固定的决策检查点：动手前先停一下，确认不是习惯在替你决定。',
-    '做重要决定前，先分清这件事是在解决眼前问题，还是在积累长期结果。',
-    '只挑一个方向，用两周时间做最小的改变，再用实际结果来调整下一步。',
+    '这次决定，我是真的想过，还是凭习惯先定了？',
+    '我是在处理眼前，还是也在积累长期？',
+    '动手前，我有没有漏掉一个新的反馈？',
   ],
 })
 
@@ -575,10 +576,10 @@ const MULTIPLE_SYSTEM_LOOP_COPY = Object.freeze({
 // faithful synthesis of the simultaneously-supported directions and stays
 // source-backed (the thesis attaches the accepted eligible candidates).
 const MULTIPLE_UNIFIED_COPY = Object.freeze({
-  fatalInsight: '你不是不够努力，而是几套顺手的判断习惯同时在替你做决定，把很多选择在动念时就收窄了。',
-  coreProblem: '你以为每次都只是某件具体的事没处理好，其实是同一套顺手的判断习惯，在不同的事情上反复替你做主。',
+  fatalInsight: '你不是不够努力，而是遇到该认真判断的事，你习惯先凭直觉定下来，很少真正权衡一次。',
+  coreProblem: '你以为问题只是某件具体的事没处理好，其实是遇到该判断的地方，你习惯先凭直觉、很少真正权衡，同类结果才反复出现。',
   upgradeLead: '与其一次改掉所有方向，不如先建立同一套更稳的决策方式：',
-  firstAction: '今天先挑一个方向，只做一件最小、可回退的一步（例如把一个反复搁置的小决定，先做出一个可以反悔的版本）。',
+  firstAction: '今天先挑一个方向，只做一件最小、能反悔的一步（比如把一个一直拖着的小决定，先做出一个可以撤回的版本）。',
 })
 
 // ── §20c V5 MULTIPLE FAMILY THESIS (Cards 01–04 for the FAMILY_GAP family) ──
@@ -613,39 +614,39 @@ const MULTIPLE_FAMILY_COPY = Object.freeze({
 // non-ranked; every clause restates accepted per-candidate semantics.
 const MULTIPLE_BREADTH_COPY = Object.freeze({
   FOCUSED: Object.freeze({
-    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在同一类事情上反复替你做了决定。',
-    coreProblem: '你以为问题只是某一件事没处理好，其实是你遇到该认真判断的时候，习惯直接交给直觉，没真正权衡一次，同类结果才反复出现。',
+    fatalInsight: '你不是不够努力，而是这类事上，你的判断方式一直没变过。',
+    coreProblem: '你以为问题只是某一件事没处理好，其实是这类事上，你习惯凭第一感觉先定下来、很少真正权衡，同类结果才反复出现。',
     loopScope: '同一类事情上',
-    upgradeFrom: '在关键判断上，按最顺手的习惯自动做决定，很少先停一下确认',
-    upgradeTo: '动手前先过一遍同一套固定的判断检查，再决定',
+    upgradeFrom: '凭感觉和旧经验临时反应',
+    upgradeTo: '同类重要问题先按固定标准判断',
   }),
   NARROW: Object.freeze({
-    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在少数几个不同的方面替你做了决定。',
-    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在这少数几个方面，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
-    loopScope: '少数几个不同的方面',
-    upgradeFrom: '在少数几个关键判断上，按最顺手的习惯自动做决定，很少先停一下确认',
-    upgradeTo: '动手前先过一遍同一套固定的判断检查，再决定',
+    fatalInsight: '你不是不够努力，而是在这几类事情上，你的判断方式一直没变过。',
+    coreProblem: '你以为问题只是某件事没处理好，其实是在这几类事情上，你习惯凭第一感觉先定下来、很少真正权衡，同类结果才反复出现。',
+    loopScope: '这几类事情上',
+    upgradeFrom: '凭感觉和旧经验临时反应',
+    upgradeTo: '同类重要问题先按固定标准判断',
   }),
   SPREAD: Object.freeze({
-    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在好几个不同的方面替你做了决定。',
-    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在这好几个方面，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
-    loopScope: '好几个不同的方面',
-    upgradeFrom: '在好几个不同方面，都按最顺手的习惯自动做决定',
-    upgradeTo: '先在最常出现的那几个方面，各固定一条判断检查再决定',
+    fatalInsight: '你不是不够努力，而是在不少事情上，你的判断方式一直没变过。',
+    coreProblem: '你以为问题只是某件事没处理好，其实是在不少事情上，你习惯凭第一感觉先定下来、很少真正权衡，同类结果才反复出现。',
+    loopScope: '不少事情上',
+    upgradeFrom: '凭感觉和旧经验临时反应',
+    upgradeTo: '同类重要问题先按固定标准判断',
   }),
   WIDE: Object.freeze({
-    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在很多不同的方面替你做了决定。',
-    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在这很多方面，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
-    loopScope: '很多不同的方面',
-    upgradeFrom: '在大多数方面，都按最顺手的习惯自动做决定',
-    upgradeTo: '先在反复出问题的大多数方面，各固定一条判断检查再决定',
+    fatalInsight: '你不是不够努力，而是在大多数事情上，你的判断方式一直没变过。',
+    coreProblem: '你以为问题只是某件事没处理好，其实是在大多数事情上，你习惯凭第一感觉先定下来、很少真正权衡，同类结果才反复出现。',
+    loopScope: '大多数事情上',
+    upgradeFrom: '凭感觉和旧经验临时反应',
+    upgradeTo: '同类重要问题先按固定标准判断',
   }),
   PERVASIVE: Object.freeze({
-    fatalInsight: '你不是不够努力，而是同一套顺手的反应，几乎在每个方面都替你做了决定。',
-    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在几乎所有场景，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
-    loopScope: '几乎所有方面',
-    upgradeFrom: '几乎在每个方面，都按最顺手的习惯自动做决定',
-    upgradeTo: '把「动手前先过一遍判断检查」变成默认动作，覆盖到几乎每个方面',
+    fatalInsight: '你不是不够努力，而是几乎每个决定，你的判断方式一直没变过。',
+    coreProblem: '你以为问题只是某件事没处理好，其实是几乎每个决定，你习惯凭第一感觉先定下来、很少真正权衡，同类结果才反复出现。',
+    loopScope: '几乎每个决定上',
+    upgradeFrom: '凭感觉和旧经验临时反应',
+    upgradeTo: '同类重要问题先按固定标准判断',
   }),
 })
 
@@ -672,34 +673,34 @@ const MULTIPLE_LOOP_TEMPLATE =
 // candidate whose own mechanism seals a corrective exit (feedback / exposure /
 // leverage / identity) adds that sealed exit — not just a scope word.
 // Count-neutral, taxonomy-free, non-ranked, no engine-meta, no numeral.
+// M3 COPY PASS: rewritten into natural consumer Chinese while preserving the
+// exact M2 causal semantics (5 stages; family-level judgment; exit-seal
+// reinforcement). No machine-composed phrasing («要判断摆在面前» / «亮出老一套»
+// / «老框框定死» / «信息没进来» / «彼此加固、从不互相纠正»).
 const MULTIPLE_TRAP_COPY = Object.freeze({
-  triggerLead: '每当',
-  triggerTail: '摆在面前',
-  judgmentLead: '你几乎同时亮出老一套：',
+  trigger: '需要认真判断的时候',
+  judgmentLead: '你的反应是：',
   actionLead: '于是',
   consequenceLead: '结果是',
-  consequenceTail: '，彼此加固、从不互相纠正',
-  reinforceLead: '；一再「没出事」就被当成经验',
-  reinforceBaseTail: '，下次照旧',
+  reinforceLead: '你越用越顺手，越确信老办法有用，于是下次照旧',
   reinforceSealedMid: '，连',
-  reinforceSealedTail: '这些出口也被封死，循环越发锁死',
-  // Per-family causal token for each of the 5 stages. Keyed by the FROZEN
-  // familyId. Each token is a faithful compression of that family's accepted
-  // candidate semantics (t trigger; h judgment/habit; a action/inaction;
-  // c consequence; r reinforcement).
+  reinforceSealedTail: '这些出口也一起堵住了',
+  // Per-family causal token for each stage (h judgment/habit; a action/inaction;
+  // c consequence). Keyed by the FROZEN familyId. Each token is a faithful,
+  // natural-language compression of that family's accepted candidate semantics.
   familyStage: {
-    EXECUTION_ADAPTATION_GAP: { t: '要拍板', h: '先想再等等', a: '没真正拍板', c: '信息没进来', r: '更不敢定' },
-    RESOURCE_COMPOUNDING_GAP: { t: '要投入', h: '先顾眼前', a: '长期事没排序', c: '复利停着', r: '更没时间' },
-    PERCEPTION_RISK_GAP: { t: '见机会', h: '见险先躲', a: '有风险就划掉', c: '机会被放过', r: '更怕风险' },
-    FRAMEWORK_GAP: { t: '要判断', h: '老框框定死', a: '只治表面', c: '问题反复回来', r: '更信直觉' },
+    EXECUTION_ADAPTATION_GAP: { h: '先等等', a: '迟迟不拍板', c: '拿不到新反馈' },
+    RESOURCE_COMPOUNDING_GAP: { h: '先顾眼前', a: '长期的事拖着', c: '长期没进展' },
+    PERCEPTION_RISK_GAP: { h: '先避风险', a: '风险大的划掉', c: '机会被放过' },
+    FRAMEWORK_GAP: { h: '凭老经验', a: '只在表面处理', c: '问题反复回来' },
   },
   // The CORRECTIVE EXIT that a candidate's own mechanism seals shut
   // (source-backed by that candidate's accepted currentModel / worldRule gap).
   exitSeal: {
-    FEEDBACK_LOOP_GAP: '复盘',
-    OPPORTUNITY_BLINDNESS: '换路试',
+    FEEDBACK_LOOP_GAP: '回头复盘',
+    OPPORTUNITY_BLINDNESS: '试别的路',
     LEVERAGE_MODEL_GAP: '借外力',
-    IDENTITY_CONSTRAINT: '跳出身份',
+    IDENTITY_CONSTRAINT: '跳出固定身份',
   },
 })
 // Deterministic presentation order (family span, then exit-seal list).
@@ -734,12 +735,12 @@ function composeMultipleSystemTrap({ families, sealingCandidateIds }) {
   for (const id of MULTIPLE_TRAP_EXIT_ORDER) {
     if (eligible.indexOf(id) !== -1 && c.exitSeal[id]) seals.push(c.exitSeal[id])
   }
-  const s1 = c.triggerLead + present.map((p) => p.t).join('、') + c.triggerTail
+  const s1 = c.trigger
   const s2 = c.judgmentLead + present.map((p) => p.h).join('、')
   const s3 = c.actionLead + present.map((p) => p.a).join('、')
-  const s4 = c.consequenceLead + present.map((p) => p.c).join('，') + c.consequenceTail
-  const s5 = present.map((p) => p.r).join('、') + c.reinforceLead
-    + (seals.length >= 2 ? c.reinforceSealedMid + seals.join('、') + c.reinforceSealedTail : c.reinforceBaseTail)
+  const s4 = c.consequenceLead + present.map((p) => p.c).join('，')
+  const s5 = c.reinforceLead
+    + (seals.length >= 2 ? c.reinforceSealedMid + seals.join('、') + c.reinforceSealedTail : '')
   return [s1, s2, s3, s4, s5].join(' → ')
 }
 
