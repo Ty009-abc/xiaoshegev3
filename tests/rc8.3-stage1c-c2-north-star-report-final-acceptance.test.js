@@ -141,12 +141,18 @@ function sec(report, id) {
 
 // ── §2 Report authority boundary (one-way, frozen) ───────────────────────
 
-test('§2 authority: report builder imports only its own copy table (no engine, no presentation-model require)', () => {
+test('§2 authority: report builder imports only local sibling modules (no engine, no presentation-model require)', () => {
   const src = fs.readFileSync(path.join(REPORT_DIR, 'northStarReportBuilderV21.js'), 'utf8')
   const requires = [...src.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map((m) => m[1])
-  // exactly one require, and it must be the sibling copy table
-  assert.strictEqual(requires.length, 1, `expected 1 require, got: ${requires.join(', ')}`)
-  assert.ok(requires[0] === './northStarReportCopyV21', `unexpected require: ${requires[0]}`)
+  // F2-M2: the builder may require its own LOCAL sibling report modules only
+  // (copy table + impact summary/explainer). It must NEVER import an engine
+  // module or the presentation model (one-way dependency, still frozen).
+  for (const r of requires) {
+    assert.ok(r.startsWith('./'), `non-local require: ${r}`)
+    assert.ok(!/engine\/|northStarPresentationModel|presentation\/worldModel\/v2_1\/index/.test(r),
+      `builder must not import engine/presentation-model: ${r}`)
+  }
+  assert.ok(requires.includes('./northStarReportCopyV21'), `copy table require missing: ${requires.join(', ')}`)
 })
 
 test('§2 authority: presentation model never imports report (PRESENTATION_MODEL_IMPORTS_REPORT=0)', () => {

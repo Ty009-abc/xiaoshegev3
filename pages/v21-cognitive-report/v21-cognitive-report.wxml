@@ -1,11 +1,13 @@
 <!--
   pages/v21-cognitive-report/v21-cognitive-report.wxml
   RC8.3 Stage1C-D1 — North Star report UI (信息架构)
+  RC8.3 Stage1C-F2-M2 — two-layer report (Layer 1 影响摘要 / Layer 2 可解释性)
 
   消费 Stage1C-C 产出的 north_star_report_v1 内容模型，纯展示层。
   只回答「如何呈现」，不回答「什么是真」。
 
-  主流程 = 8 个 section；完整认知地图（secondary）默认折叠。
+  LAYER 1（首屏）：致命一句话 / 核心问题 / 系统困局 / 模型升级 / 行动建议 + 证据预览。
+  LAYER 2（默认折叠）：完整证据与推理链条（「为什么系统这样判断我」）。
   原型的卡片/维度看板绝不作为主卡。
 -->
 <view class="page">
@@ -19,25 +21,59 @@
 
   <!-- MULTIPLE：多个方向并列，各自带证据，不做主次排序，不伪造主因 -->
   <block wx:elif="{{uiState === 'MULTIPLE'}}">
+
+    <!-- LAYER 1：一句话总判断（count-neutral hero） -->
     <view class="hero">
-      <text class="hero-eyebrow">{{multiple.eyebrow}}</text>
+      <text class="hero-eyebrow">{{impactSummary.eyebrow}}</text>
       <text class="hero-verdict">{{multiple.headline}}</text>
     </view>
 
-    <view class="card" wx:for="{{multiple.supportedModels}}" wx:for-item="model" wx:key="label">
-      <text class="card-title">{{model.label}}</text>
-      <text class="card-body" wx:if="{{model.statement}}">{{model.statement}}</text>
-      <view class="evidence-item" wx:for="{{model.evidence}}" wx:for-item="ev" wx:key="order">
-        <text class="evidence-q">{{ev.questionMeaning}}</text>
-        <text class="evidence-answer">你的选择：{{ev.selectedAnswerMeaning}}</text>
-        <text class="evidence-signal">暴露出的模式：{{ev.whatSignalItShows}}</text>
+    <!-- LAYER 1：5-section impact summary -->
+    <view class="card" wx:if="{{impactSummary}}">
+      <view class="impact-section" wx:for="{{impactSummary.sections}}" wx:key="key">
+        <text class="impact-title">{{item.title}}</text>
+        <text class="impact-text">{{item.text}}</text>
       </view>
-      <text class="why-matters-text" wx:if="{{model.observation}}">{{model.observation}}</text>
+
+      <view class="impact-section" wx:if="{{impactSummary.actionPlan.length}}">
+        <text class="impact-title">{{impactSummary.actionTitle}}</text>
+        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">· {{item}}</text>
+      </view>
+
+      <view class="impact-section" wx:if="{{impactSummary.evidencePreview.length}}">
+        <text class="impact-title">{{impactSummary.evidenceTitle}}</text>
+        <view class="evidence-item" wx:for="{{impactSummary.evidencePreview}}" wx:key="questionMeaning">
+          <text class="evidence-q">{{item.questionMeaning}}</text>
+          <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
+          <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+        </view>
+      </view>
     </view>
 
-    <view class="card">
-      <text class="card-title">{{multiple.synthesisTitle}}</text>
-      <text class="card-body">{{multiple.synthesis}}</text>
+    <!-- LAYER 2：完整可解释性（默认折叠，全部方向均可见，不做排序） -->
+    <view class="card card-collapsible" wx:if="{{impactExplainer}}">
+      <view class="collapsible-head" bindtap="toggleLayer2">
+        <text class="card-title">{{impactSummary.layer2Title}}</text>
+        <text class="collapsible-arrow">{{layer2Expanded ? '收起' : '展开'}}</text>
+      </view>
+
+      <view wx:if="{{layer2Expanded}}" class="collapsible-body">
+        <view class="card" wx:for="{{multiple.supportedModels}}" wx:for-item="model" wx:key="label">
+          <text class="card-title">{{model.label}}</text>
+          <text class="card-body" wx:if="{{model.statement}}">{{model.statement}}</text>
+          <view class="evidence-item" wx:for="{{model.evidence}}" wx:for-item="ev" wx:key="order">
+            <text class="evidence-q">{{ev.questionMeaning}}</text>
+            <text class="evidence-answer">你的选择：{{ev.selectedAnswerMeaning}}</text>
+            <text class="evidence-signal">暴露出的模式：{{ev.whatSignalItShows}}</text>
+          </view>
+          <text class="why-matters-text" wx:if="{{model.observation}}">{{model.observation}}</text>
+        </view>
+
+        <view class="card">
+          <text class="card-title">{{multiple.synthesisTitle}}</text>
+          <text class="card-body">{{multiple.synthesis}}</text>
+        </view>
+      </view>
     </view>
 
     <button class="back" bindtap="onBack">返回</button>
@@ -53,120 +89,154 @@
 
   <block wx:else>
 
-    <!-- ═══ 01 核心认知诊断（首屏最高视觉层级：人类可读诊断优先）═══ -->
+    <!-- ═══ LAYER 1 · 01 致命一句话（首屏最高视觉层级）═══ -->
     <view class="hero">
       <text class="hero-eyebrow">核心认知诊断</text>
       <text class="hero-verdict">{{verdict.summary}}</text>
       <text class="hero-label" wx:if="{{verdict.blindSpotLabel}}">{{verdict.blindSpotLabel}}</text>
     </view>
 
-    <!-- ═══ 02 你的默认世界模型 ═══ -->
-    <view class="card" wx:if="{{currentModel}}">
-      <text class="card-title">{{currentModel.title}}</text>
-      <text class="card-body">{{currentModel.statement}}</text>
-    </view>
-
-    <!-- ═══ 03 你与现实规则的错位（北极星视觉中心）═══ -->
-    <view class="card" wx:if="{{worldRule}}">
-      <text class="card-title">{{worldRule.title}}</text>
-
-      <view class="contrast-block">
-        <text class="contrast-label">你的默认模型</text>
-        <text class="contrast-text">{{worldRule.userModel}}</text>
+    <!-- ═══ LAYER 1 · 02-05 影响摘要（核心问题 / 系统困局 / 模型升级 / 行动建议 + 证据预览）═══ -->
+    <view class="card" wx:if="{{impactSummary}}">
+      <view class="impact-section" wx:for="{{impactSummary.sections}}" wx:key="key">
+        <text class="impact-title">{{item.title}}</text>
+        <text class="impact-text">{{item.text}}</text>
       </view>
 
-      <view class="vs-mark">↓ VS ↓</view>
-
-      <view class="contrast-block contrast-world">
-        <text class="contrast-label">世界运行规则</text>
-        <text class="contrast-text">{{worldRule.worldRule}}</text>
+      <view class="impact-section" wx:if="{{impactSummary.actionPlan.length}}">
+        <text class="impact-title">{{impactSummary.actionTitle}}</text>
+        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">· {{item}}</text>
       </view>
 
-      <view class="vs-mark">↓</view>
-
-      <view class="contrast-block contrast-gap">
-        <text class="contrast-label">真正的错位</text>
-        <text class="contrast-text">{{worldRule.misalignment}}</text>
-      </view>
-
-      <view class="why-matters" wx:if="{{worldRule.whyItMatters}}">
-        <text class="why-matters-title">为什么这很重要</text>
-        <text class="why-matters-text" wx:if="{{worldRule.whyItMatters.mechanism}}">{{worldRule.whyItMatters.mechanism}}</text>
-        <text class="why-matters-text" wx:if="{{worldRule.whyItMatters.consequence}}">{{worldRule.whyItMatters.consequence}}</text>
+      <view class="impact-section" wx:if="{{impactSummary.evidencePreview.length}}">
+        <text class="impact-title">{{impactSummary.evidenceTitle}}</text>
+        <view class="evidence-item" wx:for="{{impactSummary.evidencePreview}}" wx:key="questionMeaning">
+          <text class="evidence-q">{{item.questionMeaning}}</text>
+          <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
+          <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+        </view>
       </view>
     </view>
 
-    <!-- ═══ 04 为什么这样判断你（用户专属证据）═══ -->
-    <view class="card" wx:if="{{evidence && evidence.items.length}}">
-      <text class="card-title">{{evidence.title}}</text>
-      <view class="evidence-item" wx:for="{{evidence.items}}" wx:key="order">
-        <text class="evidence-q">{{item.questionMeaning}}</text>
-        <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
-        <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
-        <text class="evidence-support">{{item.howItSupportsDiagnosis}}</text>
-      </view>
-    </view>
-
-    <!-- ═══ 05 这个模型如何影响决策 ═══ -->
-    <view class="card" wx:if="{{consequence}}">
-      <text class="card-title">{{consequence.title}}</text>
-      <text class="card-body">{{consequence.consequence}}</text>
-    </view>
-
-    <!-- ═══ 06 你的认知升级 ═══ -->
-    <view class="card" wx:if="{{upgrade}}">
-      <text class="card-title">{{upgrade.title}}</text>
-      <text class="card-body">{{upgrade.upgradedModel}}</text>
-    </view>
-
-    <!-- ═══ 07 下一次怎么做（最可执行）═══ -->
-    <view class="card" wx:if="{{protocol}}">
-      <text class="card-title">{{protocol.title}}</text>
-
-      <view class="protocol-trigger" wx:if="{{protocol.trigger}}">
-        <text class="protocol-step-label">触发条件</text>
-        <text class="protocol-step-text">{{protocol.trigger}}</text>
+    <!-- ═══ LAYER 2 · 为什么系统这样判断我（默认折叠：完整证据与推理链条）═══ -->
+    <view class="card card-collapsible" wx:if="{{impactExplainer}}">
+      <view class="collapsible-head" bindtap="toggleLayer2">
+        <text class="card-title">{{impactSummary.layer2Title}}</text>
+        <text class="collapsible-arrow">{{layer2Expanded ? '收起' : '展开'}}</text>
       </view>
 
-      <view class="protocol-step" wx:for="{{protocol.steps}}" wx:key="order">
-        <text class="protocol-step-num">步骤 {{item.order}}</text>
-        <text class="protocol-step-name">{{item.name}}</text>
-        <text class="protocol-step-text">{{item.description}}</text>
+      <view wx:if="{{layer2Expanded}}" class="collapsible-body">
+
+        <!-- 02 你的默认世界模型 -->
+        <view class="card" wx:if="{{currentModel}}">
+          <text class="card-title">{{currentModel.title}}</text>
+          <text class="card-body">{{currentModel.statement}}</text>
+        </view>
+
+        <!-- 03 你与现实规则的错位 -->
+        <view class="card" wx:if="{{worldRule}}">
+          <text class="card-title">{{worldRule.title}}</text>
+
+          <view class="contrast-block">
+            <text class="contrast-label">你的默认模型</text>
+            <text class="contrast-text">{{worldRule.userModel}}</text>
+          </view>
+
+          <view class="vs-mark">↓ VS ↓</view>
+
+          <view class="contrast-block contrast-world">
+            <text class="contrast-label">世界运行规则</text>
+            <text class="contrast-text">{{worldRule.worldRule}}</text>
+          </view>
+
+          <view class="vs-mark">↓</view>
+
+          <view class="contrast-block contrast-gap">
+            <text class="contrast-label">真正的错位</text>
+            <text class="contrast-text">{{worldRule.misalignment}}</text>
+          </view>
+
+          <view class="why-matters" wx:if="{{worldRule.whyItMatters}}">
+            <text class="why-matters-title">为什么这很重要</text>
+            <text class="why-matters-text" wx:if="{{worldRule.whyItMatters.mechanism}}">{{worldRule.whyItMatters.mechanism}}</text>
+            <text class="why-matters-text" wx:if="{{worldRule.whyItMatters.consequence}}">{{worldRule.whyItMatters.consequence}}</text>
+          </view>
+        </view>
+
+        <!-- 04 为什么这样判断你（完整用户专属证据）-->
+        <view class="card" wx:if="{{evidence && evidence.items.length}}">
+          <text class="card-title">{{evidence.title}}</text>
+          <view class="evidence-item" wx:for="{{evidence.items}}" wx:key="order">
+            <text class="evidence-q">{{item.questionMeaning}}</text>
+            <text class="evidence-answer">你的选择：{{item.selectedAnswerMeaning}}</text>
+            <text class="evidence-signal">暴露出的模式：{{item.whatSignalItShows}}</text>
+            <text class="evidence-support">{{item.howItSupportsDiagnosis}}</text>
+          </view>
+        </view>
+
+        <!-- 05 这个模型如何影响决策 -->
+        <view class="card" wx:if="{{consequence}}">
+          <text class="card-title">{{consequence.title}}</text>
+          <text class="card-body">{{consequence.consequence}}</text>
+        </view>
+
+        <!-- 06 你的认知升级 -->
+        <view class="card" wx:if="{{upgrade}}">
+          <text class="card-title">{{upgrade.title}}</text>
+          <text class="card-body">{{upgrade.upgradedModel}}</text>
+        </view>
+
+        <!-- 07 下一次怎么做（最可执行）-->
+        <view class="card" wx:if="{{protocol}}">
+          <text class="card-title">{{protocol.title}}</text>
+
+          <view class="protocol-trigger" wx:if="{{protocol.trigger}}">
+            <text class="protocol-step-label">触发条件</text>
+            <text class="protocol-step-text">{{protocol.trigger}}</text>
+          </view>
+
+          <view class="protocol-step" wx:for="{{protocol.steps}}" wx:key="order">
+            <text class="protocol-step-num">步骤 {{item.order}}</text>
+            <text class="protocol-step-name">{{item.name}}</text>
+            <text class="protocol-step-text">{{item.description}}</text>
+          </view>
+
+          <view class="protocol-step" wx:if="{{protocol.successSignal}}">
+            <text class="protocol-step-label">成功信号</text>
+            <text class="protocol-step-text">{{protocol.successSignal}}</text>
+          </view>
+
+          <view class="protocol-step" wx:if="{{protocol.reviewWindow}}">
+            <text class="protocol-step-label">复盘周期</text>
+            <text class="protocol-step-text">{{protocol.reviewWindow}}</text>
+          </view>
+
+          <view class="protocol-step" wx:if="{{protocol.stopCondition}}">
+            <text class="protocol-step-label">停止条件</text>
+            <text class="protocol-step-text">{{protocol.stopCondition}}</text>
+          </view>
+        </view>
+
+        <!-- 08 旧模型 vs 新模型（情景推演，非预测）-->
+        <view class="card" wx:if="{{scenario}}">
+          <text class="card-title">{{scenario.title}}</text>
+
+          <view class="scenario-side">
+            <text class="scenario-side-label">旧模型继续</text>
+            <text class="scenario-li" wx:for="{{scenario.currentModel.likelyDecisionPattern}}" wx:key="*this">· {{item}}</text>
+          </view>
+
+          <view class="vs-mark">VS</view>
+
+          <view class="scenario-side scenario-upgraded">
+            <text class="scenario-side-label">升级模型运行</text>
+            <text class="scenario-li" wx:for="{{scenario.upgradedModel.likelyDecisionPattern}}" wx:key="*this">· {{item}}</text>
+          </view>
+
+          <text class="scenario-note" wx:if="{{scenario.simulationNote}}">{{scenario.simulationNote}}</text>
+        </view>
+
       </view>
-
-      <view class="protocol-step" wx:if="{{protocol.successSignal}}">
-        <text class="protocol-step-label">成功信号</text>
-        <text class="protocol-step-text">{{protocol.successSignal}}</text>
-      </view>
-
-      <view class="protocol-step" wx:if="{{protocol.reviewWindow}}">
-        <text class="protocol-step-label">复盘周期</text>
-        <text class="protocol-step-text">{{protocol.reviewWindow}}</text>
-      </view>
-
-      <view class="protocol-step" wx:if="{{protocol.stopCondition}}">
-        <text class="protocol-step-label">停止条件</text>
-        <text class="protocol-step-text">{{protocol.stopCondition}}</text>
-      </view>
-    </view>
-
-    <!-- ═══ 08 旧模型 vs 新模型（情景推演，非预测）═══ -->
-    <view class="card" wx:if="{{scenario}}">
-      <text class="card-title">{{scenario.title}}</text>
-
-      <view class="scenario-side">
-        <text class="scenario-side-label">旧模型继续</text>
-        <text class="scenario-li" wx:for="{{scenario.currentModel.likelyDecisionPattern}}" wx:key="*this">· {{item}}</text>
-      </view>
-
-      <view class="vs-mark">VS</view>
-
-      <view class="scenario-side scenario-upgraded">
-        <text class="scenario-side-label">升级模型运行</text>
-        <text class="scenario-li" wx:for="{{scenario.upgradedModel.likelyDecisionPattern}}" wx:key="*this">· {{item}}</text>
-      </view>
-
-      <text class="scenario-note" wx:if="{{scenario.simulationNote}}">{{scenario.simulationNote}}</text>
     </view>
 
     <!-- ═══ 09 完整认知地图（默认折叠，secondary）═══ -->

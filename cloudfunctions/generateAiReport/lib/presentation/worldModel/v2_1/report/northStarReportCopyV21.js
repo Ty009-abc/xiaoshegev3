@@ -490,6 +490,50 @@ const MULTIPLE_OBSERVATION_COPY = Object.freeze({
     '留意「先处理立刻见效的事」出现的时机——把一件长期才见效、但会持续复利的事，固定安排到不被紧急事务挤占的位置。',
 })
 
+// ── §17 F2-M2 IMPACT SUMMARY (Layer 1) — section titles ──────────────────
+// NOTE: Layer-1 section titles / Layer-2 toggle labels are UI labels owned by
+// the view-model TITLE table (utils/northStarReportViewModel.js), NOT report
+// copy — they are presentation-neutral chrome, not diagnosis semantics.
+
+// ── §18 F2-M2 MULTIPLE impact copy (COUNT-NEUTRAL; N >= 2) ────────────────
+// The runtime eligible-model count is N (N >= 2) and is UNKNOWN to this static
+// table. All wording uses neutral quantifiers («多个» / «这些») so it stays
+// consistent for any N. NO numeral («两个» / «这两个» / «2个») is ever hardcoded.
+const MULTIPLE_IMPACT_COPY = Object.freeze({
+  tensionBroad:
+    '这些方向分散在不同方面——不是同一处偏差的重复，而是你在不同决策场景里反复出现的习惯。',
+  tensionFocused:
+    '这些方向集中在同一类问题上，是同一种决策习惯在不同场景里的不同表现。',
+  coverageLead: '目前有多个认知方向同时获得了足够的证据支持：',
+  trapLead: '这些方向叠在一起，会让你在关键决策上表现出一致的倾向：',
+  upgradeLead: '与其一次改掉所有方向，不如先建立同一套更稳的决策方式：',
+  actionFallback: '先从上面任意一个方向挑一个最小的动作做起来，再根据结果调整。',
+  noPrimaryNote: '系统目前不把其中任何一个判定为唯一主因。',
+})
+
+// Concrete, count-neutral "shared decision method" actions for the MULTIPLE
+// state. These keep ACTION_PLAN within the 3-5 bullet budget for ANY N (the
+// per-candidate observations cover only a subset of candidates). Not chicken
+// soup: each is a concrete decision-protocol step tied to the multi-model
+// tension. No numeral is hardcoded.
+const MULTIPLE_ACTION_COPY = Object.freeze({
+  base: [
+    '把同时成立的这几个方向列出来，标清每个方向分别在什么情境下最容易出现。',
+    '在这些情境里设一个固定的决策检查点：动手前先停一下，确认不是习惯在替你决定。',
+    '做重要决定前，先分清这件事是在解决眼前问题，还是在积累长期结果。',
+    '只挑一个方向，用两周时间做最小的改变，再用实际结果来调整下一步。',
+  ],
+})
+
+// Family label localization (keyed by the frozen familyId). Used by the
+// MULTIPLE synthesis so the user sees a plain-language tension class.
+const FAMILY_LABEL_COPY = Object.freeze({
+  EXECUTION_ADAPTATION_GAP: '行动与学习',
+  RESOURCE_COMPOUNDING_GAP: '资源与复利',
+  PERCEPTION_RISK_GAP: '感知与风险',
+  FRAMEWORK_GAP: '思维方式',
+})
+
 // ── Getters ────────────────────────────────────────────────────────────────
 function getBlindSpotLabel(blindSpotId) {
   return BLIND_SPOT_LABEL_COPY[blindSpotId] || null
@@ -499,6 +543,15 @@ function getMultipleStateCopy() {
 }
 function getMultipleObservation(blindSpotId) {
   return MULTIPLE_OBSERVATION_COPY[blindSpotId] || null
+}
+function getMultipleImpactCopy() {
+  return MULTIPLE_IMPACT_COPY
+}
+function getMultipleActionCopy() {
+  return MULTIPLE_ACTION_COPY
+}
+function getFamilyLabel(familyId) {
+  return FAMILY_LABEL_COPY[familyId] || null
 }
 function getBlindSpotVerdict(blindSpotId) {
   return BLIND_SPOT_VERDICT_COPY[blindSpotId] || null
@@ -566,6 +619,9 @@ module.exports = {
   BLIND_SPOT_LABEL_COPY,
   MULTIPLE_STATE_COPY,
   MULTIPLE_OBSERVATION_COPY,
+  MULTIPLE_IMPACT_COPY,
+  MULTIPLE_ACTION_COPY,
+  FAMILY_LABEL_COPY,
   CONSTRUCT_LABEL_COPY,
   ORIENTATION_LABEL_COPY,
   STATE_LABEL_COPY,
@@ -588,4 +644,7 @@ module.exports = {
   getBlindSpotLabel,
   getMultipleStateCopy,
   getMultipleObservation,
+  getMultipleImpactCopy,
+  getMultipleActionCopy,
+  getFamilyLabel,
 }

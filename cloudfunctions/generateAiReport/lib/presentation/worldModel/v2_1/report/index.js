@@ -37,6 +37,19 @@ const {
   isEnglishParagraph,
 } = require('./northStarReportValidatorV21')
 
+const {
+  IMPACT_VERSION,
+  BUDGET,
+  IMPACT_SECTION_TITLES,
+  LAYER2_TITLE,
+  buildImpactSummaryV21,
+} = require('./impactSummaryV21')
+
+const {
+  EXPLAINER_VERSION,
+  buildImpactExplainerV21,
+} = require('./impactExplainerV21')
+
 const copy = require('./northStarReportCopyV21')
 
 module.exports = {
@@ -54,5 +67,12 @@ module.exports = {
   validateNorthStarReportV21,
   collectUserStrings,
   isEnglishParagraph,
+  IMPACT_VERSION,
+  BUDGET,
+  IMPACT_SECTION_TITLES,
+  LAYER2_TITLE,
+  buildImpactSummaryV21,
+  EXPLAINER_VERSION,
+  buildImpactExplainerV21,
   copy,
 }

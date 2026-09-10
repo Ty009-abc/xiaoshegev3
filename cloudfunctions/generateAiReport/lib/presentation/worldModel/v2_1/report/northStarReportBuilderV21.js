@@ -53,6 +53,9 @@ const {
   getStateLabel,
 } = require('./northStarReportCopyV21')
 
+const { buildImpactSummaryV21 } = require('./impactSummaryV21')
+const { buildImpactExplainerV21 } = require('./impactExplainerV21')
+
 const REPORT_VERSION = 'north_star_report_v1'
 
 // ── Section factory ────────────────────────────────────────────────────────
@@ -413,10 +416,19 @@ function buildNorthStarReportV21(pm) {
   ]
 
   const multiModel = buildMultiModelSection(pm)
+  const impactSummary = buildImpactSummaryV21(pm)
   const report = {
     version: REPORT_VERSION,
     diagnosisState: pm.diagnosisState,
     sections,
+  }
+  // Layer-1 impact summary: present ONLY when the state carries semantics that
+  // support the 5-section IA (UNIQUE / MULTIPLE). Other states keep the
+  // truthful compact neutral layout and preserve the exact shape (byte-identical).
+  if (impactSummary) {
+    report.impactSummary = impactSummary
+    // Layer-2 explainability pairs with Layer 1 (same states only).
+    report.impactExplainer = buildImpactExplainerV21(pm, sections)
   }
   // Preserve the exact shape for non-MULTIPLE states (byte-identical outputs).
   if (multiModel) report.multiModel = multiModel

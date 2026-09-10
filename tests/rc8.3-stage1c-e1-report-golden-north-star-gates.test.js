@@ -454,6 +454,137 @@ test('§11 NSR-01..10: all 10 invariants hold on the R4.5 SYSTEMS report', () =>
   assert.strictEqual(Object.keys(gates).length, 10)
 })
 
+// ── §11b NSR F2-M2 impact-summary gates (9/9) ─────────────────────────────
+
+// Build a MULTIPLE state from an explicit construct subset (any N >= 2).
+function multiStateAnswers(constructs) {
+  const map = {}
+  for (const c of CONSTRUCTS_V21) map[c] = { ...GOLDEN.HEALTHY[c] }
+  for (const c of constructs) map[c] = { ...GOLDEN.DISTORTED_PAIR[c] }
+  return answersFromOptionMap(map)
+}
+
+const NUMERAL_RE = /两个|这两个|2个/
+const LAYER1_REPLAY_MAX = 4
+
+test('§11b-01 IMPACT_SUMMARY_PRESENT_FOR_UNIQUE', () => {
+  for (const c of CONSTRUCTS_V21) {
+    const vm = viewModel.buildNorthStarReportViewModel(UNIQUE_CM[c])
+    assert.ok(vm.impactSummary, `${c}: impact summary present`)
+    assert.ok(vm.impactSummary.fatalInsight.length > 0, `${c}: fatal insight`)
+    assert.ok(vm.impactSummary.sections.length === 3, `${c}: 03 sections + hero + action = 5`)
+    assert.ok(vm.impactSummary.actionPlan.length > 0, `${c}: action plan`)
+  }
+})
+
+test('§11b-02 MULTIPLE_SYNTHESIS_SOURCE_BACKED', () => {
+  for (const constructs of [['DECISION', 'TIME'], ['DECISION', 'TIME', 'PROBABILITY'], ['DECISION', 'TIME', 'PROBABILITY', 'RISK', 'SYSTEMS']]) {
+    const { pm } = buildFull(multiStateAnswers(constructs))
+    const syn = pm.multipleSynthesis
+    assert.ok(syn, 'synthesis present')
+    for (const p of syn.supportedPatterns) assert.ok(p.source && p.source.candidateIds.length > 0, 'pattern sourced')
+    for (const g of syn.familyGroups) assert.ok(g.source && g.source.candidateIds.length > 0, 'family sourced')
+    assert.ok(syn.tension.source.candidateIds.length > 0, 'tension sourced')
+    assert.ok(syn.modelDirection.source.candidateIds.length > 0, 'direction sourced')
+  }
+})
+
+test('§11b-03 MULTIPLE_SYNTHESIS_NOT_PRIMARY', () => {
+  const { pm, contentModel } = buildFull(multiStateAnswers(['DECISION', 'TIME', 'PROBABILITY', 'RISK', 'SYSTEMS']))
+  const syn = pm.multipleSynthesis
+  assert.strictEqual(syn.isPrimary, false)
+  assert.strictEqual(syn.noWinner, true)
+  assert.strictEqual(syn.noRanking, true)
+  assert.strictEqual(syn.noFabricatedPrimary, true)
+  assert.strictEqual(syn.noInventedWorldRule, true)
+  assert.strictEqual(syn.noInventedScenario, true)
+  assert.strictEqual(contentModel.diagnosisState.primaryBlindSpotId, null, 'FABRICATED_PRIMARY_COUNT=0')
+})
+
+test('§11b-04 NO_FIXED_MULTIPLE_COUNT (N=2/3/5/9)', () => {
+  const matrix = [
+    ['DECISION', 'TIME'],
+    ['DECISION', 'TIME', 'PROBABILITY'],
+    ['DECISION', 'TIME', 'PROBABILITY', 'RISK', 'SYSTEMS'],
+    CONSTRUCTS_V21.slice(),
+  ]
+  for (const constructs of matrix) {
+    const { cognition, pm, contentModel } = buildFull(multiStateAnswers(constructs))
+    assert.strictEqual(cognition.decision.reasonCode, 'MULTIPLE_SUPPORTED_MODELS')
+    assert.strictEqual(cognition.decision.eligibleCandidateIds.length, constructs.length)
+    assert.strictEqual(pm.multipleSynthesis.patternCount, constructs.length)
+    const is = contentModel.impactSummary
+    assert.ok(is, 'impact summary present')
+    assert.strictEqual(NUMERAL_RE.test(JSON.stringify(is)), false, `hardcoded numeral at N=${constructs.length}`)
+  }
+  // production MULTIPLE copy tables must not carry a hardcoded numeral
+  const copy = require('../cloudfunctions/generateAiReport/lib/presentation/worldModel/v2_1/report/northStarReportCopyV21.js')
+  let count = 0
+  for (const key of ['MULTIPLE_STATE_COPY', 'MULTIPLE_IMPACT_COPY']) {
+    for (const k of Object.keys(copy[key])) if (typeof copy[key][k] === 'string' && NUMERAL_RE.test(copy[key][k])) count++
+  }
+  assert.strictEqual(count, 0, 'HARDCODED_MULTIPLE_NUMERAL_COUNT=0')
+})
+
+test('§11b-05 LAYER1_LENGTH_BUDGET (meaningful upper bounds)', () => {
+  const { BUDGET } = reportBuilder
+  const tol = 6
+  for (const constructs of [['SYSTEMS'], ['DECISION', 'TIME'], ['DECISION', 'TIME', 'PROBABILITY', 'RISK', 'SYSTEMS']]) {
+    const is = buildFull(multiStateAnswers(constructs)).contentModel.impactSummary
+    assert.ok([...is.fatalInsight].length <= BUDGET.FATAL_INSIGHT + tol, 'FATAL_INSIGHT <= 60')
+    assert.ok([...is.coreProblem].length <= BUDGET.CORE_PROBLEM + tol, 'CORE_PROBLEM <= 120')
+    assert.ok([...is.systemTrap].length <= BUDGET.SYSTEM_TRAP + tol, 'SYSTEM_TRAP <= 160')
+    assert.ok([...is.upgradePath].length <= BUDGET.UPGRADE_PATH + tol, 'UPGRADE_PATH <= 140')
+    assert.ok(is.actionPlan.length >= BUDGET.ACTION_PLAN_MIN && is.actionPlan.length <= BUDGET.ACTION_PLAN_MAX, 'ACTION_PLAN 3-5')
+    assert.ok(is.evidencePreview.length >= BUDGET.EVIDENCE_PREVIEW_MIN && is.evidencePreview.length <= BUDGET.EVIDENCE_PREVIEW_MAX, 'EVIDENCE_PREVIEW 2-4')
+  }
+})
+
+test('§11b-06 LAYER1_EVIDENCE_COMPRESSION + NO_QUESTIONNAIRE_REPLAY_OVERLOAD', () => {
+  const { contentModel } = buildFull(multiStateAnswers(['DECISION', 'TIME', 'PROBABILITY', 'RISK', 'SYSTEMS']))
+  const vm = viewModel.buildNorthStarReportViewModel(contentModel)
+  const replay = vm.impactSummary.evidencePreview.length
+  assert.ok(replay <= LAYER1_REPLAY_MAX, `LAYER1_VISIBLE_QUESTION_REPLAY_COUNT=${replay} <= 4`)
+  // full details live in Layer 2 only
+  const layer2Rows = vm.impactExplainer.supportedModels.reduce((n, m) => n + m.evidence.length, 0)
+  assert.strictEqual(layer2Rows, 10, 'Layer-2 keeps all 10 source rows')
+})
+
+test('§11b-07 LAYER2_PRESERVES_FULL_EVIDENCE (no model hidden)', () => {
+  const { contentModel } = buildFull(multiStateAnswers(['DECISION', 'TIME', 'PROBABILITY', 'RISK', 'SYSTEMS']))
+  const vm = viewModel.buildNorthStarReportViewModel(contentModel)
+  assert.strictEqual(vm.impactExplainer.supportedModels.length, 5, 'LAYER2_SUPPORTED_MODEL_COUNT=5')
+  for (const m of vm.impactExplainer.supportedModels) assert.ok(m.evidence.length >= 2, `${m.label}: evidence preserved`)
+  assert.strictEqual(vm.impactExplainer.worldModel, null, 'no fabricated world rule')
+  assert.strictEqual(vm.impactExplainer.scenario, null, 'no fabricated scenario')
+  // UNIQUE preserves world model + scenario + full map
+  const uVm = viewModel.buildNorthStarReportViewModel(UNIQUE_CM.SYSTEMS)
+  assert.ok(uVm.impactExplainer.worldModel && uVm.impactExplainer.scenario, 'UNIQUE layer-2 world+scenario kept')
+  assert.strictEqual(uVm.impactExplainer.fullModelMap.length, 9, 'full map kept')
+})
+
+test('§11b-08 LEGACY_IMPACT_WITHOUT_LEGACY_OVERCLAIM', () => {
+  const FORBIDDEN = /命运|注定|宿命|稳赚|保证赚|财富自由|收入翻倍|成功率\s*[0-9]+%|未来可期|加油|相信自己/
+  for (const constructs of [['SYSTEMS'], ['DECISION', 'TIME', 'PROBABILITY', 'RISK', 'SYSTEMS']]) {
+    const { contentModel } = buildFull(multiStateAnswers(constructs))
+    const is = contentModel.impactSummary
+    const strings = [is.fatalInsight, is.coreProblem, is.systemTrap, is.upgradePath, ...is.actionPlan,
+      ...is.evidencePreview.map((e) => e.whatSignalItShows)]
+    for (const s of strings) assert.ok(!FORBIDDEN.test(s), `legacy overclaim: ${s}`)
+    // hierarchy preserved: sharp conclusion first (fatal insight is a sentence)
+    assert.ok([...is.fatalInsight].length >= 8, 'fatal insight is a real conclusion')
+  }
+})
+
+// §11b roll-up: 9 impact gates (8 above + MEDIA/A11Y-neutral title gate)
+test('§11b-09 IMPACT_SECTION_TITLES_ARE_UI_CHROME (no diagnosis semantics)', () => {
+  const titles = viewModel.IMPACT_TITLE
+  assert.ok(titles && titles.LAYER2 && titles.FATAL_INSIGHT, 'impact titles present')
+  assert.strictEqual(viewModel.buildNorthStarReportViewModel(UNIQUE_CM.SYSTEMS).impactSummary.layer2Title, '为什么系统这样判断我')
+  // titles contain no raw schema token
+  for (const k of Object.keys(titles)) assert.ok(!RAW_SCHEMA_RE.test(titles[k]), `title leak: ${titles[k]}`)
+})
+
 // ── §12 cross-layer authority gates ───────────────────────────────────────
 
 function walkFiles(dir, predicate) {

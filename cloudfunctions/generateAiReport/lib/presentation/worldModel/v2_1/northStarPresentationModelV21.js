@@ -42,6 +42,7 @@ const {
   buildEvidenceExplanationV21,
   buildMultiModelEvidenceV21,
 } = require('./evidenceExplanationV21')
+const { buildMultipleSynthesisV21 } = require('./multipleSynthesisV21')
 
 const PRESENTATION_VERSION = 'north_star_presentation_v1'
 const PRESENTATION_MODE = 'NORTH_STAR_PRESENTATION'
@@ -175,6 +176,7 @@ function buildNorthStarPresentationModelV21({
   let decisionProtocol = null
   let evidenceExplanation = null
   let multiModelEvidence = null
+  let multipleSynthesis = null
 
   const primaryDim = primaryBlindSpotId
     ? (Array.isArray(dimensions) ? dimensions.find((d) => d && d.construct === (decision.primaryConstruct)) : null) || {}
@@ -207,6 +209,13 @@ function buildNorthStarPresentationModelV21({
       answerTrace,
       dimensions,
     })
+    // Stage1C-F2-M2: deterministic MULTIPLE synthesis — lives ONLY in the
+    // presentation layer (never first in report copy or UI). Source-backed by
+    // accepted eligible candidates + their evidence. No winner/ranking/primary.
+    multipleSynthesis = buildMultipleSynthesisV21({
+      eligibleCandidateIds: diagnosisState.eligibleCandidateIds,
+      multiModelEvidence,
+    })
   }
 
   // ── CAUSAL CHAIN — structured truth (answer evidence → behavior pattern →
@@ -228,7 +237,7 @@ function buildNorthStarPresentationModelV21({
   const scenarioContrast = buildScenarioContrastV21(scenarioSimulation)
   const secondaryContext = buildSecondaryContextV21(cognitiveArchetype, dimensions)
 
-  return {
+  const result = {
     version: PRESENTATION_VERSION,
     presentationMode: PRESENTATION_MODE,
     diagnosisState,
@@ -259,6 +268,10 @@ function buildNorthStarPresentationModelV21({
       presentationOnly: true,
     },
   }
+  // Preserve exact shape for non-MULTIPLE states (byte-identical outputs):
+  // the synthesis key is present ONLY when MULTIPLE synthesis was built.
+  if (multipleSynthesis) result.multipleSynthesis = multipleSynthesis
+  return result
 }
 
 module.exports = {

@@ -52,6 +52,19 @@ const TITLE = {
   SECONDARY: '完整认知地图',
 }
 
+// Layer-1 impact summary section headings (F2-M2 IA). Presentation-neutral
+// chrome — same class as TITLE above (not diagnosis copy, not a taxonomy dump).
+const IMPACT_TITLE = {
+  FATAL_INSIGHT: '致命一句话',
+  CORE_PROBLEM: '核心问题',
+  SYSTEM_TRAP: '系统困局',
+  UPGRADE_PATH: '模型升级',
+  ACTION_PLAN: '行动建议',
+  EVIDENCE: '支持这个判断的回答',
+  LAYER2: '为什么系统这样判断我',
+  LAYER2_HINT: '展开查看完整证据与推理链条',
+}
+
 function byId(sections, id) {
   if (!Array.isArray(sections)) return null
   for (const s of sections) {
@@ -158,6 +171,89 @@ function mapFullModelMap(fullModelMap) {
   }))
 }
 
+// Layer-1 impact summary (F2-M2). Pure pass-through of the report's structured
+// product block — the view-model answers "HOW TO PRESENT", never "WHAT IS TRUE".
+// Titles are UI chrome; all diagnosis copy comes from the report. No numeral is
+// hardcoded here (the report's count-neutral copy is consumed verbatim).
+function mapImpactSummary(report) {
+  const is = report && report.impactSummary
+  if (!is) return null
+  const preview = Array.isArray(is.evidencePreview) ? is.evidencePreview : []
+  return {
+    state: is.state || '',
+    eyebrow: '认知诊断',
+    // Layer-1 logical sections: 01 FATAL_INSIGHT (hero) + 02/03/04 (sections)
+    // + 05 ACTION_PLAN (list) = exactly 5.
+    fatalInsight: is.fatalInsight || '',
+    sections: [
+      { key: 'CORE_PROBLEM', title: IMPACT_TITLE.CORE_PROBLEM, text: is.coreProblem || '' },
+      { key: 'SYSTEM_TRAP', title: IMPACT_TITLE.SYSTEM_TRAP, text: is.systemTrap || '' },
+      { key: 'UPGRADE_PATH', title: IMPACT_TITLE.UPGRADE_PATH, text: is.upgradePath || '' },
+    ],
+    layer1SectionCount: 5,
+    actionTitle: IMPACT_TITLE.ACTION_PLAN,
+    actionPlan: Array.isArray(is.actionPlan) ? is.actionPlan.slice() : [],
+    evidenceTitle: IMPACT_TITLE.EVIDENCE,
+    evidencePreview: preview.map((e) => ({
+      questionMeaning: e.questionMeaning || '',
+      selectedAnswerMeaning: e.selectedAnswerMeaning || '',
+      whatSignalItShows: e.whatSignalItShows || '',
+    })),
+    layer2Title: IMPACT_TITLE.LAYER2,
+    layer2Hint: IMPACT_TITLE.LAYER2_HINT,
+    // Layer-1 shows at most ONE conceptual model block (never N full-size cards).
+    fullModelCardCount: 0,
+  }
+}
+
+function mapExplainerEvidence(items) {
+  if (!Array.isArray(items)) return []
+  return items.map((e) => ({
+    order: e.order || 0,
+    questionMeaning: e.questionMeaning || '',
+    selectedAnswerMeaning: e.selectedAnswerMeaning || '',
+    whatSignalItShows: e.whatSignalItShows || '',
+    howItSupportsDiagnosis: e.howItSupportsDiagnosis || '',
+  }))
+}
+
+// Layer-2 explainability (F2-M2). For MULTIPLE it carries the FULL per-model
+// detail (no model hidden); for UNIQUE the full world-model / scenario / map.
+function mapImpactExplainer(report) {
+  const ex = report && report.impactExplainer
+  if (!ex) return null
+  return {
+    state: ex.state || '',
+    count: typeof ex.count === 'number' ? ex.count : 0,
+    supportedModels: Array.isArray(ex.supportedModels)
+      ? ex.supportedModels.map((m) => ({
+          label: m.label || '',
+          statement: m.statement || '',
+          observation: m.observation || '',
+          evidence: mapExplainerEvidence(m.evidence),
+        }))
+      : [],
+    evidence: mapExplainerEvidence(ex.evidence),
+    worldModel: ex.worldModel
+      ? {
+          userModel: ex.worldModel.userModel || '',
+          worldRule: ex.worldModel.worldRule || '',
+          misalignment: ex.worldModel.misalignment || '',
+          whyItMatters: ex.worldModel.whyItMatters || null,
+        }
+      : null,
+    scenario: ex.scenario
+      ? {
+          currentModel: ex.scenario.currentModel || null,
+          upgradedModel: ex.scenario.upgradedModel || null,
+          uncertainty: Array.isArray(ex.scenario.uncertainty) ? ex.scenario.uncertainty : [],
+          simulationNote: ex.scenario.simulationNote || '',
+        }
+      : null,
+    fullModelMap: mapFullModelMap(ex.fullModelMap),
+  }
+}
+
 /**
  * Build a flat view model from a north_star_report_v1 report.
  *
@@ -196,6 +292,11 @@ function buildNorthStarReportViewModel(report) {
       scenario: null,
       secondary: null,
     }
+    // Layer-1/Layer-2 product blocks: present ONLY when the report carries them
+    // (UNIQUE / MULTIPLE). Other states keep the exact neutral shape.
+    const impactSummary = mapImpactSummary(report)
+    const impactExplainer = mapImpactExplainer(report)
+    if (impactSummary) { result.impactSummary = impactSummary; result.impactExplainer = impactExplainer }
     // Preserve exact shape for non-MULTIPLE states (byte-identical outputs).
     if (uiState === UI_STATE.MULTIPLE) result.multiple = mapMultiple(report.multiModel)
     return result
@@ -211,7 +312,7 @@ function buildNorthStarReportViewModel(report) {
   const scenario = byId(sections, SECTION.SCENARIO)
   const secondary = byId(sections, SECTION.SECONDARY)
 
-  return {
+  const result = {
     supported: true,
     uiState,
     hasPrimary,
@@ -284,11 +385,18 @@ function buildNorthStarReportViewModel(report) {
       fullModelMap: mapFullModelMap(secondary.body.fullModelMap),
     } : null,
   }
+
+  // Layer-1/Layer-2 product blocks (UNIQUE carries both).
+  const impactSummary = mapImpactSummary(report)
+  const impactExplainer = mapImpactExplainer(report)
+  if (impactSummary) { result.impactSummary = impactSummary; result.impactExplainer = impactExplainer }
+  return result
 }
 
 module.exports = {
   SECTION,
   TITLE,
+  IMPACT_TITLE,
   UI_STATE,
   STATE_MESSAGE,
   resolveUiState,

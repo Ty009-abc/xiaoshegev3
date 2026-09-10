@@ -392,3 +392,35 @@
   border-radius: 16rpx;
   font-size: 32rpx;
 }
+
+/* ═══ F2-M2 Layer-1 影响摘要 ═══ */
+.impact-section {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #f0f1f5;
+}
+
+.impact-section:last-child {
+  border-bottom: none;
+}
+
+.impact-title {
+  display: block;
+  font-size: 26rpx;
+  color: #7f56d9;
+  margin-bottom: 8rpx;
+}
+
+.impact-text {
+  display: block;
+  font-size: 30rpx;
+  line-height: 1.6;
+  color: #1a1a2e;
+}
+
+.impact-li {
+  display: block;
+  font-size: 30rpx;
+  line-height: 1.6;
+  color: #1a1a2e;
+  margin-top: 4rpx;
+}

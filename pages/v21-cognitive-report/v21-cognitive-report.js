@@ -48,6 +48,8 @@ Page({
     stateMessage: '',
     retakeAvailable: false,
     multiple: null,
+    impactSummary: null,
+    impactExplainer: null,
     verdict: null,
     currentModel: null,
     worldRule: null,
@@ -60,6 +62,8 @@ Page({
 
     // Secondary context collapsed by default (§13)
     secondaryExpanded: false,
+    // Layer-2 explainability collapsed by default (F2-M2 §12/§13)
+    layer2Expanded: false,
   },
 
   onLoad() {
@@ -78,6 +82,8 @@ Page({
         stateMessage: vm.stateMessage,
         retakeAvailable: vm.retakeAvailable,
         multiple: vm.multiple,
+        impactSummary: vm.impactSummary || null,
+        impactExplainer: vm.impactExplainer || null,
         verdict: vm.verdict,
         currentModel: vm.currentModel,
         worldRule: vm.worldRule,
@@ -112,6 +118,10 @@ Page({
 
   toggleSecondary() {
     this.setData({ secondaryExpanded: !this.data.secondaryExpanded })
+  },
+
+  toggleLayer2() {
+    this.setData({ layer2Expanded: !this.data.layer2Expanded })
   },
 
   onBack() {
