@@ -468,13 +468,17 @@ const BLIND_SPOT_LABEL_COPY = Object.freeze({
 // directions are equally well supported and NONE is an authoritative primary.
 // The report describes each supported direction truthfully and refuses to
 // rank them. All strings are Chinese, neutral, non-predictive, non-wealth.
+// COUNT-NEUTRAL: the runtime eligible-model count is N (N >= 2) and is NOT
+// known to this static copy. Wording must never hardcode a numeral ("两个" /
+// "这两个" / "2个"); it uses neutral quantifiers ("多个" / "这些") so the copy
+// stays consistent for any N. The per-model cards carry the concrete count.
 const MULTIPLE_STATE_COPY = Object.freeze({
   eyebrow: '认知诊断',
-  headline: '目前不是没有结论，而是有两个方向都得到了足够的证据支持。',
-  summary: '目前不是没有结论，而是有两个方向都得到了足够的证据支持，这次很难简单分出主次。',
-  evidenceHeading: '支持这个方向的回答',
+  headline: '目前不是没有结论，而是有多个方向都得到了足够的证据支持。',
+  summary: '目前不是没有结论，而是有多个方向都得到了足够的证据支持，这次很难简单分出主次。',
+  evidenceHeading: '支持这些方向的回答',
   synthesisTitle: '综合结论',
-  synthesis: '当前证据足以确认这两个模式都存在，但还不足以把它们中的某一个指定为唯一主因。',
+  synthesis: '当前证据足以确认这些模式同时存在，但还不足以把其中某一个指定为唯一主因。',
   nextObservationTitle: '接下来可以留意什么',
 })
 

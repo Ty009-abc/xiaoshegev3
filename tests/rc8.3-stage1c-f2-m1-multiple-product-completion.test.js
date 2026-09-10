@@ -139,9 +139,11 @@ test('§3: each supported model carries label + statement + evidence + provenanc
   }
 })
 
-test('§3: synthesis is neutral (two directions exist, none uniquely primary)', () => {
+test('§3: synthesis is neutral + count-neutral (multiple directions exist, none uniquely primary)', () => {
   const s = RD.contentModel.multiModel.synthesis
-  assert.ok(/两个方向|两个模式/.test(s), 'mentions two directions')
+  // F2-M2A: wording is COUNT-NEUTRAL — no hardcoded numeral ("两个"/"这两个").
+  assert.ok(/这些模式|多个/.test(s), 'count-neutral wording')
+  assert.ok(!/两个|这两个|2个/.test(s), 'no hardcoded numeral')
   assert.ok(/不足以/.test(s), 'states it is not enough to designate one primary')
   assert.ok(!/回答不足|证据不足|不足以形成/.test(s), 'NOT false insufficiency')
   assert.strictEqual(RD.contentModel.multiModel.synthesisTitle, '综合结论')
