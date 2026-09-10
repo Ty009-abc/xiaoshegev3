@@ -46,6 +46,11 @@ const {
 } = require('./impactSummaryV21')
 
 const {
+  THESIS_VERSION,
+  buildImpactThesisV21,
+} = require('./impactThesisV21')
+
+const {
   EXPLAINER_VERSION,
   buildImpactExplainerV21,
 } = require('./impactExplainerV21')
@@ -72,6 +77,8 @@ module.exports = {
   IMPACT_SECTION_TITLES,
   LAYER2_TITLE,
   buildImpactSummaryV21,
+  THESIS_VERSION,
+  buildImpactThesisV21,
   EXPLAINER_VERSION,
   buildImpactExplainerV21,
   copy,

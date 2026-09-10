@@ -203,10 +203,13 @@ test('§6: neither view-model nor page branches on blindSpot id', () => {
 
 // ── §7 WXML MULTIPLE UI ────────────────────────────────────────────────────
 
-test('§7: WXML renders MULTIPLE header + per-model cards + evidence + synthesis + action', () => {
+test('§7: WXML renders MULTIPLE hero + per-model cards + evidence + synthesis + action', () => {
   const wxml = fs.readFileSync(path.join(ROOT, 'pages/v21-cognitive-report/v21-cognitive-report.wxml'), 'utf8')
   assert.ok(/uiState === 'MULTIPLE'/.test(wxml), 'MULTIPLE branch present')
-  assert.ok(wxml.includes('multiple.headline'), 'neutral header')
+  // P0 (V5): the MULTIPLE hero binds the V5 fatal insight, NOT the frozen meta
+  // headline (which said «多个方向都得到了足够的证据支持»).
+  assert.ok(wxml.includes('impactSummary.fatalInsight'), 'hero binds impactSummary.fatalInsight')
+  assert.ok(!wxml.includes('multiple.headline'), 'meta headline must not be the primary hero')
   assert.ok(wxml.includes('multiple.supportedModels'), 'model cards loop')
   assert.ok(wxml.includes('model.evidence'), 'per-model evidence loop')
   assert.ok(wxml.includes('multiple.synthesis'), 'neutral synthesis')
@@ -214,7 +217,11 @@ test('§7: WXML renders MULTIPLE header + per-model cards + evidence + synthesis
   // no fake primary card / fake strategy in the MULTIPLE branch
   const seg = wxml.slice(wxml.indexOf("uiState === 'MULTIPLE'"), wxml.indexOf('非 UNIQUE 中性状态'))
   assert.ok(!/hero-label/.test(seg), 'no fake primary label badge')
-  assert.ok(!/upgrade|worldRule|protocol/.test(seg), 'no fake strategy/world-rule/protocol')
+  assert.ok(!/hero-eyebrow/.test(seg), 'no meta eyebrow on the MULTIPLE hero')
+  // V5: the MULTIPLE Layer-1 intentionally carries a SHARED, source-backed
+  // upgrade direction (impactSummary.upgradeFrom/upgradeTo). It still must NOT
+  // bind any UNIQUE-only fabricated strategy / world-rule / protocol section.
+  assert.ok(!/worldRule\.|protocol\.|upgrade\.upgradedModel/.test(seg), 'no fake unique strategy/world-rule/protocol binding')
 })
 
 test('§7: WXML has no raw token binding keys', () => {

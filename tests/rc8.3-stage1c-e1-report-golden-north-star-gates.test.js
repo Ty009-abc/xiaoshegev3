@@ -533,7 +533,10 @@ test('§11b-05 LAYER1_LENGTH_BUDGET (meaningful upper bounds)', () => {
     const is = buildFull(multiStateAnswers(constructs)).contentModel.impactSummary
     assert.ok([...is.fatalInsight].length <= BUDGET.FATAL_INSIGHT + tol, 'FATAL_INSIGHT <= 60')
     assert.ok([...is.coreProblem].length <= BUDGET.CORE_PROBLEM + tol, 'CORE_PROBLEM <= 120')
-    assert.ok([...is.systemTrap].length <= BUDGET.SYSTEM_TRAP + tol, 'SYSTEM_TRAP <= 160')
+    // M2: UNIQUE Card 03 keeps the frozen 160 cap; MULTIPLE Card 03 uses the
+    // authorized constrained relaxation (hard ceiling 220).
+    const trapCap = is.state === 'MULTIPLE' ? BUDGET.MULTIPLE_SYSTEM_TRAP_MAX : BUDGET.SYSTEM_TRAP
+    assert.ok([...is.systemTrap].length <= trapCap + tol, 'SYSTEM_TRAP within state cap')
     assert.ok([...is.upgradePath].length <= BUDGET.UPGRADE_PATH + tol, 'UPGRADE_PATH <= 140')
     assert.ok(is.actionPlan.length >= BUDGET.ACTION_PLAN_MIN && is.actionPlan.length <= BUDGET.ACTION_PLAN_MAX, 'ACTION_PLAN 3-5')
     assert.ok(is.evidencePreview.length >= BUDGET.EVIDENCE_PREVIEW_MIN && is.evidencePreview.length <= BUDGET.EVIDENCE_PREVIEW_MAX, 'EVIDENCE_PREVIEW 2-4')

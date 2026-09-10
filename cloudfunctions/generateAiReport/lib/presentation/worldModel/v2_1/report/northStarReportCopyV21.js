@@ -525,6 +525,251 @@ const MULTIPLE_ACTION_COPY = Object.freeze({
   ],
 })
 
+// ── §19 V5 SYSTEM LOOP (Card 03) — repeated causal loop, keyed by principleId ──
+// Recovers the legacy "系统困局" impact WITHOUT recovering unsupported inference.
+// Each entry is a source-backed causal loop of the user's OWN recurring pattern
+// (trigger → habit → response → consequence → reinforcement), expressed in plain
+// user language. It is a deterministic restatement of the frozen principle's
+// mechanism/consequence + the blind-spot mechanism; it invents no event, no
+// outcome, no world rule. The loop names the trap (NOT a fabricated primary).
+const SYSTEM_LOOP_COPY = Object.freeze({
+  DECISION_CREATES_INFORMATION:
+    '遇到需要拍板的事 → 你想先等信息更全、条件更成熟 → 一直不出手 → 行动本来会带来的新信息始终没有出现 → 信息越少你越不敢动，只能继续等。',
+  FEEDBACK_UPDATES_MODELS:
+    '做完一件事 → 你凭自己的判断认定结果，很少回头核对 → 外部信号没有被真正消化 → 心里的模型一直没被校准 → 下一次还是按老假设行动，同样的偏差再发生一次。',
+  PROBABILITY_GOVERNS_OUTCOMES:
+    '面对不确定的结果 → 你用「成还是不成」去判断 → 要么因为看着「一定成」而重仓押上，要么因为「不确定」而直接放弃 → 两种做法都绕开了对概率和期望值的评估 → 结果反复让你意外，你更相信运气。',
+  RISK_IS_ASYMMETRICAL:
+    '面对一个机会 → 你先问「安不安全」 → 把风险和「危险」画上等号 → 那些下行有限、上行不小的机会被你先排除掉 → 你只留下「看起来安全」的选项，回报空间被一起压平了。',
+  LEVERAGE_MULTIPLIES_VALUE:
+    '要产出结果 → 你默认自己多花时间、多使劲去做 → 产出始终绑在你一个人身上 → 一旦停下产出就归零，增长撞到个人精力的天花板 → 你更确信「只能靠自己拼」，也就更没力气去找放大机制。',
+  TIME_COMPOUNDS_ADVANTAGE:
+    '新的事情出现 → 你本能先处理立刻见效的那件 → 需要长期积累才复利的事被一再往后排 → 紧急的事永远做不完，重要的进度始终是零 → 你更觉得「没时间」，就更没时间投给长期。',
+  IDENTITY_CONSTRAINS_CHOICES:
+    '出现一个机会 → 你先问「这像是我这种身份该做的事吗」 → 不符合自我设定的选项被自动过滤 → 你能看到的路越来越窄 → 你更确信「我只能做这个」，可选的路又少了一条。',
+  OPPORTUNITY_EMERGES_THROUGH_EXPOSURE:
+    '寻找出路 → 你只在熟悉的圈子和已知的路径里找 → 圈子之外本已存在的机会始终没进入视野 → 你感到「没什么机会」 → 于是更少接触新领域，暴露面进一步缩小，机会也就更少。',
+  SYSTEMS_PRODUCE_EMERGENT_BEHAVIOR:
+    '一个问题冒出来 → 你针对它本身直接处理 → 表面症状被暂时压下去，制造它的结构却没动 → 过一阵，同一个问题换张面孔再次出现 → 你继续处理新的症状，结构照旧不改。',
+})
+
+// ── §20 V5 MULTIPLE UNIFIED SYSTEM LOOP (Card 03 for N>=2) ────────────────
+// Describes the single recurring decision loop SHARED across simultaneously
+// supported directions. Per the V5 mission the state's own copy must AVOID the
+// engine-meta phrasing banned in §12 (so no «分主次» / «谁更强» here). It names
+// the shared habit, never ranks and never fabricates a primary. The concrete
+// candidate labels are carried separately in Card 02 (which may show them).
+const MULTIPLE_SYSTEM_LOOP_COPY = Object.freeze({
+  broad:
+    '遇到需要用判断力处理的事 → 你按最顺手的习惯先反应（等一等、按熟路走、或凭感觉下判断） → 同一个习惯被反复调用 → 它在不同场景里结出同一类结果，限制越来越明显 → 结果再次确认了你的做法，于是下次照旧。',
+  focused:
+    '遇到需要用判断力处理的事 → 你反复用同一个决策习惯先反应 → 这个习惯被一次次重复调用 → 它在不同场景里造成同一类结果 → 结果再次强化了这个习惯，于是下次照旧。',
+  fromShort: '按最顺手的习惯自动做决定，很少先停一下确认',
+  toShort: '动手前先过一遍同一套固定的决策检查，再决定',
+})
+
+// ── §20b V5 MULTIPLE UNIFIED NARRATIVE (Cards 01/02/04/05 for N>=2) ───────
+// The unified impact narrative for the MULTIPLE state. USER-CENTERED and
+// count-neutral (never a hardcoded numeral), with NO candidate-label list
+// (labels belong to Layer 2) and NO engine-meta prose (§12). Each clause is a
+// faithful synthesis of the simultaneously-supported directions and stays
+// source-backed (the thesis attaches the accepted eligible candidates).
+const MULTIPLE_UNIFIED_COPY = Object.freeze({
+  fatalInsight: '你不是不够努力，而是几套顺手的判断习惯同时在替你做决定，把很多选择在动念时就收窄了。',
+  coreProblem: '你以为每次都只是某件具体的事没处理好，其实是同一套顺手的判断习惯，在不同的事情上反复替你做主。',
+  upgradeLead: '与其一次改掉所有方向，不如先建立同一套更稳的决策方式：',
+  firstAction: '今天先挑一个方向，只做一件最小、可回退的一步（例如把一个反复搁置的小决定，先做出一个可以反悔的版本）。',
+})
+
+// ── §20c V5 MULTIPLE FAMILY THESIS (Cards 01–04 for the FAMILY_GAP family) ──
+// When ALL eligible candidates belong to the FRAMEWORK_GAP family (pure
+// «思维方式» de-risking: PROBABILITY_MISJUDGMENT / IDENTITY_CONSTRAINT /
+// SYSTEM_THINKING_GAP), the shared story is «用固定的身份和直觉代替概率与
+// 系统判断». Every clause is a faithful synthesis of the same accepted
+// per-candidate semantics (verdict / currentModel / misalignment / strategy):
+//   probability → 成或不成、低估基础概率；identity → 用固定角色定义自己；
+//   systems → 把问题当独立事件处理。No ranking, no primary, no taxonomy label.
+// LANGUAGE LOCK: user-centered, count-neutral, no meta tokens, no label list.
+const MULTIPLE_FAMILY_COPY = Object.freeze({
+  FRAMEWORK_GAP: Object.freeze({
+    fatalInsight: '你不是不够聪明，而是习惯用固定的身份和「成或不成」的直觉，代替了对概率与系统运行的判断。',
+    coreProblem: '你以为问题只是某一次判断不准，其实你默认遇到要看概率、看结构的事，都套用同一套身份直觉，同类误判才反复出现。',
+    upgradeFrom: '凭固定身份和直觉判断，很少先估计可能性、看结构',
+    upgradeTo: '遇到重要判断，先分清这是概率问题还是结构问题，再决定怎么做',
+  }),
+})
+
+// ── §20e V5 MULTIPLE BREADTH THESIS (Cards 01–04 for BROAD sets) ──────────
+// When the eligible candidates span MULTIPLE families, the shared story is
+// «同一套顺手的默认反应，在不同广度上反复替你做决定». The breadth is derived
+// DETERMINISTICALLY from the accepted synthesis (multipleSynthesis.familyGroups
+// + eligibleCandidateIds) — NOT from any label and NOT from a hardcoded count:
+//   FOCUSED   = all candidates share ONE family (single-domain habit)
+//   NARROW    = 2 families spanned
+//   SPREAD    = 3 families spanned
+//   WIDE      = >=4 families, low density (candidates ≈ families)
+//   PERVASIVE = >=4 families, high density (many candidates per family)
+// All copy is user-centered, count-neutral (no numeral), taxonomy-free, and
+// non-ranked; every clause restates accepted per-candidate semantics.
+const MULTIPLE_BREADTH_COPY = Object.freeze({
+  FOCUSED: Object.freeze({
+    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在同一类事情上反复替你做了决定。',
+    coreProblem: '你以为问题只是某一件事没处理好，其实是你遇到该认真判断的时候，习惯直接交给直觉，没真正权衡一次，同类结果才反复出现。',
+    loopScope: '同一类事情上',
+    upgradeFrom: '在关键判断上，按最顺手的习惯自动做决定，很少先停一下确认',
+    upgradeTo: '动手前先过一遍同一套固定的判断检查，再决定',
+  }),
+  NARROW: Object.freeze({
+    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在少数几个不同的方面替你做了决定。',
+    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在这少数几个方面，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
+    loopScope: '少数几个不同的方面',
+    upgradeFrom: '在少数几个关键判断上，按最顺手的习惯自动做决定，很少先停一下确认',
+    upgradeTo: '动手前先过一遍同一套固定的判断检查，再决定',
+  }),
+  SPREAD: Object.freeze({
+    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在好几个不同的方面替你做了决定。',
+    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在这好几个方面，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
+    loopScope: '好几个不同的方面',
+    upgradeFrom: '在好几个不同方面，都按最顺手的习惯自动做决定',
+    upgradeTo: '先在最常出现的那几个方面，各固定一条判断检查再决定',
+  }),
+  WIDE: Object.freeze({
+    fatalInsight: '你不是不够努力，而是同一套顺手的反应，在很多不同的方面替你做了决定。',
+    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在这很多方面，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
+    loopScope: '很多不同的方面',
+    upgradeFrom: '在大多数方面，都按最顺手的习惯自动做决定',
+    upgradeTo: '先在反复出问题的大多数方面，各固定一条判断检查再决定',
+  }),
+  PERVASIVE: Object.freeze({
+    fatalInsight: '你不是不够努力，而是同一套顺手的反应，几乎在每个方面都替你做了决定。',
+    coreProblem: '你以为问题只是某一件具体的事没处理好，其实在几乎所有场景，你遇到该认真判断的时候都直接交给直觉，没真正权衡一次，同类结果才反复出现。',
+    loopScope: '几乎所有方面',
+    upgradeFrom: '几乎在每个方面，都按最顺手的习惯自动做决定',
+    upgradeTo: '把「动手前先过一遍判断检查」变成默认动作，覆盖到几乎每个方面',
+  }),
+})
+
+// Broad-set system-loop template; the {SCOPE} token is filled from the breadth
+// level's loopScope. FOCUSED reuses the frozen focused loop (no scope token).
+const MULTIPLE_LOOP_TEMPLATE =
+  '遇到需要用判断力处理的事 → 你按最顺手的习惯先反应（等一等、按熟路走、或凭感觉下判断） → 同一个习惯被反复调用 → 它在{SCOPE}结出同一类结果，限制越来越明显 → 结果再次确认了你的做法，于是下次照旧。'
+
+// ── §M2 V5 MULTIPLE CARD 03 — CAUSAL-COMPRESSION SYSTEM_TRAP (N>=2) ───────
+// Card 03 for the MULTIPLE state is ONE coherent causal loop COMPRESSED from
+// the eligible candidates — NOT a concatenation of per-candidate phrases.
+// Each stage fuses the present families into a single natural clause:
+//   TRIGGER → JUDGMENT (the interacting habits) → ACTION → CONSEQUENCE
+//   → REINFORCEMENT.
+// The JUDGMENT stage names the causal layer of each PRESENT family (one terse
+// descriptor per family, tiered by the family's own density) — never candidate
+// names or symptoms. The REINFORCEMENT stage adds a materially-compounding
+// clause ONLY from the candidates whose own mechanism seals a corrective exit.
+// Count-neutral, taxonomy-free, non-ranked, no engine-meta, no numeral.
+// CAUSAL COMPRESSION (M2): each stage fuses the PRESENT families into ONE
+// natural clause via a terse per-family token. No candidate symptom is ever
+// enumerated. N9 (extra candidates inside already-present families) is
+// differentiated MATERIALLY by the density-sensitive reinforcement clause: a
+// candidate whose own mechanism seals a corrective exit (feedback / exposure /
+// leverage / identity) adds that sealed exit — not just a scope word.
+// Count-neutral, taxonomy-free, non-ranked, no engine-meta, no numeral.
+const MULTIPLE_TRAP_COPY = Object.freeze({
+  triggerLead: '每当',
+  triggerTail: '摆在面前',
+  judgmentLead: '你几乎同时亮出老一套：',
+  actionLead: '于是',
+  consequenceLead: '结果是',
+  consequenceTail: '，彼此加固、从不互相纠正',
+  reinforceLead: '；一再「没出事」就被当成经验',
+  reinforceBaseTail: '，下次照旧',
+  reinforceSealedMid: '，连',
+  reinforceSealedTail: '这些出口也被封死，循环越发锁死',
+  // Per-family causal token for each of the 5 stages. Keyed by the FROZEN
+  // familyId. Each token is a faithful compression of that family's accepted
+  // candidate semantics (t trigger; h judgment/habit; a action/inaction;
+  // c consequence; r reinforcement).
+  familyStage: {
+    EXECUTION_ADAPTATION_GAP: { t: '要拍板', h: '先想再等等', a: '没真正拍板', c: '信息没进来', r: '更不敢定' },
+    RESOURCE_COMPOUNDING_GAP: { t: '要投入', h: '先顾眼前', a: '长期事没排序', c: '复利停着', r: '更没时间' },
+    PERCEPTION_RISK_GAP: { t: '见机会', h: '见险先躲', a: '有风险就划掉', c: '机会被放过', r: '更怕风险' },
+    FRAMEWORK_GAP: { t: '要判断', h: '老框框定死', a: '只治表面', c: '问题反复回来', r: '更信直觉' },
+  },
+  // The CORRECTIVE EXIT that a candidate's own mechanism seals shut
+  // (source-backed by that candidate's accepted currentModel / worldRule gap).
+  exitSeal: {
+    FEEDBACK_LOOP_GAP: '复盘',
+    OPPORTUNITY_BLINDNESS: '换路试',
+    LEVERAGE_MODEL_GAP: '借外力',
+    IDENTITY_CONSTRAINT: '跳出身份',
+  },
+})
+// Deterministic presentation order (family span, then exit-seal list).
+const MULTIPLE_TRAP_FAMILY_ORDER = Object.freeze([
+  'EXECUTION_ADAPTATION_GAP', 'RESOURCE_COMPOUNDING_GAP', 'PERCEPTION_RISK_GAP', 'FRAMEWORK_GAP',
+])
+const MULTIPLE_TRAP_EXIT_ORDER = Object.freeze([
+  'FEEDBACK_LOOP_GAP', 'OPPORTUNITY_BLINDNESS', 'LEVERAGE_MODEL_GAP', 'IDENTITY_CONSTRAINT',
+])
+
+/**
+ * Compose the MULTIPLE Card 03 causal loop from the accepted eligible set.
+ * Pure/deterministic; presentation-only; no engine call. Every stage is a
+ * single COMPRESSED clause built from the present families' tokens.
+ *
+ * @param {object} params
+ * @param {Array}  params.families             [{ familyId, count }] (present families)
+ * @param {Array}  params.sealingCandidateIds  eligible candidate ids (accepted)
+ * @returns {string} the 5-stage loop
+ */
+function composeMultipleSystemTrap({ families, sealingCandidateIds }) {
+  const c = MULTIPLE_TRAP_COPY
+  const fams = Array.isArray(families) ? families : []
+  const present = []
+  for (const fid of MULTIPLE_TRAP_FAMILY_ORDER) {
+    const f = fams.find((x) => x && x.familyId === fid)
+    if (f && f.count && c.familyStage[fid]) present.push(c.familyStage[fid])
+  }
+  if (!present.length) return ''
+  const eligible = Array.isArray(sealingCandidateIds) ? sealingCandidateIds : []
+  const seals = []
+  for (const id of MULTIPLE_TRAP_EXIT_ORDER) {
+    if (eligible.indexOf(id) !== -1 && c.exitSeal[id]) seals.push(c.exitSeal[id])
+  }
+  const s1 = c.triggerLead + present.map((p) => p.t).join('、') + c.triggerTail
+  const s2 = c.judgmentLead + present.map((p) => p.h).join('、')
+  const s3 = c.actionLead + present.map((p) => p.a).join('、')
+  const s4 = c.consequenceLead + present.map((p) => p.c).join('，') + c.consequenceTail
+  const s5 = present.map((p) => p.r).join('、') + c.reinforceLead
+    + (seals.length >= 2 ? c.reinforceSealedMid + seals.join('、') + c.reinforceSealedTail : c.reinforceBaseTail)
+  return [s1, s2, s3, s4, s5].join(' → ')
+}
+
+// ── §20d V5 UNIQUE CARD 04 — case-specific FROM (was a 9/9 placeholder) ────
+// The UNIQUE model shift FROM must name THIS case's accepted userCurrentModel
+// (the old decision rule), not a shared placeholder. TO stays the accepted
+// upgradedModel.cognitiveUpgrade. Count-neutral, taxonomy-free, no invented
+// strategy. Wording is a faithful paraphrase of BLIND_SPOT_CURRENT_MODEL_COPY.
+const UNIQUE_UPGRADE_FROM_COPY = Object.freeze({
+  OPPORTUNITY_BLINDNESS: '只在熟悉的圈子和已知的路径里找机会',
+  FEEDBACK_LOOP_GAP: '凭自己的假设行动，很少主动收集和消化外部反馈',
+  DECISION_INERTIA: '等信息足够充分、条件足够成熟才行动',
+  RISK_MODEL_DISTORTION: '用「安全还是危险」的单一尺度看风险',
+  PROBABILITY_MISJUDGMENT: '用「能成还是不能成」判断一件事',
+  IDENTITY_CONSTRAINT: '用「我是做什么的」来定义自己',
+  LEVERAGE_MODEL_GAP: '一份时间换一份产出',
+  SYSTEM_THINKING_GAP: '把问题当作一件件独立的事件来处理',
+  TIME_HORIZON_TRAP: '优先处理立刻见效的事',
+})
+
+// ── §21 V5 ACTION PLAN — concrete, executable (FIRST_ACTION within 24–48h) ─
+// Keyed by strategyId. The FIRST step is deliberately small, bounded and doable
+// within a day or two (it is the strategy's first frozen experimentTemplate,
+// which is by design the minimal first action). No generic self-help, no
+// numeral, no fortune telling. Supporting steps are the remaining frozen
+// experiment templates of the SAME authoritative strategy.
+// NOTE: the concrete per-strategy action copy reuses STRATEGY_EXPERIMENT_COPY
+// (source of truth); this block only supplies the MULTIPLE state's concrete
+// first action, which has no single authoritative strategy.
+
 // Family label localization (keyed by the frozen familyId). Used by the
 // MULTIPLE synthesis so the user sees a plain-language tension class.
 const FAMILY_LABEL_COPY = Object.freeze({
@@ -552,6 +797,30 @@ function getMultipleActionCopy() {
 }
 function getFamilyLabel(familyId) {
   return FAMILY_LABEL_COPY[familyId] || null
+}
+function getSystemLoop(principleId) {
+  return SYSTEM_LOOP_COPY[principleId] || null
+}
+function getMultipleSystemLoopCopy() {
+  return MULTIPLE_SYSTEM_LOOP_COPY
+}
+function getMultipleUnifiedCopy() {
+  return MULTIPLE_UNIFIED_COPY
+}
+function getMultipleFamilyCopy(familyId) {
+  return MULTIPLE_FAMILY_COPY[familyId] || null
+}
+function getMultipleBreadthCopy(level) {
+  return MULTIPLE_BREADTH_COPY[level] || null
+}
+function getMultipleLoopTemplate() {
+  return MULTIPLE_LOOP_TEMPLATE
+}
+function getMultipleTrapCopy() {
+  return MULTIPLE_TRAP_COPY
+}
+function getUniqueUpgradeFrom(blindSpotId) {
+  return UNIQUE_UPGRADE_FROM_COPY[blindSpotId] || null
 }
 function getBlindSpotVerdict(blindSpotId) {
   return BLIND_SPOT_VERDICT_COPY[blindSpotId] || null
@@ -621,6 +890,15 @@ module.exports = {
   MULTIPLE_OBSERVATION_COPY,
   MULTIPLE_IMPACT_COPY,
   MULTIPLE_ACTION_COPY,
+  SYSTEM_LOOP_COPY,
+  MULTIPLE_SYSTEM_LOOP_COPY,
+  MULTIPLE_UNIFIED_COPY,
+  MULTIPLE_FAMILY_COPY,
+  MULTIPLE_BREADTH_COPY,
+  MULTIPLE_LOOP_TEMPLATE,
+  MULTIPLE_TRAP_COPY,
+  composeMultipleSystemTrap,
+  UNIQUE_UPGRADE_FROM_COPY,
   FAMILY_LABEL_COPY,
   CONSTRUCT_LABEL_COPY,
   ORIENTATION_LABEL_COPY,
@@ -647,4 +925,13 @@ module.exports = {
   getMultipleImpactCopy,
   getMultipleActionCopy,
   getFamilyLabel,
+  getSystemLoop,
+  getMultipleSystemLoopCopy,
+  getMultipleUnifiedCopy,
+  getMultipleFamilyCopy,
+  getMultipleBreadthCopy,
+  getMultipleLoopTemplate,
+  getMultipleTrapCopy,
+  composeMultipleSystemTrap,
+  getUniqueUpgradeFrom,
 }

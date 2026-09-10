@@ -376,7 +376,11 @@ test('§9 Layer-1 length budgets (all states, tolerance for punctuation)', () =>
     const is = C[key].contentModel.impactSummary
     assert.ok([...is.fatalInsight].length <= BUDGET.FATAL_INSIGHT + tol, `${key}: FATAL_INSIGHT`)
     assert.ok([...is.coreProblem].length <= BUDGET.CORE_PROBLEM + tol, `${key}: CORE_PROBLEM`)
-    assert.ok([...is.systemTrap].length <= BUDGET.SYSTEM_TRAP + tol, `${key}: SYSTEM_TRAP`)
+    // M2: UNIQUE Card 03 keeps the frozen 160 cap; MULTIPLE Card 03 uses the
+    // authorized constrained relaxation (hard ceiling 220) so the loop can be
+    // causally specific to the eligible set.
+    const trapCap = is.state === 'MULTIPLE' ? BUDGET.MULTIPLE_SYSTEM_TRAP_MAX : BUDGET.SYSTEM_TRAP
+    assert.ok([...is.systemTrap].length <= trapCap + tol, `${key}: SYSTEM_TRAP`)
     assert.ok([...is.upgradePath].length <= BUDGET.UPGRADE_PATH + tol, `${key}: UPGRADE_PATH`)
     assert.ok(is.actionPlan.length >= BUDGET.ACTION_PLAN_MIN && is.actionPlan.length <= BUDGET.ACTION_PLAN_MAX, `${key}: ACTION_PLAN 3-5`)
     assert.ok(is.evidencePreview.length >= 2 && is.evidencePreview.length <= BUDGET.EVIDENCE_PREVIEW_MAX, `${key}: EVIDENCE_PREVIEW 2-4`)
@@ -466,9 +470,16 @@ test('§15 HERO_COUNT_CONTRADICTION=0, SYNTHESIS_COUNT_CONTRADICTION=0', () => {
   const vm = C.MULTI5.vm
   assert.ok(checks.countNeutral(vm.impactSummary.fatalInsight), 'hero count-neutral')
   assert.ok(checks.countNeutral(C.MULTI5.contentModel.multiModel.synthesis), 'synthesis count-neutral')
-  // covers 5 models truthfully via labels count
+  // V5: Layer-1 must NOT list candidate labels (they belong to Layer 2). It
+  // covers N truthfully through count-neutral unified copy, not a label dump.
   const core = vm.impactSummary.sections.find((s) => s.key === 'CORE_PROBLEM').text
-  assert.ok(core.includes('决策惯性') && core.includes('时间视野陷阱'), 'labels summarized')
+  assert.ok(core.length > 0, 'unified core present')
+  assert.ok(checks.countNeutral(core), 'core count-neutral')
+  for (const id of Object.keys(reportBuilder.copy.BLIND_SPOT_LABEL_COPY)) {
+    assert.ok(!core.includes(reportBuilder.copy.BLIND_SPOT_LABEL_COPY[id]), `Layer-1 core must not list labels: ${id}`)
+  }
+  // Layer 2 still preserves ALL eligible models (labels live there).
+  assert.strictEqual(vm.impactExplainer.supportedModels.length, 5, 'layer2 preserves all models')
 })
 
 // ═══════════════════════════════════════════════════════════════════════════

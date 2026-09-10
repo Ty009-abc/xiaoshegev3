@@ -179,20 +179,23 @@ function mapImpactSummary(report) {
   const is = report && report.impactSummary
   if (!is) return null
   const preview = Array.isArray(is.evidencePreview) ? is.evidencePreview : []
+  const loopSteps = Array.isArray(is.systemLoopSteps) ? is.systemLoopSteps : []
   return {
     state: is.state || '',
     eyebrow: '认知诊断',
-    // Layer-1 logical sections: 01 FATAL_INSIGHT (hero) + 02/03/04 (sections)
+    // Layer-1 logical cards: 01 FATAL_INSIGHT (hero) + 02/03/04 (sections)
     // + 05 ACTION_PLAN (list) = exactly 5.
     fatalInsight: is.fatalInsight || '',
     sections: [
       { key: 'CORE_PROBLEM', title: IMPACT_TITLE.CORE_PROBLEM, text: is.coreProblem || '' },
-      { key: 'SYSTEM_TRAP', title: IMPACT_TITLE.SYSTEM_TRAP, text: is.systemTrap || '' },
-      { key: 'UPGRADE_PATH', title: IMPACT_TITLE.UPGRADE_PATH, text: is.upgradePath || '' },
+      { key: 'SYSTEM_TRAP', title: IMPACT_TITLE.SYSTEM_TRAP, text: is.systemTrap || '', loopSteps },
+      { key: 'UPGRADE_PATH', title: IMPACT_TITLE.UPGRADE_PATH, text: is.upgradePath || '', from: is.upgradeFrom || '', to: is.upgradeTo || '' },
     ],
     layer1SectionCount: 5,
     actionTitle: IMPACT_TITLE.ACTION_PLAN,
     actionPlan: Array.isArray(is.actionPlan) ? is.actionPlan.slice() : [],
+    // The single dominant first action (already the head of actionPlan).
+    firstAction: is.firstAction || (Array.isArray(is.actionPlan) && is.actionPlan.length ? is.actionPlan[0] : ''),
     evidenceTitle: IMPACT_TITLE.EVIDENCE,
     evidencePreview: preview.map((e) => ({
       questionMeaning: e.questionMeaning || '',

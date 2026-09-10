@@ -22,22 +22,35 @@
   <!-- MULTIPLE：多个方向并列，各自带证据，不做主次排序，不伪造主因 -->
   <block wx:elif="{{uiState === 'MULTIPLE'}}">
 
-    <!-- LAYER 1：一句话总判断（count-neutral hero） -->
+    <!-- LAYER 1：一句话总判断（P0：绑定 impactSummary.fatalInsight；
+         不再渲染冻结 meta 文案，不再展示盲区标签） -->
     <view class="hero">
-      <text class="hero-eyebrow">{{impactSummary.eyebrow}}</text>
-      <text class="hero-verdict">{{multiple.headline}}</text>
+      <text class="hero-verdict">{{impactSummary.fatalInsight}}</text>
     </view>
 
-    <!-- LAYER 1：5-section impact summary -->
+    <!-- LAYER 1：5-card impact summary（01 hero + 02-05 + 证据预览） -->
     <view class="card" wx:if="{{impactSummary}}">
       <view class="impact-section" wx:for="{{impactSummary.sections}}" wx:key="key">
         <text class="impact-title">{{item.title}}</text>
-        <text class="impact-text">{{item.text}}</text>
+        <!-- 03 系统困局：重复出现的因果回路（≥4 步） -->
+        <block wx:if="{{item.loopSteps && item.loopSteps.length}}">
+          <view class="loop-step" wx:for="{{item.loopSteps}}" wx:for-item="step" wx:key="*this">
+            <text class="loop-step-text">{{step}}</text>
+            <text class="loop-step-arrow" wx:if="{{index < item.loopSteps.length - 1}}">↓</text>
+          </view>
+        </block>
+        <text class="impact-text" wx:else>{{item.text}}</text>
+        <!-- 04 模型升级：旧规则 → 新规则 -->
+        <view class="upgrade-fromto" wx:if="{{item.from}}">
+          <text class="upgrade-cell">现在：{{item.from}}</text>
+          <text class="upgrade-arrow">↓ 换成</text>
+          <text class="upgrade-cell upgrade-to">之后：{{item.to}}</text>
+        </view>
       </view>
 
       <view class="impact-section" wx:if="{{impactSummary.actionPlan.length}}">
         <text class="impact-title">{{impactSummary.actionTitle}}</text>
-        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">· {{item}}</text>
+        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">{{index === 0 ? '① 先做：' : '· '}}{{item}}</text>
       </view>
 
       <view class="impact-section" wx:if="{{impactSummary.evidencePreview.length}}">
@@ -100,12 +113,25 @@
     <view class="card" wx:if="{{impactSummary}}">
       <view class="impact-section" wx:for="{{impactSummary.sections}}" wx:key="key">
         <text class="impact-title">{{item.title}}</text>
-        <text class="impact-text">{{item.text}}</text>
+        <!-- 03 系统困局：重复出现的因果回路（≥4 步） -->
+        <block wx:if="{{item.loopSteps && item.loopSteps.length}}">
+          <view class="loop-step" wx:for="{{item.loopSteps}}" wx:for-item="step" wx:key="*this">
+            <text class="loop-step-text">{{step}}</text>
+            <text class="loop-step-arrow" wx:if="{{index < item.loopSteps.length - 1}}">↓</text>
+          </view>
+        </block>
+        <text class="impact-text" wx:else>{{item.text}}</text>
+        <!-- 04 模型升级：旧规则 → 新规则 -->
+        <view class="upgrade-fromto" wx:if="{{item.from}}">
+          <text class="upgrade-cell">现在：{{item.from}}</text>
+          <text class="upgrade-arrow">↓ 换成</text>
+          <text class="upgrade-cell upgrade-to">之后：{{item.to}}</text>
+        </view>
       </view>
 
       <view class="impact-section" wx:if="{{impactSummary.actionPlan.length}}">
         <text class="impact-title">{{impactSummary.actionTitle}}</text>
-        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">· {{item}}</text>
+        <text class="impact-li" wx:for="{{impactSummary.actionPlan}}" wx:key="*this">{{index === 0 ? '① 先做：' : '· '}}{{item}}</text>
       </view>
 
       <view class="impact-section" wx:if="{{impactSummary.evidencePreview.length}}">

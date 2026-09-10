@@ -54,6 +54,7 @@ const {
 } = require('./northStarReportCopyV21')
 
 const { buildImpactSummaryV21 } = require('./impactSummaryV21')
+const { buildImpactThesisV21 } = require('./impactThesisV21')
 const { buildImpactExplainerV21 } = require('./impactExplainerV21')
 
 const REPORT_VERSION = 'north_star_report_v1'
@@ -423,9 +424,13 @@ function buildNorthStarReportV21(pm) {
     sections,
   }
   // Layer-1 impact summary: present ONLY when the state carries semantics that
-  // support the 5-section IA (UNIQUE / MULTIPLE). Other states keep the
-  // truthful compact neutral layout and preserve the exact shape (byte-identical).
+  // support the 5-card IA (UNIQUE / MULTIPLE). Other states keep the truthful
+  // compact neutral layout and preserve the exact shape (byte-identical).
   if (impactSummary) {
+    // The impact thesis is the synthesis authority behind the five cards; it is
+    // exposed at the report root for auditability. It contains internal ids in
+    // provenance only (the view-model drops them).
+    report.impactThesis = buildImpactThesisV21(pm)
     report.impactSummary = impactSummary
     // Layer-2 explainability pairs with Layer 1 (same states only).
     report.impactExplainer = buildImpactExplainerV21(pm, sections)

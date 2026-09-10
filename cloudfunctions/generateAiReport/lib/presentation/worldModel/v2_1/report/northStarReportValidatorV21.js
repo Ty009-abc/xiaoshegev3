@@ -95,7 +95,12 @@ const NO_PRIMARY_REASON_CODES = new Set([
 
 // User-visible field paths that must be Chinese and token-free.
 // We scan all string leaves EXCEPT known provenance/internal fields.
-const PROVENANCE_FIELDS = new Set(['source', 'provenance', 'sourceRefs', 'diagnosisState'])
+const PROVENANCE_FIELDS = new Set(['source', 'provenance', 'sourceRefs', 'diagnosisState', 'sourceCandidateIds'])
+
+// Provenance-only identifier keys (arrays of internal candidate/model ids that
+// must never be treated as user copy). Kept separate from PROVENANCE_FIELDS so
+// that sibling user-copy keys (e.g. `card.*.text`) are still scanned.
+const PROVENANCE_ID_KEYS = new Set(['sourceCandidateIds'])
 
 function collectUserStrings(obj, depth) {
   const out = []
@@ -104,8 +109,7 @@ function collectUserStrings(obj, depth) {
   const walk = (node, level, key) => {
     if (node == null || level > d) return
     if (PROVENANCE_FIELDS.has(key)) return // skip provenance/internal
-    if (seen.has(node)) return
-    seen.add(node)
+    if (seen.has(node)) return    seen.add(node)
     if (typeof node === 'string') {
       out.push(node)
     } else if (Array.isArray(node)) {
