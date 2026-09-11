@@ -1,0 +1,101 @@
+{
+  "$schema": "rc8.4-v6-golden-fixtures/design-only",
+  "version": "turnaround_strategy_v6_golden_1",
+  "status": "DESIGN_ONLY_NOT_RUNTIME_TEST",
+  "branch": "design/rc8.4-v6-9q-refoundation",
+  "note": "Structured mirror of docs/RC8.4_V6_PRODUCT_GOLDEN_15_CASES.md. Design asset under docs/ only; NOT a runtime test. optionIds are canonical Chinese option strings from the frozen 9Q questionnaire.",
+  "questionnaireVersion": "turnaround_strategy_v6",
+  "surplusOptions": ["基本留不下 / 经常不够", "1000元以下", "1000–5000元", "5000–10000元", "1万元以上"],
+  "fixtures": [
+    {
+      "id": "G01",
+      "pattern": "salary / low surplus / direction gap",
+      "answers": { "Q1": "25–30", "Q2": "固定工资", "Q3": "1000元以下", "Q4": "有能力，但不知道怎么变现", "Q5": "不知道该往哪走", "Q6": "查过很多资料", "Q7": "再等等，信息更充分再说", "Q8": "先做马上有结果的", "Q9": "换个方向试试" },
+      "labels": { "stage": "RESEARCHING", "bottleneck": "DIRECTION_GAP", "beliefRealityGap": true, "realityConstraint": false }
+    },
+    {
+      "id": "G02",
+      "pattern": "salary / action gap",
+      "answers": { "Q1": "31–40", "Q2": "固定工资", "Q3": "1000–5000元", "Q4": "收入一直上不去", "Q5": "知道方向，但一直没真正行动", "Q6": "学过东西，但没真正开始", "Q7": "先把可能的问题都想清楚", "Q8": "两边都会安排", "Q9": "再坚持一阵" },
+      "labels": { "stage": "LEARNING", "bottleneck": "ACTION_GAP", "beliefRealityGap": false, "realityConstraint": false }
+    },
+    {
+      "id": "G03",
+      "pattern": "side-business attempt / consistency gap",
+      "answers": { "Q1": "25–30", "Q2": "自由职业 / 接单", "Q3": "1000–5000元", "Q4": "想做副业，但一直没做起来", "Q5": "总在换方向", "Q6": "开始做过，但没坚持多久", "Q7": "再等等，信息更充分再说", "Q8": "一忙起来，长期的事就先停", "Q9": "换个方向试试" },
+      "labels": { "stage": "STARTED", "bottleneck": "CONSISTENCY_GAP", "beliefRealityGap": false, "realityConstraint": false }
+    },
+    {
+      "id": "G04",
+      "pattern": "product no sales / validation gap",
+      "answers": { "Q1": "31–40", "Q2": "生意 / 个体经营", "Q3": "1000–5000元", "Q4": "想做副业，但一直没做起来", "Q5": "做过不少尝试，但没结果", "Q6": "做过产品 / 服务，但没人买单", "Q7": "先把可能的问题都想清楚", "Q8": "两边都会安排", "Q9": "重新检查方法和步骤" },
+      "labels": { "stage": "TESTING", "bottleneck": "VALIDATION_GAP", "beliefRealityGap": false, "realityConstraint": false }
+    },
+    {
+      "id": "G05",
+      "pattern": "first paying customers / repeatability gap",
+      "answers": { "Q1": "25–30", "Q2": "自由职业 / 接单", "Q3": "5000–10000元", "Q4": "收入一直上不去", "Q5": "能力还不够", "Q6": "已经有人愿意付钱", "Q7": "先做个很小的版本试试", "Q8": "先做马上有结果的", "Q9": "再坚持一阵" },
+      "labels": { "stage": "EARLY_TRACTION", "bottleneck": "REPEATABILITY_GAP", "beliefRealityGap": true, "realityConstraint": false }
+    },
+    {
+      "id": "G06",
+      "pattern": "debt / cashflow pressure",
+      "answers": { "Q1": "31–40", "Q2": "固定工资", "Q3": "基本留不下 / 经常不够", "Q4": "债务 / 现金流压力", "Q5": "家庭 / 环境牵制", "Q6": "学过东西，但没真正开始", "Q7": "先把可能的问题都想清楚", "Q8": "一忙起来，长期的事就先停", "Q9": "先停下来，不再继续投入" },
+      "labels": { "stage": "LEARNING", "bottleneck": "ACTION_GAP", "beliefRealityGap": false, "realityConstraint": true }
+    },
+    {
+      "id": "G07",
+      "pattern": "career transition",
+      "answers": { "Q1": "41–50", "Q2": "固定工资", "Q3": "5000–10000元", "Q4": "想转行，但不知道往哪走", "Q5": "不知道该往哪走", "Q6": "查过很多资料", "Q7": "先问几个做过的人", "Q8": "两边都会安排", "Q9": "换个方向试试" },
+      "labels": { "stage": "RESEARCHING", "bottleneck": "DIRECTION_GAP", "beliefRealityGap": false, "realityConstraint": false }
+    },
+    {
+      "id": "G08",
+      "pattern": "age 40+",
+      "answers": { "Q1": "41–50", "Q2": "生意 / 个体经营", "Q3": "5000–10000元", "Q4": "工作看不到未来", "Q5": "能力还不够", "Q6": "开始做过，但没坚持多久", "Q7": "再等等，信息更充分再说", "Q8": "一忙起来，长期的事就先停", "Q9": "再坚持一阵" },
+      "labels": { "stage": "STARTED", "bottleneck": "CONSISTENCY_GAP", "beliefRealityGap": true, "realityConstraint": false }
+    },
+    {
+      "id": "G09",
+      "pattern": "age under 30",
+      "answers": { "Q1": "18–24", "Q2": "暂时没有稳定收入", "Q3": "基本留不下 / 经常不够", "Q4": "有能力，但不知道怎么变现", "Q5": "不知道该往哪走", "Q6": "主要还在想", "Q7": "先做个很小的版本试试", "Q8": "先做马上有结果的", "Q9": "换个方向试试" },
+      "labels": { "stage": "THINKING", "bottleneck": "DIRECTION_GAP", "beliefRealityGap": false, "realityConstraint": true }
+    },
+    {
+      "id": "G10",
+      "pattern": "high income but no action",
+      "answers": { "Q1": "31–40", "Q2": "固定工资", "Q3": "1万元以上", "Q4": "工作看不到未来", "Q5": "知道方向，但一直没真正行动", "Q6": "学过东西，但没真正开始", "Q7": "先把可能的问题都想清楚", "Q8": "两边都会安排", "Q9": "再坚持一阵" },
+      "labels": { "stage": "LEARNING", "bottleneck": "ACTION_GAP", "beliefRealityGap": false, "realityConstraint": false }
+    },
+    {
+      "id": "G11",
+      "pattern": "low income but strong execution",
+      "answers": { "Q1": "25–30", "Q2": "自由职业 / 接单", "Q3": "1000元以下", "Q4": "收入一直上不去", "Q5": "做过不少尝试，但没结果", "Q6": "做过产品 / 服务，但没人买单", "Q7": "先做个很小的版本试试", "Q8": "会固定给长期的事留时间", "Q9": "重新检查方法和步骤" },
+      "labels": { "stage": "TESTING", "bottleneck": "VALIDATION_GAP", "beliefRealityGap": false, "realityConstraint": false }
+    },
+    {
+      "id": "G12",
+      "pattern": "belief 缺资源 vs action gap",
+      "answers": { "Q1": "31–40", "Q2": "固定工资", "Q3": "1000–5000元", "Q4": "收入一直上不去", "Q5": "缺钱 / 缺资源", "Q6": "学过东西，但没真正开始", "Q7": "再等等，信息更充分再说", "Q8": "一忙起来，长期的事就先停", "Q9": "先停下来，不再继续投入" },
+      "labels": { "stage": "LEARNING", "bottleneck": "ACTION_GAP", "beliefRealityGap": true, "realityConstraint": false }
+    },
+    {
+      "id": "G13",
+      "pattern": "belief 没时间 vs time allocation problem",
+      "answers": { "Q1": "25–30", "Q2": "固定工资", "Q3": "1000–5000元", "Q4": "事情很多，一直无法聚焦", "Q5": "没时间", "Q6": "开始做过，但没坚持多久", "Q7": "再等等，信息更充分再说", "Q8": "一忙起来，长期的事就先停", "Q9": "换个方向试试" },
+      "labels": { "stage": "STARTED", "bottleneck": "CONSISTENCY_GAP", "beliefRealityGap": true, "realityConstraint": false }
+    },
+    {
+      "id": "G14",
+      "pattern": "belief 能力不够 vs validation gap",
+      "answers": { "Q1": "41–50", "Q2": "生意 / 个体经营", "Q3": "5000–10000元", "Q4": "有能力，但不知道怎么变现", "Q5": "能力还不够", "Q6": "做过产品 / 服务，但没人买单", "Q7": "先把可能的问题都想清楚", "Q8": "两边都会安排", "Q9": "先停下来，不再继续投入" },
+      "labels": { "stage": "TESTING", "bottleneck": "VALIDATION_GAP", "beliefRealityGap": true, "realityConstraint": false }
+    },
+    {
+      "id": "G15",
+      "pattern": "already has traction but cannot repeat",
+      "answers": { "Q1": "25–30", "Q2": "自由职业 / 接单", "Q3": "5000–10000元", "Q4": "收入一直上不去", "Q5": "做过不少尝试，但没结果", "Q6": "已经有一点稳定结果", "Q7": "先做个很小的版本试试", "Q8": "先做马上有结果的", "Q9": "再坚持一阵" },
+      "labels": { "stage": "STABLE_TRACTION", "bottleneck": "REPEATABILITY_GAP", "beliefRealityGap": true, "realityConstraint": false }
+    }
+  ]
+}
