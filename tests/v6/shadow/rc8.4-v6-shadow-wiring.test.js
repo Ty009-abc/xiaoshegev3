@@ -42,6 +42,7 @@ let __aiQueue = []
 let __aiMode = 'queue' // 'queue' | 'hang' | 'fail'
 let __writes = []
 let __openid = 'u1'
+let __allowlist = null // RC84_V6_SHADOW_ALLOWLIST (null = unset)
 let __lastRuntimeOut = null
 let __testAttemptTimeoutMs = null
 let __testTotalBudgetMs = null
@@ -137,14 +138,21 @@ function setMode (v) {
   if (v === undefined) delete process.env.RC84_V6_WORLDVIEW_MODE
   else process.env.RC84_V6_WORLDVIEW_MODE = v
 }
-async function call (event, mode, openid) {
+function setAllowlist (v) {
+  if (v === undefined || v === null) delete process.env.RC84_V6_SHADOW_ALLOWLIST
+  else process.env.RC84_V6_SHADOW_ALLOWLIST = v
+}
+async function call (event, mode, openid, allowlist) {
   setMode(mode)
+  if (allowlist !== undefined) setAllowlist(allowlist)
   __openid = openid || 'u1'
   __aiCalls = []; __writes = []
   return index.main(event, {})
 }
+// Convenience: server openid = 'u1', allowlist includes it.
+const AL = 'u1,u2'
 function resetBudgets () { __testAttemptTimeoutMs = null; __testTotalBudgetMs = null; __aiMode = 'queue' }
-function v6event (answers) { return { type: 'diagnostic', diagnosticVersion: 'turnaround_strategy_v6', answers } }
+function v6event (answers, extra) { return Object.assign({ type: 'diagnostic', diagnosticVersion: 'turnaround_strategy_v6', answers }, extra || {}) }
 
 async function run () {
   const M = require(MODE_PATH)
@@ -158,6 +166,21 @@ async function run () {
     h.eq(M.parseV6WorldviewMode('ON'), 'ON', 'ON parsed for forward-compat')
     h.eq(M.V6_DEFAULT_MODE, 'OFF', 'DEFAULT_MODE=OFF')
     h.eq(M.V6_WORLDVIEW_MODE_ENV, 'RC84_V6_WORLDVIEW_MODE', 'env name')
+    h.eq(M.V6_SHADOW_ALLOWLIST_ENV, 'RC84_V6_SHADOW_ALLOWLIST', 'allowlist env name')
+  }
+
+  // ── ALLOWLIST parser (fail-closed) ────────────────────────────
+  h.section('SHADOW ALLOWLIST parser (fail-closed)')
+  {
+    h.eq(M.parseV6ShadowAllowlist(undefined).size, 0, 'undefined → empty set')
+    h.eq(M.parseV6ShadowAllowlist('').size, 0, 'empty → empty set')
+    h.eq(M.parseV6ShadowAllowlist('   ').size, 0, 'whitespace → empty set')
+    h.eq(M.parseV6ShadowAllowlist('u1, u2 ,u3').size, 3, 'comma split + trim')
+    h.eq(M.isV6ShadowAuthorized('u1', ''), false, 'empty allowlist → deny')
+    h.eq(M.isV6ShadowAuthorized('u1', undefined), false, 'missing allowlist → deny')
+    h.eq(M.isV6ShadowAuthorized('u2', 'u1,u2'), true, 'match → authorize')
+    h.eq(M.isV6ShadowAuthorized('u9', 'u1,u2'), false, 'miss → deny')
+    h.eq(M.isV6ShadowAuthorized('', 'u1'), false, 'empty openid → deny')
   }
 
   const OFF_RESP = await call(v6event(G06.answers), 'OFF')
@@ -166,14 +189,54 @@ async function run () {
   h.section('OFF_ZERO_CALL')
   {
     delete process.env.RC84_V6_WORLDVIEW_MODE
-    let r = await call(v6event(G06.answers), undefined)
+    let r = await call(v6event(G06.answers), undefined, 'u1', AL)
     h.eq(__aiCalls.length, 0, 'ZERO model calls (unset)')
-    r = await call(v6event(G06.answers), 'OFF')
+    r = await call(v6event(G06.answers), 'OFF', 'u1', AL)
     h.eq(__aiCalls.length, 0, 'ZERO model calls (OFF)')
-    r = await call(v6event(G06.answers), 'garbage')
+    r = await call(v6event(G06.answers), 'garbage', 'u1', AL)
     h.eq(__aiCalls.length, 0, 'ZERO model calls (garbage → OFF)')
-    r = await call(v6event(G06.answers), 'ON')
+    r = await call(v6event(G06.answers), 'ON', 'u1', AL)
     h.eq(__aiCalls.length, 0, 'ZERO model calls (ON not enabled)')
+  }
+
+  // ── ALLOWLIST gate matrix ─────────────────────────────────────
+  h.section('SHADOW_ALLOWLIST_EMPTY_DENY_ALL')
+  {
+    setAllowlist(undefined)
+    __aiQueue = [validResponse(G06.answers)]
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', undefined)
+    h.eq(__aiCalls.length, 0, 'empty allowlist → ZERO V6 calls')
+    h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'empty allowlist → response == OFF')
+    __aiQueue = [validResponse(G06.answers)]
+    const r2 = await call(v6event(G06.answers), 'SHADOW', 'u1', '   ')
+    h.eq(__aiCalls.length, 0, 'whitespace allowlist → ZERO V6 calls')
+  }
+
+  h.section('SHADOW_ALLOWLIST_MATCH_CALLS_V6 + SERVER_OPENID_CAN_AUTHORIZE')
+  {
+    __aiQueue = [validResponse(G06.answers)]
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
+    h.eq(__aiCalls.length, 1, 'allowlisted SERVER openid → V6 chain runs')
+    h.eq(__lastRuntimeOut.meta.renderSource, 'worldview_ai', 'renderSource=worldview_ai')
+    h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'response still == OFF')
+  }
+
+  h.section('SHADOW_ALLOWLIST_MISS_ZERO_V6_CALL + MISS_RESPONSE_EQUALS_OFF')
+  {
+    __aiQueue = [validResponse(G06.answers)]
+    const r = await call(v6event(G06.answers), 'SHADOW', 'intruder', AL)
+    h.eq(__aiCalls.length, 0, 'non-allowlisted server openid → ZERO V6 calls')
+    h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'non-allowlisted → response == OFF')
+  }
+
+  h.section('CLIENT_OPENID_CANNOT_AUTHORIZE')
+  {
+    // Server-derived openid = 'u1' (NOT allowlisted in this allowlist).
+    // Event carries a client-supplied openid that IS allowlisted → must NOT work.
+    __aiQueue = [validResponse(G06.answers)]
+    const r = await call(v6event(G06.answers, { openid: 'u2', _openid: 'u2' }), 'SHADOW', 'u1', 'u2')
+    h.eq(__aiCalls.length, 0, 'client-supplied openid grants NO access (server u1 not listed)')
+    h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'response == OFF')
   }
 
   // ── OFF_RESPONSE_COMPAT ───────────────────────────────────────
@@ -187,44 +250,44 @@ async function run () {
     h.ok(!('renderSource' in a.data) && !('v6Mode' in a.data) && !('v6Shadow' in a.data), 'OFF exposes no v6 internals')
   }
 
-  // ── SHADOW_PRIMARY_RESPONSE_IDENTICAL ─────────────────────────
+  // ── SHADOW_PRIMARY_RESPONSE_IDENTICAL ────────────────────────
   h.section('SHADOW_PRIMARY_RESPONSE_IDENTICAL')
   {
     __aiQueue = [validResponse(G06.answers)]
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'SHADOW response byte-identical to OFF')
     h.ok(JSON.stringify(r).indexOf('致命一句话') === -1, 'no V6 card copy in response')
     h.ok(!('v6Shadow' in r.data) && !('renderSource' in r.data), 'no shadow ack / renderSource leak')
     h.eq(__aiCalls.length, 1, 'model DID run on the side path')
   }
 
-  // ── SHADOW_FIRST_PASS (internals via spy) ─────────────────────
+  // ── SHADOW_FIRST_PASS (internals via spy) ────────────────────
   h.section('SHADOW_FIRST_PASS')
   {
     __aiQueue = [validResponse(G06.answers)]
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     h.eq(__lastRuntimeOut.meta.renderSource, 'worldview_ai', 'runtime renderSource=worldview_ai')
     h.eq(__lastRuntimeOut.meta.attemptCount, 1, 'attemptCount=1')
     h.eq(__lastRuntimeOut.meta.validatorFailures.length, 0, 'no validator failures')
     h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'response identical to OFF')
   }
 
-  // ── SHADOW_RETRY_PASS ─────────────────────────────────────────
+  // ── SHADOW_RETRY_PASS ────────────────────────────────────────
   h.section('SHADOW_RETRY_PASS')
   {
     __aiQueue = [leakResponse(G06.answers), validResponse(G06.answers)]
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     h.eq(__lastRuntimeOut.meta.renderSource, 'worldview_ai', 'renderSource=worldview_ai')
     h.eq(__lastRuntimeOut.meta.attemptCount, 2, 'attemptCount=2 (retry)')
     h.eq(__aiCalls.length, 2, 'exactly 2 model calls')
     h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'response identical to OFF')
   }
 
-  // ── SHADOW_DOUBLE_FAIL_PRIMARY_RESPONSE_IDENTICAL ─────────────
+  // ── SHADOW_DOUBLE_FAIL_PRIMARY_RESPONSE_IDENTICAL ────────────
   h.section('SHADOW_DOUBLE_FAIL_PRIMARY_RESPONSE_IDENTICAL')
   {
     __aiQueue = [leakResponse(G06.answers), leakResponse(G06.answers)]
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     h.eq(__lastRuntimeOut.meta.renderSource, 'deterministic_fallback', 'runtime fallback')
     h.ok(__lastRuntimeOut.meta.validatorFailures.includes('ONTOLOGY_LEAK'), 'ONTOLOGY_LEAK recorded')
     h.eq(__aiCalls.length, 2, 'MAX_MODEL_ATTEMPTS=2 respected')
@@ -236,7 +299,7 @@ async function run () {
   {
     __testAttemptTimeoutMs = 5
     __aiMode = 'hang'
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     resetBudgets()
     h.eq(__lastRuntimeOut.meta.renderSource, 'deterministic_fallback', 'timeout → fallback')
     h.eq(__lastRuntimeOut.meta.fallbackReason, 'MODEL_TIMEOUT', 'fallbackReason=MODEL_TIMEOUT')
@@ -247,7 +310,7 @@ async function run () {
   h.section('SHADOW_INVALID_JSON_PRIMARY_RESPONSE_IDENTICAL')
   {
     __aiQueue = [invalidJsonResponse(), invalidJsonResponse()]
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     h.eq(__lastRuntimeOut.meta.renderSource, 'deterministic_fallback', 'fallback')
     h.eq(__lastRuntimeOut.meta.fallbackReason, 'INVALID_JSON', 'fallbackReason=INVALID_JSON')
     h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'response identical to OFF')
@@ -257,7 +320,7 @@ async function run () {
   h.section('SHADOW_VALIDATOR_FAIL_PRIMARY_RESPONSE_IDENTICAL')
   {
     __aiQueue = [unsupportedResponse(G06.answers), unsupportedResponse(G06.answers)]
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     h.eq(__lastRuntimeOut.meta.renderSource, 'deterministic_fallback', 'fallback')
     h.ok(__lastRuntimeOut.meta.validatorFailures.includes('UNSUPPORTED_USER_CLAIM'), 'UNSUPPORTED_USER_CLAIM recorded')
     h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'response identical to OFF')
@@ -267,7 +330,7 @@ async function run () {
   h.section('PROVIDER_ERROR_PRIMARY_RESPONSE_IDENTICAL')
   {
     __aiMode = 'fail'
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     resetBudgets()
     h.eq(__lastRuntimeOut.meta.renderSource, 'deterministic_fallback', 'provider error → fallback')
     h.ok(JSON.stringify(r) === JSON.stringify(OFF_RESP), 'response identical to OFF')
@@ -278,13 +341,13 @@ async function run () {
   h.section('INVALID_INPUT_ZERO_MODEL_CALL + NO_PRIMARY_ZERO_MODEL_CALL')
   {
     __aiQueue = [validResponse(G06.answers)]
-    const ri = await call(v6event({}), 'SHADOW')
+    const ri = await call(v6event({}), 'SHADOW', 'u1', AL)
     h.eq(__aiCalls.length, 0, 'INVALID_INPUT → ZERO model calls')
     h.eq(__lastRuntimeOut.meta.fallbackReason, 'INVALID_INPUT', 'reason=INVALID_INPUT')
     h.ok(JSON.stringify(ri) === JSON.stringify(OFF_RESP), 'response identical to OFF')
 
     __aiQueue = [validResponse(ADV_A.answers)]
-    const rn = await call(v6event(ADV_A.answers), 'SHADOW')
+    const rn = await call(v6event(ADV_A.answers), 'SHADOW', 'u1', AL)
     h.eq(__aiCalls.length, 0, 'NO_PRIMARY → ZERO model calls')
     h.eq(__lastRuntimeOut.meta.fallbackReason, 'NO_PRIMARY', 'reason=NO_PRIMARY')
     h.ok(JSON.stringify(rn) === JSON.stringify(OFF_RESP), 'response identical to OFF')
@@ -293,12 +356,10 @@ async function run () {
   // ── TOTAL_BUDGET_FALLBACK + SECOND_ATTEMPT_SKIPPED ────────────
   h.section('TOTAL_BUDGET_FALLBACK + SECOND_ATTEMPT_SKIPPED_WHEN_BUDGET_INSUFFICIENT')
   {
-    // attempt 1 fails validation fast; remaining budget (5ms) < attempt timeout
-    // → attempt 2 must NOT start; fall back to deterministic B2.1 immediately.
     __testTotalBudgetMs = 5
     __testAttemptTimeoutMs = 14000
     __aiQueue = [leakResponse(G06.answers), validResponse(G06.answers)]
-    const r = await call(v6event(G06.answers), 'SHADOW')
+    const r = await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     resetBudgets()
     h.eq(__aiCalls.length, 1, '2nd attempt SKIPPED (budget insufficient)')
     h.eq(__lastRuntimeOut.meta.attemptCount, 1, 'attemptCount=1')
@@ -321,13 +382,42 @@ async function run () {
   h.section('V21_NON_INTERFERENCE')
   {
     const ev = { type: 'diagnostic', diagnosticVersion: 'world_model_v2_1', answers: {} }
-    const a = await call(ev, 'OFF')
-    const b = await call(ev, 'SHADOW')
-    const c = await call(ev, 'ON')
+    const a = await call(ev, 'OFF', 'u1', AL)
+    const b = await call(ev, 'SHADOW', 'u1', AL)
+    const c = await call(ev, 'ON', 'u1', AL)
     h.ok(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) === JSON.stringify(c),
       'v2.1 response identical across RC84_V6_WORLDVIEW_MODE values (diff=0)')
     h.eq(a.data.diagnosticVersion, 'world_model_v2_1', 'v2.1 path not hijacked by V6 flag')
     h.eq(__aiCalls.length, 0, 'no model call on non-v6 path')
+  }
+
+  // ── PLACEHOLDER_DEPLOY_GUARD ──────────────────────────────────
+  h.section('PLACEHOLDER_DEPLOY_GUARD_PASS')
+  {
+    const cbrc = JSON.parse(fs.readFileSync(path.join(ROOT, 'cloudbaserc.json'), 'utf8'))
+    const f = (cbrc.functions || []).find(x => x.name === 'generateAiReport')
+    const key = f && f.envVariables ? String(f.envVariables.AI_API_KEY || '') : ''
+    h.ok(/^<.*>$/.test(key), 'tracked AI_API_KEY is an <...> placeholder (not a live secret)')
+    h.ok(!/^sk-/.test(key), 'tracked AI_API_KEY is not a real key')
+    // Guard: the safe deploy path MUST use code-only update (no env application),
+    // and must NEVER present `tcb fn deploy generateAiReport` as an executable step
+    // (it may only appear in an explicit warning/"do not use" context).
+    const plan = fs.readFileSync(path.join(ROOT, 'docs/design/RC8.4_V6_INTERNAL_SHADOW_DEPLOY_PLAN.md'), 'utf8')
+    h.ok(/tcb fn code update generateAiReport/.test(plan), 'deploy plan uses code-only update')
+    const unsafeAsStep = (function () {
+      // Only executable lines inside fenced code blocks (not comments, not prose).
+      const fences = plan.split('```')
+      const out = []
+      for (let i = 1; i < fences.length; i += 2) {
+        for (const raw of fences[i].split('\n')) {
+          const line = raw.trim()
+          if (line.startsWith('#')) continue
+          if (/^tcb fn deploy generateAiReport/.test(line)) out.push(line)
+        }
+      }
+      return out
+    })()
+    h.eq(unsafeAsStep.length, 0, 'deploy plan never runs env-applying tcb fn deploy as an executable step')
   }
 
   // ── PAYMENT / PRIMARY / GATE_B NON-INTERFERENCE ───────────────
@@ -343,11 +433,11 @@ async function run () {
     h.ok(!/worldModelV2|worldModelV21|world_model_v2/i.test(v6Block), 'V6 block references NO V2/V2.1 module')
 
     __aiQueue = [validResponse(G06.answers)]
-    await call(v6event(G06.answers), 'SHADOW')
+    await call(v6event(G06.answers), 'SHADOW', 'u1', AL)
     const payWrite = __writes.find(w => /order|pay|entitle|member/i.test(w.collection))
     h.ok(!payWrite, 'shadow run performs no payment/entitlement writes')
 
-    const v21 = await call({ type: 'diagnostic', diagnosticVersion: 'world_model_v2_1', answers: {} }, 'SHADOW')
+    const v21 = await call({ type: 'diagnostic', diagnosticVersion: 'world_model_v2_1', answers: {} }, 'SHADOW', 'u1', AL)
     h.eq(v21.data.diagnosticVersion, 'world_model_v2_1', 'v2.1 path preserved')
   }
 

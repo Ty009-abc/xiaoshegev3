@@ -116,10 +116,20 @@ exports.main = async (event, context) => {
       //   ON     : parsed so a future owner-authorized task can enable it; NOT
       //            implemented in this task (fails closed to a disabled ack).
       if (diagnosticVersion === 'turnaround_strategy_v6') {
-        const { parseV6WorldviewMode, getV6WorldviewModeFromEnv } = require('./lib/config/worldviewV6Mode')
+        const { parseV6WorldviewMode, getV6WorldviewModeFromEnv, getV6ShadowAllowlistFromEnv, isV6ShadowAuthorized } = require('./lib/config/worldviewV6Mode')
         const v6Mode = parseV6WorldviewMode(getV6WorldviewModeFromEnv())
         if (v6Mode === 'SHADOW') {
-          return await runTurnaroundV6Shadow({ event, openid, ts, answers })
+          // Internal allowlist gate (fail-closed). SHADOW runs ONLY for a
+          // SERVER-DERIVED openid present in RC84_V6_SHADOW_ALLOWLIST. An empty
+          // / missing allowlist, or any non-listed openid, gets EXACT OFF
+          // behavior (no V6 model call, byte-identical response). Client-
+          // supplied openid is NEVER consulted — `openid` here comes from
+          // cloud.getWXContext().OPENID (server-derived).
+          const v6ShadowAllowed = isV6ShadowAuthorized(openid, getV6ShadowAllowlistFromEnv())
+          if (v6ShadowAllowed) {
+            return await runTurnaroundV6Shadow({ event, openid, ts, answers })
+          }
+          return runTurnaroundV6Off()
         }
         if (v6Mode === 'ON') {
           return runTurnaroundV6OnNotEnabled()

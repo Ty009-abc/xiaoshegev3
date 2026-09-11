@@ -10,9 +10,11 @@
  * V6 is NEVER controlled by the V1/V2/V2.1 MODE or allowlist.
  *
  * Env:
- *   RC84_V6_WORLDVIEW_MODE = OFF | SHADOW | ON
+ *   RC84_V6_WORLDVIEW_MODE   = OFF | SHADOW | ON
+ *   RC84_V6_SHADOW_ALLOWLIST = comma-separated openids (only consulted in SHADOW)
  *
  * Fail-closed: missing / malformed / empty / non-string → OFF.
+ * SHADOW allowlist fail-closed: missing / empty → authorize NOBODY.
  * `ON` is PARSED (so a future owner-authorized task can flip it) but this task
  * never sets it; default is OFF and OFF is the production-safe state.
  *
@@ -23,6 +25,7 @@
  */
 
 const V6_WORLDVIEW_MODE_ENV = 'RC84_V6_WORLDVIEW_MODE'
+const V6_SHADOW_ALLOWLIST_ENV = 'RC84_V6_SHADOW_ALLOWLIST'
 
 // Closed allowed-mode set.
 const V6_ALLOWED_MODES = Object.freeze(['OFF', 'SHADOW', 'ON'])
@@ -47,10 +50,57 @@ function getV6WorldviewModeFromEnv () {
   try { return process.env[V6_WORLDVIEW_MODE_ENV] || V6_DEFAULT_MODE } catch (e) { return V6_DEFAULT_MODE }
 }
 
+/**
+ * Parse the optional SHADOW allowlist (comma-separated openids).
+ * Fail-closed: missing / malformed / empty / non-string → empty set
+ * (authorize NOBODY). No hard-coded openid in source.
+ * @param {*} raw
+ * @returns {Set<string>}
+ */
+function parseV6ShadowAllowlist (raw) {
+  if (typeof raw !== 'string' || raw.trim() === '') return new Set()
+  try {
+    return new Set(
+      raw.split(',')
+        .map(function (e) { return e.trim() })
+        .filter(function (e) { return e.length > 0 })
+    )
+  } catch (e) {
+    return new Set()
+  }
+}
+
+function getV6ShadowAllowlistFromEnv () {
+  try { return process.env[V6_SHADOW_ALLOWLIST_ENV] || '' } catch (e) { return '' }
+}
+
+/**
+ * Authorize a SERVER-DERIVED openid for V6 SHADOW.
+ * An empty / missing allowlist authorizes NOBODY (no implicit open access).
+ * Client-supplied openid is never consulted anywhere in this module.
+ * @param {string|null|undefined} openid  server-derived OPENID
+ * @param {*} allowlistRaw
+ * @returns {boolean}
+ */
+function isV6ShadowAuthorized (openid, allowlistRaw) {
+  if (!openid || typeof openid !== 'string' || openid.trim() === '') return false
+  try {
+    const set = parseV6ShadowAllowlist(allowlistRaw)
+    if (set.size === 0) return false
+    return set.has(openid)
+  } catch (e) {
+    return false
+  }
+}
+
 module.exports = {
   V6_WORLDVIEW_MODE_ENV,
+  V6_SHADOW_ALLOWLIST_ENV,
   V6_ALLOWED_MODES,
   V6_DEFAULT_MODE,
   parseV6WorldviewMode,
   getV6WorldviewModeFromEnv,
+  parseV6ShadowAllowlist,
+  getV6ShadowAllowlistFromEnv,
+  isV6ShadowAuthorized,
 }
