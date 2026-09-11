@@ -110,10 +110,64 @@ success probability. Forbidden tokens: **你一定 / 你注定 / 只要就能 / 
 - `RUNTIME_CODE_CHANGED = NO`
 - This ADR and the accompanying design docs are the only artifacts added.
 
-## 9. References
+## 9. Contract authority hierarchy (V6 contract v1)
+
+Amendment (2026-09-11, Stage B). The canonical diagnosis semantics now live in
+`docs/RC8.4_V6_DIAGNOSIS_CONTRACT.md` (`turnaround_strategy_v6_contract_v1`).
+Authority order for any future runtime:
+
+```
+1. REALITY INPUT        (Q1,Q2,Q3)
+2. USER BELIEF          (Q5)
+3. EXECUTION STAGE      (Q6)
+4. BEHAVIOR EVIDENCE    (Q7,Q8,Q9)
+5. BOTTLENECK ELIGIBILITY   ← computed FIRST
+6. PRIORITY / TIE-BREAK     ← among eligible only
+7. BELIEF-REALITY GAP       ← modifier
+8. FIVE-CARD EXPRESSION
+```
+
+Invariants (frozen):
+
+- `ELIGIBILITY_FIRST = YES` · `PRIORITY_SECOND = YES` · `TIE_BREAK_THIRD = YES`
+- `STAGE_PRIORITY_FORCES_DIAGNOSIS = NO` — stage priority may never override
+  missing REQUIRED evidence.
+- `PRIMARY_BOTTLENECK_COUNT = 5` — additions require a governance revision (ADR)
+  and new Golden evidence.
+- `NO_PRIMARY_SUPPORTED = YES` — the contract refuses a diagnosis rather than
+  force one of five bottlenecks.
+- `REALITY_CONSTRAINT_OVERRIDES_PRIMARY = NO` (default).
+- `FAKE_BELIEF_GAP_ALLOWED = NO`.
+
+Stage A rule table is **derived**; the Contract governs. Five refinements are
+logged in contract §20 (D-1…D-5), including one Stage A internal inconsistency
+(VALIDATION_GAP REQUIRED wrongly included a Q7 clause contradicted by Golden G11).
+
+Implementation policy: no runtime implementation on this design branch. After
+contract acceptance, branch from the final accepted design tip as
+`feat/rc8.4-v6-diagnosis-runtime`, and only on explicit owner authorization.
+
+### 9.1 Product invariants (core V6 rule)
+
+```
+REALITY_MAY_BE_TRUE_AND_BEHAVIOR_MAY_STILL_AMPLIFY_IT = YES
+REALITY_DENIAL_ALLOWED                                = NO   (default)
+```
+
+The product must never force a false dichotomy such as "不是现实问题，而是你自己的问题"
+when both can be true. Reality constraints must never be reframed as personal failure
+without contradictory evidence. Forbidden patterns (absent real contradiction):
+"你不是没时间，只是…" · "你不是缺资源，只是…" · "问题根本不在环境…".
+A genuine reality constraint defaults to `BELIEF_MATCH` / `BELIEF_PARTIAL` with
+non-blaming copy; a hard `BELIEF_REALITY_GAP` requires independent contradicting
+evidence (contract §9).
+
+## 10. References
 
 - `docs/RC8.4_TURNAROUND_STRATEGY_V6_9Q_REFOUNDATION_DESIGN.md`
 - `docs/RC8.4_V6_PRODUCT_GOLDEN_15_CASES.md`
 - `docs/RC8.4_V6_PRIMARY_BOTTLENECK_RULE_TABLE.md`
+- `docs/RC8.4_V6_DIAGNOSIS_CONTRACT.md` (canonical semantics)
+- `docs/RC8.4_V6_ADVERSARIAL_CASES.md`
 - Frozen engine: `cloudfunctions/generateAiReport/lib/engine/worldModel/v2_1/`
   and `.../lib/presentation/worldModel/v2_1/`
