@@ -1,6 +1,7 @@
 # Secrets
 .env
 .env.ci
+.env.deploy
 *.key
 *.pem
 project.private.config.json

@@ -22,7 +22,7 @@
 
 | 变量 | 说明 | 当前值 |
 |---|---|---|
-| `AI_API_KEY` | API 密钥 | `sk-1e22630f6ba74bc58b27232da7ea05d4` |
+| `AI_API_KEY` | API 密钥 | `<YOUR_AI_API_KEY>` |
 | `AI_API_BASE_URL` | API 地址 | `https://api.deepseek.com/v1` |
 | `AI_MODEL_FLASH` | 快速模型 | `deepseek-chat` |
 | `AI_MODEL_PRO` | 精准模型 | `deepseek-chat` |
@@ -61,7 +61,7 @@ MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQ...
 
 | 变量 | 说明 | 当前值 |
 |---|---|---|
-| `EMBEDDING_API_KEY` | Embedding API Key | `sk-1e22630f6ba74bc58b27232da7ea05d4` |
+| `EMBEDDING_API_KEY` | Embedding API Key | `<YOUR_EMBEDDING_API_KEY>` |
 | `EMBEDDING_MODEL` | 模型 | `deepseek-embedding` |
 | `EMBEDDING_API_BASE` | API 地址 | `https://api.deepseek.com/v1` |
 

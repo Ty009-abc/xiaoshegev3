@@ -116,12 +116,12 @@
       "handler": "index.main",
       "installDependency": true,
       "envVariables": {
-        "AI_API_KEY": "sk-1e22630f6ba74bc58b27232da7ea05d4",
+        "AI_API_KEY": "<YOUR_AI_API_KEY>",
         "AI_API_BASE_URL": "https://api.deepseek.com/v1",
         "AI_MODEL_FLASH": "deepseek-chat",
         "AI_MODEL_PRO": "deepseek-chat",
         "RC83_WORLD_MODEL_MODE": "SELECTIVE_PRIMARY",
-        "RC83_WORLD_MODEL_ALLOWLIST": "oZa463Yb2VY0k9Es_pGzdHFtigNo"
+        "RC83_WORLD_MODEL_ALLOWLIST": ""
       }
     },
     {
@@ -199,7 +199,7 @@
       "envVariables": {
         "WXPAY_MCHID": "1747400090",
         "WXPAY_APPID": "wxd441fbf3b9f10aa3",
-        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
         "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
         "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>",
         "WXPAY_NOTIFY_URL": "<FILL_ME>"
@@ -212,7 +212,7 @@
       "handler": "index.main",
       "installDependency": false,
       "envVariables": {
-        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
         "WXPAY_APPID": "wxd441fbf3b9f10aa3"
       }
     },
@@ -225,7 +225,7 @@
       "envVariables": {
         "WXPAY_MCHID": "1747400090",
         "WXPAY_APPID": "wxd441fbf3b9f10aa3",
-        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
         "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
         "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>"
       }
@@ -246,7 +246,7 @@
       "envVariables": {
         "WXPAY_MCHID": "1747400090",
         "WXPAY_APPID": "wxd441fbf3b9f10aa3",
-        "WXPAY_API_V3_KEY": "Aa775263Aa0000099999Aa775263Aa00",
+        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
         "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
         "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>"
       }
@@ -397,7 +397,7 @@
       "handler": "index.main",
       "installDependency": false,
       "envVariables": {
-        "EMBEDDING_API_KEY": "sk-1e22630f6ba74bc58b27232da7ea05d4",
+        "EMBEDDING_API_KEY": "<YOUR_EMBEDDING_API_KEY>",
         "EMBEDDING_MODEL": "deepseek-embedding",
         "EMBEDDING_API_BASE": "https://api.deepseek.com/v1"
       }
