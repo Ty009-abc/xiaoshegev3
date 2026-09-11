@@ -1,13 +1,13 @@
 'use strict'
 /**
- * tests/v6/runtime/run.js — B2.4 isolated runtime-chain test runner.
+ * tests/v6/shadow/run.js — B2.5 production wiring-prep test runner.
  */
 
 const h = require('../_harness.js')
 
 h.reset()
-Promise.resolve(require('./rc8.4-v6-runtime.test.js').run()).then(() => {
+Promise.resolve(require('./rc8.4-v6-shadow-wiring.test.js').run()).then(() => {
   console.log('\n══════════════════════════════════════')
-  console.log(process.exitCode ? 'B2.4 RUNTIME SUITE: FAIL' : 'B2.4 RUNTIME SUITE: PASS')
+  console.log(process.exitCode ? 'B2.5 SHADOW WIRING SUITE: FAIL' : 'B2.5 SHADOW WIRING SUITE: PASS')
   console.log('══════════════════════════════════════')
 })

@@ -24,6 +24,9 @@
  *   - No secret logging; no raw-prompt logging; no full user-answer dump.
  *   - Never recomputes diagnosis; never changes facts between retries.
  *   - Diagnostics authority stays with B1; this module never invents labels.
+ *   - TOTAL budget gate: the 2nd attempt only starts if the remaining budget
+ *     can still accommodate it; otherwise fall back to deterministic B2.1
+ *     immediately (FALLBACK_BEFORE_FUNCTION_TIMEOUT = YES).
  */
 
 const { diagnoseTurnaroundV6 } = require('../../index.js')
@@ -35,9 +38,11 @@ const MAX_MODEL_ATTEMPTS = 2
 const MODEL_IS_OPTIONAL_ENHANCEMENT = true
 const DETERMINISTIC_FALLBACK_ALWAYS_AVAILABLE = true
 
-// Recommended (design-only; production timeout NOT modified here).
-const MODEL_ATTEMPT_TIMEOUT_MS = 20000
-const TOTAL_WORLDVIEW_BUDGET_MS = 45000
+// Audited production-wiring budget (design-only; platform timeout NOT modified).
+// 2 attempts × 14000ms = 28000ms + ~2s overhead ≈ 30s, leaving ~30s headroom
+// under the 60000ms cloud-function ceiling → fallback always lands before timeout.
+const MODEL_ATTEMPT_TIMEOUT_MS = 14000
+const TOTAL_WORLDVIEW_BUDGET_MS = 30000
 
 const RENDER_SOURCE = { AI: 'worldview_ai', FALLBACK: 'deterministic_fallback' }
 
@@ -79,6 +84,9 @@ async function runWorldviewReportRuntimeV6 (answers, opts) {
   const o = opts || {}
   const maxAttempts = o.maxAttempts || MAX_MODEL_ATTEMPTS
   const attemptTimeoutMs = o.attemptTimeoutMs != null ? o.attemptTimeoutMs : MODEL_ATTEMPT_TIMEOUT_MS
+  const totalBudgetMs = o.totalBudgetMs != null ? o.totalBudgetMs : TOTAL_WORLDVIEW_BUDGET_MS
+  const budgetStart = Date.now()
+  const remainingBudget = () => totalBudgetMs - (Date.now() - budgetStart)
 
   // ── 1. B1 diagnosis (authority) ───────────────────────────────
   const diagnosis = diagnoseTurnaroundV6(answers)
@@ -103,6 +111,12 @@ async function runWorldviewReportRuntimeV6 (answers, opts) {
   let lastFailureReason = 'MODEL_ATTEMPTS_EXHAUSTED'
 
   for (let i = 1; i <= maxAttempts; i++) {
+    // Budget gate: the next attempt may only start if the remaining total
+    // budget can still accommodate an attempt. Otherwise fall back NOW.
+    if (i > 1 && remainingBudget() < attemptTimeoutMs) {
+      lastFailureReason = 'TOTAL_BUDGET_EXHAUSTED'
+      break
+    }
     const t0 = Date.now()
     let res
     let failureReason = null
@@ -156,7 +170,8 @@ async function runWorldviewReportRuntimeV6 (answers, opts) {
   // ── 5. deterministic fallback (always available) ──────────────
   return fallbackResult(diagnosis, detReport, {
     fallbackReason: lastFailureReason === 'MODEL_TIMEOUT' ? 'MODEL_TIMEOUT'
-      : lastValidatorFailures.length ? 'DOUBLE_VALIDATION_FAIL' : lastFailureReason,
+      : lastFailureReason === 'TOTAL_BUDGET_EXHAUSTED' ? 'TOTAL_BUDGET_EXHAUSTED'
+        : lastValidatorFailures.length ? 'DOUBLE_VALIDATION_FAIL' : lastFailureReason,
     attemptCount: attempts.length,
     validatorFailures: lastValidatorFailures,
     modelLatencyMs: totalLatency,

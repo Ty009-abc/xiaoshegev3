@@ -106,6 +106,28 @@ exports.main = async (event, context) => {
         return runWorldModelV21Off()
       }
 
+      // ═══ RC8.4 V6: turnaround_strategy_v6 — isolated worldview chain ═══
+      // Independent V6 mode (NEVER reuse V1/V2/V2.1 MODE/allowlist). Fail-closed:
+      // missing / invalid / empty config → OFF (V6 runtime never executes).
+      //   OFF    : existing production behavior UNCHANGED (no model call).
+      //   SHADOW : V6 runs for internal observability ONLY; the authoritative
+      //            response is a shadow acknowledgment — V6 output is NEVER
+      //            returned to the user (mirrors the V2.1 shadow hook).
+      //   ON     : parsed so a future owner-authorized task can enable it; NOT
+      //            implemented in this task (fails closed to a disabled ack).
+      if (diagnosticVersion === 'turnaround_strategy_v6') {
+        const { parseV6WorldviewMode, getV6WorldviewModeFromEnv } = require('./lib/config/worldviewV6Mode')
+        const v6Mode = parseV6WorldviewMode(getV6WorldviewModeFromEnv())
+        if (v6Mode === 'SHADOW') {
+          return await runTurnaroundV6Shadow({ event, openid, ts, answers })
+        }
+        if (v6Mode === 'ON') {
+          return runTurnaroundV6OnNotEnabled()
+        }
+        // OFF (default / fail-closed): V6 runtime never executes, no model call.
+        return runTurnaroundV6Off()
+      }
+
       // ═══ V3 原有链路（不变）═══
       const { buildDiagnosticPrompt } = require('./lib/ai.js')
 
@@ -626,6 +648,73 @@ function runWorldModelV21Off() {
     v21Mode: 'OFF',
     message: 'world_model_v2_1 当前关闭，未执行',
   })
+}
+
+// ═══════════════════════════════════════════════════════════
+// RC8.4 V6: turnaround_strategy_v6 — OFF / SHADOW handlers
+// ═══════════════════════════════════════════════════════════
+//
+// V6 is an ISOLATED EXPERIMENTAL chain. It is NEVER the authoritative
+// production diagnosis. In SHADOW the chain runs purely for internal
+// observability and its result is discarded from the user-visible path.
+// A model-side failure can never break the request (deterministic B2.1
+// fallback always available inside the runtime).
+
+// V6 is NEVER primary. OFF / SHADOW / ON(not-enabled) all return the SAME
+// mode-agnostic baseline response, so the caller-visible response can NEVER
+// change with the V6 runtime mode (OFF_VS_SHADOW_PRIMARY_RESPONSE_DIFF_COUNT=0,
+// SHADOW_USER_RESPONSE_CHANGED=NO). V6 mode / renderSource is deliberately NOT
+// exposed here (internal observability only).
+function buildTurnaroundV6BaselineResponse () {
+  return ok({
+    reportType: 'turnaround_strategy_v6',
+    diagnosticVersion: 'turnaround_strategy_v6',
+    v6PrimaryActive: false,
+    message: 'turnaround_strategy_v6 当前未开放为主诊断',
+  })
+}
+
+// V6 OFF mode: runtime never executes, ZERO model calls, ZERO V6 latency.
+function runTurnaroundV6Off () {
+  return buildTurnaroundV6BaselineResponse()
+}
+
+// V6 ON mode: parsed for forward-compatibility only; NOT implemented in this
+// task (returns the baseline response, no model call).
+function runTurnaroundV6OnNotEnabled () {
+  return buildTurnaroundV6BaselineResponse()
+}
+
+// V6 SHADOW: run the isolated chain on a SIDE PATH for internal observability
+// ONLY. The caller-visible response is BYTE-IDENTICAL to OFF — no V6 report, no
+// shadow ack, no mode/renderSource leak. Any model-side failure (timeout /
+// provider error / invalid JSON / validator reject / double fail) is contained
+// here and can never break or change the request. Safe metadata is logged
+// internally only.
+async function runTurnaroundV6Shadow ({ event, openid, ts, answers }) {
+  try {
+    var { runWorldviewReportRuntimeV6 } = require('./lib/turnaroundStrategy/v6/experimental/runtime/worldviewReportRuntimeV6')
+    // SHADOW uses the existing approved production credential path via the
+    // default callAI (lib/ai.js → env.AI_API_KEY). The experiment-only test
+    // credential (AI_API_KEY_TEST) is NEVER used here.
+    var out = await runWorldviewReportRuntimeV6(answers || {}, {})
+    var m = (out && out.meta) || {}
+    // SAFE internal observability metadata ONLY — no api key, no raw prompt,
+    // no full answers, no full report text, no openid, no profile payload.
+    console.log('[V6Shadow] meta ' + JSON.stringify({
+      renderSource: m.renderSource || 'unknown',
+      attemptCount: m.attemptCount || 0,
+      validatorFailureCategories: m.validatorFailures || [],
+      modelLatencyMs: m.modelLatencyMs || 0,
+      fallbackReason: m.fallbackReason || null,
+      reportVersion: (out && out.reportVersion) || null,
+    }))
+  } catch (e) {
+    // Isolated: V6 failure never propagates into the production path.
+    console.error('[V6Shadow] runtime exception:', (e && e.message) || e)
+  }
+  // Response is IDENTICAL to OFF — SHADOW never changes what the caller sees.
+  return buildTurnaroundV6BaselineResponse()
 }
 
 // ═══════════════════════════════════════════════════════════════
