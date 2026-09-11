@@ -1,0 +1,1787 @@
+{
+  "promptVersion": "turnaround_strategy_v6_worldview_prompt_v1",
+  "reportVersion": "turnaround_strategy_v6_worldview_v1",
+  "source": "HUMAN-AUTHORED REFERENCE",
+  "offlineModelUsed": false,
+  "fixtures": [
+    {
+      "id": "G06",
+      "inputPayload": {
+        "answers": {
+          "Q1": "31–40",
+          "Q2": "固定工资",
+          "Q3": "基本留不下 / 经常不够",
+          "Q4": "债务 / 现金流压力",
+          "Q5": "家庭 / 环境牵制",
+          "Q6": "学过东西，但没真正开始",
+          "Q7": "先把可能的问题都想清楚",
+          "Q8": "一忙起来，长期的事就先停",
+          "Q9": "先停下来，不再继续投入"
+        },
+        "diagnosis": {
+          "primaryBottleneck": "ACTION_GAP",
+          "executionStage": "LEARNING",
+          "beliefRelation": {
+            "relation": "BELIEF_MATCH",
+            "subType": null,
+            "beliefSource": {
+              "questionId": "Q5",
+              "value": "BELIEF_FAMILY"
+            },
+            "behaviorSources": [],
+            "explanationRuleId": null
+          },
+          "realityConstraint": {
+            "present": true,
+            "types": [
+              "CASHFLOW_PRESSURE",
+              "LOW_SURPLUS",
+              "FAMILY_ENVIRONMENT_CONSTRAINT",
+              "TIME_PRESSURE_POSSIBLE"
+            ],
+            "evidence": [
+              {
+                "questionId": "Q4",
+                "value": "PROBLEM_DEBT"
+              },
+              {
+                "questionId": "Q3",
+                "value": "SURPLUS_NONE"
+              },
+              {
+                "questionId": "Q5",
+                "value": "BELIEF_FAMILY"
+              },
+              {
+                "questionId": "Q8",
+                "value": "TIME_LONG_DROPS"
+              }
+            ]
+          },
+          "recommendedNextStage": "STARTED",
+          "firstActionType": "CASHFLOW_SAFE_EXPERIMENT"
+        }
+      },
+      "currentB21Report": {
+        "reportVersion": "turnaround_strategy_v6_report_v1",
+        "reportState": "PRIMARY",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "债务和现金流的压力是真的，但它正在把你推向越来越怕走错——现在最要紧的，是先让一个真实结果发生。",
+            "provenance": {
+              "sourceFields": [
+                "userBelief.perceivedRootCause",
+                "primaryBottleneck",
+                "beliefRelation.relation",
+                "desiredChange.primaryProblem"
+              ],
+              "sourceQuestionIds": [
+                "Q5",
+                "Q4"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "真正的问题，不在于债务和现金流，而在于你一直以来的应对方式。你把力气几乎都花在准备上，总想等一个“更稳”的开头，可第一步就是没发生。所以到现在，你还是没真正开始。结果是学习在增加，真正能帮你判断的反馈却一直没来。",
+            "provenance": {
+              "sourceFields": [
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "executionStage",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q4",
+                "Q5",
+                "Q6",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "STEP 1　现实起点：拿着固定工资，可“债务一直压着”一直没解决。",
+              "STEP 2　想改变：想真正做成点事，于是你一心盯着事情准备得够不够稳。",
+              "STEP 3　默认行为：一遇到不确定，你就先把可能的问题都想清楚，迟迟不动手。",
+              "STEP 4　卡住：你一直没有交出第一个真实结果。",
+              "STEP 5　旧解释被强化：走久了，你更确信自己被家庭牵制，于是继续准备。"
+            ],
+            "text": "STEP 1　现实起点：拿着固定工资，可“债务一直压着”一直没解决。\nSTEP 2　想改变：想真正做成点事，于是你一心盯着事情准备得够不够稳。\nSTEP 3　默认行为：一遇到不确定，你就先把可能的问题都想清楚，迟迟不动手。\nSTEP 4　卡住：你一直没有交出第一个真实结果。\nSTEP 5　旧解释被强化：走久了，你更确信自己被家庭牵制，于是继续准备。",
+            "provenance": {
+              "sourceFields": [
+                "reality.incomeMode",
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q2",
+                "Q4",
+                "Q5",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "继续学，但一直没上手",
+            "to": "真正做出第一个最小结果",
+            "text": "你现在的状态：继续学，但一直没上手。\n你真正想解开的，还是债务和现金流。\n接下来要做的：真正做出第一个最小结果。\n这一步不用先想周全，开始本身就会给你反馈。",
+            "provenance": {
+              "sourceFields": [
+                "executionStage",
+                "recommendedNextStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天不花钱、也不再学新的，把你已经会的一件事做成一页样本，直接发给一个熟人看。",
+            "checks": [
+              "把最小动作拆到今天就能做完",
+              "做完后马上记下真实反馈"
+            ],
+            "text": "你现在学过东西，却还没上手；为了解开债务和现金流，今天只做一件：今天不花钱、也不再学新的，把你已经会的一件事做成一页样本，直接发给一个熟人看。\n1. 把最小动作拆到今天就能做完\n2. 做完后马上记下真实反馈\n你和现实没分歧，差的就是把它做出来。",
+            "provenance": {
+              "sourceFields": [
+                "firstActionType",
+                "executionStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "realityConstraint",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q3",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          }
+        },
+        "provenance": {
+          "contractVersion": "turnaround_strategy_v6_contract_v1",
+          "diagnosisState": "PRIMARY",
+          "primaryBottleneck": "ACTION_GAP",
+          "executionStage": "LEARNING",
+          "beliefRelation": "BELIEF_MATCH",
+          "realityConstraintTypes": [
+            "CASHFLOW_PRESSURE",
+            "LOW_SURPLUS",
+            "FAMILY_ENVIRONMENT_CONSTRAINT",
+            "TIME_PRESSURE_POSSIBLE"
+          ],
+          "selectedRuleId": "RC84V6-ACTION-01",
+          "beliefRuleId": null,
+          "sourceQuestionIds": [
+            "Q6",
+            "Q7",
+            "Q5",
+            "Q8",
+            "Q9"
+          ]
+        }
+      },
+      "b22WorldviewReference": {
+        "reportVersion": "turnaround_strategy_v6_worldview_v1",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "现金流一紧，人最容易把“准备充分”当成安全感——但能减少不确定性的，从来不是再准备一轮。"
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "债务和现金流的压力是真的，不是你想多了。可压力一来，你的本能反应是先把事情想周全再动手，于是学习一直加，真实反馈却一直没来。今天的规则是：反馈决定方向，而准备不等于反馈。所以卡住你的不是不够努力，是你的努力还没被真实世界验证过一次。"
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "现实压力：固定工资，还要扛债务和现金流。",
+              "你的反应：先准备周全，再动手。",
+              "代价：一直没交出一个真实结果。",
+              "缺失：没有反馈，就分不清方向对错。",
+              "结果：压力下更不敢试，继续准备。"
+            ]
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "用准备换安全感",
+            "to": "用低成本真实反馈换判断",
+            "logic": "现金流紧的时候，成本足够低、失败也不伤现金流的动作，才是真正能降低不确定性的那一类。"
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天不花钱、也不再添新的学习，把你已经会的一件事做成一页样本，直接发给一个熟人，看真实反应。",
+            "checks": [
+              "把动作压到零成本、今天就能做完",
+              "发出去后马上记下对方的真实反应"
+            ]
+          }
+        }
+      },
+      "label": "HUMAN-AUTHORED REFERENCE",
+      "validatorResult": {
+        "jsonParseOk": true,
+        "cardCount": 5,
+        "extraTopKeys": 0,
+        "extraCardKeys": 0,
+        "titleMismatch": 0,
+        "systemLoopStepCount": 5,
+        "card01Len": 44,
+        "card01Over": false,
+        "ontologyLeak": [],
+        "wealthPromise": [],
+        "genericWorldview": [],
+        "buzzwordStuffing": [],
+        "realityDenial": [],
+        "unsupportedClaims": [],
+        "bottleneckDrift": false,
+        "stageDrift": false,
+        "beliefDrift": false,
+        "actionTypeDrift": false
+      },
+      "actionTypeExpected": "CASHFLOW_SAFE_EXPERIMENT",
+      "actionTypeActual": "CASHFLOW_SAFE_EXPERIMENT",
+      "card04StrategicTransition": true
+    },
+    {
+      "id": "G12",
+      "inputPayload": {
+        "answers": {
+          "Q1": "31–40",
+          "Q2": "固定工资",
+          "Q3": "1000–5000元",
+          "Q4": "收入一直上不去",
+          "Q5": "缺钱 / 缺资源",
+          "Q6": "学过东西，但没真正开始",
+          "Q7": "再等等，信息更充分再说",
+          "Q8": "一忙起来，长期的事就先停",
+          "Q9": "先停下来，不再继续投入"
+        },
+        "diagnosis": {
+          "primaryBottleneck": "ACTION_GAP",
+          "executionStage": "LEARNING",
+          "beliefRelation": {
+            "relation": "BELIEF_REALITY_GAP",
+            "subType": "RESOURCE",
+            "beliefSource": {
+              "questionId": "Q5",
+              "value": "BELIEF_RESOURCE"
+            },
+            "behaviorSources": [
+              {
+                "questionId": "Q6",
+                "value": "STAGE_LEARNING"
+              }
+            ],
+            "explanationRuleId": "RC84V6-GAP-RESOURCE"
+          },
+          "realityConstraint": {
+            "present": false,
+            "types": [],
+            "evidence": []
+          },
+          "recommendedNextStage": "STARTED",
+          "firstActionType": "SMALLEST_EXTERNAL_TEST"
+        }
+      },
+      "currentB21Report": {
+        "reportVersion": "turnaround_strategy_v6_report_v1",
+        "reportState": "PRIMARY",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你以为缺的是资源，但事情还没到缺资源那一步——真正让你停住的，是你一直停在准备里，第一步始终没发生。",
+            "provenance": {
+              "sourceFields": [
+                "userBelief.perceivedRootCause",
+                "primaryBottleneck",
+                "beliefRelation.relation",
+                "desiredChange.primaryProblem"
+              ],
+              "sourceQuestionIds": [
+                "Q5",
+                "Q4"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01",
+                "RC84V6-GAP-RESOURCE"
+              ]
+            }
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "问题的关键，不在你以为的那个原因上。你把力气几乎都花在准备上，总想等一个“更稳”的开头，可第一步就是没发生。所以到现在，你还是没真正开始。结果是学习在增加，真正能帮你判断的反馈却一直没来。",
+            "provenance": {
+              "sourceFields": [
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "executionStage",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q4",
+                "Q5",
+                "Q6",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01",
+                "RC84V6-GAP-RESOURCE"
+              ]
+            }
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "STEP 1　现实起点：拿着固定工资，可“收入一直没起色”一直没解决。",
+              "STEP 2　想改变：想真正做成点事，于是你一心盯着事情准备得够不够稳。",
+              "STEP 3　默认行为：一遇到不确定，你就先等更多信息，迟迟不动手。",
+              "STEP 4　卡住：你一直没有交出第一个真实结果。",
+              "STEP 5　旧解释被强化：走久了，你更确信自己缺钱缺资源，于是继续准备。"
+            ],
+            "text": "STEP 1　现实起点：拿着固定工资，可“收入一直没起色”一直没解决。\nSTEP 2　想改变：想真正做成点事，于是你一心盯着事情准备得够不够稳。\nSTEP 3　默认行为：一遇到不确定，你就先等更多信息，迟迟不动手。\nSTEP 4　卡住：你一直没有交出第一个真实结果。\nSTEP 5　旧解释被强化：走久了，你更确信自己缺钱缺资源，于是继续准备。",
+            "provenance": {
+              "sourceFields": [
+                "reality.incomeMode",
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q2",
+                "Q4",
+                "Q5",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "继续学，但一直没上手",
+            "to": "真正做出第一个最小结果",
+            "text": "你现在的状态：继续学，但一直没上手。\n你真正想解开的，还是收入。\n接下来要做的：真正做出第一个最小结果。\n这一步不是把条件凑齐，而是先做出一个真实结果。",
+            "provenance": {
+              "sourceFields": [
+                "executionStage",
+                "recommendedNextStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天做一个24小时内能完成、能直接拿到外部反馈的最小测试。",
+            "checks": [
+              "把最小动作拆到今天就能做完",
+              "做完后马上记下真实反馈"
+            ],
+            "text": "你现在学过东西，却还没上手；为了解开收入，今天只做一件：今天做一个24小时内能完成、能直接拿到外部反馈的最小测试。\n1. 把最小动作拆到今天就能做完\n2. 做完后马上记下真实反馈\n你以为的原因未必是全貌。",
+            "provenance": {
+              "sourceFields": [
+                "firstActionType",
+                "executionStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "realityConstraint",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q3",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          }
+        },
+        "provenance": {
+          "contractVersion": "turnaround_strategy_v6_contract_v1",
+          "diagnosisState": "PRIMARY",
+          "primaryBottleneck": "ACTION_GAP",
+          "executionStage": "LEARNING",
+          "beliefRelation": "BELIEF_REALITY_GAP",
+          "realityConstraintTypes": [],
+          "selectedRuleId": "RC84V6-ACTION-01",
+          "beliefRuleId": "RC84V6-GAP-RESOURCE",
+          "sourceQuestionIds": [
+            "Q6",
+            "Q7",
+            "Q5",
+            "Q8",
+            "Q9"
+          ]
+        }
+      },
+      "b22WorldviewReference": {
+        "reportVersion": "turnaround_strategy_v6_worldview_v1",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你以为要先把资源备齐才能开始——但很多资源，恰恰是第一轮真实结果之后才换得来的。"
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "你把很多力气花在“准备资源”上：等条件、等更稳。可现实是，资源很少在开始前就齐；它更像结果之后的东西——你先做出一点真实反馈，别人才愿意把资源给你。今天不是缺资源的阶段，是缺第一轮反馈的阶段。"
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "现实起点：收入一直上不去。",
+              "你的反应：先补足资源，再开始。",
+              "代价：第一步始终没有发生。",
+              "缺失：没有结果，就换不来资源。",
+              "结果：越发确信“缺资源”，继续等。"
+            ]
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "先备齐资源再开始",
+            "to": "先制造反馈再谈资源",
+            "logic": "资源大多不是开始前准备出来的，而是在第一轮真实结果之后更容易交换到；先有反馈，才有议价。"
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天做一个24小时内能完成、能直接拿到外部反馈的最小测试，用最省的成本换一个真实结果。",
+            "checks": [
+              "把测试压到明天就能拿到反馈",
+              "不追加投入，先看真实反应"
+            ]
+          }
+        }
+      },
+      "label": "HUMAN-AUTHORED REFERENCE",
+      "validatorResult": {
+        "jsonParseOk": true,
+        "cardCount": 5,
+        "extraTopKeys": 0,
+        "extraCardKeys": 0,
+        "titleMismatch": 0,
+        "systemLoopStepCount": 5,
+        "card01Len": 40,
+        "card01Over": false,
+        "ontologyLeak": [],
+        "wealthPromise": [],
+        "genericWorldview": [],
+        "buzzwordStuffing": [],
+        "realityDenial": [],
+        "unsupportedClaims": [],
+        "bottleneckDrift": false,
+        "stageDrift": false,
+        "beliefDrift": false,
+        "actionTypeDrift": false
+      },
+      "actionTypeExpected": "SMALLEST_EXTERNAL_TEST",
+      "actionTypeActual": "SMALLEST_EXTERNAL_TEST",
+      "card04StrategicTransition": true
+    },
+    {
+      "id": "G14",
+      "inputPayload": {
+        "answers": {
+          "Q1": "41–50",
+          "Q2": "生意 / 个体经营",
+          "Q3": "5000–10000元",
+          "Q4": "有能力，但不知道怎么变现",
+          "Q5": "能力还不够",
+          "Q6": "做过产品 / 服务，但没人买单",
+          "Q7": "先把可能的问题都想清楚",
+          "Q8": "两边都会安排",
+          "Q9": "先停下来，不再继续投入"
+        },
+        "diagnosis": {
+          "primaryBottleneck": "VALIDATION_GAP",
+          "executionStage": "TESTING",
+          "beliefRelation": {
+            "relation": "BELIEF_REALITY_GAP",
+            "subType": "ABILITY_2",
+            "beliefSource": {
+              "questionId": "Q5",
+              "value": "BELIEF_ABILITY"
+            },
+            "behaviorSources": [
+              {
+                "questionId": "Q6",
+                "value": "STAGE_TESTING"
+              },
+              {
+                "questionId": "Q7",
+                "value": "UNCERT_ANALYZE"
+              },
+              {
+                "questionId": "Q9",
+                "value": "NORESULT_STOP"
+              }
+            ],
+            "explanationRuleId": "RC84V6-GAP-ABILITY-2"
+          },
+          "realityConstraint": {
+            "present": false,
+            "types": [],
+            "evidence": []
+          },
+          "recommendedNextStage": "EARLY_TRACTION",
+          "firstActionType": "BUYER_FEEDBACK_COLLECTION"
+        }
+      },
+      "currentB21Report": {
+        "reportVersion": "turnaround_strategy_v6_report_v1",
+        "reportState": "PRIMARY",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你以为缺的是能力，但你现在缺的不是会不会做——真正让你停住的，是你还没让真实用户告诉你为什么不买。",
+            "provenance": {
+              "sourceFields": [
+                "userBelief.perceivedRootCause",
+                "primaryBottleneck",
+                "beliefRelation.relation",
+                "desiredChange.primaryProblem"
+              ],
+              "sourceQuestionIds": [
+                "Q5",
+                "Q4"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-VALIDATION-01",
+                "RC84V6-GAP-ABILITY-2"
+              ]
+            }
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "问题的关键，不在你以为的那个原因上。你把东西越打磨越细，却始终没让它真正到用户手上。所以到现在，东西还没真正交到用户手里。结果是你在自我打磨，用户那边却始终没有声音。",
+            "provenance": {
+              "sourceFields": [
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "executionStage",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q4",
+                "Q5",
+                "Q6",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-VALIDATION-01",
+                "RC84V6-GAP-ABILITY-2"
+              ]
+            }
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "STEP 1　现实起点：做着一门小生意，可“手里的本事换不来钱”一直没解决。",
+              "STEP 2　想改变：想把东西卖出去，于是你一心盯着东西做得够不够扎实。",
+              "STEP 3　默认行为：一遇到不确定，你就先把可能的问题都想清楚，迟迟不动手。",
+              "STEP 4　卡住：东西一直没到用户手里，反馈一直空着。",
+              "STEP 5　旧解释被强化：走久了，你更确信自己能力还不够，于是继续打磨。"
+            ],
+            "text": "STEP 1　现实起点：做着一门小生意，可“手里的本事换不来钱”一直没解决。\nSTEP 2　想改变：想把东西卖出去，于是你一心盯着东西做得够不够扎实。\nSTEP 3　默认行为：一遇到不确定，你就先把可能的问题都想清楚，迟迟不动手。\nSTEP 4　卡住：东西一直没到用户手里，反馈一直空着。\nSTEP 5　旧解释被强化：走久了，你更确信自己能力还不够，于是继续打磨。",
+            "provenance": {
+              "sourceFields": [
+                "reality.incomeMode",
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q2",
+                "Q4",
+                "Q5",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-VALIDATION-01"
+              ]
+            }
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "做了东西，却没卖出去",
+            "to": "先搞清楚真实用户为什么不买",
+            "text": "你现在的状态：做了东西，却没卖出去。\n你真正想解开的，还是变现。\n接下来要做的：先搞清楚真实用户为什么不买。\n这一步不是把条件凑齐，而是先做出一个真实结果。",
+            "provenance": {
+              "sourceFields": [
+                "executionStage",
+                "recommendedNextStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-VALIDATION-01"
+              ]
+            }
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天找3个真实用户，直接问清楚他们为什么没买。",
+            "checks": [
+              "准备好2–3个不诱导的真实问题",
+              "把每个用户的回答原话记下来"
+            ],
+            "text": "你现在做过东西，却还没人买单；为了解开变现，今天只做一件：今天找3个真实用户，直接问清楚他们为什么没买。\n1. 准备好2–3个不诱导的真实问题\n2. 把每个用户的回答原话记下来\n你以为的原因未必是全貌。",
+            "provenance": {
+              "sourceFields": [
+                "firstActionType",
+                "executionStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "realityConstraint",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q3",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-VALIDATION-01"
+              ]
+            }
+          }
+        },
+        "provenance": {
+          "contractVersion": "turnaround_strategy_v6_contract_v1",
+          "diagnosisState": "PRIMARY",
+          "primaryBottleneck": "VALIDATION_GAP",
+          "executionStage": "TESTING",
+          "beliefRelation": "BELIEF_REALITY_GAP",
+          "realityConstraintTypes": [],
+          "selectedRuleId": "RC84V6-VALIDATION-01",
+          "beliefRuleId": "RC84V6-GAP-ABILITY-2",
+          "sourceQuestionIds": [
+            "Q6",
+            "Q7",
+            "Q4",
+            "Q5",
+            "Q9"
+          ]
+        }
+      },
+      "b22WorldviewReference": {
+        "reportVersion": "turnaround_strategy_v6_worldview_v1",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你已经从“能不能做”走到了“市场为什么不买”——可你还在用打磨能力，回答一个已经换掉的问题。"
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "能力不足，解释不了“用户为什么不买”。你把东西越打磨越细，问题却始终在用户那一侧：没有真实用户告诉过你为什么不下手。今天的规则是：产品力的下一步，不是做得更好，而是搞清市场的真实理由。所以继续提升能力，是在回答旧问题。"
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "现实：有本事，却换不来买单。",
+              "你的反应：再打磨，再提升能力。",
+              "代价：东西始终没到用户手里。",
+              "缺失：没有买家反馈，方向靠猜。",
+              "结果：更确信“能力不够”，继续打磨。"
+            ]
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "打磨产品、提升能力",
+            "to": "建立市场反馈机制",
+            "logic": "到了 Testing 阶段，答案不在自己手里，而在用户嘴里；先把反馈系统搭起来，再谈优化。"
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天找3个真实用户，直接问清楚他们为什么没买，把原话记下来。",
+            "checks": [
+              "准备好2–3个不诱导的真实问题",
+              "把每个用户的回答原话记下来"
+            ]
+          }
+        }
+      },
+      "label": "HUMAN-AUTHORED REFERENCE",
+      "validatorResult": {
+        "jsonParseOk": true,
+        "cardCount": 5,
+        "extraTopKeys": 0,
+        "extraCardKeys": 0,
+        "titleMismatch": 0,
+        "systemLoopStepCount": 5,
+        "card01Len": 46,
+        "card01Over": false,
+        "ontologyLeak": [],
+        "wealthPromise": [],
+        "genericWorldview": [],
+        "buzzwordStuffing": [],
+        "realityDenial": [],
+        "unsupportedClaims": [],
+        "bottleneckDrift": false,
+        "stageDrift": false,
+        "beliefDrift": false,
+        "actionTypeDrift": false
+      },
+      "actionTypeExpected": "BUYER_FEEDBACK_COLLECTION",
+      "actionTypeActual": "BUYER_FEEDBACK_COLLECTION",
+      "card04StrategicTransition": true
+    },
+    {
+      "id": "G15",
+      "inputPayload": {
+        "answers": {
+          "Q1": "25–30",
+          "Q2": "自由职业 / 接单",
+          "Q3": "5000–10000元",
+          "Q4": "收入一直上不去",
+          "Q5": "做过不少尝试，但没结果",
+          "Q6": "已经有一点稳定结果",
+          "Q7": "先做个很小的版本试试",
+          "Q8": "先做马上有结果的",
+          "Q9": "再坚持一阵"
+        },
+        "diagnosis": {
+          "primaryBottleneck": "REPEATABILITY_GAP",
+          "executionStage": "STABLE_TRACTION",
+          "beliefRelation": {
+            "relation": "BELIEF_REALITY_GAP",
+            "subType": "TRIED",
+            "beliefSource": {
+              "questionId": "Q5",
+              "value": "BELIEF_TRIED_NO_RESULT"
+            },
+            "behaviorSources": [
+              {
+                "questionId": "Q6",
+                "value": "STAGE_STABLE_TRACTION"
+              }
+            ],
+            "explanationRuleId": "RC84V6-GAP-TRIED"
+          },
+          "realityConstraint": {
+            "present": false,
+            "types": [],
+            "evidence": []
+          },
+          "recommendedNextStage": "REPEATABLE_SYSTEM",
+          "firstActionType": "REPEAT_SUCCESS_PATH"
+        }
+      },
+      "currentB21Report": {
+        "reportVersion": "turnaround_strategy_v6_report_v1",
+        "reportState": "PRIMARY",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你以为缺的是一次稳定的结果，但你已经做成过——真正让你停住的，是你还没把做成的那次变成能重复的方法。",
+            "provenance": {
+              "sourceFields": [
+                "userBelief.perceivedRootCause",
+                "primaryBottleneck",
+                "beliefRelation.relation",
+                "desiredChange.primaryProblem"
+              ],
+              "sourceQuestionIds": [
+                "Q5",
+                "Q4"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01",
+                "RC84V6-GAP-TRIED"
+              ]
+            }
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "问题的关键，不在你以为的那个原因上。每次你都靠临场手感和经验顶上，上一次做成的路，下一次却没人接着走。所以到现在，它还是一次次靠临场发挥。结果是高光有过，却说不清下一次还能不能再来。",
+            "provenance": {
+              "sourceFields": [
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "executionStage",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q4",
+                "Q5",
+                "Q6",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01",
+                "RC84V6-GAP-TRIED"
+              ]
+            }
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "STEP 1　现实起点：靠接单为生，可“收入一直没起色”一直没解决。",
+              "STEP 2　想改变：想把结果做大做稳，于是你一心盯着自己临场的手感。",
+              "STEP 3　默认行为：一遇到不确定，你就先做个很小的测试，迟迟不动手。",
+              "STEP 4　卡住：每次都得重新找手感，上次怎么成的没留住。",
+              "STEP 5　旧解释被强化：走久了，你更确信自己试过却没成，于是继续硬撑。"
+            ],
+            "text": "STEP 1　现实起点：靠接单为生，可“收入一直没起色”一直没解决。\nSTEP 2　想改变：想把结果做大做稳，于是你一心盯着自己临场的手感。\nSTEP 3　默认行为：一遇到不确定，你就先做个很小的测试，迟迟不动手。\nSTEP 4　卡住：每次都得重新找手感，上次怎么成的没留住。\nSTEP 5　旧解释被强化：走久了，你更确信自己试过却没成，于是继续硬撑。",
+            "provenance": {
+              "sourceFields": [
+                "reality.incomeMode",
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q2",
+                "Q4",
+                "Q5",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01"
+              ]
+            }
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "有结果，但没沉淀成方法",
+            "to": "把跑通过的做法固定成可复制的流程",
+            "text": "你现在的状态：有结果，但没沉淀成方法。\n你真正想解开的，还是收入。\n接下来要做的：把跑通过的做法固定成可复制的流程。\n这一步不是把条件凑齐，而是先做出一个真实结果。",
+            "provenance": {
+              "sourceFields": [
+                "executionStage",
+                "recommendedNextStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01"
+              ]
+            }
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "把最近一次成交从头到尾拆成步骤，标出哪几步能直接照搬。",
+            "checks": [
+              "把最近一次成交的每一步写下来",
+              "标出哪几步是可以直接照搬的"
+            ],
+            "text": "你现在已经有一点稳定结果；为了解开收入，今天只做一件：把最近一次成交从头到尾拆成步骤，标出哪几步能直接照搬。\n1. 把最近一次成交的每一步写下来\n2. 标出哪几步是可以直接照搬的\n你以为的原因未必是全貌。",
+            "provenance": {
+              "sourceFields": [
+                "firstActionType",
+                "executionStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "realityConstraint",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q3",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01"
+              ]
+            }
+          }
+        },
+        "provenance": {
+          "contractVersion": "turnaround_strategy_v6_contract_v1",
+          "diagnosisState": "PRIMARY",
+          "primaryBottleneck": "REPEATABILITY_GAP",
+          "executionStage": "STABLE_TRACTION",
+          "beliefRelation": "BELIEF_REALITY_GAP",
+          "realityConstraintTypes": [],
+          "selectedRuleId": "RC84V6-REPEATABILITY-01",
+          "beliefRuleId": "RC84V6-GAP-TRIED",
+          "sourceQuestionIds": [
+            "Q6",
+            "Q8",
+            "Q4",
+            "Q7"
+          ]
+        }
+      },
+      "b22WorldviewReference": {
+        "reportVersion": "turnaround_strategy_v6_worldview_v1",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你已经做成过——真正的问题不是“能不能成”，而是你还说不清那次为什么会成。"
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "普通劳动赚的是一次钱；可复制流程，才能让有效结果重复发生。你已经证明了自己能做成，接下来的问题变了：为什么能成、怎么复制、怎么少依赖临场发挥。今天你缺的不是结果，是把结果变成方法的这一步。"
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "现实：有一点稳定结果，但说不清来源。",
+              "你的反应：靠临场手感和经验顶上。",
+              "代价：每次都得重新找一次手感。",
+              "缺失：做成的方法没有被留下来。",
+              "结果：越稳越不敢改，一直硬撑。"
+            ]
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "靠临场发挥拿结果",
+            "to": "把跑通的做法固化成流程",
+            "logic": "一次成交如果没被拆成可照搬的步骤，就永远只能靠手感重来；固化流程，才是从“做过”走到“能重复”。"
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "把最近一次成交从头到尾拆成步骤，标出哪几步能直接照搬。",
+            "checks": [
+              "把最近一次成交的每一步写下来",
+              "标出哪几步是可以直接照搬的"
+            ]
+          }
+        }
+      },
+      "label": "HUMAN-AUTHORED REFERENCE",
+      "validatorResult": {
+        "jsonParseOk": true,
+        "cardCount": 5,
+        "extraTopKeys": 0,
+        "extraCardKeys": 0,
+        "titleMismatch": 0,
+        "systemLoopStepCount": 5,
+        "card01Len": 37,
+        "card01Over": false,
+        "ontologyLeak": [],
+        "wealthPromise": [],
+        "genericWorldview": [],
+        "buzzwordStuffing": [],
+        "realityDenial": [],
+        "unsupportedClaims": [],
+        "bottleneckDrift": false,
+        "stageDrift": false,
+        "beliefDrift": false,
+        "actionTypeDrift": false
+      },
+      "actionTypeExpected": "REPEAT_SUCCESS_PATH",
+      "actionTypeActual": "REPEAT_SUCCESS_PATH",
+      "card04StrategicTransition": true
+    },
+    {
+      "id": "G01",
+      "inputPayload": {
+        "answers": {
+          "Q1": "25–30",
+          "Q2": "固定工资",
+          "Q3": "1000元以下",
+          "Q4": "有能力，但不知道怎么变现",
+          "Q5": "不知道该往哪走",
+          "Q6": "查过很多资料",
+          "Q7": "再等等，信息更充分再说",
+          "Q8": "先做马上有结果的",
+          "Q9": "换个方向试试"
+        },
+        "diagnosis": {
+          "primaryBottleneck": "DIRECTION_GAP",
+          "executionStage": "RESEARCHING",
+          "beliefRelation": {
+            "relation": "BELIEF_REALITY_GAP",
+            "subType": "DIRECTION",
+            "beliefSource": {
+              "questionId": "Q5",
+              "value": "BELIEF_NO_DIRECTION"
+            },
+            "behaviorSources": [
+              {
+                "questionId": "Q7",
+                "value": "UNCERT_WAIT"
+              },
+              {
+                "questionId": "Q9",
+                "value": "NORESULT_SWITCH"
+              }
+            ],
+            "explanationRuleId": "RC84V6-GAP-DIRECTION"
+          },
+          "realityConstraint": {
+            "present": true,
+            "types": [
+              "LOW_SURPLUS",
+              "TIME_PRESSURE_POSSIBLE"
+            ],
+            "evidence": [
+              {
+                "questionId": "Q3",
+                "value": "SURPLUS_UNDER_1K"
+              },
+              {
+                "questionId": "Q8",
+                "value": "TIME_SHORT_FIRST"
+              }
+            ]
+          },
+          "recommendedNextStage": "STARTED",
+          "firstActionType": "DIRECTION_NARROWING"
+        }
+      },
+      "currentB21Report": {
+        "reportVersion": "turnaround_strategy_v6_report_v1",
+        "reportState": "PRIMARY",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你以为缺的是方向，但方向不是想出来的——真正让你停住的，是你从没把任何一个方向放到真实世界里跑过。",
+            "provenance": {
+              "sourceFields": [
+                "userBelief.perceivedRootCause",
+                "primaryBottleneck",
+                "beliefRelation.relation",
+                "desiredChange.primaryProblem"
+              ],
+              "sourceQuestionIds": [
+                "Q5",
+                "Q4"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-DIRECTION-01",
+                "RC84V6-GAP-DIRECTION"
+              ]
+            }
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "问题的关键，不在你以为的那个原因上。你一直在比较、打听，想找一个“更保险”的方向，却始终没让任何一个先落地。所以到现在，你还在查和比，没真正动手。结果是想法越来越多，能证明方向对的真实结果却一直没有。",
+            "provenance": {
+              "sourceFields": [
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "executionStage",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q4",
+                "Q5",
+                "Q6",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-DIRECTION-01",
+                "RC84V6-GAP-DIRECTION"
+              ]
+            }
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "STEP 1　现实起点：拿着固定工资，可“手里的本事换不来钱”一直没解决。",
+              "STEP 2　想改变：想找到一条走得通的路，于是你一心盯着方向选得准不准。",
+              "STEP 3　默认行为：一遇到不确定，你就先等更多信息，迟迟不动手。",
+              "STEP 4　卡住：你想了很多方向，却没一个真正跑过。",
+              "STEP 5　旧解释被强化：走久了，你更确信自己缺一个方向，于是继续挑。"
+            ],
+            "text": "STEP 1　现实起点：拿着固定工资，可“手里的本事换不来钱”一直没解决。\nSTEP 2　想改变：想找到一条走得通的路，于是你一心盯着方向选得准不准。\nSTEP 3　默认行为：一遇到不确定，你就先等更多信息，迟迟不动手。\nSTEP 4　卡住：你想了很多方向，却没一个真正跑过。\nSTEP 5　旧解释被强化：走久了，你更确信自己缺一个方向，于是继续挑。",
+            "provenance": {
+              "sourceFields": [
+                "reality.incomeMode",
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q2",
+                "Q4",
+                "Q5",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-DIRECTION-01"
+              ]
+            }
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "继续查资料、比方案",
+            "to": "拿一个方向去真实测试",
+            "text": "你现在的状态：继续查资料、比方案。\n你真正想解开的，还是变现。\n接下来要做的：拿一个方向去真实测试。\n这一步不是把条件凑齐，而是先做出一个真实结果。",
+            "provenance": {
+              "sourceFields": [
+                "executionStage",
+                "recommendedNextStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-DIRECTION-01"
+              ]
+            }
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天挑一个方向，用一句话写清你要帮谁解决什么问题，再列出3个一周内能问到反馈的人。（尽量做到零额外投入。）",
+            "checks": [
+              "把选定的方向用一句话写下来",
+              "约好3个可以问到真实反馈的人"
+            ],
+            "text": "你现在还在查资料、比方案；为了解开变现，今天只做一件：今天挑一个方向，用一句话写清你要帮谁解决什么问题，再列出3个一周内能问到反馈的人。（尽量做到零额外投入。）\n1. 把选定的方向用一句话写下来\n2. 约好3个可以问到真实反馈的人\n你以为的原因未必是全貌。",
+            "provenance": {
+              "sourceFields": [
+                "firstActionType",
+                "executionStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "realityConstraint",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q3",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-DIRECTION-01"
+              ]
+            }
+          }
+        },
+        "provenance": {
+          "contractVersion": "turnaround_strategy_v6_contract_v1",
+          "diagnosisState": "PRIMARY",
+          "primaryBottleneck": "DIRECTION_GAP",
+          "executionStage": "RESEARCHING",
+          "beliefRelation": "BELIEF_REALITY_GAP",
+          "realityConstraintTypes": [
+            "LOW_SURPLUS",
+            "TIME_PRESSURE_POSSIBLE"
+          ],
+          "selectedRuleId": "RC84V6-DIRECTION-01",
+          "beliefRuleId": "RC84V6-GAP-DIRECTION",
+          "sourceQuestionIds": [
+            "Q6",
+            "Q5",
+            "Q9",
+            "Q7",
+            "Q4"
+          ]
+        }
+      },
+      "b22WorldviewReference": {
+        "reportVersion": "turnaround_strategy_v6_worldview_v1",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你以为方向是“想”出来的——但方向感，是在真实世界里跑一步才长出来的。"
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "你一直在比较、打听，想找一个更保险的方向，却始终没让任何一个先落地。方向不是选出来的，是测出来的：只有真实反馈能告诉你这条路通不通。想法越多，越需要先跑一次，而不是继续加想法。"
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "现实：想变现，却一直在查和比。",
+              "你的反应：再等等，看到更全的信息。",
+              "代价：没有一个方向被真跑过一次。",
+              "缺失：没有落地结果，方向难判断。",
+              "结果：越查越乱，继续挑方向。"
+            ]
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "继续查资料、比方案",
+            "to": "拿一个方向去真实测试",
+            "logic": "方向不是想清楚再走，而是走一步才看得清；先收窄到一个，再拿真实反馈校准。"
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天挑一个方向，用一句话写清你要帮谁解决什么问题，再列出3个一周内能问到反馈的人，尽量零额外投入。",
+            "checks": [
+              "把选定的方向用一句话写下来",
+              "约好3个可以问到真实反馈的人"
+            ]
+          }
+        }
+      },
+      "label": "HUMAN-AUTHORED REFERENCE",
+      "validatorResult": {
+        "jsonParseOk": true,
+        "cardCount": 5,
+        "extraTopKeys": 0,
+        "extraCardKeys": 0,
+        "titleMismatch": 0,
+        "systemLoopStepCount": 5,
+        "card01Len": 35,
+        "card01Over": false,
+        "ontologyLeak": [],
+        "wealthPromise": [],
+        "genericWorldview": [],
+        "buzzwordStuffing": [],
+        "realityDenial": [],
+        "unsupportedClaims": [],
+        "bottleneckDrift": false,
+        "stageDrift": false,
+        "beliefDrift": false,
+        "actionTypeDrift": false
+      },
+      "actionTypeExpected": "DIRECTION_NARROWING",
+      "actionTypeActual": "DIRECTION_NARROWING",
+      "card04StrategicTransition": true
+    },
+    {
+      "id": "G05",
+      "inputPayload": {
+        "answers": {
+          "Q1": "25–30",
+          "Q2": "自由职业 / 接单",
+          "Q3": "5000–10000元",
+          "Q4": "收入一直上不去",
+          "Q5": "能力还不够",
+          "Q6": "已经有人愿意付钱",
+          "Q7": "先做个很小的版本试试",
+          "Q8": "先做马上有结果的",
+          "Q9": "再坚持一阵"
+        },
+        "diagnosis": {
+          "primaryBottleneck": "REPEATABILITY_GAP",
+          "executionStage": "EARLY_TRACTION",
+          "beliefRelation": {
+            "relation": "BELIEF_REALITY_GAP",
+            "subType": "ABILITY_1",
+            "beliefSource": {
+              "questionId": "Q5",
+              "value": "BELIEF_ABILITY"
+            },
+            "behaviorSources": [
+              {
+                "questionId": "Q6",
+                "value": "STAGE_EARLY_TRACTION"
+              }
+            ],
+            "explanationRuleId": "RC84V6-GAP-ABILITY-1"
+          },
+          "realityConstraint": {
+            "present": false,
+            "types": [],
+            "evidence": []
+          },
+          "recommendedNextStage": "STABLE_TRACTION",
+          "firstActionType": "REPEAT_SUCCESS_PATH"
+        }
+      },
+      "currentB21Report": {
+        "reportVersion": "turnaround_strategy_v6_report_v1",
+        "reportState": "PRIMARY",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你以为缺的是能力，但你现在缺的不是会不会做——真正让你停住的，是你还没把做成的那次变成能重复的方法。",
+            "provenance": {
+              "sourceFields": [
+                "userBelief.perceivedRootCause",
+                "primaryBottleneck",
+                "beliefRelation.relation",
+                "desiredChange.primaryProblem"
+              ],
+              "sourceQuestionIds": [
+                "Q5",
+                "Q4"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01",
+                "RC84V6-GAP-ABILITY-1"
+              ]
+            }
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "问题的关键，不在你以为的那个原因上。每次你都靠临场手感和经验顶上，上一次做成的路，下一次却没人接着走。所以到现在，它还是不稳定。结果是高光有过，却说不清下一次还能不能再来。",
+            "provenance": {
+              "sourceFields": [
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "executionStage",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q4",
+                "Q5",
+                "Q6",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01",
+                "RC84V6-GAP-ABILITY-1"
+              ]
+            }
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "STEP 1　现实起点：靠接单为生，可“收入一直没起色”一直没解决。",
+              "STEP 2　想改变：想把结果做大做稳，于是你一心盯着自己临场的手感。",
+              "STEP 3　默认行为：一遇到不确定，你就先做个很小的测试，迟迟不动手。",
+              "STEP 4　卡住：每次都得重新找手感，上次怎么成的没留住。",
+              "STEP 5　旧解释被强化：走久了，你更确信自己能力还不够，于是继续硬撑。"
+            ],
+            "text": "STEP 1　现实起点：靠接单为生，可“收入一直没起色”一直没解决。\nSTEP 2　想改变：想把结果做大做稳，于是你一心盯着自己临场的手感。\nSTEP 3　默认行为：一遇到不确定，你就先做个很小的测试，迟迟不动手。\nSTEP 4　卡住：每次都得重新找手感，上次怎么成的没留住。\nSTEP 5　旧解释被强化：走久了，你更确信自己能力还不够，于是继续硬撑。",
+            "provenance": {
+              "sourceFields": [
+                "reality.incomeMode",
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q2",
+                "Q4",
+                "Q5",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01"
+              ]
+            }
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "有人买，但靠的是运气",
+            "to": "把跑通过的做法固定成可复制的流程",
+            "text": "你现在的状态：有人买，但靠的是运气。\n你真正想解开的，还是收入。\n接下来要做的：把跑通过的做法固定成可复制的流程。\n这一步不是把条件凑齐，而是先做出一个真实结果。",
+            "provenance": {
+              "sourceFields": [
+                "executionStage",
+                "recommendedNextStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01"
+              ]
+            }
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "把最近一次成交从头到尾拆成步骤，标出哪几步能直接照搬。",
+            "checks": [
+              "把最近一次成交的每一步写下来",
+              "标出哪几步是可以直接照搬的"
+            ],
+            "text": "你现在已经有人付钱，但还不稳；为了解开收入，今天只做一件：把最近一次成交从头到尾拆成步骤，标出哪几步能直接照搬。\n1. 把最近一次成交的每一步写下来\n2. 标出哪几步是可以直接照搬的\n你以为的原因未必是全貌。",
+            "provenance": {
+              "sourceFields": [
+                "firstActionType",
+                "executionStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "realityConstraint",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q3",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-REPEATABILITY-01"
+              ]
+            }
+          }
+        },
+        "provenance": {
+          "contractVersion": "turnaround_strategy_v6_contract_v1",
+          "diagnosisState": "PRIMARY",
+          "primaryBottleneck": "REPEATABILITY_GAP",
+          "executionStage": "EARLY_TRACTION",
+          "beliefRelation": "BELIEF_REALITY_GAP",
+          "realityConstraintTypes": [],
+          "selectedRuleId": "RC84V6-REPEATABILITY-01",
+          "beliefRuleId": "RC84V6-GAP-ABILITY-1",
+          "sourceQuestionIds": [
+            "Q6",
+            "Q8",
+            "Q4",
+            "Q7"
+          ]
+        }
+      },
+      "b22WorldviewReference": {
+        "reportVersion": "turnaround_strategy_v6_worldview_v1",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你已经有人愿意付钱了——缺的不是能力，是把“能卖一次”变成“能重复卖”的方法。"
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "能力不够解释不了已经发生的成交。你每次靠临场经验和手感顶上，做成了却留不下方法，下一次又得重新找感觉。今天的规则是：可复制的流程，比单次的高手感更值钱。真正拖住你的，不是会不会做，而是做成的那次没能被留下来。"
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "现实：有人付钱，但结果不稳定。",
+              "你的反应：靠临场手感和经验顶上。",
+              "代价：每次都得重新找一次手感。",
+              "缺失：成的路径没有被固定下来。",
+              "结果：更确信“能力不够”，继续硬撑。"
+            ]
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "靠手感和运气成交",
+            "to": "把成交路径复制出来",
+            "logic": "一次成交如果不能被拆成可重复的步骤，就只是运气；把它固定下来，才谈得上稳定。"
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "把最近一次成交从头到尾拆成步骤，标出哪几步能直接照搬。",
+            "checks": [
+              "把最近一次成交的每一步写下来",
+              "标出哪几步是可以直接照搬的"
+            ]
+          }
+        }
+      },
+      "label": "HUMAN-AUTHORED REFERENCE",
+      "validatorResult": {
+        "jsonParseOk": true,
+        "cardCount": 5,
+        "extraTopKeys": 0,
+        "extraCardKeys": 0,
+        "titleMismatch": 0,
+        "systemLoopStepCount": 5,
+        "card01Len": 39,
+        "card01Over": false,
+        "ontologyLeak": [],
+        "wealthPromise": [],
+        "genericWorldview": [],
+        "buzzwordStuffing": [],
+        "realityDenial": [],
+        "unsupportedClaims": [],
+        "bottleneckDrift": false,
+        "stageDrift": false,
+        "beliefDrift": false,
+        "actionTypeDrift": false
+      },
+      "actionTypeExpected": "REPEAT_SUCCESS_PATH",
+      "actionTypeActual": "REPEAT_SUCCESS_PATH",
+      "card04StrategicTransition": true
+    },
+    {
+      "id": "G10",
+      "inputPayload": {
+        "answers": {
+          "Q1": "31–40",
+          "Q2": "固定工资",
+          "Q3": "1万元以上",
+          "Q4": "工作看不到未来",
+          "Q5": "知道方向，但一直没真正行动",
+          "Q6": "学过东西，但没真正开始",
+          "Q7": "先把可能的问题都想清楚",
+          "Q8": "两边都会安排",
+          "Q9": "再坚持一阵"
+        },
+        "diagnosis": {
+          "primaryBottleneck": "ACTION_GAP",
+          "executionStage": "LEARNING",
+          "beliefRelation": {
+            "relation": "BELIEF_MATCH",
+            "subType": null,
+            "beliefSource": {
+              "questionId": "Q5",
+              "value": "BELIEF_KNOW_NO_ACTION"
+            },
+            "behaviorSources": [],
+            "explanationRuleId": null
+          },
+          "realityConstraint": {
+            "present": false,
+            "types": [],
+            "evidence": []
+          },
+          "recommendedNextStage": "STARTED",
+          "firstActionType": "SMALLEST_EXTERNAL_TEST"
+        }
+      },
+      "currentB21Report": {
+        "reportVersion": "turnaround_strategy_v6_report_v1",
+        "reportState": "PRIMARY",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "看不到未来的焦虑是真的，但它正在把你推向越来越怕走错——现在最要紧的，是先让一个真实结果发生。",
+            "provenance": {
+              "sourceFields": [
+                "userBelief.perceivedRootCause",
+                "primaryBottleneck",
+                "beliefRelation.relation",
+                "desiredChange.primaryProblem"
+              ],
+              "sourceQuestionIds": [
+                "Q5",
+                "Q4"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "真正的问题，不在于对未来的不确定，而在于你一直以来的应对方式。你把力气几乎都花在准备上，总想等一个“更稳”的开头，可第一步就是没发生。所以到现在，你还是没真正开始。结果是学习在增加，真正能帮你判断的反馈却一直没来。",
+            "provenance": {
+              "sourceFields": [
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "executionStage",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q4",
+                "Q5",
+                "Q6",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "STEP 1　现实起点：拿着固定工资，可“看不清下一步”一直没解决。",
+              "STEP 2　想改变：想真正做成点事，于是你一心盯着事情准备得够不够稳。",
+              "STEP 3　默认行为：一遇到不确定，你就先把可能的问题都想清楚，迟迟不动手。",
+              "STEP 4　卡住：你一直没有交出第一个真实结果。",
+              "STEP 5　旧解释被强化：走久了，你更确信自己知道却没做，于是继续准备。"
+            ],
+            "text": "STEP 1　现实起点：拿着固定工资，可“看不清下一步”一直没解决。\nSTEP 2　想改变：想真正做成点事，于是你一心盯着事情准备得够不够稳。\nSTEP 3　默认行为：一遇到不确定，你就先把可能的问题都想清楚，迟迟不动手。\nSTEP 4　卡住：你一直没有交出第一个真实结果。\nSTEP 5　旧解释被强化：走久了，你更确信自己知道却没做，于是继续准备。",
+            "provenance": {
+              "sourceFields": [
+                "reality.incomeMode",
+                "desiredChange.primaryProblem",
+                "userBelief.perceivedRootCause",
+                "behavior.uncertaintyResponse",
+                "primaryBottleneck"
+              ],
+              "sourceQuestionIds": [
+                "Q2",
+                "Q4",
+                "Q5",
+                "Q7"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "继续学，但一直没上手",
+            "to": "真正做出第一个最小结果",
+            "text": "你现在的状态：继续学，但一直没上手。\n你真正想解开的，还是未来。\n接下来要做的：真正做出第一个最小结果。\n这一步不用先想周全，开始本身就会给你反馈。",
+            "provenance": {
+              "sourceFields": [
+                "executionStage",
+                "recommendedNextStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天做一个24小时内能完成、能直接拿到外部反馈的最小测试。",
+            "checks": [
+              "把最小动作拆到今天就能做完",
+              "做完后马上记下真实反馈"
+            ],
+            "text": "你现在学过东西，却还没上手；为了解开未来，今天只做一件：今天做一个24小时内能完成、能直接拿到外部反馈的最小测试。\n1. 把最小动作拆到今天就能做完\n2. 做完后马上记下真实反馈\n你和现实没分歧，差的就是把它做出来。",
+            "provenance": {
+              "sourceFields": [
+                "firstActionType",
+                "executionStage",
+                "primaryBottleneck",
+                "desiredChange.primaryProblem",
+                "realityConstraint",
+                "beliefRelation.relation"
+              ],
+              "sourceQuestionIds": [
+                "Q6",
+                "Q4",
+                "Q3",
+                "Q5"
+              ],
+              "sourceRuleIds": [
+                "RC84V6-ACTION-01"
+              ]
+            }
+          }
+        },
+        "provenance": {
+          "contractVersion": "turnaround_strategy_v6_contract_v1",
+          "diagnosisState": "PRIMARY",
+          "primaryBottleneck": "ACTION_GAP",
+          "executionStage": "LEARNING",
+          "beliefRelation": "BELIEF_MATCH",
+          "realityConstraintTypes": [],
+          "selectedRuleId": "RC84V6-ACTION-01",
+          "beliefRuleId": null,
+          "sourceQuestionIds": [
+            "Q6",
+            "Q7",
+            "Q5"
+          ]
+        }
+      },
+      "b22WorldviewReference": {
+        "reportVersion": "turnaround_strategy_v6_worldview_v1",
+        "cards": {
+          "fatalInsight": {
+            "title": "致命一句话",
+            "text": "你想了很多、学了很多，却还没让真实世界给过一次答案。"
+          },
+          "coreProblem": {
+            "title": "核心问题",
+            "text": "你一直在准备，等一个更稳的开头。但学习如果没有变成外部反馈，就只是把判断往后拖。今天的规则是：反馈比准备更能说明问题。真正让你卡住的，不是方向不明，是你还没把任何一件事真正做成过一次。"
+          },
+          "systemLoop": {
+            "title": "系统困局",
+            "steps": [
+              "现实：固定工资，看不到下一步。",
+              "你的反应：先准备周全，再动手。",
+              "代价：一直没交出一个真实结果。",
+              "缺失：没有反馈，判断一直悬着。",
+              "结果：焦虑加深，继续停在准备里。"
+            ]
+          },
+          "turnaroundPath": {
+            "title": "翻身路径",
+            "from": "继续学、继续准备",
+            "to": "拿一个最小结果换真实反馈",
+            "logic": "准备只会让不确定感拖延，外部反馈才能让判断落地；先做小、先拿到反馈。"
+          },
+          "firstAction": {
+            "title": "现在就做",
+            "action": "今天做一个24小时内能完成、能直接拿到外部反馈的最小测试。",
+            "checks": [
+              "把最小动作拆到今天就能做完",
+              "做完后马上记下真实反馈"
+            ]
+          }
+        }
+      },
+      "label": "HUMAN-AUTHORED REFERENCE",
+      "validatorResult": {
+        "jsonParseOk": true,
+        "cardCount": 5,
+        "extraTopKeys": 0,
+        "extraCardKeys": 0,
+        "titleMismatch": 0,
+        "systemLoopStepCount": 5,
+        "card01Len": 26,
+        "card01Over": false,
+        "ontologyLeak": [],
+        "wealthPromise": [],
+        "genericWorldview": [],
+        "buzzwordStuffing": [],
+        "realityDenial": [],
+        "unsupportedClaims": [],
+        "bottleneckDrift": false,
+        "stageDrift": false,
+        "beliefDrift": false,
+        "actionTypeDrift": false
+      },
+      "actionTypeExpected": "SMALLEST_EXTERNAL_TEST",
+      "actionTypeActual": "SMALLEST_EXTERNAL_TEST",
+      "card04StrategicTransition": true
+    }
+  ]
+}
