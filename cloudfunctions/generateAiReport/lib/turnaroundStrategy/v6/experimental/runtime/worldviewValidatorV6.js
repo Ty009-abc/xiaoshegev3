@@ -58,8 +58,20 @@ const REALITY_DENIAL_PATTERNS = [
 ]
 
 // FIRST_ACTION_TYPE preservation signatures (subset needed for drift detection).
+//
+// R2 (RC8.4_V6_B2_7_R2) — CASHFLOW_SAFE_EXPERIMENT signature repair.
+// The prior signature was too narrow (false-negative): it did not recognize
+// legitimate, consumer-facing capital-safety phrasings such as the canonical
+// deterministic copy
+//   "今天做一个不需要追加资金、失败也不会伤到现金流的最小验证。"
+// which is semantically CASHFLOW_SAFE_EXPERIMENT (no extra capital + a real
+// test). The signature stays a CONJUNCTION of two concept groups —
+// cost-safety AND experiment/feedback — so it is NOT reduced to a loose
+// single-token matcher.
+const CASHFLOW_SAFE_COST_SIG = /(不花钱|零成本|零额外投入|低成本|成本足够低|成本可以是零|不需要追加资金|不追加资金|(?:(?:不|不会)伤到?现金流))/
+const CASHFLOW_SAFE_EXPERIMENT_SIG = /(反馈|真实结果|真实|验证|测试)/
 const ACTION_SIGS = {
-  CASHFLOW_SAFE_EXPERIMENT: t => /(不花钱|零|低成本|成本足够低|成本可以是零)/.test(t) && /(反馈|真实结果|真实)/.test(t),
+  CASHFLOW_SAFE_EXPERIMENT: t => CASHFLOW_SAFE_COST_SIG.test(t) && CASHFLOW_SAFE_EXPERIMENT_SIG.test(t),
   SMALLEST_EXTERNAL_TEST: t => /(最小|极小|24小时内|一步)/.test(t) && /(外部|真实反馈|反馈|真实结果)/.test(t),
   BUYER_FEEDBACK_COLLECTION: t => /(真实用户|用户|买的人|没买|为什么不买|没买单)/.test(t) && /(问|反馈|原话|记下)/.test(t),
   REPEAT_SUCCESS_PATH: t => /(成交|做成|成功)/.test(t) && /(步骤|照搬|复制|清单|流程)/.test(t),

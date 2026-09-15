@@ -420,6 +420,56 @@ async function run () {
     h.eq(unsafeAsStep.length, 0, 'deploy plan never runs env-applying tcb fn deploy as an executable step')
   }
 
+  // ── R2: CASHFLOW_SAFE_EXPERIMENT validator contract repair ────
+  // Proves the frozen clean-SHA runtime accepts the canonical deterministic
+  // CASHFLOW_SAFE_EXPERIMENT copy WITHOUT any dependency on the dirty B2.1
+  // copy experiment. The canonical string is read from the CLEAN SHA source
+  // (reportCopyV6.js), and the negative set must still be rejected.
+  h.section('R2_CASHFLOW_SAFE_VALIDATOR_CONTRACT')
+  {
+    const { validateWorldviewV6, ACTION_SIGS } = require(path.join(V6, 'experimental/runtime/worldviewValidatorV6.js'))
+    const copy = require(path.join(V6, 'report/reportCopyV6.js'))
+    const canonical = copy.ACTION_EXPRESSION.CASHFLOW_SAFE_EXPERIMENT
+    const sig = ACTION_SIGS.CASHFLOW_SAFE_EXPERIMENT
+
+    // Canonical copy must be the frozen clean-SHA deterministic string.
+    h.eq(canonical, '今天做一个不需要追加资金、失败也不会伤到现金流的最小验证。',
+      'canonical deterministic CASHFLOW_SAFE_EXPERIMENT copy read from clean SHA')
+    h.ok(sig(canonical), 'CANONICAL_CASHFLOW_SAFE_COPY_VALIDATES=YES (signature accepts)')
+
+    // Full validator path with the canonical deterministic action.
+    const diag = diagnoseTurnaroundV6(G06.answers)
+    h.eq(diag.firstActionType, 'CASHFLOW_SAFE_EXPERIMENT', 'G06 firstActionType=CASHFLOW_SAFE_EXPERIMENT')
+    const w = JSON.parse(validResponse(G06.answers).content)
+    w.cards.firstAction.action = canonical
+    const verdict = validateWorldviewV6(w, diag)
+    h.ok(!verdict.findings.actionTypeDrift, 'canonical copy → actionTypeDrift=false')
+    h.eq(verdict.valid, true, 'canonical copy → report VALID (no false-negative fallback)')
+    h.eq(verdict.hardFailures.length, 0, 'canonical copy → 0 hard failures')
+
+    // Negative set: these are NOT capital-safe experiments and must still fail.
+    const negatives = [
+      '今天再学习一个新技能。',
+      '今天投入一笔钱做推广。',
+      '今天什么都别做，先想清楚。',
+      '今天直接辞职创业。'
+    ]
+    let falsePos = 0
+    for (const a of negatives) if (sig(a)) falsePos++
+    h.eq(falsePos, 0, 'ACTION_TYPE_FALSE_POSITIVE_COUNT=0 for negative set')
+
+    // Additional legitimate capital-safety phrasings accepted (guards against
+    // re-narrowing the contract to the single canonical string).
+    const positives = [
+      '今天不花钱做一个真实测试。',
+      '用零成本的方式拿到一次真实反馈。',
+      '尽量低成本先做一个小验证。'
+    ]
+    let falseNeg = 0
+    for (const a of positives) if (!sig(a)) falseNeg++
+    h.eq(falseNeg, 0, 'ACTION_TYPE_FALSE_NEGATIVE_COUNT=0 for targeted regression set')
+  }
+
   // ── PAYMENT / PRIMARY / GATE_B NON-INTERFERENCE ───────────────
   h.section('PAYMENT / PRIMARY / GATE_B NON-INTERFERENCE')
   {
