@@ -123,6 +123,78 @@ function compressCard01 (text, limit) {
   return polishTail(trim(head)) || trim(head)
 }
 
+// §3 CARD04 true-sentence boundary: terminator set EXCLUDES clause separators
+// (，、；：) so a semicolon is never mistaken for a sentence end.
+const C04_TRUE_SENT_SPLIT = /(?<=[。！？!?\n])/
+const C04_SENT_TERM = '。！？!?'       // full sentence enders (KEEP)
+const C04_CLAUSE_TERM = '；;：:'      // complete-clause enders (KEEP)
+const C04_PARTIAL_SEP = '，,、'       // partial-clause separators (CUT BEFORE)
+
+/** Index of the last char in `s` satisfying `pred`, or -1. */
+function lastIndexWhere (s, pred) {
+  const a = [...s]
+  for (let i = a.length - 1; i >= 0; i--) if (pred(a[i])) return i
+  return -1
+}
+
+/**
+ * §3 CARD04 compression — the same deterministic, punctuation-aware
+ * philosophy proven for CARD01 (R12 §1), applied to transitionExplanation.
+ * Preference order:
+ *   1. complete sentence(s) that fit within `limit` (ends on 。！？]
+ *   2. last full sentence ender inside `limit` (。！？, KEPT)
+ *   3. last complete-clause ender inside `limit` (；：, KEPT) — a semicolon/
+ *      colon closes a complete clause, so the copy never ships mid-thought
+ *   4. last partial-clause separator inside `limit` (，、, CUT BEFORE)
+ *   5. hard truncation (ABSOLUTE LAST RESORT only)
+ * Never fabricates: the result is always a prefix of the input. Preserves the
+ * strategic causal thesis carried by the leading portion of the source.
+ * Deterministic; CARD04_EDITOR_AI_CALL_COUNT = 0.
+ *
+ * NOTE: must be applied to the FULL transition explanation. Pre-truncating the
+ * material (e.g. firstSentences(_, 2)) before compression is what produced the
+ * R14 mid-clause cuts, so the caller passes the raw field here.
+ */
+function compressCard04Logic (text, limit) {
+  const t = removeGenericFiller(trim(text))
+  if (!t) return t
+  const head = [...t].slice(0, limit).join('')
+
+  // 1) longest run of WHOLE sentences that fits (each split part keeps its
+  //    。！？ terminator, so a non-empty accumulator always ends on one)
+  const sents = t.split(C04_TRUE_SENT_SPLIT).filter((x) => trim(x).length > 0)
+  let acc = ''
+  for (const s of sents) {
+    if (chars(acc + s) > limit) break
+    acc += s
+  }
+  acc = polishTail(trim(acc))
+  if (acc && C04_SENT_TERM.includes([...acc].pop())) return acc
+
+  // 2) last full sentence ender inside the limit window (keep the ender)
+  const term = lastIndexWhere(head, (ch) => C04_SENT_TERM.includes(ch))
+  if (term >= 0) return trim(head.slice(0, term + 1))
+
+  // 3) last complete-clause ender inside the window (；：, keep the ender).
+  //    Opening-quote before a lone “：” (e.g. “…不同：”) is a lead-in; keep it
+  //    only when real clause material follows in the window.
+  const clauseEnd = lastIndexWhere(head, (ch) => C04_CLAUSE_TERM.includes(ch))
+  if (clauseEnd >= 0) {
+    const out = trim(head.slice(0, clauseEnd + 1))
+    if (chars(out.replace(/[；;：:]+$/, '')) >= 8) return out
+  }
+
+  // 4) last partial-clause separator inside the window (cut BEFORE it)
+  const partial = lastIndexWhere(head, (ch) => C04_PARTIAL_SEP.includes(ch))
+  if (partial > 0) {
+    const out = polishTail(head.slice(0, partial))
+    if (chars(out) >= 8) return out
+  }
+
+  // 5) hard truncation — absolute last resort
+  return polishTail(head) || head
+}
+
 // Trailing connectives that signal an incomplete clause if left at the end.
 const DANGLING_TAIL = /(而|而且|并且|但是|但|因为|所以|于是|只有|如果|即使|为了|以及|同时|而是|就是|就能|才会|再|把|让|是)$/
 /**
@@ -259,8 +331,12 @@ function editReportV6 (args) {
   // ── CARD04 ── B2 from/to authority; AI explains concisely
   let card04Logic = b2.turnaroundPath.logic || b2.turnaroundPath.text || ''
   if (d.transitionExplanation && fieldOk('transitionExplanation')) {
-    let t = polishTail(removeGenericFiller(dedupeThesis(firstSentences(d.transitionExplanation, 2))))
-    if (chars(t) > FINAL_LIMITS.card04ToMax) t = polishTail(clipToLimit(t, FINAL_LIMITS.card04ToMax))
+    // §3 boundary-aware selection over the FULL material. Pre-truncating the
+    // source (e.g. firstSentences(_, 2)) before compression is exactly what
+    // produced the R14 mid-clause cuts, so compressCard04Logic receives the raw
+    // field and is applied unconditionally (short material still gets a
+    // boundary check, so a clause fragment never ships mid-thought).
+    let t = compressCard04Logic(dedupeThesis(d.transitionExplanation), FINAL_LIMITS.card04ToMax)
     if (chars(t) >= 10) { card04Logic = t; fieldsUsed.push('transitionExplanation') } else { fieldsFellBack.push('transitionExplanation'); fieldReasons.transitionExplanation = 'TOO_SHORT_AFTER_CLIP' }
   } else {
     fieldsFellBack.push('transitionExplanation')
@@ -328,6 +404,7 @@ module.exports = {
   firstSentences,
   clipToLimit,
   compressCard01,
+  compressCard04Logic,
   polishTail,
   selectInsightCandidate,
   dedupeThesis,

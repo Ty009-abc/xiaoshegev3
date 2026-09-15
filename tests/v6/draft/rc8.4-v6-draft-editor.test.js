@@ -19,7 +19,9 @@
 const assert = require('assert')
 const path = require('path')
 
-const CF = '/home/ubuntu/rc84-v6-b27-r7-1-repair/cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6'
+// Root-relative so the suite always exercises THIS worktree's source tree.
+const ROOT = path.resolve(__dirname, '../../..')
+const CF = path.join(ROOT, 'cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6')
 const { diagnoseTurnaroundV6 } = require(path.join(CF, 'index.js'))
 const { buildReportV6 } = require(path.join(CF, 'report/index.js'))
 const { runDraftAdapter } = require(path.join(CF, 'experimental/draft/draftAdapterV6.js'))
@@ -27,7 +29,7 @@ const { validateDraftV6 } = require(path.join(CF, 'experimental/draft/draftValid
 const { editReportV6, finalVisibleText, firstSentences, clipToLimit } = require(path.join(CF, 'experimental/draft/reportEditorV6.js'))
 const { validateFinalV6 } = require(path.join(CF, 'experimental/draft/finalValidatorV6.js'))
 const { runDraftReportRuntimeV6 } = require(path.join(CF, 'experimental/draft/draftReportRuntimeV6.js'))
-const F = require('/home/ubuntu/rc84-v6-b27-r7-1-repair/tests/v6/fixtures.js')
+const F = require(path.join(ROOT, 'tests/v6/fixtures.js'))
 
 let pass = 0, fail = 0
 function t (name, fn) { try { fn(); pass++; console.log('  ok  ' + name) } catch (e) { fail++; console.log('  FAIL ' + name + ' :: ' + e.message) } }
