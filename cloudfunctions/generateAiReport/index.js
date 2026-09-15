@@ -22,7 +22,8 @@ exports.main = async (event, context) => {
 
   const { type = 'challenge_final', recordId = '', message = '', personality = '', personalityEmoji = '', personalityStyle = '' } = event
   const ts = now()
-  console.log(`[generateAiReport] openid=${openid} type=${type} recordId=${recordId} message=${(message||'').substring(0,40)} personality=${personality}`)
+  // Privacy: NEVER log raw/partial/hashed openid. Presence-only metadata only.
+  console.log(`[generateAiReport] openid_present=${openid ? 'true' : 'false'} type=${type} recordId=${recordId} message=${(message||'').substring(0,40)} personality=${personality}`)
 
   try {
     // 1. 查用户
