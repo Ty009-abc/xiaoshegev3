@@ -54,6 +54,10 @@ const REQUIRED_LOCAL_KEYS = [
 // whenever MODE != OFF).
 const V6_MODE_KEY = 'RC84_V6_WORLDVIEW_MODE';
 const V6_ALLOWLIST_KEY = 'RC84_V6_SHADOW_ALLOWLIST';
+// R12: optional V6-only worldview model tag. When present in the local deploy
+// env it is overlaid (13 → 14 keys); when absent it is left untouched. It is
+// NEVER required and NEVER sourced from AI_MODEL_PRO.
+const V6_WORLDVIEW_MODEL_KEY = 'RC84_V6_WORLDVIEW_MODEL';
 const VALID_MODES = ['OFF', 'SHADOW', 'ON'];
 
 function isSensitive(key) {
@@ -157,10 +161,11 @@ function validateLocalEnv(localEnv) {
   };
 }
 
-/** Extract the 6 local deployment keys from an arbitrary env-like object. */
+/** Extract the local deployment keys (required AI_* + RC84 V6 keys).
+ *  RC84_V6_WORLDVIEW_MODEL is OPTIONAL: included only when present. */
 function pickLocalDeploymentValues(env) {
   const src = env && typeof env === 'object' ? env : {};
-  const keys = REQUIRED_LOCAL_KEYS.concat([V6_MODE_KEY, V6_ALLOWLIST_KEY]);
+  const keys = REQUIRED_LOCAL_KEYS.concat([V6_MODE_KEY, V6_ALLOWLIST_KEY, V6_WORLDVIEW_MODEL_KEY]);
   const out = {};
   for (const k of keys) {
     if (src[k] !== undefined) out[k] = src[k];
@@ -249,6 +254,7 @@ module.exports = {
   REQUIRED_LOCAL_KEYS,
   V6_MODE_KEY,
   V6_ALLOWLIST_KEY,
+  V6_WORLDVIEW_MODEL_KEY,
   VALID_MODES,
   isSensitive,
   allowlistCount,

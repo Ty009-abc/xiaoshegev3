@@ -702,23 +702,36 @@ function runTurnaroundV6OnNotEnabled () {
 // provider error / invalid JSON / validator reject / double fail) is contained
 // here and can never break or change the request. Safe metadata is logged
 // internally only.
+//
+// R12: SHADOW now executes the R11_V2 DRAFT→EDITOR runtime
+// (draftReportRuntimeV6): B1 → deterministic B2 → AI draft material →
+// semantic validator → deterministic editor → final validator. The model
+// output is NEVER the user-visible output. The primary response authority
+// remains the EXISTING baseline (identical to OFF).
 async function runTurnaroundV6Shadow ({ event, openid, ts, answers }) {
   try {
-    var { runWorldviewReportRuntimeV6 } = require('./lib/turnaroundStrategy/v6/experimental/runtime/worldviewReportRuntimeV6')
+    var { runDraftReportRuntimeV6 } = require('./lib/turnaroundStrategy/v6/experimental/draft/draftReportRuntimeV6')
     // SHADOW uses the existing approved production credential path via the
     // default callAI (lib/ai.js → env.AI_API_KEY). The experiment-only test
-    // credential (AI_API_KEY_TEST) is NEVER used here.
-    var out = await runWorldviewReportRuntimeV6(answers || {}, {})
+    // credential (AI_API_KEY_TEST) is NEVER used here. The V6 worldview model
+    // resolves from RC84_V6_WORLDVIEW_MODEL (V6-local default deepseek-flash);
+    // it NEVER inherits AI_MODEL_PRO.
+    var out = await runDraftReportRuntimeV6(answers || {}, {})
     var m = (out && out.meta) || {}
+    var ed = m.editor || {}
     // SAFE internal observability metadata ONLY — no api key, no raw prompt,
     // no full answers, no full report text, no openid, no profile payload.
     console.log('[V6Shadow] meta ' + JSON.stringify({
-      renderSource: m.renderSource || 'unknown',
+      renderSource: m.renderSource || out.renderSource || 'unknown',
       attemptCount: m.attemptCount || 0,
-      validatorFailureCategories: m.validatorFailures || [],
+      draftParseResult: inferDraftParseResult(m, out),
+      draftSemanticResult: inferDraftSemanticResult(m),
+      fieldFallbackCount: Array.isArray(ed.fieldsFellBack) ? ed.fieldsFellBack.length : 0,
+      wholeReportFallback: isWholeReportFallback(m, out),
+      editorResult: { aiCallCount: ed.aiCallCount || 0, fieldsUsed: ed.fieldsUsed || [], fieldsFellBack: ed.fieldsFellBack || [] },
+      finalValidatorResult: (m.finalHardFailures && m.finalHardFailures.length) ? 'FAIL' : 'PASS',
       modelLatencyMs: m.modelLatencyMs || 0,
       fallbackReason: m.fallbackReason || null,
-      reportVersion: (out && out.reportVersion) || null,
     }))
   } catch (e) {
     // Isolated: V6 failure never propagates into the production path.
@@ -726,6 +739,22 @@ async function runTurnaroundV6Shadow ({ event, openid, ts, answers }) {
   }
   // Response is IDENTICAL to OFF — SHADOW never changes what the caller sees.
   return buildTurnaroundV6BaselineResponse()
+}
+
+// SHADOW observability helpers — inspect only the SAFE meta the runtime emits.
+function inferDraftParseResult (m, out) {
+  if (isWholeReportFallback(m, out)) return 'FALLBACK'
+  var a = (m.attempts || []).slice(-1)[0]
+  if (a && a.rawLen > 0) return 'OK'
+  return 'UNAVAILABLE'
+}
+function inferDraftSemanticResult (m) {
+  if (Array.isArray(m.draftHardFailures)) return m.draftHardFailures.length ? 'SEMANTIC_FAIL' : 'SEMANTIC_OK'
+  return 'N/A'
+}
+function isWholeReportFallback (m, out) {
+  var src = m.renderSource || (out && out.renderSource)
+  return src === 'deterministic_fallback'
 }
 
 // ═══════════════════════════════════════════════════════════════

@@ -73,6 +73,56 @@ function clipToLimit (text, limit) {
   return out || t
 }
 
+// Sentence terminators (kept), vs clause separators (stripped when trailing).
+const SENTENCE_TERMINATOR = /[。！？!?]$/
+const CLAUSE_SEP_CHARS = ['，', ',', '、', '；', ';', '：', ':']
+/**
+ * §1 CARD01 compression with an explicit preference order:
+ *   1. complete sentence(s) that fit within `limit` (ends on 。！？)
+ *   2. complete clause (accumulated on ，、；：) that fits
+ *   3. punctuation-aware cut at the last punctuation inside `limit`
+ *   4. hard truncation (ABSOLUTE LAST RESORT only)
+ * Never fabricates: the result is always a prefix of the input.
+ * Deterministic; no AI call.
+ */
+function compressCard01 (text, limit) {
+  const t = removeGenericFiller(trim(text))
+  if (chars(t) <= limit) return t
+
+  // 1) whole sentences
+  const sents = t.split(SENT_SPLIT).filter((x) => trim(x).length > 0)
+  let acc = ''
+  for (const s of sents) {
+    if (chars(acc + s) > limit) break
+    acc += s
+  }
+  acc = trim(acc)
+  if (acc) { const p = polishTail(acc); if (p) return p }
+
+  // 2) whole clauses
+  const clauses = t.split(COMMA_SPLIT).filter((x) => trim(x).length > 0)
+  acc = ''
+  for (const c of clauses) {
+    if (chars(acc + c) > limit) break
+    acc += c
+  }
+  acc = trim(acc)
+  if (acc) { const p = polishTail(acc); if (p) return p }
+
+  // 3) punctuation-aware cut at the last punctuation within `limit`
+  const arr = [...t]
+  const head = arr.slice(0, limit).join('')
+  let cut = -1
+  for (const ch of CLAUSE_SEP_CHARS.concat(['。', '！', '？', '!', '?'])) {
+    const idx = head.lastIndexOf(ch)
+    if (idx > cut) cut = idx
+  }
+  if (cut > 0) { const p = polishTail(trim(arr.slice(0, cut).join(''))); if (p) return p }
+
+  // 4) hard truncation — absolute last resort
+  return polishTail(trim(head)) || trim(head)
+}
+
 // Trailing connectives that signal an incomplete clause if left at the end.
 const DANGLING_TAIL = /(而|而且|并且|但是|但|因为|所以|于是|只有|如果|即使|为了|以及|同时|而是|就是|就能|才会|再|把|让|是)$/
 /**
@@ -180,8 +230,8 @@ function editReportV6 (args) {
   const selectedRaw = selectInsightCandidate(d.insightCandidates || [], fv.insightCandidates, diagnosis)
   let card01
   if (selectedRaw && (fv.insightCandidates || []).some((v) => v.ok)) {
-    let t = polishTail(removeGenericFiller(clipToLimit(selectedRaw, FINAL_LIMITS.card01Max)))
-    if (chars(t) > FINAL_LIMITS.card01Max) t = polishTail(clipToLimit(t, FINAL_LIMITS.card01Max))
+    let t = compressCard01(selectedRaw, FINAL_LIMITS.card01Max)
+    if (chars(t) > FINAL_LIMITS.card01Max) t = compressCard01(t, FINAL_LIMITS.card01Max)
     if (t && chars(t) >= 8) { card01 = t; fieldsUsed.push('insightCandidates') } else { card01 = b2.fatalInsight.text; fieldsFellBack.push('insightCandidates'); fieldReasons.insightCandidates = 'TOO_SHORT_AFTER_CLIP' }
   } else {
     card01 = b2.fatalInsight.text
@@ -277,6 +327,7 @@ module.exports = {
   FINAL_LIMITS,
   firstSentences,
   clipToLimit,
+  compressCard01,
   polishTail,
   selectInsightCandidate,
   dedupeThesis,

@@ -27,10 +27,16 @@ const { runDraftAdapter } = require('./draftAdapterV6.js')
 const { validateDraftV6 } = require('./draftValidatorV6.js')
 const { editReportV6 } = require('./reportEditorV6.js')
 const { validateFinalV6 } = require('./finalValidatorV6.js')
+const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../../config/worldviewV6Model.js')
 
 const MAX_MODEL_ATTEMPTS = 2
 const MODEL_ATTEMPT_TIMEOUT_MS = 14000
 const TOTAL_WORLDVIEW_BUDGET_MS = 30000
+
+// §3 Frozen initial production-shadow draft budget. 2400 is the measured knee:
+// it satisfies the product/runtime gates while keeping MODEL_P95 < 14000ms.
+// 3000 is deliberately NOT used (P95 14467ms breaches the latency gate).
+const DRAFT_MAX_TOKENS = 2400
 
 const RENDER_SOURCE = { AI: 'ai_draft_edited', FALLBACK: 'deterministic_fallback' }
 
@@ -67,6 +73,11 @@ async function runDraftReportRuntimeV6 (answers, opts) {
   const budgetStart = Date.now()
   const remaining = () => totalBudgetMs - (Date.now() - budgetStart)
 
+  // §2 Dedicated V6 model: RC84_V6_WORLDVIEW_MODEL → V6_DEFAULT_MODEL.
+  // NEVER falls back to AI_MODEL_PRO (R10 finding: reasoning tier).
+  const model = o.forceModel || o.model || getV6WorldviewModelFromEnv()
+  const maxTokens = o.maxTokens != null ? o.maxTokens : DRAFT_MAX_TOKENS
+
   const diagnosis = diagnoseTurnaroundV6(answers)
   const detReport = buildReportV6(diagnosis)
 
@@ -86,7 +97,7 @@ async function runDraftReportRuntimeV6 (answers, opts) {
     let failureReason = null
     try {
       res = await withTimeout(
-        runDraftAdapter(payload, { callAI: o.callAI, forceModel: o.forceModel, maxTokens: o.maxTokens, temperature: o.temperature != null ? o.temperature : 0 }),
+        runDraftAdapter(payload, { callAI: o.callAI, forceModel: model, maxTokens, temperature: o.temperature != null ? o.temperature : 0 }),
         attemptTimeoutMs
       )
     } catch (e) {
@@ -145,6 +156,8 @@ module.exports = {
   MAX_MODEL_ATTEMPTS,
   MODEL_ATTEMPT_TIMEOUT_MS,
   TOTAL_WORLDVIEW_BUDGET_MS,
+  DRAFT_MAX_TOKENS,
+  V6_DEFAULT_MODEL,
   RENDER_SOURCE,
   REPORT_VERSION
 }
