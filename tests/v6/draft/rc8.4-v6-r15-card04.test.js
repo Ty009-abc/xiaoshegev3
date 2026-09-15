@@ -99,31 +99,33 @@ console.log('R15 CARD04 sentence-boundary tests')
 
 // ── §5 length policy unchanged ──────────────────────────────────
 t('CARD04_HARD_LIMIT_IS_CURRENT_LIMIT', () => {
-  assert.strictEqual(FINAL_LIMITS.card04ToMax, 40, 'card04ToMax must remain the current 40-char product limit')
+  assert.strictEqual(FINAL_LIMITS.card04ToMax, 40, 'card04ToMax must remain the current 40-char product target')
+  assert.strictEqual(FINAL_LIMITS.card04SoftMax, 48, 'card04SoftMax must be the R17 soft ceiling (48)')
 })
 
 // ── §2/§3 the fix exists and is deterministic ───────────────────
 t('CARD04_SENTENCE_BOUNDARY_PREFERRED', () => {
   const s1 = '在还没开始的时候，规则是"先想清楚、别出错、别浪费"。'
   const s2 = '一旦进入真正开始的状态，衡量标准就变成"有没有做出一个能被看见的真实小结果"，这和你现在熟悉的判断方式完全不同。'
-  const out = compressCard04Logic(s1 + s2, 40)
-  assert.ok(chars(out) <= 40, 'output must be <= 40: ' + out)
+  const out = compressCard04Logic(s1 + s2, 40, FINAL_LIMITS.card04SoftMax)
+  assert.ok(chars(out) <= FINAL_LIMITS.card04SoftMax, 'output must be <= soft max: ' + out)
   assert.ok(out.endsWith('。'), 'must end on a complete sentence: ' + out)
   assert.strictEqual(out, s1.trim())
 })
 
 t('CARD04_NEVER_EXCEEDS_LIMIT', () => {
   const src = '一二三四五六七八九十'.repeat(6)
-  const out = compressCard04Logic(src, 40)
-  assert.ok(chars(out) <= 40, 'len=' + chars(out))
+  const out = compressCard04Logic(src, 40, FINAL_LIMITS.card04SoftMax)
+  // No boundary in => no complete unit => null (caller falls back to B2).
+  assert.ok(out === null || chars(out) <= FINAL_LIMITS.card04SoftMax, 'len=' + chars(out))
 })
 
 // ── §6 targeted regression: half-sentence / incomplete-clause counts ──
 t('CARD04_HALF_SENTENCE_CASE_COUNT_IS_ZERO', () => {
   let half = 0
   for (const id of cases) {
-    const out = compressCard04Logic(R14_SRC[id], FINAL_LIMITS.card04ToMax)
-    if (halfSentence(out)) { half++; console.log('    half:', id, JSON.stringify(out)) }
+    const out = compressCard04Logic(R14_SRC[id], 40, FINAL_LIMITS.card04SoftMax)
+    if (out && halfSentence(out)) { half++; console.log('    half:', id, JSON.stringify(out)) }
   }
   assert.strictEqual(half, 0, 'CARD04_HALF_SENTENCE_CASE_COUNT must be 0, got ' + half)
 })
@@ -131,8 +133,8 @@ t('CARD04_HALF_SENTENCE_CASE_COUNT_IS_ZERO', () => {
 t('CARD04_INCOMPLETE_CLAUSE_CASE_COUNT_IS_ZERO', () => {
   let incomplete = 0
   for (const id of cases) {
-    const out = compressCard04Logic(R14_SRC[id], FINAL_LIMITS.card04ToMax)
-    if (incompleteClause(out, R14_SRC[id])) { incomplete++; console.log('    incomplete:', id, JSON.stringify(out)) }
+    const out = compressCard04Logic(R14_SRC[id], 40, FINAL_LIMITS.card04SoftMax)
+    if (out && incompleteClause(out, R14_SRC[id])) { incomplete++; console.log('    incomplete:', id, JSON.stringify(out)) }
   }
   assert.strictEqual(incomplete, 0, 'CARD04_INCOMPLETE_CLAUSE_CASE_COUNT must be 0, got ' + incomplete)
 })
@@ -146,7 +148,7 @@ t('CARD04_R14_REGRESSION_CASES', () => {
     const dv = validateDraftV6(draft, d)
     const ed = editReportV6({ diagnosis: d, b2Report: b, draft, draftVerdict: dv })
     const fin = ed.cards.turnaroundPath.logic
-    assert.ok(chars(fin) <= FINAL_LIMITS.card04ToMax, id + ' must be <=40: ' + fin)
+    assert.ok(chars(fin) <= FINAL_LIMITS.card04SoftMax, id + ' must be <= soft max: ' + fin)
     // MID_SENTENCE_TRUNCATION_REMOVED: R15 must end on a boundary (terminal
     // punctuation or a clean whole clause), never mid-word/half-clause.
     assert.ok(!halfSentence(fin), id + ' must not end on a dangling fragment: ' + fin)

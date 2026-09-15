@@ -39,6 +39,7 @@ const FINAL_LIMITS = {
   card01Max: 60,
   card02Max: 120,
   card04ToMax: 40,
+  card04SoftMax: 48,
   card05ActionMax: 60
 }
 
@@ -137,61 +138,89 @@ function lastIndexWhere (s, pred) {
   return -1
 }
 
+// Trailing tails that signal an INCOMPLETE clause/lead-in if left at the end
+// (R17 §7): temporal/introductory openers must not be the final copy.
+const C04_LEAD_IN_TAIL = /(之后|之前|以后|以前|的时候|的话|如果|当|一旦|为了|关于|至于)$/
+
+/** True if the text ends on a complete sentence/clause boundary. */
+function c04EndsComplete (s) {
+  const x = trim(s).replace(/[”"』）)】」]+$/, '')
+  if (!x) return false
+  const last = [...x].pop()
+  return C04_SENT_TERM.includes(last) || C04_CLAUSE_TERM.includes(last)
+}
+
+/** True if the text ends on a lead-in opener (never a valid final copy). */
+function c04EndsLeadIn (s) {
+  return C04_LEAD_IN_TAIL.test(stripTrailingPunct(trim(s)))
+}
+
 /**
- * §3 CARD04 compression — the same deterministic, punctuation-aware
- * philosophy proven for CARD01 (R12 §1), applied to transitionExplanation.
- * Preference order:
- *   1. complete sentence(s) that fit within `limit` (ends on 。！？]
- *   2. last full sentence ender inside `limit` (。！？, KEPT)
- *   3. last complete-clause ender inside `limit` (；：, KEPT) — a semicolon/
- *      colon closes a complete clause, so the copy never ships mid-thought
- *   4. last partial-clause separator inside `limit` (，、, CUT BEFORE)
- *   5. hard truncation (ABSOLUTE LAST RESORT only)
- * Never fabricates: the result is always a prefix of the input. Preserves the
- * strategic causal thesis carried by the leading portion of the source.
+ * §7 CARD04 compression — deterministic, punctuation-aware (R12 philosophy).
+ * R17 adds a SOFT-MAX so a complete expression is preferred over a broken
+ * prefix: target `limit` (40), soft ceiling `softMax` (48).
+ * Preference order (within the soft ceiling unless noted):
+ *   1. longest run of WHOLE sentences (。！？), kept
+ *   2. last full-sentence ender (。！？) inside the window, kept
+ *   3. last complete-clause ender (；：) inside the window, kept
+ *   4. last partial separator (，、) inside the window, cut before (no lead-in)
+ *   5. hard truncation (ABSOLUTE LAST RESORT) within the target
+ * Never fabricates: the result is always a prefix of the input.
  * Deterministic; CARD04_EDITOR_AI_CALL_COUNT = 0.
  *
- * NOTE: must be applied to the FULL transition explanation. Pre-truncating the
- * material (e.g. firstSentences(_, 2)) before compression is what produced the
- * R14 mid-clause cuts, so the caller passes the raw field here.
+ * Applied to the FULL transition explanation (pre-truncating produced the R14
+ * mid-clause cuts). Returns `null` when NO complete unit fits the soft ceiling;
+ * the caller then uses a complete B2-derived expression instead.
  */
-function compressCard04Logic (text, limit) {
+function compressCard04Logic (text, limit, softMax) {
+  const T = (limit != null ? limit : FINAL_LIMITS.card04ToMax)
+  const S = Math.max(T, (softMax != null ? softMax : FINAL_LIMITS.card04SoftMax))
   const t = removeGenericFiller(trim(text))
   if (!t) return t
-  const head = [...t].slice(0, limit).join('')
+  const headS = [...t].slice(0, S).join('')
 
   // 1) longest run of WHOLE sentences that fits (each split part keeps its
   //    。！？ terminator, so a non-empty accumulator always ends on one)
   const sents = t.split(C04_TRUE_SENT_SPLIT).filter((x) => trim(x).length > 0)
   let acc = ''
   for (const s of sents) {
-    if (chars(acc + s) > limit) break
+    if (chars(acc + s) > S) break
     acc += s
   }
   acc = polishTail(trim(acc))
-  if (acc && C04_SENT_TERM.includes([...acc].pop())) return acc
+  if (acc && C04_SENT_TERM.includes([...acc].pop()) && !c04EndsLeadIn(acc)) return acc
 
-  // 2) last full sentence ender inside the limit window (keep the ender)
-  const term = lastIndexWhere(head, (ch) => C04_SENT_TERM.includes(ch))
-  if (term >= 0) return trim(head.slice(0, term + 1))
+  // 2) last full sentence ender inside the soft window (keep the ender)
+  const term = lastIndexWhere(headS, (ch) => C04_SENT_TERM.includes(ch))
+  if (term >= 0) return trim(headS.slice(0, term + 1))
 
   // 3) last complete-clause ender inside the window (；：, keep the ender).
-  //    Opening-quote before a lone “：” (e.g. “…不同：”) is a lead-in; keep it
-  //    only when real clause material follows in the window.
-  const clauseEnd = lastIndexWhere(head, (ch) => C04_CLAUSE_TERM.includes(ch))
+  const clauseEnd = lastIndexWhere(headS, (ch) => C04_CLAUSE_TERM.includes(ch))
   if (clauseEnd >= 0) {
-    const out = trim(head.slice(0, clauseEnd + 1))
+    const out = trim(headS.slice(0, clauseEnd + 1))
     if (chars(out.replace(/[；;：:]+$/, '')) >= 8) return out
   }
 
   // 4) last partial-clause separator inside the window (cut BEFORE it)
-  const partial = lastIndexWhere(head, (ch) => C04_PARTIAL_SEP.includes(ch))
+  const partial = lastIndexWhere(headS, (ch) => C04_PARTIAL_SEP.includes(ch))
   if (partial > 0) {
-    const out = polishTail(head.slice(0, partial))
-    if (chars(out) >= 8) return out
+    const out = polishTail(headS.slice(0, partial))
+    if (chars(out) >= 8 && !c04EndsLeadIn(out)) return out
   }
 
-  // 5) hard truncation — absolute last resort
+  // 5) no complete unit fits the soft ceiling → signal caller to use complete
+  //    B2-derived expression, unless the whole material already fits the target.
+  if (chars(t) <= T && !c04EndsLeadIn(t)) return t
+  return null
+}
+
+/** Back-compat hard-truncation tail (kept for callers that need a guaranteed
+ *  non-null string when no complete unit exists). */
+function compressCard04LogicHard (text, limit, softMax) {
+  const r = compressCard04Logic(text, limit, softMax)
+  if (r != null) return r
+  const T = (limit != null ? limit : FINAL_LIMITS.card04ToMax)
+  const head = [...removeGenericFiller(trim(text))].slice(0, T).join('')
   return polishTail(head) || head
 }
 
@@ -331,13 +360,32 @@ function editReportV6 (args) {
   // ── CARD04 ── B2 from/to authority; AI explains concisely
   let card04Logic = b2.turnaroundPath.logic || b2.turnaroundPath.text || ''
   if (d.transitionExplanation && fieldOk('transitionExplanation')) {
-    // §3 boundary-aware selection over the FULL material. Pre-truncating the
-    // source (e.g. firstSentences(_, 2)) before compression is exactly what
-    // produced the R14 mid-clause cuts, so compressCard04Logic receives the raw
-    // field and is applied unconditionally (short material still gets a
-    // boundary check, so a clause fragment never ships mid-thought).
-    let t = compressCard04Logic(dedupeThesis(d.transitionExplanation), FINAL_LIMITS.card04ToMax)
-    if (chars(t) >= 10) { card04Logic = t; fieldsUsed.push('transitionExplanation') } else { fieldsFellBack.push('transitionExplanation'); fieldReasons.transitionExplanation = 'TOO_SHORT_AFTER_CLIP' }
+    // §7 boundary-aware selection over the FULL material, with a SOFT MAX so a
+    // complete expression is preferred over a broken prefix. Pre-truncating the
+    // source before compression produced the R14 mid-clause cuts; the R16
+    // sub-limit fragment (e.g. “在有一点稳定结果之后”) is now caught by the
+    // lead-in guard and falls back to a complete B2-derived unit.
+    let t = compressCard04Logic(dedupeThesis(d.transitionExplanation), FINAL_LIMITS.card04ToMax, FINAL_LIMITS.card04SoftMax)
+    let c04Reason = null
+    if (t == null) {
+      // AI material has no complete unit within the soft ceiling → use a
+      // complete B2-derived unit instead of shipping a fragment.
+      t = compressCard04Logic(b2.turnaroundPath.text || b2.turnaroundPath.logic || '', FINAL_LIMITS.card04ToMax, FINAL_LIMITS.card04SoftMax)
+      c04Reason = 'NO_COMPLETE_UNIT_AI_USE_B2'
+    }
+    if (t == null) {
+      // Absolute last resort: hard-truncate the AI material within the target.
+      t = compressCard04LogicHard(d.transitionExplanation, FINAL_LIMITS.card04ToMax, FINAL_LIMITS.card04SoftMax)
+      c04Reason = 'HARD_TRUNCATE_LAST_RESORT'
+    }
+    if (c04Reason == null && chars(t) >= 10) {
+      card04Logic = t; fieldsUsed.push('transitionExplanation')
+    } else if (chars(t) >= 10) {
+      // Copy used, but not from the AI material → field fallback (honest).
+      card04Logic = t; fieldsFellBack.push('transitionExplanation'); fieldReasons.transitionExplanation = c04Reason
+    } else {
+      fieldsFellBack.push('transitionExplanation'); fieldReasons.transitionExplanation = c04Reason || 'TOO_SHORT_AFTER_CLIP'
+    }
   } else {
     fieldsFellBack.push('transitionExplanation')
     fieldReasons.transitionExplanation = d.transitionExplanation ? 'FIELD_UNSAFE' : 'MISSING'
@@ -405,6 +453,8 @@ module.exports = {
   clipToLimit,
   compressCard01,
   compressCard04Logic,
+  compressCard04LogicHard,
+  c04EndsComplete,
   polishTail,
   selectInsightCandidate,
   dedupeThesis,

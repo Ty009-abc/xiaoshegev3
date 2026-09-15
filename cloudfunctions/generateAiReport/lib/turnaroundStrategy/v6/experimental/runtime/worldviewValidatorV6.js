@@ -186,12 +186,29 @@ function validateWorldviewV6 (report, diagnosis) {
   const allowedNums = new Set(['24', '48', '3', '2', '1', '1k', '1000', '5000', '10000'])
   const HISTORY_MARKER = /(了|已经|曾经|一直|过去|以前|之前|每天|工作|欠|还|存|做过|干了|试过|坚持|失败|收入|债务|工资)/
   const HISTORY_UNIT = /(次|遍|回|年|个月|岁|元|块|万|小时|天)/
+  // R17 §2/§3 — prescriptive/future instructions may contain a number+unit
+  // without being an unsupported personal-historical claim.
+  const PRESCRIPTIVE_FRAME = /(今天|明天|次日|接下来|下一步|从现在|现在就|立刻|马上|请|建议|可以|应该|试着|尽量|固定|连续|只做|至少|不超过|完成|安排|留出)/
+  const PAST_STATE_FRAME = /(已经|曾经|过去|以前|之前|一直|从来|至今|到现在|原本|早就)/
+  const CLAUSE_BOUND = /[，,、；;：:。！？!?\n]/
+  const surroundingClause = (text, index, len) => {
+    const a = [...text]
+    let start = 0
+    for (let i = 0; i < a.length; i++) { if (i >= index) break; if (CLAUSE_BOUND.test(a[i])) start = i + 1 }
+    let end = a.length
+    for (let i = index + len; i < a.length; i++) { if (CLAUSE_BOUND.test(a[i])) { end = i; break } }
+    return a.slice(start, end).join('')
+  }
   const numRe = /\d+(?:\.\d+)?/g
   let nm
   while ((nm = numRe.exec(claimText)) !== null) {
     const n = nm[0]
     const win = claimText.slice(Math.max(0, nm.index - 8), nm.index + n.length + 8)
-    if (HISTORY_MARKER.test(win) && HISTORY_UNIT.test(win)) { f.unsupportedClaims.push(n); continue }
+    if (HISTORY_MARKER.test(win) && HISTORY_UNIT.test(win)) {
+      const clause = surroundingClause(claimText, nm.index, n.length)
+      if (PRESCRIPTIVE_FRAME.test(clause) && !PAST_STATE_FRAME.test(clause)) continue
+      f.unsupportedClaims.push(n); continue
+    }
     if (allowedNums.has(n)) continue
   }
 
