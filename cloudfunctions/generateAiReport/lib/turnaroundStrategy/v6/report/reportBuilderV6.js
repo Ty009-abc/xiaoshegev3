@@ -57,9 +57,9 @@ function primaryReport (r) {
   const cards = {
     fatalInsight: { title: '致命一句话', text: fatal.text, provenance: fatal.provenance },
     coreProblem: { title: '核心问题', text: core.text, provenance: core.provenance },
-    systemLoop: { title: '系统困局', steps: loop.steps, insight: loop.insight, text: loop.text, provenance: loop.provenance },
-    turnaroundPath: { title: '翻身路径', from: path.from, to: path.to, logic: path.logic, text: path.text, provenance: path.provenance },
-    firstAction: { title: '现在就做', action: action.action, checks: action.checks, timebox: action.timebox, verifyWith: action.verifyWith, done: action.done, decision: action.decision, externalSignal: action.externalSignal, text: action.text, provenance: action.provenance }
+    systemLoop: { title: '系统困局', steps: loop.steps, insight: loop.insight, family: loop.family, text: loop.text, provenance: loop.provenance },
+    turnaroundPath: { title: '翻身路径', from: path.from, to: path.to, logic: path.logic, display: path.display, worldRuleLine: path.worldRuleLine, text: path.text, provenance: path.provenance },
+    firstAction: { title: '现在就做', action: action.action, hypothesis: action.hypothesis, target: action.target, checks: action.checks, timebox: action.timebox, verifyWith: action.verifyWith, done: action.done, decision: action.decision, externalSignal: action.externalSignal, eventPrimary: action.eventPrimary, text: action.text, provenance: action.provenance }
   }
 
   return {

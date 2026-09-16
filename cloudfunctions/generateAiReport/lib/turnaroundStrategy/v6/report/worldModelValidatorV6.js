@@ -22,6 +22,22 @@ const copy = require('./reportCopyV6.js')
 const CARD_KEYS = ['fatalInsight', 'coreProblem', 'systemLoop', 'turnaroundPath', 'firstAction']
 
 // §6 — leading template phrases whose over-use would make copy feel stamped.
+const C01_LEAD_TEMPLATES = [
+  /^你以为缺的是/,
+  /^你一直以为缺的是/,
+  /^卡住你的不是/,
+  /^真正卡住你的是/,
+  /^你把["「“].*["」”]当成了全部原因/,
+  /^你想/,
+  /^你要的是/,
+  /^你的目标没错/,
+  /^方向没错/,
+  /^你以为["「“].*["」”]是在/,
+  /^判断没错/,
+  /^你一直在/,
+  /^你判断得没错/
+]
+
 const C01_TEMPLATES = [
   /^你以为缺的是/,
   /^卡住你的不是/,
@@ -32,10 +48,16 @@ const C01_TEMPLATES = [
   /^你想.*，但/
 ]
 
-const OLD_RULE_MARK = /(旧规则|你一直|你以为|按“|按"|你把|当成了全部原因|真正的规则|真正卡住你的是|卡住你的不是|但「|但“)/
+// R34 §1 — DESIRED_STATE vs CURRENT_PROBLEM role inversion. A CURRENT_PROBLEM
+// phrase dropped after 想要的是/目标是/希望的是 is ungrammatical (a problem is not
+// a desire). Detect that specific inversion.
+const DESIRE_FRAME = /(想要的是|目标是|希望的是|想要|希望是|目标是)\s*/
+const PROBLEM_STATE_PAT = /(上不去|无法聚焦|没方向|没有方向|看不到未来|变不了现|没做起来|不知往哪走|一直被|压着)/
+
+const OLD_RULE_MARK = /(旧规则|你一直|你以为|按“|按"|你把|当成了全部原因|真正的规则|真正卡住你的是|卡住你的不是|但「|但“|你的目标没错|判断没错|你要的是|方向没错|你想|行不通|撑不下去|只灵一次)/
 const NEW_RULE_MARK = /(新规则|换成|恰恰相反|真正的规则|现实|其实)/
 const MECHANISM_MARK = /(概率|反馈|积累|买单|清零|重复|验证|说不清|运气|说了算|不由|市场|外部)/
-const LEAP_MARK = /(概率|反馈|积累|买单|清零|重复|验证|说不清|运气|说了算|不由|市场|外部|恰恰|相反|只是|并非|并不|不代表)/
+const LEAP_MARK = /(概率|反馈|积累|买单|清零|重复|验证|说不清|运气|说了算|不由|市场|外部|恰恰|相反|只是|并非|并不|不代表|猜|换不来|准备|重启|自我打分|自认|单方面|作废)/
 
 function text (v) { return typeof v === 'string' ? v : '' }
 
@@ -168,6 +190,128 @@ function worldRuleEvidenceSupport (diagnoses) {
   return { rate: n ? 100 * supported / n : 0, supported: supported, bottleneckOnly: bottleneckOnly, n: n }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// R34 — human-copy + reality-test metrics
+// ════════════════════════════════════════════════════════════════════
+
+/** §1 SEMANTIC_ROLE_INVERSION_COUNT — CURRENT_PROBLEM dropped after a desire frame. */
+function semanticRoleInversion (report) {
+  const t = allVisible(report)
+  let n = 0
+  const sentences = t.split(/(?<=[。！？!?\n])/)
+  for (const s of sentences) {
+    const m = s.match(DESIRE_FRAME)
+    if (!m) continue
+    const rest = s.slice(s.indexOf(m[0]) + m[0].length, s.indexOf(m[0]) + m[0].length + 10)
+    if (PROBLEM_STATE_PAT.test(rest)) n++
+  }
+  return n
+}
+
+/** §3 ANY_SINGLE_CARD01_PATTERN_RATE — max share of CARD01 leading families. */
+function card01PatternRate (reports) {
+  const counts = {}; const n = (reports || []).length
+  for (const r of reports || []) {
+    const s = text(r && r.cards && r.cards.fatalInsight && r.cards.fatalInsight.text)
+    let hit = 'OTHER'
+    for (let i = 0; i < C01_LEAD_TEMPLATES.length; i++) { if (C01_LEAD_TEMPLATES[i].test(s)) { hit = 'T' + i; break } }
+    counts[hit] = (counts[hit] || 0) + 1
+  }
+  const max = n ? Math.max.apply(null, Object.keys(counts).map((k) => counts[k])) : 0
+  return { rate: n ? 100 * max / n : 0, counts: counts, n: n }
+}
+
+/** §3 CARD01_CAN_STAND_ALONE_AS_SHAREABLE_INSIGHT — names a rule + collides it. */
+function card01StandaloneShareable (card01) {
+  const s = text(card01 && card01.text)
+  const hasRule = /(「[^」]+」|"[^"]+"|“[^”]+”)/.test(s)
+  const collides = /(其实|真正|不是|而是|行不通|换不来|撑不下去|只灵|当成了全部原因)/.test(s)
+  const noJargon = !/(DIRECTION_GAP|ACTION_GAP|CONSISTENCY_GAP|VALIDATION_GAP|REPEATABILITY_GAP|执行阶段|行为模式)/.test(s)
+  return hasRule && collides && noJargon
+}
+
+/** §4 CARD03 structure-family distribution. */
+function card03StructureDistribution (reports) {
+  const counts = {}; const n = (reports || []).length
+  for (const r of reports || []) {
+    const f = text(r && r.cards && r.cards.systemLoop && r.cards.systemLoop.family) || 'LOOP'
+    counts[f] = (counts[f] || 0) + 1
+  }
+  const families = Object.keys(counts).filter((k) => counts[k] > 0)
+  const max = n ? Math.max.apply(null, Object.keys(counts).map((k) => counts[k])) : 0
+  return { familyCount: families.length, families: families, counts: counts, dominantRate: n ? 100 * max / n : 0, n: n }
+}
+
+/** §5/§7 GENERIC_PRODUCTIVITY_WITH_DECORATIVE_SIGNAL — habit action + decorative "feedback" add-on. */
+function genericProductivityWithDecorativeSignal (card05) {
+  const c = card05 || {}
+  const act = text(c.action)
+  const habit = copy.HABIT_ONLY_PAT.test(act)
+  if (!habit) return false
+  const marketFacing = copy.MARKET_FACING_PAT.test(act)
+  // A habit-framed action whose "external signal" is merely an add-on clause
+  // (the signal does not decide the action) is decorative.
+  return !marketFacing
+}
+
+/** §6 ACTION_SIGNAL_SEMANTIC_MATCH — the signal answers the hypothesis topic. */
+function actionSignalSemanticMatch (card05, actionType) {
+  const c = card05 || {}
+  const topic = copy.SIGNAL_TOPIC[actionType]
+  if (!topic) return true
+  return topic.test(text(c.done))
+}
+
+/** §6 SIGNAL_DECISION_SEMANTIC_MATCH — the decision reads the SAME signal. */
+function signalDecisionSemanticMatch (card05, actionType) {
+  const c = card05 || {}
+  const topic = copy.DECISION_TOPIC[actionType]
+  if (!topic) return true
+  return topic.test(text(c.decision))
+}
+
+/** §8 REPEATABILITY_SIGNAL_DECISION_MISMATCH — signal & decision measure different things. */
+function repeatabilitySignalDecisionMismatch (card05, actionType) {
+  if (actionType !== 'REPEAT_SUCCESS_PATH') return false
+  const c = card05 || {}
+  const sigRepro = /(成交|拒绝|再来|复制|重复)/.test(text(c.done))
+  const decRepro = /(复制|成交|拒绝|重复|照搬)/.test(text(c.decision))
+  return !(sigRepro && decRepro)
+}
+
+/** §9 FORM_FIELD_ASSEMBLY_FEEL — CARD02 reads like questionnaire playback. */
+function formFieldAssemblyFeel (card02) {
+  const t = text(card02 && card02.text)
+  // The old stamped form: “你现在…，想要的其实是…。你以为缺的是…。”
+  const stamped = /想要的其实是/.test(t) || /^你以为缺的是/.test(t) || /你现在.*，想要的是/.test(t)
+  return stamped
+}
+
+/** §10 SHAREABLE_WORLD_RULE_LINE_RATE — CARD04 carries a short human world-rule line. */
+function hasShareableWorldRuleLine (report) {
+  const p = report && report.cards && report.cards.turnaroundPath
+  const line = text(p && p.worldRuleLine)
+  return line.length >= 8 && /[。！？!?]$/.test(line)
+}
+
+/**
+ * Aggregate R34 human-copy + reality-test validators.
+ */
+function assessHumanCopyV6 (report, diagnosis) {
+  const c = (report && report.cards) || {}
+  const actionType = diagnosis && diagnosis.firstActionType
+  return {
+    SEMANTIC_ROLE_INVERSION_COUNT: semanticRoleInversion(report),
+    GENERIC_PRODUCTIVITY_WITH_DECORATIVE_SIGNAL: genericProductivityWithDecorativeSignal(c.firstAction),
+    ACTION_SIGNAL_SEMANTIC_MATCH: actionSignalSemanticMatch(c.firstAction, actionType),
+    SIGNAL_DECISION_SEMANTIC_MATCH: signalDecisionSemanticMatch(c.firstAction, actionType),
+    REPEATABILITY_SIGNAL_DECISION_MISMATCH: repeatabilitySignalDecisionMismatch(c.firstAction, actionType),
+    FORM_FIELD_ASSEMBLY_FEEL: formFieldAssemblyFeel(c.coreProblem),
+    CARD01_STANDALONE_SHAREABLE: card01StandaloneShareable(c.fatalInsight),
+    SHAREABLE_WORLD_RULE_LINE: hasShareableWorldRuleLine(report)
+  }
+}
+
 // §10 — external-world event verbs: the PRIMARY action must itself create a
 // real-world event (publish/quote/send/ask/show/contact/transaction).
 const REALITY_EVENT_PAT = /(发布|上传|公开|展示|寄出|发出|发一份|递交|提交|报价|定价|收费|收款|付款|收款|开价|联系|约谈|面试|报名|参加|上线|投放|寄样|寄送|拿给|递给|问|请人|找人|发给|卖出|出售|挂出|接单|成交|招募|邀请|演示|试卖|试产|投稿|申请)/
@@ -234,7 +378,18 @@ module.exports = {
   evidenceAnchors,
   actionExternalSignal,
   templatePhraseDominance,
+  card01PatternRate,
+  card01StandaloneShareable,
+  card03StructureDistribution,
   worldRuleEvidenceSupport,
+  genericProductivityWithDecorativeSignal,
+  actionSignalSemanticMatch,
+  signalDecisionSemanticMatch,
+  repeatabilitySignalDecisionMismatch,
+  formFieldAssemblyFeel,
+  hasShareableWorldRuleLine,
+  assessHumanCopyV6,
+  semanticRoleInversion,
   realityTestIsPrimaryAction,
   decorativeExternalSignal,
   assessWorldModelV6

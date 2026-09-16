@@ -424,6 +424,268 @@ const REALITY_DECISION = {
   CASHFLOW_SAFE_EXPERIMENT: '只要拿到一条不花钱就能得到的外部反馈，就用它决定要不要继续。'
 }
 
+// ════════════════════════════════════════════════════════════════
+// R34 §1-§10 — HUMAN COPY + REALITY TEST layer
+// ════════════════════════════════════════════════════════════════
+
+// §1 — DESIRED_STATE vs CURRENT_PROBLEM semantic-role distinction.
+// A CURRENT_PROBLEM phrase (“收入上不去”) is grammatically a problem, NOT a
+// desired state. It must never be dropped after 想要的是/目标是/希望的是 (which
+// demand a DESIRED_STATE noun). This helper renders the problem in a role that
+// is grammatical — as the object of 最想解决的是 / 卡在 / 真正要面对的.
+function desiredStateLine (income, problem) {
+  return `你现在${income}，最想解决的是${problem}。`
+}
+
+// R34 §1 — problem phrase used where a stated desire is required (fallback).
+const DESIRED_STATE = {
+  PROBLEM_INCOME_STUCK: '让收入真正往上走',
+  PROBLEM_NO_FUTURE: '看清楚往后能往哪走',
+  PROBLEM_DEBT: '把现金流从债务里松出来',
+  PROBLEM_CAREER_SWITCH: '找到一条能换过去的赛道',
+  PROBLEM_SIDE_UNSTARTED: '让副业真正跑起来',
+  PROBLEM_MONETIZE: '把已有的能力换成钱',
+  PROBLEM_FOCUS: '把一件事真正推进下去',
+  PROBLEM_OTHER: '把眼下的处境真正改变'
+}
+
+// §9 — CARD02 humanized belief lead (natural, not form-field assembly).
+const beliefLead = (lack) => `你一直以为，卡住你的是${lack}。`
+
+// §9/R33 §6 — CARD02 diagnostic leap (why the current rule conflicts with the
+// world). Each line is BOTH a personal-evidence inference AND a mechanism.
+const CARD02_LEAP = {
+  DIRECTION_GAP: '但方向从来不是想出来的——在你拿到第一手真实反馈之前，所有的“想清楚”都只是猜测。',
+  ACTION_GAP: '但只要没真的动手，你手里的判断就一直是猜的；准备做得再细，也换不来一条真实信息。',
+  CONSISTENCY_GAP: '但积累只发生在不断档的重复里；每次都从头再来，等于之前的投入一次都没攒下。',
+  VALIDATION_GAP: '但东西好不好，是由愿意掏钱的人说了算的；你自己给自己打的分，市场并不认。',
+  REPEATABILITY_GAP: '但一次成功如果说不清它为什么发生，就只是运气——它换不来下一次。'
+}
+
+// §3 — CARD01 anti-template. SHORT rule forms keep every variant ≤40 chars;
+// the LEADING phrase is the “family” the anti-template metric counts.
+const C01_RULE_SHORT = {
+  DIRECTION_GAP: '先想清楚再动手',
+  ACTION_GAP: '等准备好再开始',
+  CONSISTENCY_GAP: '靠一股劲做完',
+  VALIDATION_GAP: '做到最好就有人买',
+  REPEATABILITY_GAP: '做成一次就算会'
+}
+const PARTIAL_SHORT = {
+  BELIEF_NO_DIRECTION: '没方向',
+  BELIEF_KNOW_NO_ACTION: '没行动',
+  BELIEF_TRIED_NO_RESULT: '没结果',
+  BELIEF_RESOURCE: '缺资源',
+  BELIEF_TIME: '没时间',
+  BELIEF_FEAR: '怕失败',
+  BELIEF_SWITCHING: '总换方向',
+  BELIEF_ABILITY: '能力不够',
+  BELIEF_FAMILY: '被环境牵制',
+  BELIEF_OTHER: '没看清原因'
+}
+const C01 = {
+  gapDir: (lack, r) => `你以为缺的是${lack}，其实卡住你的是“${r}”。`,
+  gapAct: (lack, r) => `你一直以为缺的是${lack}，真正卡住你的是“${r}”。`,
+  gapCV: (lack, r) => `卡住你的不是缺${lack}，而是“${r}”。`,
+  gapRep: (lack, r) => `真正卡住你的是“${r}”，不是缺${lack}。`,
+  partial: (bs, r) => `你把“${bs}”当成了全部原因，其实卡住你的是“${r}”。`,
+  matchDir: (n, r) => `你想${n}，但「${r}」才是真正卡住你的地方。`,
+  matchAct: (n, r) => `你的目标没错，但「${r}」换不来${n}。`,
+  matchCons: (n, r) => `你以为「${r}」是在给自己攒底气，其实它撑不下去。`,
+  matchVal: (n, r) => `判断没错，但「${r}」换不来${n}。`,
+  matchValDebt: (n, r) => `你一直在「${r}」，却换不来${n}。`,
+  matchValSide: (n, r) => `你方向没错，但「${r}」换不来${n}。`
+}
+
+// §3 MATCH leads — the goal is right, the rule to reach it is wrong. Keyed on
+// bottleneck; each bottleneck has several leads so no single surface pattern
+// dominates (R34 §3 anti-template). {n}=outcome noun, {r}=rule.
+const MATCH_LEADS = {
+  DIRECTION_GAP: [
+    (n, r) => `你想${n}，但「${r}」才是真正卡住你的地方。`,
+    (n, r) => `你要的是${n}，可「${r}」行不通。`
+  ],
+  ACTION_GAP: [
+    (n, r) => `你的目标没错，但「${r}」换不来${n}。`,
+    (n, r) => `你想${n}，可「${r}」其实换不来。`,
+    (n, r) => `方向没错，但「${r}」换不来${n}。`
+  ],
+  CONSISTENCY_GAP: [
+    (n, r) => `你以为「${r}」是在给自己攒底气，其实它撑不下去。`
+  ],
+  VALIDATION_GAP: [
+    (n, r) => `判断没错，但「${r}」换不来${n}。`,
+    (n, r) => `你一直在「${r}」，却换不来${n}。`
+  ],
+  REPEATABILITY_GAP: [
+    (n, r) => `你判断得没错，但「${r}」只灵一次。`
+  ]
+}
+
+// §4 — CARD03 expression families (>=3 required; ONE per report).
+const CARD03_FAMILY = {
+  DIRECTION_GAP: 'LOOP',
+  ACTION_GAP: 'CONTRADICTION',
+  CONSISTENCY_GAP: 'ACCUMULATION',
+  VALIDATION_GAP: 'REFRAME',
+  REPEATABILITY_GAP: 'REFRAME'
+}
+
+// §4 — CARD03 family-specific node copy (keys = bottleneck).
+const C03_CONTRA_DEMAND = {
+  ACTION_GAP: '但你的规则一直在要求你：等一切都准备好了，再开始。'
+}
+const C03_CONTRA_MID = {
+  ACTION_GAP: '于是一遇到不确定，你就先停一下；这一停，让你暂时不用面对“做了却没做成”。'
+}
+const C03_CONTRA_RESULT = {
+  ACTION_GAP: '结果就是：越等，你手里越没有能推翻判断的东西。'
+}
+const C03_ACC_START = {
+  CONSISTENCY_GAP: '每次你都靠一股劲开头，一开始就全力往前冲。'
+}
+const C03_ACC_MID = {
+  CONSISTENCY_GAP: '一旦停下来，之前那段的积累就全部作废。'
+}
+const C03_ACC_COST = {
+  CONSISTENCY_GAP: '于是你一遍遍重启，却从来没有真正往前累积。'
+}
+const C03_REFRAME_BEHAVIOR = {
+  VALIDATION_GAP: '你一直把“再打磨得更好一点”当作关键动作。',
+  REPEATABILITY_GAP: '你一直把“这次干得不错”当作已经稳了。'
+}
+const C03_REFRAME_NOT = {
+  VALIDATION_GAP: '但它其实换不来一个真实用户的认可。',
+  REPEATABILITY_GAP: '但它其实换不来下一次还能成。'
+}
+const C03_REFRAME_MID = {
+  VALIDATION_GAP: '于是一遇到不确定，你就先回头继续打磨，而不是去问一个真实用户。'
+}
+const C03_REFRAME_TRUTH = {
+  VALIDATION_GAP: '真正管用的，是有人愿意为它掏钱；在那之前，一切自我评估都只是猜。',
+  REPEATABILITY_GAP: '真正管用的，是把这次的做法拆成能照搬的步骤；在那之前，它只能算运气。'
+}
+const C03_LOOP_RELIEF = {
+  DIRECTION_GAP: '多想想，让你暂时不用面对选错方向的风险。',
+  ACTION_GAP: '这一准备，让你暂时不用面对“做了却没做成”。',
+  CONSISTENCY_GAP: '停一下，让你暂时逃离做得不够好的挫败。',
+  VALIDATION_GAP: '继续打磨，让你暂时不用面对没人买的答案。',
+  REPEATABILITY_GAP: '放下不管，让你暂时不用去想它为什么不稳。'
+}
+const C03_LOOP_COST = {
+  DIRECTION_GAP: '但方向始终没被真实验证，你也就一直拿不到能用的信息。',
+  ACTION_GAP: '但真实反馈始终没进来，你手里的判断也就没变过。',
+  CONSISTENCY_GAP: '但每次重启都清零，你的投入一直没有攒下来。',
+  VALIDATION_GAP: '但市场始终没表态，你的“好”始终是你单方面的说法。',
+  REPEATABILITY_GAP: '但可重复的路径始终没沉淀，结果也就无法复制。'
+}
+
+// §10 — one short human statement per world mechanism (SHAREABLE line).
+const WORLD_ONE_LINER = {
+  DIRECTION_GAP: '方向不是想出来的，是试出来的。',
+  ACTION_GAP: '没有反馈之前，你拥有的不是判断，只是猜测。',
+  CONSISTENCY_GAP: '真正昂贵的不是慢，是每次都在重新开始。',
+  VALIDATION_GAP: '东西好不好，不是你说好，是有人愿意掏钱。',
+  REPEATABILITY_GAP: '一次成功是事件，能重复才是能力。'
+}
+
+// §6/§7/§8 — CARD05 REALITY TEST semantic contract per action type.
+// HYPOTHESIS / ACTION / TARGET / TIMEBOX / OBSERVABLE_SIGNAL / DECISION, with
+// the outcome branches (continue / modify / stop). The signal answers the
+// hypothesis; the decision reads the same signal.
+const REALITY_TEST = {
+  DIRECTION_NARROWING: {
+    hypothesis: '有人真的需要你把这件事做出来。',
+    action: '今天只选一个方向，写清楚你要替谁解决什么问题，然后把这件事直接发给1个这样的人，问他一句：你需要这个吗？',
+    target: '1个你目标用户里的人',
+    timebox: '今天内',
+    observableSignal: '他明确回复你“我要”或“我不要”，而不是“还行”。',
+    decision: '只要他给出明确的要或不要，就按这个答案定方向，不再自己猜。',
+    ifPositive: '他说“我要”——这个方向先做一周。',
+    ifNegative: '他说“我不要”——换下一个方向，再问一个人。',
+    ifAmbiguous: '他只说“还行”——再找一个更具体的人问一次。'
+  },
+  SMALLEST_EXTERNAL_TEST: {
+    hypothesis: '有一个最小版本，真实用户愿意看、愿意回应。',
+    action: '今天选一个方向，做出一个最小版本，把它发给1个真实用户看，拿到一条真实反馈。',
+    target: '1个真实用户',
+    timebox: '24小时内',
+    observableSignal: '他给你至少1条具体反馈，哪怕是否定。',
+    decision: '只要收到1条具体反馈，就拿它改下一步，而不是回头继续想。',
+    ifPositive: '反馈说“有用”——把这个版本再给第2个人看。',
+    ifNegative: '反馈说“没用”——按他说的那一点改一版。',
+    ifAmbiguous: '只得到一句“再想想”——换一个更具体的用户再发一次。'
+  },
+  CONSISTENCY_PROTECTION: {
+    hypothesis: '把同一个面向市场的动作重复做，能换来可累积的外部结果。',
+    action: '今天起，每天把同一个面向市场的动作重复做一遍（联系1个新用户 / 发布1次 / 报1次价），并把当天的结果发给1个真实用户看。',
+    target: '每天1个新对象，外加1个看你结果的真实用户',
+    timebox: '连续5天',
+    observableSignal: '每天至少换来1次来自真实用户的回应（要 / 不要 / 反馈）。',
+    decision: '只要连续5天里至少4天都换来了真实回应，就说明这条路在累积；如果多数天没有任何回应，就换动作，而不是加长坚持。',
+    ifPositive: '多数天都有回应——把动作固定下来，进入第二周。',
+    ifNegative: '多数天没有任何回应——说明动作选错了，换一个再测5天。',
+    ifAmbiguous: '回应时有时无——先把动作缩到最小，保证每天都真的发生。'
+  },
+  BUYER_FEEDBACK_COLLECTION: {
+    hypothesis: '真实用户不买，是因为一个具体原因。',
+    action: '今天直接找3个真实用户，问清楚他们为什么没买。',
+    target: '3个看过或可能买的真实用户',
+    timebox: '今天内',
+    observableSignal: '至少1个真实用户讲清他为什么没买。',
+    decision: '只要有人讲清原因，就按这个原因改，不再自己猜。',
+    ifPositive: '多人说的是同一个原因——就按这个原因改产品。',
+    ifNegative: '没人说得清——说明问法太泛，换更具体的问题再问。',
+    ifAmbiguous: '说法各不相同——先记下最高频的那一个，先验证它。'
+  },
+  REPEAT_SUCCESS_PATH: {
+    hypothesis: '最近那次成功，是可以被复制出来的。',
+    action: '把最近一次成交的步骤拆出来，用同一套做法再找1个新用户走一遍。',
+    target: '1个新用户',
+    timebox: '今天内',
+    observableSignal: '再成交1次，或拿到1个明确的拒绝。',
+    decision: '只要能照着旧步骤再成交1次，就说明这套做法可以复制；如果被拒绝，就修正其中一步再试。',
+    ifPositive: '再次成交——把这套步骤固定成默认做法。',
+    ifNegative: '被明确拒绝——找出是哪一步不奏效，只改那一步。',
+    ifAmbiguous: '对方没回应——换一个渠道再走一遍同样的步骤。'
+  },
+  CASHFLOW_SAFE_EXPERIMENT: {
+    hypothesis: '不花钱，也能验证这个方向有没有人需要。',
+    action: '今天做一个不花钱的最小验证，把它拿给1个真实用户看。',
+    target: '1个真实用户',
+    timebox: '24小时内',
+    observableSignal: '拿到1条来自真实用户的外部反馈。',
+    decision: '只要拿到1条外部反馈，就用它决定要不要继续，而不是先投入钱。',
+    ifPositive: '反馈说“需要”——先用手工方式再服务1个人。',
+    ifNegative: '反馈说“不需要”——换方向，而不是加钱。',
+    ifAmbiguous: '反馈很笼统——问一个更具体的问题再验一次。'
+  }
+}
+
+// §5/§7 — habit-only action markers (used to detect bare self-discipline tasks).
+const HABIT_ONLY_PAT = /(每天固定\s*\d+\s*分钟|每天\s*\d+\s*分钟|坚持\s*\d+\s*[天周月]|养成习惯|保持自律|自律打卡)/
+// §7 — verbs that make an action MARKET-FACING (produces external evidence).
+const MARKET_FACING_PAT = /(发布|上传|联系|问|发给|拿给|递|报价|定价|收费|成交|推销|展示|约|寄|投放|招募|邀请|演示|试卖|接单)/
+
+// §13/§6 — observable-signal topic per action type (the signal must answer the
+// hypothesis) + the decision topic (decision reads the same signal).
+const SIGNAL_TOPIC = {
+  DIRECTION_NARROWING: /(要|不要|需要|回复)/,
+  SMALLEST_EXTERNAL_TEST: /(反馈|回应|回复)/,
+  CONSISTENCY_PROTECTION: /(回应|反馈|要|不要)/,
+  BUYER_FEEDBACK_COLLECTION: /(没买|不买|原因|为什么)/,
+  REPEAT_SUCCESS_PATH: /(成交|拒绝|复制|再来)/,
+  CASHFLOW_SAFE_EXPERIMENT: /(反馈|回应)/
+}
+const DECISION_TOPIC = {
+  DIRECTION_NARROWING: /(要|不要|方向|回复)/,
+  SMALLEST_EXTERNAL_TEST: /(反馈|回应)/,
+  CONSISTENCY_PROTECTION: /(回应|累积|反馈)/,
+  BUYER_FEEDBACK_COLLECTION: /(原因|没买|不买|为什么)/,
+  REPEAT_SUCCESS_PATH: /(复制|成交|拒绝|重复)/,
+  CASHFLOW_SAFE_EXPERIMENT: /(反馈|回应)/
+}
+
 // ── R33 §10 generic-productivity patterns (must be paired with an external signal) ──
 // A CARD05 action is flagged GENERIC_PRODUCTIVITY_ACTION when its core action is
 // habit-flavoured (每天N分钟/坚持/养成习惯/自律) WITHOUT an explicit external signal.
@@ -491,6 +753,15 @@ module.exports = {
     const n = pick(C01_OUTCOME_NOUN, q4, '改变')
     return tpl.split('{w}').join(w).split('{n}').join(n)
   },
+  getMatchLead: (b, q4, q5) => {
+    const leads = MATCH_LEADS[b]
+    if (!leads || !leads.length) return `你判断得没错，但「${pick(C01_RULE_SHORT, b, '沿用现在的做法')}」行不通。`
+    let h = 0
+    const s = String(b) + '|' + String(q4) + '|' + String(q5)
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+    return leads[h % leads.length](pick(C01_OUTCOME_NOUN, q4, '改变'), pick(C01_RULE_SHORT, b, '沿用现在的做法'))
+  },
+  MATCH_LEADS,
   getWhyRuleFails: (b) => pick(WHY_RULE_FAILS, b, '现在的做法和想要的结果之间，缺了一次真实反馈。'),
   getStructuralConsequence: (b) => pick(STRUCTURAL_CONSEQUENCE, b, '你一直在原地打转。'),
   getLoopNode1: (b) => pick(LOOP_NODE1, b, '旧规则：沿用现在的做法。'),
@@ -501,6 +772,51 @@ module.exports = {
   getRealityDecision: (t) => pick(REALITY_DECISION, t, '只要拿到一条真实反馈，就用它修正下一步。'),
   GENERIC_PRODUCTIVITY_PAT,
   EXTERNAL_SIGNAL_PAT,
+  // R34 human-copy + reality-test layer
+  desiredStateLine,
+  DESIRED_STATE,
+  getDesiredState: (q4) => pick(DESIRED_STATE, q4, '把眼下的处境真正改变'),
+  beliefLead,
+  CARD02_LEAP,
+  getCard02Leap: (b) => pick(CARD02_LEAP, b, '但没拿到真实反馈之前，你手里的判断都还只是猜测。'),
+  C01_RULE_SHORT,
+  C01,
+  getC01RuleShort: (b) => pick(C01_RULE_SHORT, b, '沿用现在的做法'),
+  getPartialShort: (q5) => pick(PARTIAL_SHORT, q5, '没看清原因'),
+  CARD03_FAMILY,
+  getCard03Family: (b) => pick(CARD03_FAMILY, b, 'LOOP'),
+  getC03ContraDemand: (b) => pick(C03_CONTRA_DEMAND, b, '但你的规则一直在要求你：等准备好了再开始。'),
+  getC03ContraMid: (b) => pick(C03_CONTRA_MID, b, '于是一遇到不确定，你就先停一下。'),
+  getC03ContraResult: (b) => pick(C03_CONTRA_RESULT, b, '结果就是：越等，你越没有能推翻判断的东西。'),
+  getC03AccStart: (b) => pick(C03_ACC_START, b, '每次你都靠一股劲开头。'),
+  getC03AccMid: (b) => pick(C03_ACC_MID, b, '一旦停下来，之前那段的积累就全部作废。'),
+  getC03AccCost: (b) => pick(C03_ACC_COST, b, '于是你一遍遍重启，却从来没有真正往前累积。'),
+  getC03ReframeBehavior: (b) => pick(C03_REFRAME_BEHAVIOR, b, '你一直把“再打磨得更好一点”当作关键动作。'),
+  getC03ReframeNot: (b) => pick(C03_REFRAME_NOT, b, '但它其实换不来一个真实用户的认可。'),
+  getC03ReframeMid: (b) => pick(C03_REFRAME_MID, b, '于是一遇到不确定，你就先停下来反复琢磨。'),
+  getC03ReframeTruth: (b) => pick(C03_REFRAME_TRUTH, b, '真正管用的，是有人真的为它买单。'),
+  getC03LoopRelief: (b) => pick(C03_LOOP_RELIEF, b, '这一步让你暂时不用面对那个没把握的结果。'),
+  getC03LoopCost: (b) => pick(C03_LOOP_COST, b, '但真实反馈始终没进来。'),
+  C03_CONTRA_DEMAND,
+  C03_CONTRA_MID,
+  C03_CONTRA_RESULT,
+  C03_ACC_START,
+  C03_ACC_MID,
+  C03_ACC_COST,
+  C03_REFRAME_BEHAVIOR,
+  C03_REFRAME_NOT,
+  C03_REFRAME_MID,
+  C03_REFRAME_TRUTH,
+  C03_LOOP_RELIEF,
+  C03_LOOP_COST,
+  WORLD_ONE_LINER,
+  getWorldOneLiner: (b) => pick(WORLD_ONE_LINER, b, '现实会给出答案。'),
+  REALITY_TEST,
+  getRealityTest: (t) => pick(REALITY_TEST, t, null),
+  HABIT_ONLY_PAT,
+  MARKET_FACING_PAT,
+  SIGNAL_TOPIC,
+  DECISION_TOPIC,
   WRONG_RULE,
   WORLD_RULE_TAIL,
   MATCH_C01,

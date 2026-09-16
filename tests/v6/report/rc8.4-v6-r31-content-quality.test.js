@@ -59,18 +59,20 @@ t('§5 CARD03 has no STEP labels and exactly 5 loop nodes', () => {
     for (const s of steps) assert.ok(!/STEP\s*\d/i.test(s), g.id + ' has STEP label: ' + s)
   }
 })
-t('§5 CARD03 loop nodes follow R33 旧规则→触发→短期安慰→长期代价→回归 structure', () => {
+t('§5 CARD03 uses ONE expression family (R34 §4: LOOP/CONTRADICTION/ACCUMULATION/REFRAME)', () => {
+  const FAMILIES = ['LOOP', 'CONTRADICTION', 'ACCUMULATION', 'REFRAME']
+  const seen = {}
   for (const g of PRIMARY) {
     const r = buildReportV6(diagnoseTurnaroundV6(g.answers))
     const steps = r.cards.systemLoop.steps
     assert.strictEqual(steps.length, 5, g.id + ' loop nodes')
-    assert.ok(steps[0].startsWith('旧规则：'), g.id + ' node0 = ' + steps[0])
-    assert.ok(steps[1].startsWith('触发：'), g.id + ' node1 = ' + steps[1])
-    assert.ok(/^这一/.test(steps[2]), g.id + ' node2 = ' + steps[2])
-    assert.ok(/^但/.test(steps[3]), g.id + ' node3 = ' + steps[3])
-    assert.ok(/又回到同一个问题：/.test(steps[4]), g.id + ' node4 = ' + steps[4])
+    const fam = r.cards.systemLoop.family
+    assert.ok(FAMILIES.includes(fam), g.id + ' unknown family ' + fam)
+    seen[fam] = (seen[fam] || 0) + 1
+    assert.ok(/又回到同一个问题/.test(steps[4]), g.id + ' node4 = ' + steps[4])
     assert.ok(r.cards.systemLoop.insight && r.cards.systemLoop.insight.length > 0, g.id + ' insight')
   }
+  assert.ok(Object.keys(seen).length >= 3, 'CARD03_STRUCTURE_FAMILY_COUNT >= 3, got ' + JSON.stringify(seen))
 })
 
 // ── §3 CARD01 no forbidden diagnostic vocabulary ────────────────
@@ -165,8 +167,8 @@ t('§14 B1/B2 authority preserved (bottleneck/stage/action unchanged by report)'
 t('§10 at least one of CARD01-04 carries a worldview/mechanism layer', () => {
   for (const g of PRIMARY) {
     const r = buildReportV6(diagnoseTurnaroundV6(g.answers))
-    const pool = [r.cards.fatalInsight.text, r.cards.coreProblem.text, (r.cards.systemLoop.steps || []).join(''), r.cards.turnaroundPath.logic].join('\n')
-    assert.ok(/(试出来|真实反馈|市场|买单|重复|连续|积累|证明|验证|反馈)/.test(pool), g.id + ' lacks worldview layer')
+    const pool = [r.cards.fatalInsight.text, r.cards.coreProblem.text, (r.cards.systemLoop.steps || []).join(''), r.cards.turnaroundPath.logic, r.cards.turnaroundPath.worldRuleLine || ''].join('\n')
+    assert.ok(/(试出来|真实反馈|市场|买单|重复|连续|积累|证明|验证|反馈|猜测|猜|运气|事件|能力|重新开始|作废|认可|累积)/.test(pool), g.id + ' lacks worldview layer')
   }
 })
 
