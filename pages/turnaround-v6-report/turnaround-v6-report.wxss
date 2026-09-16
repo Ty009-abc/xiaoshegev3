@@ -1,0 +1,200 @@
+.page {
+  min-height: 100vh;
+  background: #f4f5f7;
+  padding: 0 40rpx 40rpx;
+  box-sizing: border-box;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom, 0rpx));
+}
+
+.nav-safe {
+  width: 100%;
+  flex-shrink: 0;
+  margin-bottom: 20rpx;
+}
+
+.state {
+  padding-top: 80rpx;
+  text-align: center;
+  color: #5a6078;
+  font-size: 28rpx;
+}
+
+.state-block {
+  padding-top: 80rpx;
+}
+
+.state-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.state-message {
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  color: #5a6078;
+  line-height: 1.6;
+}
+
+.report-head {
+  padding: 24rpx 0 8rpx;
+}
+
+.report-title {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.report-sub {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  color: #8a90a3;
+}
+
+.card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  margin-top: 28rpx;
+  box-shadow: 0 2rpx 12rpx rgba(20, 20, 40, 0.04);
+}
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.card-num {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #7f56d9;
+  letter-spacing: 2rpx;
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.card-body {
+  font-size: 30rpx;
+  color: #2b2f42;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.card-steps {
+  margin-top: 8rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.card-step {
+  display: flex;
+  gap: 16rpx;
+  align-items: flex-start;
+}
+
+.card-step-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #7f56d9;
+  margin-top: 14rpx;
+  flex-shrink: 0;
+}
+
+.card-step-text {
+  font-size: 30rpx;
+  color: #2b2f42;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.path-block {
+  margin-top: 8rpx;
+}
+
+.path-row {
+  display: flex;
+  gap: 16rpx;
+  align-items: flex-start;
+}
+
+.path-label {
+  font-size: 24rpx;
+  color: #8a90a3;
+  flex-shrink: 0;
+  padding-top: 4rpx;
+  width: 90rpx;
+}
+
+.path-text {
+  font-size: 30rpx;
+  color: #2b2f42;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.path-arrow {
+  color: #b5b9c5;
+  font-size: 28rpx;
+  margin: 12rpx 0 12rpx 106rpx;
+}
+
+.path-row-to .path-text {
+  color: #7f56d9;
+  font-weight: 600;
+}
+
+.action-block {
+  margin-top: 8rpx;
+}
+
+.action-main {
+  font-size: 30rpx;
+  color: #1a1a2e;
+  font-weight: 600;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.action-checks {
+  margin-top: 16rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.action-check {
+  font-size: 28rpx;
+  color: #5a6078;
+  line-height: 1.6;
+}
+
+.report-actions {
+  margin-top: 48rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.btn-primary {
+  background: #7f56d9;
+  color: #fff;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+}
+
+.btn-ghost {
+  margin-top: 24rpx;
+  background: #fff;
+  color: #5a6078;
+  border-radius: 16rpx;
+  font-size: 32rpx;
+}

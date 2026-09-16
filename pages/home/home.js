@@ -49,8 +49,9 @@ Page({
   async goStrategy() {
     analytics.track('strategy_start')
     this.setData({ strategyLoading: true })
-    // RC8.3 Stage1B R3.1：主 CTA “开始翻身策略” 直接进入 18 题 V2.1 认知问卷。
-    wx.navigateTo({ url:'/pages/v21-questionnaire/v21-questionnaire' })
+    // RC8.4 V6 R29：主 CTA “开始翻身策略” 切换到生产 V6 9 题翻身策略问卷。
+    // 旧 18 题 V2.1 North Star 链路保留为可回滚参考，但不再是首页主入口。
+    wx.navigateTo({ url:'/pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire' })
     this.setData({ strategyLoading: false })
   },
 

@@ -1,0 +1,73 @@
+<!--
+  pages/turnaround-v6-report/turnaround-v6-report.wxml
+  RC8.4 V6 — 生产五卡翻身策略报告（纯展示层）
+  只渲染后端权威报告；不重诊断、不改写、不编造分数/百分比。
+-->
+<view class="page">
+
+  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
+
+  <view wx:if="{{loading}}" class="state">加载中…</view>
+
+  <!-- 无报告 / 不可用 / 错误：中性文案 + 重试/重测，绝不暴露工程信息 -->
+  <view wx:elif="{{!hasReport}}" class="state-block">
+    <view class="state-title">翻身策略</view>
+    <view class="state-message">{{message}}</view>
+    <button wx:if="{{retake}}" class="btn-primary" bindtap="onRetake">重新测评</button>
+    <button class="btn-ghost" bindtap="onRetry">刷新</button>
+    <button class="btn-ghost" bindtap="onBack">返回</button>
+  </view>
+
+  <block wx:else>
+    <view class="report-head">
+      <view class="report-title">你的翻身策略</view>
+      <view class="report-sub">根据你的回答生成</view>
+    </view>
+
+    <!-- 五张卡：顺序固定 01→05 -->
+    <view class="card" wx:for="{{cards}}" wx:key="key" wx:for-index="cardIndex">
+      <view class="card-head">
+        <view class="card-num">0{{cardIndex + 1}}</view>
+        <view class="card-title">{{item.title}}</view>
+      </view>
+
+      <!-- 正文 -->
+      <view wx:if="{{item.body}}" class="card-body">{{item.body}}</view>
+
+      <!-- 系统困局：步骤 -->
+      <view wx:if="{{item.steps && item.steps.length}}" class="card-steps">
+        <view class="card-step" wx:for="{{item.steps}}" wx:for-item="step" wx:key="*this">
+          <view class="card-step-dot"></view>
+          <view class="card-step-text">{{step}}</view>
+        </view>
+      </view>
+
+      <!-- 翻身路径：从 → 到 -->
+      <view wx:if="{{item.from || item.to}}" class="path-block">
+        <view class="path-row">
+          <view class="path-label">现在</view>
+          <view class="path-text">{{item.from}}</view>
+        </view>
+        <view class="path-arrow">↓</view>
+        <view class="path-row path-row-to">
+          <view class="path-label">接下来</view>
+          <view class="path-text">{{item.to}}</view>
+        </view>
+      </view>
+
+      <!-- 现在就做：动作 + 检查项 -->
+      <view wx:if="{{item.action}}" class="action-block">
+        <view class="action-main">{{item.action}}</view>
+        <view wx:if="{{item.checks && item.checks.length}}" class="action-checks">
+          <view class="action-check" wx:for="{{item.checks}}" wx:for-item="chk" wx:key="*this">· {{chk}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="report-actions">
+      <button class="btn-primary" bindtap="onRetake">重新测评</button>
+      <button class="btn-ghost" bindtap="onBack">返回</button>
+    </view>
+  </block>
+
+</view>

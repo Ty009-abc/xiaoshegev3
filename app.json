@@ -19,6 +19,8 @@
     "pages/v21-questionnaire-test/v21-questionnaire-test",
     "pages/v21-questionnaire/v21-questionnaire",
     "pages/v21-cognitive-report/v21-cognitive-report",
+    "pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire",
+    "pages/turnaround-v6-report/turnaround-v6-report",
     "pages/v2-report/v2-report",
     "pages/membership/membership",
     "pages/membership-center/membership-center",

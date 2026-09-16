@@ -1,0 +1,60 @@
+<!--
+  pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire.wxml
+  RC8.4 V6 — 生产 9 题翻身策略问卷（客户端入口）
+  UI 全部由 questions.length 驱动（不硬编码 18）
+-->
+<view class="page">
+
+  <!-- 自定义导航安全区（仅布局） -->
+  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
+
+  <!-- 未开始 -->
+  <view wx:if="{{!started}}" class="intro">
+    <view class="title">翻身策略测评</view>
+    <view class="desc">{{totalCount}} 道题，先看清自己卡在哪，再给你一份能落地的翻身路径。</view>
+    <button class="btn-primary" bindtap="startSession">开始测评</button>
+  </view>
+
+  <!-- 答题中 -->
+  <view wx:if="{{started && !submitted}}" class="quiz">
+    <view class="progress-wrap">
+      <view class="progress-label">第 {{currentIndex + 1}} / {{totalCount}} 题</view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+    </view>
+
+    <view class="q-prompt">{{questions[currentIndex].prompt}}</view>
+
+    <view class="options">
+      <view
+        wx:for="{{questions[currentIndex].options}}"
+        wx:key="optionId"
+        class="option {{selectedOptionId === item.optionId ? 'option-selected' : ''}}"
+        data-option-id="{{item.optionId}}"
+        bindtap="selectOption"
+      >
+        <view class="option-text">{{item.text}}</view>
+      </view>
+    </view>
+
+    <view class="occupation" wx:if="{{questions[currentIndex].optionalOccupation}}">
+      <input class="occupation-input" placeholder="（可选）你的职业 / 行业" value="{{occupation}}" bindinput="onOccupationInput" />
+    </view>
+
+    <view class="nav">
+      <button class="btn-ghost" bindtap="goBack" disabled="{{currentIndex === 0}}">上一题</button>
+      <button class="btn-primary" bindtap="goNext" wx:if="{{currentIndex < totalCount - 1}}">下一题</button>
+      <button class="btn-primary" bindtap="submit" wx:if="{{currentIndex === totalCount - 1}}" loading="{{submitting}}">生成我的翻身策略</button>
+    </view>
+
+    <view wx:if="{{error}}" class="result-error">{{error}}</view>
+  </view>
+
+  <!-- 已提交 / 加载中 -->
+  <view wx:if="{{submitted}}" class="result">
+    <view class="title">正在生成翻身策略…</view>
+    <view class="hint">请稍候，正在根据你的回答生成报告。</view>
+  </view>
+
+</view>
