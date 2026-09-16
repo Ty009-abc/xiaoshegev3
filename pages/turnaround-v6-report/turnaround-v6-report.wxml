@@ -2,6 +2,14 @@
   pages/turnaround-v6-report/turnaround-v6-report.wxml
   RC8.4 V6 — 生产五卡翻身策略报告（纯展示层）
   只渲染后端权威报告；不重诊断、不改写、不编造分数/百分比。
+
+  R38 — ONE FINAL PRESENTATION AUTHORITY per card（每个语义只渲染一次）：
+    01 致命一句话 : title + oneLiner
+    02 核心问题   : title + body
+    03 系统困局   : title + loopNodes + finalInsight（不渲染重复段落）
+    04 翻身路径   : title + from → to + worldRule（不渲染重复 FROM/TO）
+    05 现在就做   : title + primaryAction + target/timebox + signal + decision
+                    （不渲染遗留 productivity checks / 聚合 text）
 -->
 <view class="page">
 
@@ -24,25 +32,29 @@
       <view class="report-sub">根据你的回答生成</view>
     </view>
 
-    <!-- 五张卡：顺序固定 01→05 -->
+    <!-- 五张卡：顺序固定 01→05，每卡单一展示权威 -->
     <view class="card" wx:for="{{cards}}" wx:key="key" wx:for-index="cardIndex">
       <view class="card-head">
         <view class="card-num">0{{cardIndex + 1}}</view>
         <view class="card-title">{{item.title}}</view>
       </view>
 
-      <!-- 正文 -->
+      <!-- 01 致命一句话：一句到底 -->
+      <view wx:if="{{item.oneLiner}}" class="card-body card-oneliner">{{item.oneLiner}}</view>
+
+      <!-- 02 核心问题：单段正文 -->
       <view wx:if="{{item.body}}" class="card-body">{{item.body}}</view>
 
-      <!-- 系统困局：步骤 -->
-      <view wx:if="{{item.steps && item.steps.length}}" class="card-steps">
-        <view class="card-step" wx:for="{{item.steps}}" wx:for-item="step" wx:key="*this">
+      <!-- 03 系统困局：循环节点 + 一句洞察（无重复段落） -->
+      <view wx:if="{{item.loopNodes && item.loopNodes.length}}" class="card-steps">
+        <view class="card-step" wx:for="{{item.loopNodes}}" wx:for-item="node" wx:key="*this">
           <view class="card-step-dot"></view>
-          <view class="card-step-text">{{step}}</view>
+          <view class="card-step-text">{{node}}</view>
         </view>
       </view>
+      <view wx:if="{{item.finalInsight}}" class="card-insight card-insight-line">{{item.finalInsight}}</view>
 
-      <!-- 翻身路径：从 → 到 -->
+      <!-- 04 翻身路径：现在 → 接下来 + 一句世界规则（无重复 FROM/TO） -->
       <view wx:if="{{item.from || item.to}}" class="path-block">
         <view class="path-row">
           <view class="path-label">现在</view>
@@ -54,19 +66,17 @@
           <view class="path-text">{{item.to}}</view>
         </view>
       </view>
+      <view wx:if="{{item.worldRule}}" class="card-rule">★ {{item.worldRule}}</view>
 
-      <!-- 现在就做：动作 + 真实测试要件（在哪/时限/信号/决策规则） -->
-      <view wx:if="{{item.action}}" class="action-block">
-        <view class="action-main">{{item.action}}</view>
-        <view wx:if="{{item.where || item.timebox}}" class="action-line">
-          <text wx:if="{{item.where}}">在哪做：{{item.where}}</text>
-          <text wx:if="{{item.timebox}}">　时限：{{item.timebox}}</text>
+      <!-- 05 现在就做：一个动作 + 找谁/多久 + 看什么 + 怎么判断 -->
+      <view wx:if="{{item.primaryAction}}" class="action-block">
+        <view class="action-main">{{item.primaryAction}}</view>
+        <view wx:if="{{item.target || item.timebox}}" class="action-line">
+          <text wx:if="{{item.target}}">找谁：{{item.target}}</text>
+          <text wx:if="{{item.timebox}}">　多久：{{item.timebox}}</text>
         </view>
-        <view wx:if="{{item.signal}}" class="action-line">看什么信号：{{item.signal}}</view>
-        <view wx:if="{{item.decision}}" class="action-line">怎么用它：{{item.decision}}</view>
-        <view wx:if="{{item.checks && item.checks.length}}" class="action-checks">
-          <view class="action-check" wx:for="{{item.checks}}" wx:for-item="chk" wx:key="*this">· {{chk}}</view>
-        </view>
+        <view wx:if="{{item.signal}}" class="action-line">看什么：{{item.signal}}</view>
+        <view wx:if="{{item.decision}}" class="action-line">怎么判断：{{item.decision}}</view>
       </view>
     </view>
 

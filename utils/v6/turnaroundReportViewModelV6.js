@@ -11,6 +11,18 @@
  *   - DROPS engineering metadata (provenance / reportVersion / reportState /
  *     renderSource / validator state / model name) so none reaches WXML.
  *
+ * R38 — ONE FINAL PRESENTATION AUTHORITY per card. The backend emits several
+ * internal fields per card (aggregate `text`, plus structured fields). The
+ * client must render EACH semantic idea exactly once — never an aggregate
+ * `body` AND the structured block it was built from.
+ *
+ *   CARD01 fatalInsight     title + oneLiner          (no duplicate body)
+ *   CARD02 coreProblem      title + body
+ *   CARD03 systemLoop       title + loopNodes + finalInsight  (NO body)
+ *   CARD04 turnaroundPath   title + from + to + worldRule     (NO body/logic)
+ *   CARD05 firstAction      title + primaryAction + target/timebox
+ *                                  + signal + decision       (NO legacy checks)
+ *
  * Backend response (R21 `buildTurnaroundV6UserReport`):
  *   { code, message, data: { reportType, diagnosticVersion, v6PrimaryActive,
  *     reportVersion, reportState, cards } }
@@ -30,48 +42,84 @@ const CARD_TITLE_FALLBACK = {
   firstAction: '现在就做',
 }
 
-function toSteps (card) {
-  if (Array.isArray(card && card.steps)) return card.steps.slice()
-  return []
-}
-
-function pushCard (out, key, card, extra) {
-  if (!card || typeof card !== 'object') return
-  const title = (typeof card.title === 'string' && card.title) || CARD_TITLE_FALLBACK[key] || ''
-  // Backend cards carry body text under `text` (cards 01/02) OR `logic`
-  // (card 04 翻身路径). Both are presentation content; accept either so the
-  // turnaroundPath card is never silently dropped (R31 §2 root cause B).
-  let body = typeof card.text === 'string' ? card.text : ''
-  if (!body && typeof card.logic === 'string') body = card.logic
-  const entry = Object.assign({ key: key, title: title, body: body }, extra ? extra(card) : {})
-  // Only emit a card with SOME renderable content (body / steps / action / from/to).
-  if (!entry.body && !(entry.steps && entry.steps.length) && !entry.action && !(entry.from || entry.to)) return
-  out.push(entry)
-}
+function str (v) { return typeof v === 'string' ? v : '' }
+function arr (v) { return Array.isArray(v) ? v.slice() : [] }
 
 /**
- * Map backend `cards` → ordered, raw-token-free card list (max 5).
+ * Build the ORDERED five-card list, each with exactly ONE presentation schema.
+ * Cards with no renderable authoritative content are dropped.
+ * @param {Object} cards backend report.cards
+ * @returns {Array<Object>}
  */
 function buildCardListV6 (cards) {
   const out = []
   if (!cards || typeof cards !== 'object') return out
-  pushCard(out, 'fatalInsight', cards.fatalInsight)
-  pushCard(out, 'coreProblem', cards.coreProblem)
-  pushCard(out, 'systemLoop', cards.systemLoop, (c) => ({ steps: toSteps(c) }))
-  pushCard(out, 'turnaroundPath', cards.turnaroundPath, (c) => ({
-    from: typeof c.from === 'string' ? c.from : '',
-    to: typeof c.to === 'string' ? c.to : '',
-  }))
-  pushCard(out, 'firstAction', cards.firstAction, (c) => ({
-    action: typeof c.action === 'string' ? c.action : '',
-    checks: Array.isArray(c.checks) ? c.checks.slice() : [],
-    // R33 §9 REALITY TEST components (WHAT/WHERE+TIMEBOX/SIGNAL/DECISION).
-    // Pure presentation passthrough of backend-authoritative strings.
-    timebox: typeof c.timebox === 'string' ? c.timebox : '',
-    where: typeof c.verifyWith === 'string' ? c.verifyWith : '',
-    signal: typeof c.done === 'string' ? c.done : '',
-    decision: typeof c.decision === 'string' ? c.decision : '',
-  }))
+
+  // 01 — 致命一句话 : oneLiner (the whole card, no separate body).
+  if (cards.fatalInsight) {
+    const oneLiner = str(cards.fatalInsight.text)
+    if (oneLiner) {
+      out.push({ key: 'fatalInsight', title: str(cards.fatalInsight.title) || CARD_TITLE_FALLBACK.fatalInsight, oneLiner: oneLiner })
+    }
+  }
+
+  // 02 — 核心问题 : body (single paragraph). Never re-render as bullets.
+  if (cards.coreProblem) {
+    const body = str(cards.coreProblem.text)
+    if (body) {
+      out.push({ key: 'coreProblem', title: str(cards.coreProblem.title) || CARD_TITLE_FALLBACK.coreProblem, body: body })
+    }
+  }
+
+  // 03 — 系统困局 : loopNodes (4–5) + one finalInsight. NO body paragraph.
+  if (cards.systemLoop) {
+    const loopNodes = arr(cards.systemLoop.steps)
+    const finalInsight = str(cards.systemLoop.insight)
+    if (loopNodes.length || finalInsight) {
+      out.push({
+        key: 'systemLoop',
+        title: str(cards.systemLoop.title) || CARD_TITLE_FALLBACK.systemLoop,
+        loopNodes: loopNodes,
+        finalInsight: finalInsight,
+      })
+    }
+  }
+
+  // 04 — 翻身路径 : from → to + one worldRule sentence. NO duplicate paragraph.
+  if (cards.turnaroundPath) {
+    const from = str(cards.turnaroundPath.from)
+    const to = str(cards.turnaroundPath.to)
+    const worldRule = str(cards.turnaroundPath.worldRuleLine)
+    if (from || to || worldRule) {
+      out.push({
+        key: 'turnaroundPath',
+        title: str(cards.turnaroundPath.title) || CARD_TITLE_FALLBACK.turnaroundPath,
+        from: from,
+        to: to,
+        worldRule: worldRule,
+      })
+    }
+  }
+
+  // 05 — 现在就做 : primaryAction + target/timebox + signal + decision.
+  // The legacy `checks` bullets and aggregate `text` are DELIBERATELY NOT
+  // rendered (R38 §6): they are stale productivity leftovers, not part of the
+  // authoritative R35 reality-test payload.
+  if (cards.firstAction) {
+    const primaryAction = str(cards.firstAction.action)
+    if (primaryAction) {
+      out.push({
+        key: 'firstAction',
+        title: str(cards.firstAction.title) || CARD_TITLE_FALLBACK.firstAction,
+        primaryAction: primaryAction,
+        target: str(cards.firstAction.verifyWith) || str(cards.firstAction.target),
+        timebox: str(cards.firstAction.timebox),
+        signal: str(cards.firstAction.done),
+        decision: str(cards.firstAction.decision),
+      })
+    }
+  }
+
   return out
 }
 

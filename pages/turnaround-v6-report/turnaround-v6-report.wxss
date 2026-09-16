@@ -87,6 +87,14 @@
   word-break: break-word;
 }
 
+/* 01 致命一句话：一句到底 */
+.card-oneliner {
+  font-size: 32rpx;
+  color: #1a1a2e;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
 .card-steps {
   margin-top: 8rpx;
   display: flex;
@@ -112,6 +120,30 @@
 .card-step-text {
   font-size: 30rpx;
   color: #2b2f42;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+/* 03 系统困局：一句洞察 */
+.card-insight {
+  margin-top: 8rpx;
+}
+
+.card-insight-line {
+  margin-top: 16rpx;
+  font-size: 30rpx;
+  color: #7f56d9;
+  font-weight: 600;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+/* 04 翻身路径：一句世界规则 */
+.card-rule {
+  margin-top: 16rpx;
+  font-size: 30rpx;
+  color: #1a1a2e;
+  font-weight: 600;
   line-height: 1.7;
   word-break: break-word;
 }
