@@ -145,6 +145,18 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
     sizingLine,
     riskLine,
     goalLine,
+    // R51 — raw Hybrid-only evidence for the first-class NO_PRIMARY builder.
+    // Not bottleneck authority: the NO_PRIMARY path never states a primary.
+    evidence: {
+      occupation: occupation,
+      incomeStructure: hybrid.reality && hybrid.reality.incomeStructure ? hybrid.reality.incomeStructure : null,
+      monthlySurplus: hybrid.reality && hybrid.reality.monthlySurplus ? hybrid.reality.monthlySurplus : null,
+      weeklyTime: hybrid.capacity && hybrid.capacity.weeklyTime ? hybrid.capacity.weeklyTime : null,
+      maxTrialCost: hybrid.capacity && hybrid.capacity.maxTrialCost ? hybrid.capacity.maxTrialCost : null,
+      decisionStyle: hybrid.behavior && hybrid.behavior.decisionStyle ? hybrid.behavior.decisionStyle : null,
+      selfBelief: hybrid.belief && hybrid.belief.perceivedRootCause ? hybrid.belief.perceivedRootCause : null,
+      primaryProblem: hybrid.desiredChange && hybrid.desiredChange.primaryProblem ? hybrid.desiredChange.primaryProblem : null
+    },
     crossAxisScope,
     scopeLimited,
     // proof-aware overrides (null/absent => card uses frozen base copy)

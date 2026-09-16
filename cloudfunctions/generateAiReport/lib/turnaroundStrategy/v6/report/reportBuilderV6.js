@@ -10,8 +10,10 @@
  *
  * State handling:
  *   PRIMARY       -> normal 5-card report
- *   NO_PRIMARY    -> valid, cautious result (no invented primary)
+ *   NO_PRIMARY    -> R51 FIRST-CLASS evidence-grounded 5-card report (no
+ *                    invented primary; no internal-state language)
  *   INVALID_INPUT -> no cards (cards = null)
+ *   EVIDENCE_CONFLICT -> no cards (review metadata only)
  *
  * CONSUMER LAYER ONLY. Deterministic. No AI. No I/O. No network.
  */
@@ -21,6 +23,7 @@ const { buildCoreProblem } = require('./coreProblemV6.js')
 const { buildSystemLoop } = require('./systemLoopV6.js')
 const { buildTurnaroundPath } = require('./turnaroundPathV6.js')
 const { buildFirstAction } = require('./firstActionCopyV6.js')
+const { buildNoPrimaryReportV6 } = require('./noPrimaryReportV6.js')
 const copy = require('./reportCopyV6.js')
 
 const REPORT_VERSION = 'turnaround_strategy_v6_report_v1'
@@ -98,40 +101,25 @@ function primaryReport (rIn, hybridContext) {
   }
 }
 
-// ── NO_PRIMARY: valid but cautious ───────────────────────────────
+// ── NO_PRIMARY: R51 FIRST-CLASS evidence-grounded report ─────────
+// NO_PRIMARY is a first-class product state (structurally common, R50 52.83%).
+// It means B1 could not truthfully establish ONE sufficiently supported primary
+// bottleneck — NOT that no useful evidence exists. This builds a COMPLETE five-
+// card report from the user's own evidence, with ZERO primary-bottleneck claim
+// and ZERO internal engine language. The B2 world-rule layer is not used here
+// (it is bottleneck-keyed). Deterministic. No AI.
 function noPrimaryReport (rIn, hybridContext) {
   const r = withHybrid(rIn, hybridContext)
-  const stage = r.executionStage
-  const q7 = r.profile.behavior.uncertaintyResponse
-
-  const lead = '你的回答里还没有出现一个足够强的单一瓶颈。'
-  const stageLine = `从你现在的状态看——${copy.getStageNow(stage)}，这本身就是一个可以往前推的起点。`
-  const behaviorLine = `不确定的时候，你会${copy.getQ7(q7)}；这一轮先不急着给自己下结论。`
-  const nextLine = '先用一个小动作换来一次真实反馈，再根据反馈决定往哪走。'
-
-  // A cautious, generic-but-grounded next step derived from stage only.
-  const actionByStage = {
-    THINKING: '今天先把手上最想做的方向用一句话写清楚。',
-    RESEARCHING: '今天先停下继续查资料，选一个方向写下一个最小验证动作。',
-    LEARNING: '今天先不学新的，把已经会的做成一个最小结果。',
-    STARTED: '今天先定一个每天固定的时段，把这件事连续做5天。',
-    TESTING: '今天先找3个真实用户，问清楚他们为什么不买。',
-    EARLY_TRACTION: '今天先把最近一次成交的每一步写下来。',
-    STABLE_TRACTION: '今天先把已经跑通的步骤整理成一份可重复的清单。'
-  }
-
-  const cards = {
-    fatalInsight: { title: '先说结论', text: lead, provenance: noProv(r, ['Q5', 'Q6', 'Q7']) },
-    coreProblem: { title: '现在的情况', text: `${stageLine}${behaviorLine}`, provenance: noProv(r, ['Q6', 'Q7']) },
-    systemLoop: { title: '为什么还没定论', steps: [lead, `${copy.getStageNow(stage)}。`, '多种原因同时存在，暂时分不出主次。', nextLine], insight: nextLine, text: [lead, `${copy.getStageNow(stage)}。`, '多种原因同时存在，暂时分不出主次。', nextLine].join('\n'), provenance: noProv(r, ['Q6']) },
-    turnaroundPath: { title: '往哪走', from: '还没有单一瓶颈', to: nextLine, logic: nextLine, text: `现在：还没有单一瓶颈。\n接下来：${nextLine}`, provenance: noProv(r, ['Q6']) },
-    firstAction: { title: '现在就做', action: actionByStage[stage] || '今天先做一件能在一天内完成的小事。', checks: [], timebox: '今天内完成', verifyWith: '一个真实的人', done: '拿到一条外部反馈', decision: '只要拿到一条真实反馈，就用它决定下一步。', externalSignal: true, text: actionByStage[stage] || '今天先做一件能在一天内完成的小事。', provenance: noProv(r, ['Q6']) }
-  }
+  const built = buildNoPrimaryReportV6(r, hybridContext || null)
 
   return {
     reportVersion: REPORT_VERSION,
     reportState: 'NO_PRIMARY',
-    cards,
+    cards: built.cards,
+    evidenceClusters: built.evidenceClusters,
+    nextUncertainty: built.nextUncertainty,
+    proofStage: built.proofStage,
+    proofStageProgression: built.proofStageProgression,
     provenance: {
       contractVersion: r.contractVersion,
       diagnosisState: r.diagnosisState,
@@ -143,14 +131,6 @@ function noPrimaryReport (rIn, hybridContext) {
       beliefRuleId: r.beliefRelation.explanationRuleId,
       sourceQuestionIds: r.trace ? r.trace.sourceQuestionIds : []
     }
-  }
-}
-
-function noProv (r, qids) {
-  return {
-    sourceFields: [],
-    sourceQuestionIds: qids,
-    sourceRuleIds: []
   }
 }
 
