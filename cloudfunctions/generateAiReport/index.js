@@ -808,7 +808,42 @@ async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible 
   // INVALID_INPUT deterministic report has NO cards -> not shippable, but it IS
   // the correct explicit state envelope for a broken submission.
   if (report.reportState === 'INVALID_INPUT') return buildTurnaroundV6HybridReport(report)
-  if (isShippableV6Report(report)) return buildTurnaroundV6HybridReport(report)
+
+  // ── R57 — SHARED STRATEGIC THESIS (ONE bounded AI call) ──
+  // The deterministic R53 report is ALWAYS built first and is the fail-closed
+  // response. The thesis runtime may REPLACE it ONLY when one bounded AI call
+  // returns a fully-valid thesis + five cards; any envelope / model / parse /
+  // validator failure returns R53 UNCHANGED. Never a partial AI output.
+  // MODEL_CALLS_PER_REPORT_MAX = 1 (the runtime makes at most one call).
+  var thesisOut = null
+  try {
+    var runThesisRuntime = require('./lib/turnaroundStrategy/v6/thesis/thesisReportRuntimeV6.js').runThesisReportRuntimeV6
+    thesisOut = await runThesisRuntime({
+      diagnosis: out.diagnosis,
+      hybridProfile: out.hybridProfile,
+      hybridContext: out.hybridContext,
+      fallbackReport: report,
+      crossAxisScope: report.crossAxisScope,
+    })
+  } catch (e) {
+    console.error('[V6Thesis] runtime exception:', (e && e.message) || e)
+    thesisOut = null
+  }
+  var finalReport = (thesisOut && thesisOut.renderSource === 'thesis_ai' && isShippableV6Report(thesisOut.report))
+    ? thesisOut.report
+    : report
+  // SAFE internal observability ONLY — no openid / answers / prompt / draft / report text.
+  console.log('[V6Thesis] meta ' + JSON.stringify({
+    renderSource: (thesisOut && thesisOut.renderSource) || 'deterministic_fallback',
+    resultCategory: (thesisOut && thesisOut.meta && thesisOut.meta.resultCategory) || null,
+    modelCalls: (thesisOut && thesisOut.meta && thesisOut.meta.modelCalls) || 0,
+    validatorReasonCodeCount: (thesisOut && thesisOut.meta && thesisOut.meta.validatorReasonCodes) ? thesisOut.meta.validatorReasonCodes.length : 0,
+    worldRuleId: (thesisOut && thesisOut.meta && thesisOut.meta.worldRuleId) || null,
+    migrationId: (thesisOut && thesisOut.meta && thesisOut.meta.migrationId) || null,
+    experimentClass: (thesisOut && thesisOut.meta && thesisOut.meta.experimentClass) || null,
+  }))
+
+  if (isShippableV6Report(finalReport)) return buildTurnaroundV6HybridReport(finalReport)
   return buildTurnaroundV6BaselineResponse()
 }
 
