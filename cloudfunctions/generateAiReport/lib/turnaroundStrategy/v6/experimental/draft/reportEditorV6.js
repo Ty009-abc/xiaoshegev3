@@ -83,6 +83,14 @@ function endsAtSemanticBoundary (s) {
   const x = trim(s).replace(/[”"』）)】」》»\]]+$/, '')
   return !!x && SEMANTIC_TERMINATOR.test(x)
 }
+// R33: CARD01 user-facing copy must end on a TRUE sentence terminator
+// (。！？!?), never on a clause separator (；;：:) — a semicolon-tail is a half
+// sentence. This is stricter than the R21 clause-boundary invariant.
+const SENTENCE_TERMINATOR_RE = /[。！？!?]$/
+function endsAtSentence (s) {
+  const x = trim(s).replace(/[”"』）)】」》»\]]+$/, '')
+  return !!x && SENTENCE_TERMINATOR_RE.test(x)
+}
 
 // Sentence terminators (kept), vs clause separators (stripped when trailing).
 const SENTENCE_TERMINATOR = /[。！？!?]$/
@@ -102,10 +110,10 @@ const CLAUSE_SEP_CHARS = ['，', ',', '、', '；', ';', '：', ':']
 function compressCard01 (text, limit) {
   const t = removeGenericFiller(trim(text))
   if (!t) return t
-  // A sub-limit string is usable AS-IS only if it already ends complete.
-  if (chars(t) <= limit && endsAtSemanticBoundary(t)) return t
+  // A sub-limit string is usable AS-IS only if it already ends on a sentence.
+  if (chars(t) <= limit && endsAtSentence(t)) return t
 
-  // 1) whole sentences that fit AND end at a semantic boundary
+  // 1) whole sentences that fit AND end at a sentence boundary
   const sents = t.split(SENT_SPLIT).filter((x) => trim(x).length > 0)
   let acc = ''
   for (const s of sents) {
@@ -113,9 +121,9 @@ function compressCard01 (text, limit) {
     acc += s
   }
   acc = trim(acc)
-  if (acc) { const p = polishTail(acc); if (p && endsAtSemanticBoundary(p)) return p }
+  if (acc) { const p = polishTail(acc); if (p && endsAtSentence(p)) return p }
 
-  // 2) whole clauses that fit AND end at a semantic boundary
+  // 2) whole clauses that fit AND end at a sentence boundary
   const clauses = t.split(COMMA_SPLIT).filter((x) => trim(x).length > 0)
   acc = ''
   for (const c of clauses) {
@@ -123,18 +131,18 @@ function compressCard01 (text, limit) {
     acc += c
   }
   acc = trim(acc)
-  if (acc) { const p = polishTail(acc); if (p && endsAtSemanticBoundary(p)) return p }
+  if (acc) { const p = polishTail(acc); if (p && endsAtSentence(p)) return p }
 
-  // 3) last semantic terminator inside `limit`
+  // 3) last SENTENCE terminator inside `limit`
   const arr = [...t]
   const head = arr.slice(0, limit).join('')
-  const cut = lastIndexWhere(head, (ch) => SEMANTIC_TERMINATOR.test(ch))
+  const cut = lastIndexWhere(head, (ch) => SENTENCE_TERMINATOR_RE.test(ch))
   if (cut >= 0) {
     const out = trim(arr.slice(0, cut + 1).join(''))
-    if (endsAtSemanticBoundary(out)) return out
+    if (endsAtSentence(out)) return out
   }
 
-  // 4) no complete AI unit fits → caller falls back to deterministic B2.
+  // 4) no complete sentence fits → caller falls back to deterministic B2.
   return null
 }
 
@@ -355,8 +363,8 @@ function editReportV6 (args) {
   }
   // HARD cap enforcement (CARD01 must never exceed 60).
   if (chars(card01) > FINAL_LIMITS.card01Max) card01 = clipToLimit(card01, FINAL_LIMITS.card01Max)
-  // R21 §4: never ship a non-boundary stub; use the complete B2 sentence instead.
-  if (!endsAtSemanticBoundary(card01)) card01 = b2.fatalInsight.text
+  // R21 §4 / R33: never ship a non-sentence stub; use the complete B2 sentence.
+  if (!endsAtSentence(card01)) card01 = b2.fatalInsight.text
 
   // ── CARD02 ──────────────────────────────────────────────────
   let card02
@@ -426,7 +434,7 @@ function editReportV6 (args) {
     coreProblem: { title: CARD_TITLES.coreProblem, text: card02 },
     systemLoop: { title: CARD_TITLES.systemLoop, steps: card03Steps, insight: b2.systemLoop.insight || '', text: b2.systemLoop.text || card03Steps.join('\n') },
     turnaroundPath: { title: CARD_TITLES.turnaroundPath, from: card04From, to: card04To, logic: card04Logic, text: b2.turnaroundPath.text || card04Logic },
-    firstAction: { title: CARD_TITLES.firstAction, action: card05Action, checks: b2.firstAction.checks.slice(), timebox: b2.firstAction.timebox || '', verifyWith: b2.firstAction.verifyWith || '', done: b2.firstAction.done || '', note: card05Note }
+    firstAction: { title: CARD_TITLES.firstAction, action: card05Action, checks: b2.firstAction.checks.slice(), timebox: b2.firstAction.timebox || '', verifyWith: b2.firstAction.verifyWith || '', done: b2.firstAction.done || '', decision: b2.firstAction.decision || '', externalSignal: b2.firstAction.externalSignal === true, note: card05Note }
   }
 
   return {
@@ -460,6 +468,7 @@ function finalVisibleText (report) {
     c.firstAction && c.firstAction.action,
     c.firstAction && (c.firstAction.checks || []).join(' '),
     c.firstAction && c.firstAction.done,
+    c.firstAction && c.firstAction.decision,
     c.firstAction && c.firstAction.note
   ].filter(Boolean).join('\n')
 }

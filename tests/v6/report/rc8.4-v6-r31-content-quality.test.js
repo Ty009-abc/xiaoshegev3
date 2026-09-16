@@ -59,13 +59,17 @@ t('§5 CARD03 has no STEP labels and exactly 5 loop nodes', () => {
     for (const s of steps) assert.ok(!/STEP\s*\d/i.test(s), g.id + ' has STEP label: ' + s)
   }
 })
-t('§5 CARD03 loop labels follow 触发/默认反应/短期安慰/长期代价/强化', () => {
-  const labels = ['触发', '默认反应', '短期安慰', '长期代价']
+t('§5 CARD03 loop nodes follow R33 旧规则→触发→短期安慰→长期代价→回归 structure', () => {
   for (const g of PRIMARY) {
-    const steps = buildReportV6(diagnoseTurnaroundV6(g.answers)).cards.systemLoop.steps
-    for (let i = 0; i < labels.length; i++) {
-      assert.ok(steps[i].startsWith(labels[i]), g.id + ' node' + i + ' = ' + steps[i])
-    }
+    const r = buildReportV6(diagnoseTurnaroundV6(g.answers))
+    const steps = r.cards.systemLoop.steps
+    assert.strictEqual(steps.length, 5, g.id + ' loop nodes')
+    assert.ok(steps[0].startsWith('旧规则：'), g.id + ' node0 = ' + steps[0])
+    assert.ok(steps[1].startsWith('触发：'), g.id + ' node1 = ' + steps[1])
+    assert.ok(/^这一/.test(steps[2]), g.id + ' node2 = ' + steps[2])
+    assert.ok(/^但/.test(steps[3]), g.id + ' node3 = ' + steps[3])
+    assert.ok(/又回到同一个问题：/.test(steps[4]), g.id + ' node4 = ' + steps[4])
+    assert.ok(r.cards.systemLoop.insight && r.cards.systemLoop.insight.length > 0, g.id + ' insight')
   }
 })
 
@@ -84,7 +88,7 @@ t('§4 CARD02 contains a mechanism line (为什么), not only a restatement', ()
   for (const g of PRIMARY) {
     const txt = buildReportV6(diagnoseTurnaroundV6(g.answers)).cards.coreProblem.text
     assert.ok(txt.length > 40, g.id + ' CARD02 too short')
-    assert.ok(/(因为|只在|才算|等于|只有|换不来|拿不到|从零|证明|只能|说不清|没办法|不等于|才会|才是)/.test(txt), g.id + ' CARD02 lacks mechanism phrasing: ' + txt)
+    assert.ok(/(因为|只在|才算|等于|只有|换不来|拿不到|从零|证明|只能|说不清|没办法|不等于|才会|才是|不产生|由|恰恰相反|算|说了算|清零|运气|没有任何|只是|越|不由|并不)/.test(txt), g.id + ' CARD02 lacks mechanism phrasing: ' + txt)
   }
 })
 

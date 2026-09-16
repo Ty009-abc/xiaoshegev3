@@ -3,14 +3,13 @@
  * turnaroundStrategy/v6/report/turnaroundPathV6.js
  *
  * CARD 04 — 翻身路径.
- * Shows the system to replace the old one (R31 §6): OLD decision rule →
+ * R33 §8 — REPLACEMENT WORLD MODEL (intellectual core): OLD decision rule ->
  * NEW decision rule, plus one concrete operating mechanism.
  * CONSUMER LAYER ONLY. Deterministic. No promise of guaranteed success. No AI.
  *
  * `from` / `to` remain the FROZEN B2 authority (tests + editor depend on them).
- * `logic` is the concise, complete user-facing expression (client body); the
- * editor may replace `logic` with a validated AI transitionExplanation.
- * `text` is retained for the personalization/visibleText contract.
+ * `logic` is the concise user-facing expression (client body); the editor may
+ * replace `logic` with a validated AI transitionExplanation.
  */
 
 const copy = require('./reportCopyV6.js')
@@ -27,9 +26,9 @@ function buildTurnaroundPath (r) {
 
   const from = copy.getPathFrom(stage)
   const to = copy.getPathTo(pb)
-  // R31 §6: user-facing decision-rule swap + one operating mechanism.
-  const oldRule = copy.getDecisionFrom(pb)
-  const newRule = copy.getDecisionTo(pb)
+  // R33 §8: OLD RULE -> NEW RULE (world model), plus one operating mechanism.
+  const oldRule = copy.getWrongRule(pb)
+  const newRule = copy.getNewRule(pb)
   const mech = copy.getOperatingMech(pb)
   const logic = `从「${oldRule}」换成「${newRule}」。具体就是：${mech}`
 

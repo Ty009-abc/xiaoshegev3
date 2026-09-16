@@ -59,7 +59,7 @@ function primaryReport (r) {
     coreProblem: { title: '核心问题', text: core.text, provenance: core.provenance },
     systemLoop: { title: '系统困局', steps: loop.steps, insight: loop.insight, text: loop.text, provenance: loop.provenance },
     turnaroundPath: { title: '翻身路径', from: path.from, to: path.to, logic: path.logic, text: path.text, provenance: path.provenance },
-    firstAction: { title: '现在就做', action: action.action, checks: action.checks, timebox: action.timebox, verifyWith: action.verifyWith, done: action.done, text: action.text, provenance: action.provenance }
+    firstAction: { title: '现在就做', action: action.action, checks: action.checks, timebox: action.timebox, verifyWith: action.verifyWith, done: action.done, decision: action.decision, externalSignal: action.externalSignal, text: action.text, provenance: action.provenance }
   }
 
   return {
@@ -106,7 +106,7 @@ function noPrimaryReport (r) {
     coreProblem: { title: '现在的情况', text: `${stageLine}${behaviorLine}`, provenance: noProv(r, ['Q6', 'Q7']) },
     systemLoop: { title: '为什么还没定论', steps: [lead, `${copy.getStageNow(stage)}。`, '多种原因同时存在，暂时分不出主次。', nextLine], insight: nextLine, text: [lead, `${copy.getStageNow(stage)}。`, '多种原因同时存在，暂时分不出主次。', nextLine].join('\n'), provenance: noProv(r, ['Q6']) },
     turnaroundPath: { title: '往哪走', from: '还没有单一瓶颈', to: nextLine, logic: nextLine, text: `现在：还没有单一瓶颈。\n接下来：${nextLine}`, provenance: noProv(r, ['Q6']) },
-    firstAction: { title: '现在就做', action: actionByStage[stage] || '今天先做一件能在一天内完成的小事。', checks: [], timebox: '今天内完成', verifyWith: '一个真实的人', done: '拿到一条外部反馈', text: actionByStage[stage] || '今天先做一件能在一天内完成的小事。', provenance: noProv(r, ['Q6']) }
+    firstAction: { title: '现在就做', action: actionByStage[stage] || '今天先做一件能在一天内完成的小事。', checks: [], timebox: '今天内完成', verifyWith: '一个真实的人', done: '拿到一条外部反馈', decision: '只要拿到一条真实反馈，就用它决定下一步。', externalSignal: true, text: actionByStage[stage] || '今天先做一件能在一天内完成的小事。', provenance: noProv(r, ['Q6']) }
   }
 
   return {

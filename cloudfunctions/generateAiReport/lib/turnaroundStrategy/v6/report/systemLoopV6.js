@@ -3,49 +3,45 @@
  * turnaroundStrategy/v6/report/systemLoopV6.js
  *
  * CARD 03 — 系统困局.
- * ONE behavioral loop in five short nodes (R31 §5):
- *   触发 → 默认反应 → 短期安慰 → 长期代价 → 原有错误认知被强化
- * Then one plain insight sentence.
- * CONSUMER LAYER ONLY. Deterministic. No abstract cognitive model. No AI.
- * No STEP labels / PPT feeling (§5/§11).
+ * R33 §7 — CONSEQUENCE LOOP: ONE representation only, exactly 5 short nodes:
+ *   旧规则 → 触发/默认反应 → 短期安慰 → 长期代价 → 同一问题回来
+ * Then one structural-consequence line.
+ * CONSUMER LAYER ONLY. Deterministic. No AI. No STEP labels.
  *
- * NOTE: the deterministic report builder + final validator require EXACTLY 5
- * loop nodes (finalValidatorV6 `loopStepCount === 5`). R31 restyles the 5 nodes
- * but MUST keep the count at 5.
+ * NOTE: finalValidatorV6 requires exactly 5 loop nodes — keep the count at 5.
+ * Differentiation (report test uniqueness): stage (Q6) + q7 + q9 + q4.
  */
 
 const copy = require('./reportCopyV6.js')
 
 /**
  * @param {Object} r diagnoseTurnaroundV6 output (PRIMARY state only)
- * @returns {{steps:string[], text:string, provenance:Object}}
+ * @returns {{steps:string[], insight:string, text:string, provenance:Object}}
  */
 function buildSystemLoop (r) {
-  const q2 = r.profile.reality.incomeMode
-  const q4 = r.profile.desiredChange.primaryProblem
-  const q5 = r.profile.userBelief.perceivedRootCause
-  const q6 = r.profile.executionStage.currentStage
+  const q6 = r.executionStage
   const q7 = r.profile.behavior.uncertaintyResponse
   const q9 = r.profile.behavior.noResultResponse
+  const q4 = r.profile.desiredChange.primaryProblem
   const pb = r.primaryBottleneck
 
   const steps = [
-    `触发：${copy.getIncomeShort(q2)}，但${copy.getProblemPhrase(q4)}。`,
-    `默认反应：${copy.getStageNow(q6)}；一遇到不确定，就${copy.getQ7(q7)}。`,
-    `短期安慰：${copy.getQ7Relief(q7)}。`,
-    `长期代价：${copy.getStall(pb)}；于是你${copy.getQ9(q9)}。`,
-    `认知被强化：最后你更确信——${copy.getBeliefClause(q5)}。`
+    copy.getLoopNode1(pb),
+    `触发：你${copy.getStageLead(q6)}；一遇到不确定，就${copy.getQ7(q7)}。`,
+    copy.getLoopNode3(pb),
+    `${copy.getLoopNode4(pb)}于是你${copy.getQ9(q9)}。`,
+    `又回到同一个问题：${copy.getProblemPhrase(q4)}。`
   ]
 
-  const insight = `这个循环最麻烦的地方：${copy.getMechanism(pb)}`
+  const insight = copy.getStructuralConsequence(pb)
 
   return {
     steps,
-    text: steps.join('\n'),
     insight,
+    text: steps.join('\n'),
     provenance: {
-      sourceFields: ['reality.incomeMode', 'desiredChange.primaryProblem', 'userBelief.perceivedRootCause', 'executionStage', 'behavior.uncertaintyResponse', 'behavior.noResultResponse'],
-      sourceQuestionIds: ['Q2', 'Q4', 'Q5', 'Q6', 'Q7', 'Q9'],
+      sourceFields: ['primaryBottleneck', 'executionStage', 'behavior.uncertaintyResponse', 'behavior.noResultResponse', 'desiredChange.primaryProblem'],
+      sourceQuestionIds: ['Q6', 'Q7', 'Q9', 'Q4'],
       sourceRuleIds: [r.trace.selectedRuleId].filter(Boolean)
     }
   }

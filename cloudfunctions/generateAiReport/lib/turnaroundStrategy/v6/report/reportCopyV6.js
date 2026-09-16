@@ -308,6 +308,103 @@ const ACTION_SPEC = {
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+// R33 §5-§9 — WORLD-MODEL-FIRST copy layer
+// ════════════════════════════════════════════════════════════════
+
+// ── R33 §5 Card01: the WRONG RULE, phrased as a decision rule──
+const WRONG_RULE = {
+  DIRECTION_GAP: '先想清楚方向，再动手',
+  ACTION_GAP: '等准备好，再开始',
+  CONSISTENCY_GAP: '靠一股劲一次做完',
+  VALIDATION_GAP: '把东西做到最好，自然有人买',
+  REPEATABILITY_GAP: '做成一次，就算会了'
+}
+
+// ── R33 §5/§8 Card01 tail + Card04 new rule: the WORLD RULE ──
+const WORLD_RULE_TAIL = {
+  DIRECTION_GAP: '得先动手，方向才会慢慢变清楚',
+  ACTION_GAP: '开始了，才会一点点准备好',
+  CONSISTENCY_GAP: '一断档，就等于从头再来',
+  VALIDATION_GAP: '有人愿意买单，才算真的好',
+  REPEATABILITY_GAP: '能重复做出来，才算真会'
+}
+
+// ── R33 §6 Card02: why the old rule conflicts with how the world works ──
+const WHY_RULE_FAILS = {
+  DIRECTION_GAP: '方向本身是个概率问题，只能靠一次次小试验逼近，想不出一条必然对的路。',
+  ACTION_GAP: '动手之前，你手里没有任何真实信息；准备再久，也只是把猜测做得更精致。',
+  CONSISTENCY_GAP: '积累只在不断档的重复里发生，每次重启都把之前的投入清零。',
+  VALIDATION_GAP: '好坏由掏钱的人说了算，你给自己打的分，市场并不认。',
+  REPEATABILITY_GAP: '一次成功说不清原因，就只是运气，换不来下一次。'
+}
+
+// ── R33 §7 Card03: structural consequence (one line) ──
+const STRUCTURAL_CONSEQUENCE = {
+  DIRECTION_GAP: '你一直在挑方向，却始终没让任何一个方向被现实验证过。',
+  ACTION_GAP: '你一直在准备，却始终没拿到一条能修正判断的真实信息。',
+  CONSISTENCY_GAP: '你每次都在重启，所以从来没有真正积累起来。',
+  VALIDATION_GAP: '你一直在自我确认，市场却从来没有真正回答过你。',
+  REPEATABILITY_GAP: '你有过结果，却重建不出能再来一次的做法。'
+}
+
+// ── R33 §7 Card03: loop nodes (OLD RULE -> decision -> relief -> missing -> returns) ──
+// 5 nodes kept (finalValidator requires exactly 5).
+const LOOP_NODE1 = {
+  DIRECTION_GAP: '旧规则：先想清楚方向，再动手。',
+  ACTION_GAP: '旧规则：等准备好，再开始。',
+  CONSISTENCY_GAP: '旧规则：靠一股劲一次做完。',
+  VALIDATION_GAP: '旧规则：把东西做到最好，自然有人买。',
+  REPEATABILITY_GAP: '旧规则：做成一次，就算会了。'
+}
+const LOOP_NODE3 = {
+  DIRECTION_GAP: '这一等，让你暂时不用面对试错的结果。',
+  ACTION_GAP: '这一准备，让你暂时不用面对“做了却没做成”。',
+  CONSISTENCY_GAP: '这一断，让你暂时逃离了做得不够好的挫败。',
+  VALIDATION_GAP: '这一打磨，让你暂时不用面对没人买的答案。',
+  REPEATABILITY_GAP: '这一放下，让你暂时不用去想它为什么不稳。'
+}
+const LOOP_NODE4 = {
+  DIRECTION_GAP: '但方向始终没被真实验证，你也因此没得到任何可用信息。',
+  ACTION_GAP: '但真实反馈始终没进来，你手里的判断也就没变过。',
+  CONSISTENCY_GAP: '但每次重启都清零，你的投入一直没有攒下来。',
+  VALIDATION_GAP: '但市场始终没表态，你的“好”始终是你单方面的说法。',
+  REPEATABILITY_GAP: '但可重复的路径始终没沉淀，结果也就无法复制。'
+}
+const LOOP_NODE5 = {
+  DIRECTION_GAP: '于是同一个问题又回来：我到底该往哪走。',
+  ACTION_GAP: '于是同一个问题又回来：为什么我还是没开始。',
+  CONSISTENCY_GAP: '于是同一个问题又回来：为什么我总坚持不下来。',
+  VALIDATION_GAP: '于是同一个问题又回来：我做得挺好，为什么没人买。',
+  REPEATABILITY_GAP: '于是同一个问题又回来：为什么我做得到一次，却做不成常态。'
+}
+
+// ── R33 §8 Card04: OLD rule -> NEW rule (world-model swap) ──
+const NEW_RULE = {
+  DIRECTION_GAP: '先做一个低成本小试验，再让反馈决定下一个方向',
+  ACTION_GAP: '先做出一个能被外人看到的最小版本，再边做边改',
+  CONSISTENCY_GAP: '把这件事绑进固定时间和固定动作，先不断档跑一段',
+  VALIDATION_GAP: '先让真实用户回答“买不买”，再决定要不要继续打磨',
+  REPEATABILITY_GAP: '把那次成功的每一步写下来，让结果可以再来一次'
+}
+
+// ── R33 §9 Card05: external signal / decision rule per action type ──
+// decision: what the external signal DECIDES once observed.
+const REALITY_DECISION = {
+  DIRECTION_NARROWING: '只要对方明确说“我要/我不要”，就按这个信号定方向，别再猜。',
+  SMALLEST_EXTERNAL_TEST: '只要收到一条真实反馈（哪怕否定），就拿它修正下一步，而不是回头继续想。',
+  CONSISTENCY_PROTECTION: '只要连续做到不少于4天，就说明机制立住了；若断档，先缩小单次动作，不减连续性。',
+  BUYER_FEEDBACK_COLLECTION: '只要有人讲清“为什么不买”，就按这个原因改，不改自己猜的方向。',
+  REPEAT_SUCCESS_PATH: '只要能标出2步可照搬的步骤，就把它们固定成下次的默认动作。',
+  CASHFLOW_SAFE_EXPERIMENT: '只要拿到一条不花钱就能得到的外部反馈，就用它决定要不要继续。'
+}
+
+// ── R33 §10 generic-productivity patterns (must be paired with an external signal) ──
+// A CARD05 action is flagged GENERIC_PRODUCTIVITY_ACTION when its core action is
+// habit-flavoured (每天N分钟/坚持/养成习惯/自律) WITHOUT an explicit external signal.
+const GENERIC_PRODUCTIVITY_PAT = /(每天\s*\d+\s*分钟|每天固定\d+|坚持\d*[天周月]|养成习惯|保持自律|持续行动|认真执行|打卡\d*[天周])/
+const EXTERNAL_SIGNAL_PAT = /(反馈|回复|拒绝|买单|付费|购买|点击|评论|对话|沟通|发布|上传|真实用户|用户|买家|对方|问\s*\d*\s*个|成交|有人)/
+
 function pick (table, key, fallback) {
   return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : fallback
 }
@@ -358,5 +455,28 @@ module.exports = {
   getSupportChecks: (b) => pick(SUPPORT_CHECKS, b, ['先做一件今天就能完成的小事']),
   getRelBridge: (rel) => pick(REL_BRIDGE, rel, '先把这一小步走完再看。'),
   getActionExpression: (t) => pick(ACTION_EXPRESSION, t, '今天做一个能在一天内完成、能拿到外部反馈的小动作。'),
-  getScaleNote: (q3) => pick(SCALE_NOTE, q3, '尽量低成本先试')
+  getScaleNote: (q3) => pick(SCALE_NOTE, q3, '尽量低成本先试'),
+  // R33 world-model layer
+  getWrongRule: (b) => pick(WRONG_RULE, b, '沿用现在的做法'),
+  getWorldRuleTail: (b) => pick(WORLD_RULE_TAIL, b, '现实会告诉你答案'),
+  getWhyRuleFails: (b) => pick(WHY_RULE_FAILS, b, '现在的做法和想要的结果之间，缺了一次真实反馈。'),
+  getStructuralConsequence: (b) => pick(STRUCTURAL_CONSEQUENCE, b, '你一直在原地打转。'),
+  getLoopNode1: (b) => pick(LOOP_NODE1, b, '旧规则：沿用现在的做法。'),
+  getLoopNode3: (b) => pick(LOOP_NODE3, b, '这一步让你暂时不用面对那个没把握的结果。'),
+  getLoopNode4: (b) => pick(LOOP_NODE4, b, '但真实反馈始终没进来。'),
+  getLoopNode5: (b) => pick(LOOP_NODE5, b, '于是同一个问题又回来了。'),
+  getNewRule: (b) => pick(NEW_RULE, b, '先做一个最小验证，再让反馈决定下一步'),
+  getRealityDecision: (t) => pick(REALITY_DECISION, t, '只要拿到一条真实反馈，就用它修正下一步。'),
+  GENERIC_PRODUCTIVITY_PAT,
+  EXTERNAL_SIGNAL_PAT,
+  WRONG_RULE,
+  WORLD_RULE_TAIL,
+  WHY_RULE_FAILS,
+  STRUCTURAL_CONSEQUENCE,
+  LOOP_NODE1,
+  LOOP_NODE3,
+  LOOP_NODE4,
+  LOOP_NODE5,
+  NEW_RULE,
+  REALITY_DECISION
 }
