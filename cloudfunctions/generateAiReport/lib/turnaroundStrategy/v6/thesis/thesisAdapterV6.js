@@ -13,8 +13,22 @@
  */
 
 const DEFAULT_CALL_AI = (() => {
-  try { return require('../../../../ai.js').callAI } catch (_) { return null }
+  // R59 FIX — correct path: lib/ai.js (was ../../../../ai.js → nonexistent,
+  // so the production default resolved to null and every report fell back
+  // with NO_CALL_AI).
+  try { return require('../../../ai.js').callAI } catch (_) { return null }
 })()
+
+// R59 — the thesis expression call is NOT a deep reasoning task (B1 / proof /
+// scope / migration authority is already computed deterministically). Ask the
+// provider for normal content directly, WITHOUT spending the token budget on
+// hidden reasoning. Scoped to THIS call only (via callAI extraBody) — never a
+// global provider/model change.
+const THESIS_EXPRESSION_MODE = { thinking: { type: 'disabled' } }
+
+// Smallest practical output budget that reliably contains thesis + 5 cards
+// (real-provider benchmark: no truncation, finish_reason=stop).
+const THESIS_DEFAULT_MAX_TOKENS = 1800
 
 const { buildThesisPrompt, PROMPT_VERSION } = require('./thesisPromptV6.js')
 
@@ -111,9 +125,12 @@ async function runThesisAdapter (envelope, fallbackCards, opts) {
   const ai = await callAI({
     systemPrompt: prompt.systemPrompt,
     userMessage: prompt.userMessage,
-    maxTokens: o.maxTokens != null ? o.maxTokens : 1600,
+    maxTokens: o.maxTokens != null ? o.maxTokens : THESIS_DEFAULT_MAX_TOKENS,
     temperature: o.temperature != null ? o.temperature : 0.6,
-    forceModel: o.forceModel
+    forceModel: o.forceModel,
+    // Per-call expression mode; does NOT mutate global provider behavior.
+    // An injected test callAI may ignore unknown option keys.
+    extraBody: o.extraBody != null ? o.extraBody : THESIS_EXPRESSION_MODE
   })
   const meta = { promptVersion: PROMPT_VERSION }
   if (!ai || !ai.success) return { ok: false, error: (ai && (ai.providerErrorCode || ai.error)) || 'AI_CALL_FAILED', output: null, meta }
@@ -125,4 +142,4 @@ async function runThesisAdapter (envelope, fallbackCards, opts) {
   return { ok: true, output: normalizeThesisOutput(parsed.value), raw: ai.content, meta }
 }
 
-module.exports = { runThesisAdapter, extractJsonObject, normalizeThesisOutput, visibleTextOf, PROMPT_VERSION }
+module.exports = { runThesisAdapter, extractJsonObject, normalizeThesisOutput, visibleTextOf, PROMPT_VERSION, THESIS_EXPRESSION_MODE, THESIS_DEFAULT_MAX_TOKENS }

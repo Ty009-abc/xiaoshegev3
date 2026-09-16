@@ -1,16 +1,23 @@
 {
-  "taskId": "RC6.0-CANVAS-2D-MIGRATION",
-  "baseCommit": "76ae176",
-  "branch": "fix/rc6.0-poster-runtime",
-  "problem": "P0: Canvas 1.0 API已废弃，Native渲染桥接中断导致海报空白 — 完整迁移至Canvas 2D",
+  "taskId": "RC8.4_V6_R59_THESIS_EXPRESSION_RUNTIME_RECOVERY",
+  "baseCommit": "f3b193373b663c7c367791adf30a3a618b43b45b",
+  "branch": "fix/rc8.4-v6-b2-7-r15-card04",
+  "problem": "P0: R57 ONE-CALL thesis expression path unusable in production — (1) reasoning-tier model spends the whole token budget on hidden reasoning -> empty content -> 100% deterministic fallback; (2) thesisAdapterV6 default require path pointed at a nonexistent module -> NO_CALL_AI in production; (3) validator false-positives on bare pronoun 你是 and on the user's own surplus echo.",
   "allowedFiles": [
-    "pages/report-detail/report-detail.js",
-    "pages/report-detail/report-detail.wxml",
-    "pages/report-detail/report-detail.wxss",
+    "cloudfunctions/generateAiReport/lib/ai.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisAdapterV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisPromptV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisReportRuntimeV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisValidatorV6.js",
+    "tests/v6/thesis/rc8.4-v6-r57-shared-strategic-thesis.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [],
   "contractsAffected": [],
-  "requiredTests": ["node syntax check pages/report-detail/report-detail.js"],
-  "rollbackPlan": "git checkout 76ae176 -- pages/report-detail/"
+  "requiredTests": [
+    "node tests/v6/thesis/rc8.4-v6-r57-shared-strategic-thesis.test.js",
+    "node tests/v6/report/rc8.4-v6-report.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r48-evidence-compatibility-gate.test.js"
+  ],
+  "rollbackPlan": "git checkout f3b193373b663c7c367791adf30a3a618b43b45b -- cloudfunctions/generateAiReport/lib/ai.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/ tests/v6/thesis/"
 }

@@ -210,7 +210,7 @@ async function main () {
     assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
   })
   await ta('J. card word budget breach -> fallback', async () => {
-    const c = ctx(R54); const o = validOutput(); o.cards.card01 = '这是一句被刻意拉到超过四十五个中文字符上限的致命一句话文案用来触发字数预算校验失败的情况啊啊'
+    const c = ctx(R54); const o = validOutput(); o.cards.card01 = '这是一句被刻意拉长到明显超过五十个中文字符上限的致命一句话文案用来触发字数预算校验失败的情况啊啊啊啊啊啊'
     const r = await run(c, stubAI(o))
     assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.includes('CARD01_OVER_BUDGET'))

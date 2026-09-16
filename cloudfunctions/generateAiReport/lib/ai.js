@@ -172,6 +172,24 @@ async function callAI(options) {
     || process.env.AI_MODEL
     || 'deepseek-chat'
 
+  // R59 — optional EXPLICIT per-call body extensions, scoped to the caller.
+  // Default (absent) => NO extra keys => byte-identical request body for every
+  // other AI feature (diagnosis / coaching / legacy report). Only the R57
+  // thesis expression call opts into `thinking:{type:'disabled'}` so the
+  // provider returns normal content instead of spending the token budget on
+  // hidden reasoning. extraBody can NEVER override model/messages/max_tokens/
+  // temperature (core fields are applied last).
+  const extraBody = (options.extraBody && typeof options.extraBody === 'object') ? options.extraBody : null
+  const requestBody = Object.assign({}, extraBody || {}, {
+    model: model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+    max_tokens: maxTokens,
+    temperature: temperature,
+  })
+
   var requestAttempted = false
 
   if (!apiKey) {
@@ -197,15 +215,7 @@ async function callAI(options) {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + apiKey,
         },
-        data: {
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage },
-          ],
-          max_tokens: maxTokens,
-          temperature,
-        },
+        data: requestBody,
         timeout: 60000,
       })
     } else {
@@ -216,15 +226,7 @@ async function callAI(options) {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + apiKey,
         },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage },
-          ],
-          max_tokens: maxTokens,
-          temperature,
-        }),
+        body: JSON.stringify(requestBody),
       })
       response = { data: await res.json(), status: res.status }
     }

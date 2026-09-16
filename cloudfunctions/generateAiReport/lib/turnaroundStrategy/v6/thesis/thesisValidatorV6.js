@@ -16,13 +16,20 @@ const { FORBIDDEN_TOKENS } = require('./thesisPromptV6.js')
 const { normalizeThesisOutput, visibleTextOf } = require('./thesisAdapterV6.js')
 
 // ── §18 card word budgets (Chinese chars) ──
+// R59: sized from a real-provider 30-call study (all finish=stop, 0 truncation).
+// Observed maxima: card01=49, card02=158, card03=221, card04=168, card05=316.
+// Budgets are set just above observed p95/max so genuinely-verbose drafts are
+// still caught, but bold, complete drafts are not rejected on length alone.
+// card03: up to 4 mechanism items + 1 conclusion line (matches the prompt
+// "4条以内 + 1句结论"). card05: primary + 2–3 supporting + target + timebox +
+// signal structurally overflows the old 220 (R58 finding).
 const BUDGET = {
-  card01: 45,
-  card02: 140,
-  card03: 220,
-  card03MaxBullets: 4,
-  card04: 140,
-  card05: 220
+  card01: 50,
+  card02: 160,
+  card03: 235,
+  card03MaxBullets: 5,
+  card04: 175,
+  card05: 280
 }
 
 // ── §6 absolute / fateful claim patterns (rejected unless definitional) ──
@@ -40,6 +47,10 @@ const FATE_PATTERNS = [
 const MARKET_PROOF_PAT = /已经被市场验证|已被市场验证|市场已经为|让市场.{0,6}付过|市场反复验证|反复验证过|已经让市场|已经能被市场验证/
 // Precise invented price numbers (R57: numeric pricing DISABLED).
 const PRICE_PATTERN = /(?:￥|¥|\$|RMB|人民币)?\s*\d{2,6}\s*(?:元|块|万|k|K)/
+// R59 — the user's own financial facts (surplus / trial budget) are echoed
+// back by the model as numbers; that is NOT an invented price. If the ~12
+// chars before a number+unit carry one of these fact contexts, it is an echo.
+const FACT_ECHO_PAT = /(结余|预算|成本|储蓄|存款|月收入|工资|承受|试错|现金流|支出|花销|每月|攒|存|可承受|最多)/
 
 const len = (s) => (s == null ? 0 : [...String(s)].length)
 
@@ -53,22 +64,32 @@ function scanClaims (text) {
   const findings = { absolute: [], fate: [], price: [], forbiddenTokens: [] }
   for (const re of ABSOLUTE_PATTERNS) { const m = text.match(re); if (m) findings.absolute.push(m[0]) }
   for (const re of FATE_PATTERNS) { const m = text.match(re); if (m) findings.fate.push(m[0]) }
-  const pm = text.match(PRICE_PATTERN); if (pm) findings.price.push(pm[0])
+  // Price scan with fact-echo exclusion (R59): skip numbers that are part of
+  // the user's own supplied financial facts.
+  const priceRe = new RegExp(PRICE_PATTERN.source, 'g')
+  let pm
+  while ((pm = priceRe.exec(text))) {
+    const before = text.slice(Math.max(0, pm.index - 12), pm.index)
+    if (FACT_ECHO_PAT.test(before)) continue
+    findings.price.push(pm[0].trim())
+  }
   for (const tok of FORBIDDEN_TOKENS) { if (text.includes(tok)) findings.forbiddenTokens.push(tok) }
   return findings
 }
 
 /**
- * §3/§5 — detect fabricated biography/occupation facts.
- * Only flags concrete assertable claims about the USER's identity/history that
- * are NOT backed by a fact. Conservative: detects biography verbs + named-role
- * nouns the user did not supply.
+ * §3/§5 — detect fabricated occupation facts (R59 fix).
+ * A bare pronoun + article ("你是一个…的人") is NOT an occupation claim; only
+ * flag when the text BOTH asserts the user IS something AND names an actual
+ * occupation the user did not supply. Occupation nouns are explicit roles.
  */
+const OCCUPATION_NOUN_PAT = /(程序员|软件工程师|工程师|开发者|设计师|自由职业|接活|接单|打工|上班|写代码|做开发|做设计|创业者|开公司|带团队|管人|做销售|产品经理|运营|会计|教师|律师|医生|护士|司机|厨师)/
+const ASSERTION_PAT = /(你是|你是一个|你一直是|你是那个|你身为|作为一(?:名|个)|你既?是|身份是)/
 const BIO_VERB_PAT = /(一直|长期|十年|多年|已经|曾经|一向)\s*(在)?\s*(接活|接项目|接单|打工|上班|写代码|做开发|做设计|创业|开公司|带团队|管人|做销售)/
 
 function detectFabricatedOccupation (text, envelope) {
   const hasOccupation = (envelope.facts || []).some((f) => f.field === 'occupationDetail')
-  const assertedRole = /(你是|你是那个|你一直是|你是一个|你是接活|你是程序员|你是开发|你是设计师|你是自由职业)/.test(text)
+  const assertedRole = OCCUPATION_NOUN_PAT.test(text) && ASSERTION_PAT.test(text)
   return { assertedRole: assertedRole, hasOccupationFact: hasOccupation }
 }
 
@@ -198,5 +219,7 @@ module.exports = {
   BUDGET,
   ABSOLUTE_PATTERNS,
   PRICE_PATTERN,
+  FACT_ECHO_PAT,
+  OCCUPATION_NOUN_PAT,
   MARKET_PROOF_PAT
 }

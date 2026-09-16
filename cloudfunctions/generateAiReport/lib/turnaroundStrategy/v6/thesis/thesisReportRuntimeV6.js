@@ -28,7 +28,10 @@ const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../confi
 const RENDER_SOURCE = Object.freeze({ AI: 'thesis_ai', FALLBACK: 'deterministic_fallback' })
 // §20 — bounded creativity. Per-call; requires NO shared/global config mutation.
 const THESIS_TEMPERATURE = 0.6
-const THESIS_MAX_TOKENS = 1600
+// R59 — final tested output budget. small enough to stay within a 60s function
+// timeout, large enough for thesis + five complete cards with finish=stop.
+// Real-provider 30-call study: completion_tokens avg 834 / max 1153, 0 truncation.
+const THESIS_MAX_TOKENS = 1800
 
 const STATUS = Object.freeze({
   PASS: 'PASS',
