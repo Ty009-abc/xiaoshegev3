@@ -155,7 +155,12 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
       maxTrialCost: hybrid.capacity && hybrid.capacity.maxTrialCost ? hybrid.capacity.maxTrialCost : null,
       decisionStyle: hybrid.behavior && hybrid.behavior.decisionStyle ? hybrid.behavior.decisionStyle : null,
       selfBelief: hybrid.belief && hybrid.belief.perceivedRootCause ? hybrid.belief.perceivedRootCause : null,
-      primaryProblem: hybrid.desiredChange && hybrid.desiredChange.primaryProblem ? hybrid.desiredChange.primaryProblem : null
+      primaryProblem: hybrid.desiredChange && hybrid.desiredChange.primaryProblem ? hybrid.desiredChange.primaryProblem : null,
+      // R53 — desired-change / asset-identity evidence for the NO_PRIMARY
+      // cross-axis scope (fail-closed). Not bottleneck authority.
+      primaryGoal: hybrid.desiredChange && hybrid.desiredChange.primaryGoal ? hybrid.desiredChange.primaryGoal : null,
+      monetizableSkill: hybrid.asset && hybrid.asset.type ? hybrid.asset.type : null,
+      assetNamed: !!(hybrid.asset && hybrid.asset.type && hybrid.asset.type !== 'ASSET_UNCLEAR')
     },
     crossAxisScope,
     scopeLimited,

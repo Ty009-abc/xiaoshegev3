@@ -120,6 +120,10 @@ function noPrimaryReport (rIn, hybridContext) {
     nextUncertainty: built.nextUncertainty,
     proofStage: built.proofStage,
     proofStageProgression: built.proofStageProgression,
+    // R53 — deterministic NO_PRIMARY cross-axis strategy scope (fail-closed).
+    // COMPATIBLE | UNPROVEN. Never EVIDENCE_CONFLICT (that is decided in R48).
+    crossAxisScope: built.noPrimaryScope,
+    provenAsset: built.provenAsset === true,
     provenance: {
       contractVersion: r.contractVersion,
       diagnosisState: r.diagnosisState,

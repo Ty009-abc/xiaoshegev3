@@ -46,6 +46,11 @@
  */
 
 const copy = require('./reportCopyV6.js')
+const {
+  evaluateNoPrimaryCrossAxisScope,
+  noPrimaryLinkKind,
+  SCOPE_UNPROVEN
+} = require('../hybrid/noPrimaryCrossAxisV6.js')
 
 // ── Evidence strength (R51 §6) ──────────────────────────────────────────
 const STRENGTH_VALUE = { STRONG: 3, MEDIUM: 2, WEAK: 1 }
@@ -336,6 +341,25 @@ const NEXT_UNCERTAINTY = {
     timebox: '连续一周，每天固定一个时段',
     done: '一周结束时有一个能被外人看到的结果，并收到1条真实回应。',
     decision: '只要拿到1条真实回应，就用它判断要不要继续。'
+  },
+  // ── R53 — UNPROVEN scope: test the LINK, never scale the proven asset ──
+  TEST_LINK_TO_NEW_DIRECTION: {
+    proofStage: 'LINK_TEST', progression: 'LINK',
+    question: '这项已经有人付过钱的能力，能不能解决你这次真正想改变的问题？',
+    action: '今天找1个已经走在你目标方向里的人（或你目标方向的1个客户），问清楚：他现在做的那件事，能不能用上你这项已经有人付过钱的能力？',
+    target: '1个已经走在你目标方向里的人',
+    timebox: '3天内完成',
+    done: '对方明确说出这件事用得上、或完全用不上你现有的这项能力。',
+    decision: '只要这个连接被证实或证伪，就用它决定要不要把这项能力带进新方向。'
+  },
+  TEST_INCREMENTAL_INCOME_LINK: {
+    proofStage: 'LINK_TEST', progression: 'LINK',
+    question: '这项已经有人付钱的能力，能不能先变成你眼下这笔收入的来源？',
+    action: '今天找1个最近为这项能力付过钱的人，直接问他：如果现在让你用这项能力多解决一个具体问题，你愿不愿意再付一次？',
+    target: '1个最近为这项能力付过钱的人',
+    timebox: '24小时内完成',
+    done: '对方明确给出愿意再付、或明确不愿意。',
+    decision: '只要你拿到一次明确的再付费意愿，就用它判断这项能力能不能带来增量收入。'
   }
 }
 
@@ -350,7 +374,14 @@ const PROOF_STAGE_BY_INDEX = {
  * @returns {{id:string, proofStage:string, progression:string, question:string,
  *   action:string, target:string, timebox:string, done:string, decision:string}}
  */
-function selectNextUncertainty (ev) {
+function selectNextUncertainty (ev, scope) {
+  // ── R53 — UNPROVEN scope forces a LINK test, never an asset-scale step ──
+  if (scope === SCOPE_UNPROVEN) {
+    const linkKey = noPrimaryLinkKind(ev) === 'LINK_DIRECTION'
+      ? 'TEST_LINK_TO_NEW_DIRECTION'
+      : 'TEST_INCREMENTAL_INCOME_LINK'
+    return Object.assign({ id: linkKey, proofStage: 'LINK_TEST' }, NEXT_UNCERTAINTY[linkKey])
+  }
   const idx = (typeof ev.assetIndex === 'number') ? ev.assetIndex : null
   let key
   if (idx === 6) key = 'WHICH_PART_TO_SYSTEMATIZE'
@@ -371,6 +402,28 @@ function selectNextUncertainty (ev) {
     ? PROOF_STAGE_BY_INDEX[idx]
     : (NEXT_UNCERTAINTY[key].proofStage)
   return Object.assign({ id: key, proofStage }, NEXT_UNCERTAINTY[key])
+}
+
+/**
+ * R53 — attach the deterministic NO_PRIMARY cross-axis scope to the evidence.
+ * Fail-closed: when the link between the proven asset and the current desired
+ * change can not be proven, scope = UNPROVEN. Zero diagnosis authority.
+ * @param {Object} ev
+ * @returns {Object} ev with `noPrimaryScope` and `provenAsset`
+ */
+function addNoPrimaryScope (ev) {
+  const provenAsset = ev.marketValidated === true
+  const scope = evaluateNoPrimaryCrossAxisScope({
+    marketValidated: provenAsset,
+    primaryProblem: ev.primaryProblem,
+    primaryGoal: ev.primaryGoal,
+    occupation: ev.occupation,
+    monetizableSkill: ev.monetizableSkill,
+    assetNamed: ev.assetNamed,
+    incomeStructure: ev.incomeMode,
+    pastAttemptStage: ev.pastAttemptStage
+  })
+  return Object.assign({}, ev, { noPrimaryScope: scope, provenAsset })
 }
 
 // ── Evidence normalization (diagnosis + optional hybrid context) ────────
@@ -395,6 +448,11 @@ function mergeEvidence (diagnosis, hy) {
     weeklyTime: ex.weeklyTime || null,
     maxTrialCost: ex.maxTrialCost || null,
     decisionStyle: ex.decisionStyle || null,
+    // R53 — desired-change / asset-identity evidence for the NO_PRIMARY
+    // cross-axis scope. Not bottleneck authority.
+    primaryGoal: dc.primaryGoal || ex.primaryGoal || null,
+    monetizableSkill: ex.monetizableSkill || null,
+    assetNamed: (ex.assetNamed === true) || !!(ex.monetizableSkill && ex.monetizableSkill !== 'ASSET_UNCLEAR'),
     assetIndex: (typeof (hy && hy.assetIndex) === 'number') ? hy.assetIndex : null,
     assetState: (hy && hy.assetState) || null,
     marketValidated: (hy && typeof hy.marketValidated === 'boolean') ? hy.marketValidated : null,
@@ -437,7 +495,11 @@ function buildCard02 (ev, hy) {
   let text
   if (hasHybrid) {
     const beliefClause = beliefContrast(ev)
-    text = `${ev.realityLine}${ev.assetLine}现在最想解决的是${problem}。${beliefClause}`
+    // R53 §6 — UNPROVEN: state the asset FACT only; NEVER infer it is the path.
+    const linkClause = (ev.noPrimaryScope === SCOPE_UNPROVEN && ev.provenAsset)
+      ? '它和这次想解决的问题之间有没有直接关系，还没有被验证过。'
+      : ''
+    text = `${ev.realityLine}${ev.assetLine}现在最想解决的是${problem}。${linkClause}${beliefClause}`
   } else {
     text = `你现在${copy.getIncomeShort(ev.incomeMode)}，最想解决的是${problem}。`
   }
@@ -463,6 +525,27 @@ function beliefContrast (ev) {
 function buildCard03 (ev, clusters) {
   const closing = '下一步不需要一个完美答案，只需要一条新的信息。'
   let steps
+  // R53 §7 — UNPROVEN: name BOTH the proven asset and the separate desired
+  // change, WITHOUT merging them into one causal path.
+  if (ev.noPrimaryScope === SCOPE_UNPROVEN && ev.provenAsset) {
+    const assetFact = clusters.length && clusters[0].group === 'MARKET'
+      ? clusters[0].c03fact
+      : '你手上已经有一项让市场付过钱的能力。'
+    steps = [
+      assetFact,
+      '但你现在想解决的，是另一个问题——它不一定和这项能力是同一条路。',
+      '你手上明明有已经被市场认过的东西，却很难把它直接用来解决眼前这个问题。',
+      '所以真正还没被验证的，不是这项能力行不行，而是它和你这次想解决的问题该不该连在一起。',
+      closing
+    ]
+    return {
+      title: '为什么会卡住',
+      steps,
+      insight: '所以真正还没被验证的，不是这项能力行不行，而是它和你这次想解决的问题该不该连在一起。',
+      text: steps.join('\n'),
+      provenance: prov(['asset.marketProof', 'desiredChange.primaryProblem', 'desiredChange.primaryGoal'], ['Q4', 'Q5', 'Q6'])
+    }
+  }
   if (clusters.length >= 2) {
     steps = [clusters[0].c03fact, clusters[1].c03fact, clusters[0].tension, clusters[0].consequence, closing]
   } else if (clusters.length === 1) {
@@ -496,6 +579,10 @@ function buildCard04 (ev, clusters, nextU) {
   let worldRule = '先去掉一个不确定，比先找一个答案更有用。'
   if (ev.uncertaintyResponse === 'UNCERT_WAIT' || ev.uncertaintyResponse === 'UNCERT_ANALYZE') {
     worldRule = '这一次不等更确定的信号，就用这条回答来判断。'
+  }
+  // R53 §8 — UNPROVEN: the next step must be a LINK test, never a scale/重复 step.
+  if (ev.noPrimaryScope === SCOPE_UNPROVEN && ev.provenAsset) {
+    worldRule = '已经有市场验证，也不等于它就是要走的那条路；先把两者的连接验证出来。'
   }
   const text = [`现在：${certainty}。`, `接下来：${to}。`, worldRule].join('\n')
   const fields = ['asset.marketProof', 'executionStage'].concat(clusters.length ? clusters[0].sourceFields : [])
@@ -594,9 +681,9 @@ function prov (fields, qids) {
  */
 function buildNoPrimaryReportV6 (diagnosis, hybridContext) {
   const hy = hybridContext || null
-  const ev = mergeEvidence(diagnosis, hy)
+  const ev = addNoPrimaryScope(mergeEvidence(diagnosis, hy))
   const clusters = selectEvidenceClusters(deriveEvidenceClusters(ev))
-  const nextU = selectNextUncertainty(ev)
+  const nextU = selectNextUncertainty(ev, ev.noPrimaryScope)
 
   const cards = {
     fatalInsight: buildCard01(ev, clusters),
@@ -620,7 +707,9 @@ function buildNoPrimaryReportV6 (diagnosis, hybridContext) {
     evidenceClusters,
     nextUncertainty: nextU.id,
     proofStage: nextU.proofStage,
-    proofStageProgression: nextU.progression
+    proofStageProgression: nextU.progression,
+    noPrimaryScope: ev.noPrimaryScope,
+    provenAsset: ev.provenAsset === true
   }
 }
 
@@ -629,6 +718,7 @@ module.exports = {
   deriveEvidenceClusters,
   selectEvidenceClusters,
   selectNextUncertainty,
+  addNoPrimaryScope,
   mergeEvidence,
   CLUSTER_DEFS,
   CLUSTER_IDS,
