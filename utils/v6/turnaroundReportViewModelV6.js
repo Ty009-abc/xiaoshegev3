@@ -38,10 +38,14 @@ function toSteps (card) {
 function pushCard (out, key, card, extra) {
   if (!card || typeof card !== 'object') return
   const title = (typeof card.title === 'string' && card.title) || CARD_TITLE_FALLBACK[key] || ''
-  const body = typeof card.text === 'string' ? card.text : ''
+  // Backend cards carry body text under `text` (cards 01/02) OR `logic`
+  // (card 04 翻身路径). Both are presentation content; accept either so the
+  // turnaroundPath card is never silently dropped (R31 §2 root cause B).
+  let body = typeof card.text === 'string' ? card.text : ''
+  if (!body && typeof card.logic === 'string') body = card.logic
   const entry = Object.assign({ key: key, title: title, body: body }, extra ? extra(card) : {})
-  // Only emit a card with SOME renderable content.
-  if (!entry.body && !(entry.steps && entry.steps.length) && !entry.action) return
+  // Only emit a card with SOME renderable content (body / steps / action / from/to).
+  if (!entry.body && !(entry.steps && entry.steps.length) && !entry.action && !(entry.from || entry.to)) return
   out.push(entry)
 }
 

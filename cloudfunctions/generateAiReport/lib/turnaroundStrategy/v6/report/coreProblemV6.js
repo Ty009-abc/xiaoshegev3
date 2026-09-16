@@ -16,18 +16,20 @@ const copy = require('./reportCopyV6.js')
  * @returns {{text:string, provenance:Object}}
  */
 function buildCoreProblem (r) {
+  const q2 = r.profile.reality.incomeMode
   const q5 = r.profile.userBelief.perceivedRootCause
-  const q7 = r.profile.behavior.uncertaintyResponse
   const q4 = r.profile.desiredChange.primaryProblem
   const pb = r.primaryBottleneck
-  const stage = r.executionStage
 
-  const clause0 = `你现在最卡的一点：${copy.getProblemPhrase(q4)}。`
-  const clause1 = `你以为${copy.getBeliefShort(q5)}。可实际上，${copy.getStageNow(stage)}。`
-  const clause2 = `一遇到不确定，你又会${copy.getQ7(q7)}。`
-  const clause3 = `结果就是：${copy.getStall(pb)}。所以${copy.getMechanism(pb)}`
+  // R31 §4: REALITY ANCHOR + HIDDEN MECHANISM + WHY IT MATTERS.
+  // Diagnostic leap (not a questionnaire restatement). Behavior/Q7 lives in
+  // CARD03 so the two cards stay non-repetitive (§9).
+  const anchor = `你现在${copy.getIncomeShort(q2)}，最想解决的是：${copy.getProblemPhrase(q4)}。`
+  const belief = `你以为${copy.getBeliefShort(q5)}。`
+  const mechanism = `${copy.getHiddenMechanism(pb)}`
+  const consequence = `于是${copy.getStall(pb)}——这才是卡住你的地方。`
 
-  const text = `${clause0}${clause1}${clause2}${clause3}`
+  const text = `${anchor}${belief}${mechanism}${consequence}`
 
   return {
     text,

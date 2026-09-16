@@ -8,6 +8,7 @@
 
 const { buildReportV6, REPORT_VERSION } = require('./reportBuilderV6.js')
 const { validateReportV6, visibleText, FORBIDDEN_USER_TOKENS, CARD_KEYS, CARD01_MAX_CHARS } = require('./reportValidatorV6.js')
+const reportQualityV6 = require('./reportQualityV6.js')
 const fatalInsightV6 = require('./fatalInsightV6.js')
 const coreProblemV6 = require('./coreProblemV6.js')
 const systemLoopV6 = require('./systemLoopV6.js')
@@ -28,5 +29,9 @@ module.exports = {
   systemLoopV6,
   turnaroundPathV6,
   firstActionCopyV6,
-  reportCopyV6
+  reportCopyV6,
+  reportQualityV6,
+  crossCardDuplicateIdeas: reportQualityV6.crossCardDuplicateIdeas,
+  actionSpecificity: reportQualityV6.actionSpecificity,
+  assessQualityV6: reportQualityV6.assessQualityV6
 }

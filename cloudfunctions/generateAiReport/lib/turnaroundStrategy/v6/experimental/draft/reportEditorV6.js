@@ -424,9 +424,9 @@ function editReportV6 (args) {
   const cards = {
     fatalInsight: { title: CARD_TITLES.fatalInsight, text: card01 },
     coreProblem: { title: CARD_TITLES.coreProblem, text: card02 },
-    systemLoop: { title: CARD_TITLES.systemLoop, steps: card03Steps },
-    turnaroundPath: { title: CARD_TITLES.turnaroundPath, from: card04From, to: card04To, logic: card04Logic },
-    firstAction: { title: CARD_TITLES.firstAction, action: card05Action, checks: b2.firstAction.checks.slice(), note: card05Note }
+    systemLoop: { title: CARD_TITLES.systemLoop, steps: card03Steps, insight: b2.systemLoop.insight || '', text: b2.systemLoop.text || card03Steps.join('\n') },
+    turnaroundPath: { title: CARD_TITLES.turnaroundPath, from: card04From, to: card04To, logic: card04Logic, text: b2.turnaroundPath.text || card04Logic },
+    firstAction: { title: CARD_TITLES.firstAction, action: card05Action, checks: b2.firstAction.checks.slice(), timebox: b2.firstAction.timebox || '', verifyWith: b2.firstAction.verifyWith || '', done: b2.firstAction.done || '', note: card05Note }
   }
 
   return {
@@ -453,11 +453,13 @@ function finalVisibleText (report) {
     c.fatalInsight && c.fatalInsight.text,
     c.coreProblem && c.coreProblem.text,
     c.systemLoop && (c.systemLoop.steps || []).join(' '),
+    c.systemLoop && c.systemLoop.insight,
     c.turnaroundPath && c.turnaroundPath.from,
     c.turnaroundPath && c.turnaroundPath.to,
     c.turnaroundPath && c.turnaroundPath.logic,
     c.firstAction && c.firstAction.action,
     c.firstAction && (c.firstAction.checks || []).join(' '),
+    c.firstAction && c.firstAction.done,
     c.firstAction && c.firstAction.note
   ].filter(Boolean).join('\n')
 }

@@ -82,22 +82,23 @@ const INSIGHT_SHORT = {
   REPEATABILITY_GAP: '没能把成果重复出来'
 }
 
-// ── bottleneck -> Card01 tail (GAP form, avoids 真正) ────────────
+// ── bottleneck -> Card01 tail (GAP form) ────────────────────────
+// R31 §3/§10: insight-shaped (worldview layer), not a restatement of answers.
 const GAP_TAIL = {
-  DIRECTION_GAP: '你还没把任何一个方向拿到真实世界里试过',
-  ACTION_GAP: '你一直停在准备里，从没开始动手',
-  CONSISTENCY_GAP: '你开始了却没坚持住',
-  VALIDATION_GAP: '你还没拿到真实用户的反馈',
-  REPEATABILITY_GAP: '你还没把有效做法变成能重复的流程'
+  DIRECTION_GAP: '你还没让任何一个方向活到被真实结果验证',
+  ACTION_GAP: '你一直停在准备里，用“想清楚”代替了“做一次”',
+  CONSISTENCY_GAP: '你用一次冲动启动，又用一次中断收场',
+  VALIDATION_GAP: '你在自己脑子里验证，市场却从没被问过',
+  REPEATABILITY_GAP: '你靠一次运气拿到结果，却没把它变成能重复的方法'
 }
 
 // ── bottleneck -> Card01 tail (MATCH form) ───────────────────────
 const MATCH_TAIL = {
-  DIRECTION_GAP: '把一个方向真正拿去试一次',
-  ACTION_GAP: '先把第一个最小结果做出来',
-  CONSISTENCY_GAP: '把一件事稳定做满一段时间',
-  VALIDATION_GAP: '去拿到真实用户“为什么没买”的答案',
-  REPEATABILITY_GAP: '把有效成交的步骤固定成可重复的流程'
+  DIRECTION_GAP: '尽快让一个方向拿到真实反馈',
+  ACTION_GAP: '把“准备好”换成“先做一个最小版本”',
+  CONSISTENCY_GAP: '把结果绑在一套固定节奏上，而不是靠状态',
+  VALIDATION_GAP: '去拿到真实用户愿不愿意买单的答案',
+  REPEATABILITY_GAP: '把那次有效成交拆成可以重复的步骤'
 }
 
 // ── Q8 time allocation -> clause (Card03) ───────────────────────
@@ -228,6 +229,85 @@ const SCALE_NOTE = {
   SURPLUS_OVER_10K: '仍然按最小成本先验证'
 }
 
+// ── R31 §5 Card03: short natural relief line keyed on Q7 default reaction ──
+const Q7_RELIEF = {
+  UNCERT_SMALL_TEST: '这一步让你暂时跳过了“要不要认真做进去”的决定',
+  UNCERT_WAIT: '这一步让你暂时不用做决定',
+  UNCERT_ASK_OTHERS: '这一步把判断交回给了别人',
+  UNCERT_ANALYZE: '这一步让你暂时不用面对还没想全的部分'
+}
+
+// ── R31 §4 Card02: hidden mechanism (distinct from Card01 tail) ──
+// Explains WHY the current approach keeps producing the current result.
+const HIDDEN_MECHANISM = {
+  DIRECTION_GAP: '没有真实反馈，你分不清哪个方向真的走得通——“想清楚”换不来确定性。',
+  ACTION_GAP: '只要不动手，你就拿不到能推翻或修正判断的真实信息，准备再久也还停在原地。',
+  CONSISTENCY_GAP: '积累只发生在连续里，断断续续等于每次都从零重新开始。',
+  VALIDATION_GAP: '你自己认定的价值，只有在别人愿意掏钱时才第一次被证明。',
+  REPEATABILITY_GAP: '一次好结果如果说不清它为什么发生，就只能算运气，没办法再来一次。'
+}
+
+// ── R31 §6 Card04: old decision rule → new decision rule ────────
+const DECISION_FROM = {
+  DIRECTION_GAP: '先想清楚，再行动',
+  ACTION_GAP: '等准备好，再开始',
+  CONSISTENCY_GAP: '靠状态和心情决定做不做',
+  VALIDATION_GAP: '先把东西做到完美，再拿出去',
+  REPEATABILITY_GAP: '靠这一次的手感，再来一次'
+}
+
+const DECISION_TO = {
+  DIRECTION_GAP: '先做最小验证，再让反馈决定下一步',
+  ACTION_GAP: '先做出一个能被外人看到的最小版本，再边做边改',
+  CONSISTENCY_GAP: '把这件事绑进固定时间和固定动作，先跑满一段时间',
+  VALIDATION_GAP: '先让真实用户回答“买不买”，再决定要不要继续打磨',
+  REPEATABILITY_GAP: '把这次的做法拆成步骤，让结果可以再来一次'
+}
+
+// One concrete operating mechanism that makes the new rule executable.
+const OPERATING_MECH = {
+  DIRECTION_GAP: '每周只推一个方向，用一个一周内能拿到反馈的小动作去验证。',
+  ACTION_GAP: '把“要做的事”缩到24小时内能完成的一步，做完立刻去拿外部反馈。',
+  CONSISTENCY_GAP: '每天固定30分钟、同一时间、同一动作，先连续做满一周。',
+  VALIDATION_GAP: '找3个真实用户，只问一句：你会不会为它掏钱。',
+  REPEATABILITY_GAP: '把最近一次成功的每一步写下来，标出哪些可以原样照搬。'
+}
+
+// ── R31 §7/§12 Card05: TIME BOX · WHO-VERIFIES · DONE-CRITERION ──
+// Keyed on the frozen firstActionType (never replaces it; only specifies it).
+const ACTION_SPEC = {
+  DIRECTION_NARROWING: {
+    timebox: '今天内完成',
+    verifyWith: '找1个你目标用户里认识的人',
+    done: '对方明确说出“我会想要/我不需要”，而不是“还行”'
+  },
+  SMALLEST_EXTERNAL_TEST: {
+    timebox: '24小时内完成',
+    verifyWith: '放到1个真实用户看得到的地方',
+    done: '收到至少1条真实反馈，哪怕是否定'
+  },
+  CONSISTENCY_PROTECTION: {
+    timebox: '连续5天、每天固定时段',
+    verifyWith: '自己打卡，并找1个人监督',
+    done: '这5天里真正做到不少于4天'
+  },
+  BUYER_FEEDBACK_COLLECTION: {
+    timebox: '今天内完成',
+    verifyWith: '问3个已经看过或可能买的真实用户',
+    done: '至少1个人讲清楚“为什么现在不买”'
+  },
+  REPEAT_SUCCESS_PATH: {
+    timebox: '今天内完成',
+    verifyWith: '对照最近一次真实成交回顾',
+    done: '标出不少于2步可以原样照搬'
+  },
+  CASHFLOW_SAFE_EXPERIMENT: {
+    timebox: '24小时内完成',
+    verifyWith: '找一个真实用户看结果',
+    done: '拿到1条不花钱就能得到的外部结果'
+  }
+}
+
 function pick (table, key, fallback) {
   return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : fallback
 }
@@ -264,6 +344,17 @@ module.exports = {
   getQ7: (v) => pick(Q7_PHRASE, v, '按自己的习惯反应'),
   getQ9: (v) => pick(Q9_PHRASE, v, '遇到结果不理想就调整'),
   getChangeIntent: (b) => pick(CHANGE_INTENT, b, '想改变现在的状况'),
+  getQ7Relief: (v) => pick(Q7_RELIEF, v, '这一步让你暂时不用面对那个没把握的结果'),
+  getHiddenMechanism: (b) => pick(HIDDEN_MECHANISM, b, '现在的做法和想要的结果之间，缺了一次真实反馈。'),
+  getDecisionFrom: (b) => pick(DECISION_FROM, b, '沿用现在的做法'),
+  getDecisionTo: (b) => pick(DECISION_TO, b, '先做一个最小验证，再让反馈决定下一步'),
+  getOperatingMech: (b) => pick(OPERATING_MECH, b, '每周只推一个方向，用一个能拿到反馈的小动作去验证。'),
+  getActionSpec: (t) => pick(ACTION_SPEC, t, { timebox: '今天内完成', verifyWith: '找一个真实的人', done: '拿到一条真实反馈' }),
+  DECISION_FROM,
+  DECISION_TO,
+  OPERATING_MECH,
+  ACTION_SPEC,
+  HIDDEN_MECHANISM,
   getSupportChecks: (b) => pick(SUPPORT_CHECKS, b, ['先做一件今天就能完成的小事']),
   getRelBridge: (rel) => pick(REL_BRIDGE, rel, '先把这一小步走完再看。'),
   getActionExpression: (t) => pick(ACTION_EXPRESSION, t, '今天做一个能在一天内完成、能拿到外部反馈的小动作。'),

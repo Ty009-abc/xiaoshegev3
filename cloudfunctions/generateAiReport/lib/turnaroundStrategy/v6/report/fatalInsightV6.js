@@ -24,11 +24,13 @@ function buildFatalInsight (r) {
 
   let text
   if (rel === REL_GAP) {
-    text = `你以为缺的是${copy.getBeliefLack(q5)}，其实真正卡住你的，是${copy.getGapTail(pb)}。`
+    // Break the mistaken self-explanation with a sharp contrast (R31 §3/§10).
+    // Phrased to avoid the REALITY_DENIAL guard (never “你不是缺X，只是…”).
+    text = `缺的从来不是${copy.getBeliefLack(q5)}，而是${copy.getGapTail(pb)}。`
   } else if (rel === REL_PARTIAL) {
-    text = `你以为是${copy.getBeliefShort(q5)}，它确实占了一部分；但更关键的，是${copy.getGapTail(pb)}。`
+    text = `你把${copy.getBeliefShort(q5)}当成了全部原因，其实更卡住你的是${copy.getGapTail(pb)}。`
   } else {
-    text = `你对自己的判断基本没错：${copy.getProblemPhrase(q4)}，真正要解决的是——${copy.getMatchTail(pb)}。`
+    text = `你判断得没错，${copy.getProblemPhrase(q4)}；但答案不在想，而在${copy.getMatchTail(pb)}。`
   }
 
   return {
