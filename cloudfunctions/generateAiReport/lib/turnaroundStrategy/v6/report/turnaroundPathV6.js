@@ -24,8 +24,12 @@ function buildTurnaroundPath (r) {
   const q4 = r.profile.desiredChange.primaryProblem
   const rel = r.beliefRelation.relation
 
-  const from = copy.getPathFrom(stage)
-  const to = copy.getPathTo(pb)
+  const hy = r.hybrid || null
+  // R46 §8/§10: for PAID bands the FROM/TO are proof-aware (hy.proofFrom /
+  // hy.proofTo); otherwise the frozen B2 authority copy (byte-identical when no
+  // hybrid context). The market-proof FACT outranks the generic B2 phrase.
+  const from = (hy && hy.proofFrom) || copy.getPathFrom(stage)
+  const to = (hy && hy.proofTo) || copy.getPathTo(pb)
   // R33 §8 + R34 §10: OLD RULE -> NEW RULE (world model) + one operating
   // mechanism + one short human world-rule statement.
   const oldRule = copy.getWrongRule(pb)
@@ -38,7 +42,6 @@ function buildTurnaroundPath (r) {
   // R44 §16/§17/§18 — ADDITIVE strategy specificity (old value position -> new
   // value/strategy position), evidence-gated by the asset axis. Gated: when
   // `r.hybrid` is absent this is '' and the card is byte-identical to pre-R44.
-  const hy = r.hybrid || null
   const specificity = hy ? (hy.pathLine || '') : ''
 
   const text = [

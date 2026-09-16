@@ -124,7 +124,9 @@ function runHybridDiagnosisV6 (rawAnswers) {
 
   const adapted = adaptHybridToV6(hybridProfile)
   const diagnosis = diagnoseFromProfile(adapted.profile)
-  const hybridContext = buildHybridReportContextV6(hybridProfile)
+  // R46 §6: the report context reads the diagnosis (bottleneck / action type) to
+  // produce proof-aware wording; it NEVER changes those authority fields.
+  const hybridContext = buildHybridReportContextV6(hybridProfile, diagnosis)
 
   return {
     valid: true,

@@ -38,9 +38,13 @@ function buildFirstAction (r) {
   const spec = copy.getRealityTest(action) || {}
   const checks = copy.getSupportChecks(pb).slice(0, 3)
 
+  // R46 §9/§11 — MARKER: proof-aware CARD05 overrides (paid bands).
+  const hy = r.hybrid || null
+  const proofAction = hy && hy.card05
+
   // Base reality-test action (the PRIMARY action itself creates a real-world
   // event: ask / send / show / contact / transact).
-  let sized = spec.action || copy.getActionExpression(action)
+  let sized = (proofAction && proofAction.action) || spec.action || copy.getActionExpression(action)
 
   // Reality constraint may RESIZE (append a sizing clause), never replace.
   if (!cashflow && (rcTypes.includes('LOW_SURPLUS') || rcTypes.includes('UNSTABLE_INCOME'))) {
@@ -50,16 +54,17 @@ function buildFirstAction (r) {
   // R44 §16/§17/§18 — ADDITIVE capacity sizing from the hybrid profile (time /
   // budget / proof stage). Gated: absent `r.hybrid` -> sizingLine '' and the
   // action is byte-identical to pre-R44 output.
-  const hy = r.hybrid || null
   const specificity = hy ? (hy.sizingLine || '') : ''
 
   const timebox = spec.timebox || '今天内完成'
-  const verifyWith = spec.target || '一个真实的人'
+  const verifyWith = (proofAction && proofAction.target) || spec.target || '一个真实的人'
   // §6: the observable signal IS the branch outcome (positive/negative/ambiguous)
-  // so it clearly answers the hypothesis.
-  const done = [spec.observableSignal, spec.ifPositive, spec.ifNegative, spec.ifAmbiguous]
-    .filter(Boolean).join(' ')
-  const decision = spec.decision || '只要拿到一条真实反馈，就用它修正下一步。'
+  // so it clearly answers the hypothesis. R46 §9: paid bands use the proof-aware
+  // observable signal / decision (action TYPE authority unchanged).
+  const done = (proofAction && proofAction.done) ||
+    [spec.observableSignal, spec.ifPositive, spec.ifNegative, spec.ifAmbiguous]
+      .filter(Boolean).join(' ')
+  const decision = (proofAction && proofAction.decision) || spec.decision || '只要拿到一条真实反馈，就用它修正下一步。'
 
   // §5 — EVIDENCE STRENGTH of the signal the decision-relevant core names.
   const evidenceStrength = copy.evidenceStrength(done)

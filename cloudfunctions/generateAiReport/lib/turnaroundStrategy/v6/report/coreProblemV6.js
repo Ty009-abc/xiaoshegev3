@@ -40,12 +40,14 @@ function buildCoreProblem (r) {
   }
   const belief = copy.beliefLead(copy.getBeliefLack(q5))
   // L2 -> L3 leap: why the operating rule conflicts with the world mechanism.
-  const leap = copy.getCard02Leap(pb)
+  // R46 §9: for PAID bands the leap must not assert "nobody bought" etc. — the
+  // proof-aware leap (hy.card02Leap) replaces it when present.
+  const hy = r.hybrid || null
+  const leap = (hy && hy.card02Leap) || copy.getCard02Leap(pb)
 
   // R44 §16 — ADDITIVE hybrid specificity (reality position + asset position).
   // Gated: when `r.hybrid` is absent this block is empty and `text` is
   // byte-identical to the pre-R44 9Q output.
-  const hy = r.hybrid || null
   const realityLine = hy ? (hy.realityLine || '') : ''
   const assetLine = hy ? (hy.assetLine || '') : ''
 

@@ -18,6 +18,7 @@
  */
 
 const { computeAssetStateV6 } = require('./assetAxisV6.js')
+const { buildProofConsistencyV6 } = require('./proofConsistencyV6.js')
 
 // Reality/capacity phrasing (neutral, non-judging).
 const LIFE_STAGE = {
@@ -67,8 +68,10 @@ function pick (map, v, fb) {
 /**
  * Build the report specificity context. Returns null when no hybrid profile is
  * present (keeps the 9Q path byte-identical).
+ * @param {Object} hybrid HybridProfile
+ * @param {Object} [diagnosis] V6 diagnosis (authority for proof-aware wording)
  */
-function buildHybridReportContextV6 (hybrid) {
+function buildHybridReportContextV6 (hybrid, diagnosis) {
   if (!hybrid || typeof hybrid !== 'object') return null
 
   const asset = computeAssetStateV6(hybrid)
@@ -108,6 +111,16 @@ function buildHybridReportContextV6 (hybrid) {
   // ── goal (REPORT-ONLY; PRIMARY_GOAL_B1_USAGE_COUNT = 0)
   const goalLine = pick(GOAL, hybrid.desiredChange && hybrid.desiredChange.primaryGoal)
 
+  // ── R46 §6–§11 — MARKET-PROOF FACT CONSISTENCY (paid bands only). ──
+  // Produces proof-aware overrides for cards that ASSERT a market fact, so no
+  // visible card contradicts the known proof state. ZERO bottleneck authority:
+  // the diagnosis (bottleneck/actionType) is read, never changed.
+  const proof = buildProofConsistencyV6({
+    assetState: asset.state,
+    bottleneck: (diagnosis && diagnosis.primaryBottleneck) || null,
+    actionType: (diagnosis && diagnosis.firstActionType) || null
+  })
+
   return {
     occupation,
     assetState: asset.state,
@@ -121,7 +134,16 @@ function buildHybridReportContextV6 (hybrid) {
     sizingLine,
     riskLine,
     goalLine,
-    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal']
+    // proof-aware overrides (null/absent => card uses frozen base copy)
+    // R46 §8: CARD04 "现在"(FROM) is a pure market-position FACT and is
+    // proof-aware for ALL states (the stage-keyed base copy can contradict the
+    // proof state). "接下来"(TO) is proof-refined only for paid bands.
+    proofFrom: proof.card04.from,
+    proofTo: proof.isPaidBand ? proof.card04.to : null,
+    card02Leap: proof.card02Leap || null,
+    card03: proof.card03 || null,
+    card05: proof.card05 || null,
+    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal', 'proofConsistency']
   }
 }
 
@@ -147,24 +169,31 @@ function assetLineFor (asset, assetTypeText) {
   }
 }
 
-/** CARD04 strategy-specificity sentence. Evidence-gated; no invented leverage. */
+/**
+ * CARD04 asset ANCHOR sentence — occupation + asset-position, NON-strategic.
+ * R46 §10: the strategy now lives in the proof-aware from/to (turnaroundPathV6),
+ * so this line stays an identity/evidence anchor to avoid duplicate rendering.
+ * Never overclaims market validation.
+ */
 function pathSpecificityFor (asset, assetTypeText, occupation) {
-  const occClause = occupation ? `你现在的「${occupation}」不是白做的——` : ''
+  const occ = occupation ? `你现在的「${occupation}」` : '你现在这份能力'
   switch (asset.state) {
     case 'NO_CLEAR_ASSET':
-      return '你现在最该做的不是谈方向，而是先用最小成本，做出一个真正卖得出去的能力雏形——先让一个真实的人愿意为它付第一笔钱。'
+      return occupation
+        ? `你现在的「${occupation}」还只是一个身份，还没变成一个别人能买的能力。`
+        : '你现在还没有一个别人愿意购买的能力。'
     case 'SKILL_IDENTIFIED_UNPROVEN':
-      return `${occClause}下一步不是继续学，而是把「${assetTypeText || '这项能力'}」做成一个具体的、可以被别人购买的东西。`
+      return `${occ}不是白练的——你已经有一个具体的能力，只是还没人验证过。`
     case 'SKILL_USED_FREE':
-      return `${occClause}你已经能帮人解决问题，接下来要从「免费帮忙」变成「明码标价的服务」。`
+      return `${occ}不是白做的——你已经能帮人解决问题，只是还没收过钱。`
     case 'PROBLEM_SOLVING_PROOF':
-      return `${occClause}你的能力已经能解决问题，缺的只是把它变成一个别人愿意付费的形态。`
+      return `${occ}不是白做的——它实实在在解决过别人的问题。`
     case 'PAID_ONCE':
-      return `${occClause}既然已经有人为它付过钱，下一步的重点不是再证明会不会，而是测试这项能力能否被重复购买。`
+      return `${occ}不是白做的——它已经被真实验证过一次。`
     case 'OCCASIONAL_PAID':
-      return `${occClause}你已经有零星付费，接下来要把它从「偶尔有人买」变成「有固定的供给和交付方式」。`
+      return `${occ}不是白做的——已经有人反复为它付过钱。`
     case 'REPEATABLE_PAID':
-      return `${occClause}你已经有了可重复的收入来源，下一步是把这套已经跑通的模式放大，而不是从头再来。`
+      return `${occ}不是白做的——它已经是一份能重复的收入。`
     default:
       return ''
   }

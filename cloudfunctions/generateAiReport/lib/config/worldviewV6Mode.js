@@ -145,6 +145,35 @@ function isV6OnAuthorized (openid, allowlistRaw) {
   }
 }
 
+/**
+ * R46 §2/§3 — SHARED, fail-closed V6 authority decision.
+ *
+ * EVERY V6 diagnostic contract (native 9Q `turnaround_strategy_v6` AND hybrid
+ * 10Q `turnaround_strategy_v6_hybrid_10q`) resolves its authority through THIS
+ * single function. There is deliberately no second authorization policy: if the
+ * native policy ever changes, both contracts change together.
+ *
+ * Fail-closed semantics (unchanged from the native V6 contract):
+ *   - missing / invalid / empty mode      -> OFF (nobody)
+ *   - SHADOW + openid not in shadow list  -> allowed=false
+ *   - ON     + openid not in ON list      -> allowed=false
+ *   - SHADOW list authorizes NOTHING for ON (and vice-versa) — independent.
+ * The openid MUST be SERVER-DERIVED; client-supplied openid is never consulted.
+ *
+ * @param {string|null|undefined} openid server-derived OPENID
+ * @returns {{mode:'OFF'|'SHADOW'|'ON', allowed:boolean}}
+ */
+function resolveV6Authority (openid) {
+  const mode = parseV6WorldviewMode(getV6WorldviewModeFromEnv())
+  if (mode === 'SHADOW') {
+    return { mode: 'SHADOW', allowed: isV6ShadowAuthorized(openid, getV6ShadowAllowlistFromEnv()) }
+  }
+  if (mode === 'ON') {
+    return { mode: 'ON', allowed: isV6OnAuthorized(openid, getV6OnAllowlistFromEnv()) }
+  }
+  return { mode: 'OFF', allowed: false }
+}
+
 module.exports = {
   V6_WORLDVIEW_MODE_ENV,
   V6_SHADOW_ALLOWLIST_ENV,
@@ -159,4 +188,5 @@ module.exports = {
   parseV6OnAllowlist,
   getV6OnAllowlistFromEnv,
   isV6OnAuthorized,
+  resolveV6Authority,
 }

@@ -44,8 +44,16 @@ function buildSystemLoop (r) {
   const stageLead = copy.getStageLead(q6)
   const q7Phrase = copy.getQ7(q7)
 
+  // R46 §9: for PAID bands the loop must not assert "却没人买单 / 靠的是一次运气"
+  // — the proof-aware loop (hy.card03) replaces the generic SCAFFOLD when present.
+  // Family + shape stay keyed on the bottleneck (B1 authority unchanged).
+  const hy = r.hybrid || null
+  const proofLoop = hy && hy.card03
+
   let steps
-  if (family === 'CONTRADICTION') {
+  if (proofLoop && Array.isArray(proofLoop.steps) && proofLoop.steps.length === 5) {
+    steps = proofLoop.steps.slice()
+  } else if (family === 'CONTRADICTION') {
     steps = [
       `你要的是${copy.getDesiredState(r.profile.desiredChange.primaryProblem)}，你的规则却是：等一切都准备好再开始。`,
       `这条规则每次奖励的都是“再准备一下”，而不是“先做一次”。`,
@@ -88,7 +96,7 @@ function buildSystemLoop (r) {
     ]
   }
 
-  const insight = copy.getStructuralConsequence(pb)
+  const insight = (proofLoop && proofLoop.insight) || copy.getStructuralConsequence(pb)
   const shapeInfo = SHAPE[family] || SHAPE.LOOP
 
   return {

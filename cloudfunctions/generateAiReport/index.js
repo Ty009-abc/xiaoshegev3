@@ -117,28 +117,28 @@ exports.main = async (event, context) => {
       //   ON     : parsed so a future owner-authorized task can enable it; NOT
       //            implemented in this task (fails closed to a disabled ack).
       if (diagnosticVersion === 'turnaround_strategy_v6') {
-        const { parseV6WorldviewMode, getV6WorldviewModeFromEnv, getV6ShadowAllowlistFromEnv, isV6ShadowAuthorized, getV6OnAllowlistFromEnv, isV6OnAuthorized } = require('./lib/config/worldviewV6Mode')
-        const v6Mode = parseV6WorldviewMode(getV6WorldviewModeFromEnv())
-        if (v6Mode === 'SHADOW') {
+        // R46 §3: single shared fail-closed authority (resolveV6Authority). The
+        // hybrid contract resolves through the SAME function — one policy.
+        const { resolveV6Authority } = require('./lib/config/worldviewV6Mode')
+        const auth = resolveV6Authority(openid)
+        if (auth.mode === 'SHADOW') {
           // Internal allowlist gate (fail-closed). SHADOW runs ONLY for a
           // SERVER-DERIVED openid present in RC84_V6_SHADOW_ALLOWLIST. An empty
           // / missing allowlist, or any non-listed openid, gets EXACT OFF
           // behavior (no V6 model call, byte-identical response). Client-
           // supplied openid is NEVER consulted — `openid` here comes from
           // cloud.getWXContext().OPENID (server-derived).
-          const v6ShadowAllowed = isV6ShadowAuthorized(openid, getV6ShadowAllowlistFromEnv())
-          if (v6ShadowAllowed) {
+          if (auth.allowed) {
             return await runTurnaroundV6Shadow({ event, openid, ts, answers })
           }
           return runTurnaroundV6Off()
         }
-        if (v6Mode === 'ON') {
+        if (auth.mode === 'ON') {
           // R21 §7/§8: ON is a SEPARATE, fail-closed gate. The SHADOW allowlist
           // NEVER authorizes ON (permission to observe is not permission to
           // change user-visible output). Empty/missing ON allowlist → NOBODY,
           // and the request gets existing baseline behavior.
-          const v6OnAllowed = isV6OnAuthorized(openid, getV6OnAllowlistFromEnv())
-          if (v6OnAllowed) {
+          if (auth.allowed) {
             return await runTurnaroundV6On({ event, openid, ts, answers })
           }
           return runTurnaroundV6OnNotEnabled()
@@ -153,9 +153,21 @@ exports.main = async (event, context) => {
       //   validate Hybrid contract → build HybridProfile → adapt safe canonical
       //   B1 evidence → run V6 B1 (SOLE bottleneck authority) → build asset/reality
       //   context → V6 report → V6-compatible response.
-      // V4_ENGINE_RUNTIME_CALL_COUNT = 0: the V4 engine is NEVER called here.
+      // R46 §2: authority uses the SAME shared fail-closed resolver as native V6.
+      // User-visible activation requires MODE=ON + ON-allowlisted openid.
+      // SHADOW authorizes INTERNAL observation only — the user primary stays
+      // baseline (mirrors native V6 shadow, which never changes what the caller
+      // sees). V4_ENGINE_RUNTIME_CALL_COUNT = 0: the V4 engine is NEVER called.
       if (diagnosticVersion === 'turnaround_strategy_v6_hybrid_10q') {
-        return await runTurnaroundV6Hybrid({ event, openid, ts, answers })
+        const { resolveV6Authority } = require('./lib/config/worldviewV6Mode')
+        const auth = resolveV6Authority(openid)
+        if (auth.mode === 'ON' && auth.allowed) {
+          return await runTurnaroundV6Hybrid({ event, openid, ts, answers, userVisible: true })
+        }
+        if (auth.mode === 'SHADOW' && auth.allowed) {
+          return await runTurnaroundV6Hybrid({ event, openid, ts, answers, userVisible: false })
+        }
+        return buildTurnaroundV6BaselineResponse()
       }
 
       // ═══ V3 原有链路（不变）═══
@@ -731,9 +743,10 @@ function buildTurnaroundV6HybridReport (report) {
   })
 }
 
-async function runTurnaroundV6Hybrid ({ event, openid, ts, answers }) {
+async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible }) {
   var { runHybridDiagnosisV6 } = require('./lib/turnaroundStrategy/v6/hybrid/hybridDiagnosisV6.js')
   var { buildReportV6 } = require('./lib/turnaroundStrategy/v6/report')
+  var visible = userVisible === true
   var out = null
   try {
     out = runHybridDiagnosisV6(answers || {})
@@ -744,12 +757,17 @@ async function runTurnaroundV6Hybrid ({ event, openid, ts, answers }) {
 
   // SAFE internal observability ONLY — no openid / raw answers / report text.
   console.log('[V6Hybrid] meta ' + JSON.stringify({
+    userVisible: visible,
     hybridValid: !!(out && out.valid),
     diagnosisState: (out && out.diagnosis && out.diagnosis.diagnosisState) || 'UNKNOWN',
     primaryBottleneck: (out && out.diagnosis && out.diagnosis.primaryBottleneck) || null,
     unmappedCount: Array.isArray(out && out.unmapped) ? out.unmapped.length : 0,
     assetState: (out && out.hybridContext && out.hybridContext.assetState) || null,
   }))
+
+  // SHADOW authorizes INTERNAL observation only — the user-visible primary stays
+  // the baseline response (R46 §2, mirrors native V6 shadow).
+  if (!visible) return buildTurnaroundV6BaselineResponse()
 
   if (!out || !out.valid) {
     // Contract-level invalid submission -> explicit INVALID_INPUT (fail-closed).
