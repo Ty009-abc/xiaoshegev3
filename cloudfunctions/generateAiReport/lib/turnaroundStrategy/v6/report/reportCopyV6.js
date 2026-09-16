@@ -62,15 +62,19 @@ const INCOME_SHORT = {
 }
 
 // ── Q4 primary problem -> consumer phrase ────────────────────────
+// R35 §1 — natural Chinese realization. Every phrase must read as human
+// Chinese in EVERY role: after 最想解决的是 / 问题是 / 又回到…：. No phrase may
+// end in 上 in a way that collides with a …上 wrapper, and none may require a
+// 这件事 that turns the clause into a stilted object.
 const PROBLEM_PHRASE = {
-  PROBLEM_INCOME_STUCK: '收入上不去',
-  PROBLEM_NO_FUTURE: '看不到未来',
-  PROBLEM_DEBT: '被债务和现金流压着',
-  PROBLEM_CAREER_SWITCH: '想转行却不知往哪走',
-  PROBLEM_SIDE_UNSTARTED: '副业一直没做起来',
-  PROBLEM_MONETIZE: '有能力却变不了现',
-  PROBLEM_FOCUS: '事情太多无法聚焦',
-  PROBLEM_OTHER: '现在的处境'
+  PROBLEM_INCOME_STUCK: '收入一直上不去',
+  PROBLEM_NO_FUTURE: '看不清往后该往哪走',
+  PROBLEM_DEBT: '债务和现金流一直压着你',
+  PROBLEM_CAREER_SWITCH: '想转行，却一直找不到方向',
+  PROBLEM_SIDE_UNSTARTED: '副业迟迟没有起色',
+  PROBLEM_MONETIZE: '有本事，却一直变不成收入',
+  PROBLEM_FOCUS: '事情太多，一直没法聚焦',
+  PROBLEM_OTHER: '眼下的处境一直没有好转'
 }
 
 // ── bottleneck -> strong insight tail (Card01) ───────────────────
@@ -428,16 +432,23 @@ const REALITY_DECISION = {
 // R34 §1-§10 — HUMAN COPY + REALITY TEST layer
 // ════════════════════════════════════════════════════════════════
 
-// §1 — DESIRED_STATE vs CURRENT_PROBLEM semantic-role distinction.
-// A CURRENT_PROBLEM phrase (“收入上不去”) is grammatically a problem, NOT a
-// desired state. It must never be dropped after 想要的是/目标是/希望的是 (which
-// demand a DESIRED_STATE noun). This helper renders the problem in a role that
-// is grammatical — as the object of 最想解决的是 / 卡在 / 真正要面对的.
+/**
+ * R35 §1 — PROBLEM REALIZATION LAYER (semantic realization, not string concat).
+ * A CURRENT_PROBLEM phrase must be realized as a natural Chinese problem clause
+ * for the role it plays (after 最想解决的是 / 问题是 / 卡在...). Evidence-gated by
+ * the Q4 problem fact. Guards against the old awkward assembly (卡在…上上 /
+ * 把…这件事推过去).
+ */
+const hasOddNP = (np) => /上上|把.*这件事|这件事推/.test(np)
+function problemRealization (q4) {
+  const np = pick(PROBLEM_PHRASE, q4, '现在的处境')
+  return hasOddNP(np) ? '现在的处境' : np
+}
 function desiredStateLine (income, problem) {
   return `你现在${income}，最想解决的是${problem}。`
 }
 
-// R34 §1 — problem phrase used where a stated desire is required (fallback).
+// R34 §1 — the problem phrase used where a stated desire is required (fallback).
 const DESIRED_STATE = {
   PROBLEM_INCOME_STUCK: '让收入真正往上走',
   PROBLEM_NO_FUTURE: '看清楚往后能往哪走',
@@ -522,13 +533,17 @@ const MATCH_LEADS = {
   ]
 }
 
-// §4 — CARD03 expression families (>=3 required; ONE per report).
+// §4 — CARD03 expression families (>=4 required; ONE per report).
+// R35 §3 — genuinely different user-facing structures, not one skeleton
+// reworded: LOOP (X→Y→Z→X) · CONTRADICTION (want X / rule rewards Y / get Z) ·
+// ACCUMULATION (do A → reset → restart from zero) · REFRAME (mistake A as key,
+// actually B) · FALSE_SAFETY (avoid short-term pain → create long-term cost).
 const CARD03_FAMILY = {
   DIRECTION_GAP: 'LOOP',
   ACTION_GAP: 'CONTRADICTION',
   CONSISTENCY_GAP: 'ACCUMULATION',
   VALIDATION_GAP: 'REFRAME',
-  REPEATABILITY_GAP: 'REFRAME'
+  REPEATABILITY_GAP: 'FALSE_SAFETY'
 }
 
 // §4 — CARD03 family-specific node copy (keys = bottleneck).
@@ -565,6 +580,19 @@ const C03_REFRAME_TRUTH = {
   VALIDATION_GAP: '真正管用的，是有人愿意为它掏钱；在那之前，一切自我评估都只是猜。',
   REPEATABILITY_GAP: '真正管用的，是把这次的做法拆成能照搬的步骤；在那之前，它只能算运气。'
 }
+// §4/FALSE_SAFETY — avoid short-term pain → create long-term cost (REPEATABILITY).
+const C03_FS_KEEP = {
+  REPEATABILITY_GAP: '于是你每次只把上一次的做法原样再试，不敢改，也不去问清它为什么成。'
+}
+const C03_FS_PAIN = {
+  REPEATABILITY_GAP: '这一步确实回避了当面确认失败的不适感。'
+}
+const C03_FS_COST = {
+  REPEATABILITY_GAP: '但它也让原因永远不透明：你永远不知道这一次能不能再来一次。'
+}
+const C03_FS_EXIT = {
+  REPEATABILITY_GAP: '下一次如果换个客户、换个条件，你依然会回到同一个不确定里。'
+}
 const C03_LOOP_RELIEF = {
   DIRECTION_GAP: '多想想，让你暂时不用面对选错方向的风险。',
   ACTION_GAP: '这一准备，让你暂时不用面对“做了却没做成”。',
@@ -596,35 +624,35 @@ const WORLD_ONE_LINER = {
 const REALITY_TEST = {
   DIRECTION_NARROWING: {
     hypothesis: '有人真的需要你把这件事做出来。',
-    action: '今天只选一个方向，写清楚你要替谁解决什么问题，然后把这件事直接发给1个这样的人，问他一句：你需要这个吗？',
-    target: '1个你目标用户里的人',
-    timebox: '今天内',
-    observableSignal: '他明确回复你“我要”或“我不要”，而不是“还行”。',
-    decision: '只要他给出明确的要或不要，就按这个答案定方向，不再自己猜。',
-    ifPositive: '他说“我要”——这个方向先做一周。',
-    ifNegative: '他说“我不要”——换下一个方向，再问一个人。',
-    ifAmbiguous: '他只说“还行”——再找一个更具体的人问一次。'
+    action: '今天只选一个方向，写清楚你要替谁解决什么问题，把这件事直接发给1个这样的人，问他一句：你需要这个吗？',
+    target: '目标用户里的3个互相独立的人（先发第1个）',
+    timebox: '今天发出，3天内问满3个人',
+    observableSignal: '前3个人里，至少2个人明确回复“我要”或“我不要”。第1个人的回复只用来改假设，不定方向。',
+    decision: '第1个回复只改下一步的问法；等拿到3条独立信号、或1条强经济信号（真金白银的付款/签约）才定方向。',
+    ifPositive: '3人里至少2人说要——这个方向先做两周。',
+    ifNegative: '3人里多数说不要——换方向，再问3个新人。',
+    ifAmbiguous: '有人只说“还行”——把问题改具体，再问一个新人，仍算1条信号。'
   },
   SMALLEST_EXTERNAL_TEST: {
     hypothesis: '有一个最小版本，真实用户愿意看、愿意回应。',
     action: '今天选一个方向，做出一个最小版本，把它发给1个真实用户看，拿到一条真实反馈。',
     target: '1个真实用户',
     timebox: '24小时内',
-    observableSignal: '他给你至少1条具体反馈，哪怕是否定。',
-    decision: '只要收到1条具体反馈，就拿它改下一步，而不是回头继续想。',
+    observableSignal: '他给你至少1条具体反馈（哪怕是否定），说明他到底看到了什么。',
+    decision: '这条反馈只用来改下一步——调整版本或换一类用户，不足以证明整个方向成立。',
     ifPositive: '反馈说“有用”——把这个版本再给第2个人看。',
     ifNegative: '反馈说“没用”——按他说的那一点改一版。',
-    ifAmbiguous: '只得到一句“再想想”——换一个更具体的用户再发一次。'
+    ifAmbiguous: '只得到一句“再想想”——把问题问得更具体，再发一次。'
   },
   CONSISTENCY_PROTECTION: {
     hypothesis: '把同一个面向市场的动作重复做，能换来可累积的外部结果。',
-    action: '今天起，每天把同一个面向市场的动作重复做一遍（联系1个新用户 / 发布1次 / 报1次价），并把当天的结果发给1个真实用户看。',
-    target: '每天1个新对象，外加1个看你结果的真实用户',
-    timebox: '连续5天',
-    observableSignal: '每天至少换来1次来自真实用户的回应（要 / 不要 / 反馈）。',
-    decision: '只要连续5天里至少4天都换来了真实回应，就说明这条路在累积；如果多数天没有任何回应，就换动作，而不是加长坚持。',
-    ifPositive: '多数天都有回应——把动作固定下来，进入第二周。',
-    ifNegative: '多数天没有任何回应——说明动作选错了，换一个再测5天。',
+    action: '今天起，每天把同一个面向市场的动作重复做一遍（联系1个新用户 / 发布1次 / 报1次价）。5天只是观察窗，不是成功标准。',
+    target: '每天1个新对象',
+    timebox: '连续5天（这只是观察窗）',
+    observableSignal: '外部证据是否开始累积：每天的回应在变多、变明确，或目标人群里开始有人主动问。',
+    decision: '看外部证据是否在累积；若只有“做完5天”而没有外部回应，就是没跑通，先换动作而不是加长天数。',
+    ifPositive: '回应在累积——把动作固定下来，进入下一周。',
+    ifNegative: '5天都没有外部回应——说明动作选错了，换一个再测。',
     ifAmbiguous: '回应时有时无——先把动作缩到最小，保证每天都真的发生。'
   },
   BUYER_FEEDBACK_COLLECTION: {
@@ -632,19 +660,19 @@ const REALITY_TEST = {
     action: '今天直接找3个真实用户，问清楚他们为什么没买。',
     target: '3个看过或可能买的真实用户',
     timebox: '今天内',
-    observableSignal: '至少1个真实用户讲清他为什么没买。',
+    observableSignal: '至少1个真实用户讲清他为什么没买（具体反对理由，不是“还行”）。',
     decision: '只要有人讲清原因，就按这个原因改，不再自己猜。',
     ifPositive: '多人说的是同一个原因——就按这个原因改产品。',
     ifNegative: '没人说得清——说明问法太泛，换更具体的问题再问。',
     ifAmbiguous: '说法各不相同——先记下最高频的那一个，先验证它。'
   },
   REPEAT_SUCCESS_PATH: {
-    hypothesis: '最近那次成功，是可以被复制出来的。',
+    hypothesis: '最近那次成功，是可以被复现的。',
     action: '把最近一次成交的步骤拆出来，用同一套做法再找1个新用户走一遍。',
     target: '1个新用户',
     timebox: '今天内',
-    observableSignal: '再成交1次，或拿到1个明确的拒绝。',
-    decision: '只要能照着旧步骤再成交1次，就说明这套做法可以复制；如果被拒绝，就修正其中一步再试。',
+    observableSignal: '再成交1次（重复出现的结果），而不是只把步骤说清楚。',
+    decision: '只有再成交1次（结果被复现），才能说这套做法可以复制；只把步骤写出来不算。',
     ifPositive: '再次成交——把这套步骤固定成默认做法。',
     ifNegative: '被明确拒绝——找出是哪一步不奏效，只改那一步。',
     ifAmbiguous: '对方没回应——换一个渠道再走一遍同样的步骤。'
@@ -660,6 +688,62 @@ const REALITY_TEST = {
     ifNegative: '反馈说“不需要”——换方向，而不是加钱。',
     ifAmbiguous: '反馈很笼统——问一个更具体的问题再验一次。'
   }
+}
+
+// R35 §5 — EVIDENCE STRENGTH LEVELS (not all feedback is equal).
+// WEAK: opinion / “还行” / generic feedback. MEDIUM: clear yes/no, specific
+// objection, click, reply, meeting request. STRONG: payment, deposit, signed
+// commitment, repeat purchase, observable repeated behaviour.
+const WEAK_SIGNAL_PAT = /(还行|感觉|看法|意见|随便|看看|不太确定|说不清|也许|可能)/
+const STRONG_SIGNAL_PAT = /(付款|付费|付钱|掏钱|定金|订金|签约|签合同|下单|成交|买了|购买|复购|续费|预付款|押金|合同|落单)/
+const MEDIUM_SIGNAL_PAT = /(回复|回应|拒绝|要|不要|明确|具体|反对|点击|报名|约|见面|面谈|留资|询价)/
+const ECONOMIC_SIGNAL_PAT = /(付款|付费|掏钱|定金|签约|签合同|下单|复购|续费|预付款|押金|成交)/
+
+/** §5 — classify the evidence strength named by a signal/decision string. */
+function evidenceStrength (s) {
+  const t = String(s == null ? '' : s)
+  if (ECONOMIC_SIGNAL_PAT.test(t)) return 'STRONG'
+  if (MEDIUM_SIGNAL_PAT.test(t) || STRONG_SIGNAL_PAT.test(t)) return 'MEDIUM'
+  if (WEAK_SIGNAL_PAT.test(t)) return 'WEAK'
+  return 'MEDIUM'
+}
+
+// §6 — probability/sample-size rule: this action type must NOT convert a single
+// non-economic signal into a final direction decision.
+const PROBABILITY_GATED_ACTIONS = ['DIRECTION_NARROWING']
+const FINAL_DECISION_PAT = /(定方向|方向定|定为方向|就定了|定下来|可以复制|就是它|确定方向|拍板|固定成默认|固定下来)/
+const SINGLE_ONLY_PAT = /(只要他给出|只要对方明确|只要.{0,8}一个人|就按这个答案|1个(?:人|用户|新用户|目标用户)|一个人)/
+const AGGREGATED_PAT = /(3个|三个人|3人|三条|多个|几条|互相独立|直到问满|问满|持续|累积|多条|独立信号)/
+const STRONG_ECON_PAT = /(真金白银|付款|付费|掏钱|定金|签约|签合同|下单|复购|预付款|押金|经济信号)/
+
+/**
+ * §4/§6 SINGLE_WEAK_SIGNAL_OVERCLAIM.
+ * TRUE when a probability-gated action's decision turns a single non-economic
+ * signal into a FINAL direction/commitment decision: no aggregation across
+ * independent signals, no explicit strong-economic exception.
+ */
+function singleWeakSignalOverclaim (actionType, signal, decision) {
+  if (PROBABILITY_GATED_ACTIONS.indexOf(actionType) === -1) return false
+  const dec = String(decision == null ? '' : decision)
+  const sig = String(signal == null ? '' : signal)
+  if (!FINAL_DECISION_PAT.test(dec)) return false
+  const aggregated = AGGREGATED_PAT.test(dec) || STRONG_ECON_PAT.test(dec) || STRONG_ECON_PAT.test(sig)
+  if (aggregated) return false
+  const single = SINGLE_ONLY_PAT.test(dec) || SINGLE_ONLY_PAT.test(sig)
+  if (single) return true
+  // A gate that mentions neither aggregation nor a single unit is ambiguous; do
+  // not flag (fail-open toward the author, fail-closed only on clear overclaims)
+  // but require the strong-economic exception to be spelled out.
+  return !AGGREGATED_PAT.test(dec)
+}
+
+/** §7 CONSISTENCY_TIMEBOX_AS_SUCCESS — the timebox itself is the success metric. */
+function consistencyTimeboxAsSuccess (decision, signal) {
+  const t = String(decision == null ? '' : decision) + ' ' + String(signal == null ? '' : signal)
+  const timeasSuccess = /(连续\s*5\s*天|做满\s*5\s*天|坚持\s*5\s*天|不少于\s*4\s*天|至少\s*4\s*天).{0,12}(就说明|就算|即算|成功|立住|开始累积)/.test(t) ||
+    /(就说明机制立住了|就说明这条路在累积)/.test(t)
+  const externalAccum = /(外部|回应|反馈|证据|累积|变多|变明确)/.test(t)
+  return timeasSuccess && !externalAccum
 }
 
 // §5/§7 — habit-only action markers (used to detect bare self-discipline tasks).
@@ -807,12 +891,28 @@ module.exports = {
   C03_REFRAME_NOT,
   C03_REFRAME_MID,
   C03_REFRAME_TRUTH,
+  C03_FS_KEEP,
+  C03_FS_PAIN,
+  C03_FS_COST,
+  C03_FS_EXIT,
+  getC03FsKeep: (b) => pick(C03_FS_KEEP, b, '于是你每次都只把上一次的做法原样再试。'),
+  getC03FsPain: (b) => pick(C03_FS_PAIN, b, '这一步回避了当面确认失败的不适感。'),
+  getC03FsCost: (b) => pick(C03_FS_COST, b, '但它也让原因一直不透明：你始终不知道它能不能再来一次。'),
+  getC03FsExit: (b) => pick(C03_FS_EXIT, b, '下一次换个条件，你依然会回到同一个不确定里。'),
+  getProblemRealization: (q4) => problemRealization(q4),
   C03_LOOP_RELIEF,
   C03_LOOP_COST,
   WORLD_ONE_LINER,
   getWorldOneLiner: (b) => pick(WORLD_ONE_LINER, b, '现实会给出答案。'),
   REALITY_TEST,
   getRealityTest: (t) => pick(REALITY_TEST, t, null),
+  WEAK_SIGNAL_PAT,
+  STRONG_SIGNAL_PAT,
+  MEDIUM_SIGNAL_PAT,
+  ECONOMIC_SIGNAL_PAT,
+  evidenceStrength,
+  singleWeakSignalOverclaim,
+  consistencyTimeboxAsSuccess,
   HABIT_ONLY_PAT,
   MARKET_FACING_PAT,
   SIGNAL_TOPIC,

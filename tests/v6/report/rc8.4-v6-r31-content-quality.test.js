@@ -59,8 +59,8 @@ t('§5 CARD03 has no STEP labels and exactly 5 loop nodes', () => {
     for (const s of steps) assert.ok(!/STEP\s*\d/i.test(s), g.id + ' has STEP label: ' + s)
   }
 })
-t('§5 CARD03 uses ONE expression family (R34 §4: LOOP/CONTRADICTION/ACCUMULATION/REFRAME)', () => {
-  const FAMILIES = ['LOOP', 'CONTRADICTION', 'ACCUMULATION', 'REFRAME']
+t('§5 CARD03 uses ONE perceptual structure family (R35 §3: LOOP/CONTRADICTION/ACCUMULATION/REFRAME/FALSE_SAFETY)', () => {
+  const FAMILIES = ['LOOP', 'CONTRADICTION', 'ACCUMULATION', 'REFRAME', 'FALSE_SAFETY']
   const seen = {}
   for (const g of PRIMARY) {
     const r = buildReportV6(diagnoseTurnaroundV6(g.answers))
@@ -68,8 +68,8 @@ t('§5 CARD03 uses ONE expression family (R34 §4: LOOP/CONTRADICTION/ACCUMULATI
     assert.strictEqual(steps.length, 5, g.id + ' loop nodes')
     const fam = r.cards.systemLoop.family
     assert.ok(FAMILIES.includes(fam), g.id + ' unknown family ' + fam)
+    assert.ok(typeof r.cards.systemLoop.shape === 'string' && r.cards.systemLoop.shape.length > 0, g.id + ' shape')
     seen[fam] = (seen[fam] || 0) + 1
-    assert.ok(/又回到同一个问题/.test(steps[4]), g.id + ' node4 = ' + steps[4])
     assert.ok(r.cards.systemLoop.insight && r.cards.systemLoop.insight.length > 0, g.id + ' insight')
   }
   assert.ok(Object.keys(seen).length >= 3, 'CARD03_STRUCTURE_FAMILY_COUNT >= 3, got ' + JSON.stringify(seen))

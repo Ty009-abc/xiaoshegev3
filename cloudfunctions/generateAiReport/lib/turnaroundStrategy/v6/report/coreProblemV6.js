@@ -26,16 +26,17 @@ function buildCoreProblem (r) {
   const rel = r.beliefRelation.relation
 
   // L1 USER EVIDENCE (2–3 compact anchors): reality + belief-lack + goal.
-  // §1 semantic-role fix — the CURRENT_PROBLEM is the object of 卡在/最想解决
-  // (never dropped after 想要的是, which would be ungrammatical).
-  // §9 humanization — natural clauses, not form-field assembly.
+  // R35 §1 — natural problem realization: the problem reads as human Chinese in
+  // every role (never 卡在…上上 / 把…这件事推过去). §2 — a problem state is
+  // never framed as a desire.
+  const problem = copy.getProblemRealization(q4)
   let lead
   if (rel === 'BELIEF_REALITY_GAP') {
-    lead = `你现在${copy.getIncomeShort(q2)}，卡在${copy.getProblemPhrase(q4)}上。`
+    lead = `你现在${copy.getIncomeShort(q2)}，真正卡住你的是${problem}。`
   } else if (rel === 'BELIEF_PARTIAL') {
-    lead = `你现在${copy.getIncomeShort(q2)}，最想解决的是${copy.getProblemPhrase(q4)}。`
+    lead = `你现在${copy.getIncomeShort(q2)}，最想解决的是${problem}。`
   } else {
-    lead = `你现在${copy.getIncomeShort(q2)}，一心想把${copy.getProblemPhrase(q4)}这件事推过去。`
+    lead = `你现在${copy.getIncomeShort(q2)}，已经看清要解决的是${problem}。`
   }
   const belief = copy.beliefLead(copy.getBeliefLack(q5))
   // L2 -> L3 leap: why the operating rule conflicts with the world mechanism.

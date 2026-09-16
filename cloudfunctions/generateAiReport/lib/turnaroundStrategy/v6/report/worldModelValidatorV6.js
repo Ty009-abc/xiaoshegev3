@@ -294,6 +294,126 @@ function hasShareableWorldRuleLine (report) {
   return line.length >= 8 && /[。！？!?]$/.test(line)
 }
 
+// ════════════════════════════════════════════════════════════════════
+// R35 — natural-language + probability + evidence-strength metrics
+// ════════════════════════════════════════════════════════════════════
+
+// §1 — awkward Chinese assembly: ungrammatical/stilted renderings.
+const AWKWARD_PAT = /(上上|卡在[^。，；]{0,20}?上上|把[^。，；]{0,24}?这件事推过去|这件事推过去|想要的是[^。，；]{0,12}(上不去|没做起来|变不了现|无法聚焦|看不到未来)|目标是[^。，；]{0,12}(上不去|没做起来|变不了现|无法聚焦)|希望的是[^。，；]{0,12}(上不去|没做起来|变不了现))/g
+
+/** §1 AWKWARD_CHINESE_ASSEMBLY_COUNT across a report's visible text. */
+function awkwardChineseAssembly (report) {
+  const t = allVisible(report)
+  const m = t.match(AWKWARD_PAT)
+  return m ? m.length : 0
+}
+
+/** §2 PROBLEM_AS_DESIRE_COUNT — a problem state rendered as a desire. */
+function problemAsDesire (report) {
+  const t = allVisible(report)
+  let n = 0
+  const sentences = t.split(/(?<=[。！？!?\n])/)
+  for (const s of sentences) {
+    const m = s.match(/(想要的是|目标是|希望的是|想要|希望|目标是)/)
+    if (!m) continue
+    const rest = s.slice(s.indexOf(m[0]) + m[0].length, s.indexOf(m[0]) + m[0].length + 12)
+    if (PROBLEM_STATE_PAT.test(rest)) n++
+  }
+  return n
+}
+
+/** §3 PERCEPTUALLY_SAME_CARD03_PATTERN_COUNT — two reports share a shape. */
+function perceptuallySameCard03 (reports) {
+  const seen = {}
+  let same = 0
+  for (const r of reports || []) {
+    const c = r && r.cards && r.cards.systemLoop
+    const key = text(c && c.shape) || text(c && c.family) || 'LOOP'
+    if (seen[key]) same++
+    seen[key] = (seen[key] || 0) + 1
+  }
+  return same
+}
+
+/** §4/§6 SINGLE_WEAK_SIGNAL_OVERCLAIM_COUNT over the reports. */
+function singleWeakSignalOverclaimCount (pairs) {
+  let n = 0
+  for (const x of pairs || []) {
+    const c = x && x.report && x.report.cards && x.report.cards.firstAction
+    const actionType = x && x.actionType
+    if (copy.singleWeakSignalOverclaim(actionType, text(c && c.done), text(c && c.decision))) n++
+  }
+  return n
+}
+
+/** §6 DIRECTION_SINGLE_PERSON_FINAL_DECISION_COUNT. */
+function directionSinglePersonFinalDecision (pairs) {
+  let n = 0
+  for (const x of pairs || []) {
+    if (!x || x.actionType !== 'DIRECTION_NARROWING') continue
+    const c = x.report && x.report.cards && x.report.cards.firstAction
+    if (copy.singleWeakSignalOverclaim('DIRECTION_NARROWING', text(c && c.done), text(c && c.decision))) n++
+  }
+  return n
+}
+
+/** §7 CONSISTENCY_TIMEBOX_AS_SUCCESS_COUNT. */
+function consistencyTimeboxAsSuccessCount (pairs) {
+  let n = 0
+  for (const x of pairs || []) {
+    if (!x || x.actionType !== 'CONSISTENCY_PROTECTION') continue
+    const c = x.report && x.report.cards && x.report.cards.firstAction
+    if (copy.consistencyTimeboxAsSuccess(text(c && c.decision), text(c && c.done))) n++
+  }
+  return n
+}
+
+/** §10 REPORT_C_HABIT_COACHING_DOMINANT — CONSISTENCY report centers on habit/self-discipline. */
+function reportCHabitCoachingDominant (report) {
+  const c = (report && report.cards) || {}
+  const pool = [text(c.fatalInsight && c.fatalInsight.text), text(c.coreProblem && c.coreProblem.text), (c.systemLoop && c.systemLoop.steps || []).join(' '), text(c.turnaroundPath && c.turnaroundPath.logic), text(c.firstAction && c.firstAction.action), text(c.firstAction && c.firstAction.decision)].join('\n')
+  const habit = /(每天固定\s*\d+\s*分钟|养成习惯|保持自律|自律|坚持\s*\d*\s*[天周月]|执行纪律)/.test(pool)
+  const mechanism = /(累积|外部|市场|反馈|重启|归零|清零|证据)/.test(pool)
+  return habit && !mechanism
+}
+
+/** §10 REPORT_D_PROBABILITY_LOGIC_PASS — DIRECTION decision requires aggregation or strong signal. */
+function reportDProbabilityLogicPass (report) {
+  const c = (report && report.cards) || {}
+  const fa = c.firstAction || {}
+  const t = [text(fa.done), text(fa.decision)].join(' ')
+  if (!/(定方向|方向|拍板)/.test(text(fa.decision))) return true
+  const aggregated = /(3个|三个人|3人|三条|多条|独立|直到问满|问满|持续|累积|经济信号|真金白银|付款|签约|定金)/.test(t)
+  return aggregated
+}
+
+/** §15 SHAREABLE_INSIGHT_RATE — report carries >=1 standalone screenshot-worthy line. */
+function shareableInsight (report) {
+  const c = (report && report.cards) || {}
+  const pool = [text(c.fatalInsight && c.fatalInsight.text), text(c.turnaroundPath && c.turnaroundPath.worldRuleLine)]
+  for (const s of pool) {
+    const t = String(s || '').trim()
+    if (t.length >= 10 && /[。！？!?]$/.test(t) && /(不是|而是|其实|真正|换不来|才算|才是|撑不下去|只灵|贵|昂贵|事件|能力|试出来)/.test(t)) return true
+  }
+  return false
+}
+
+/**
+ * Aggregate R35 human-language + probability + evidence-strength validators.
+ */
+function assessHumanLanguageV6 (report, diagnosis) {
+  const c = (report && report.cards) || {}
+  const actionType = diagnosis && diagnosis.firstActionType
+  const fa = c.firstAction || {}
+  return {
+    AWKWARD_CHINESE_ASSEMBLY_COUNT: awkwardChineseAssembly(report),
+    PROBLEM_AS_DESIRE_COUNT: problemAsDesire(report),
+    SINGLE_WEAK_SIGNAL_OVERCLAIM: copy.singleWeakSignalOverclaim(actionType, text(fa.done), text(fa.decision)),
+    CONSISTENCY_TIMEBOX_AS_SUCCESS: actionType === 'CONSISTENCY_PROTECTION' && copy.consistencyTimeboxAsSuccess(text(fa.decision), text(fa.done)),
+    SHAREABLE_INSIGHT: shareableInsight(report)
+  }
+}
+
 /**
  * Aggregate R34 human-copy + reality-test validators.
  */
@@ -392,5 +512,16 @@ module.exports = {
   semanticRoleInversion,
   realityTestIsPrimaryAction,
   decorativeExternalSignal,
-  assessWorldModelV6
+  assessWorldModelV6,
+  // R35
+  awkwardChineseAssembly,
+  problemAsDesire,
+  perceptuallySameCard03,
+  singleWeakSignalOverclaimCount,
+  directionSinglePersonFinalDecision,
+  consistencyTimeboxAsSuccessCount,
+  reportCHabitCoachingDominant,
+  reportDProbabilityLogicPass,
+  shareableInsight,
+  assessHumanLanguageV6
 }
