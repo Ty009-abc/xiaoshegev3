@@ -45,6 +45,8 @@ Page({
     submitting: false,
     submitted: false,
     error: '',
+    reviewMode: false,
+    revertToLatest: false,
     totalNavHeight: 0,
   },
 
@@ -54,6 +56,44 @@ Page({
     this.setData({
       screens: this._screens,
       totalCount: this._screens.length,
+    })
+    this._maybeRestoreForReview()
+  },
+
+  // R48 §5/§15 — conflict review handoff.
+  // The EVIDENCE_CONFLICT "返回确认" CTA returns here with EXISTING answers
+  // preserved (saved on submit) and jumps straight to the first screen that
+  // needs confirming. It NEVER forces a full questionnaire restart.
+  _maybeRestoreForReview() {
+    const app0 = getApp()
+    const review = app0 && app0.globalData ? app0.globalData.turnaroundV6Review : null
+    if (!review || review.mode !== 'REVIEW') return
+    const saved = (app0.globalData && app0.globalData.turnaroundV6HybridAnswers) || null
+    if (!saved) return
+
+    const screens = this._screens
+    const targets = Array.isArray(review.screens) ? review.screens : []
+    // 1-based screen numbers -> 0-based index of the first to confirm.
+    let idx = 0
+    if (targets.length) {
+      const oneBased = Math.min.apply(null, targets)
+      idx = Math.max(0, Math.min(screens.length - 1, (oneBased || 1) - 1))
+    }
+    const s = screens[idx]
+    const app1 = getApp()
+    app1.globalData.turnaroundV6Review = null // consume the marker
+    this.setData({
+      started: true,
+      reviewMode: true,
+      currentIndex: idx,
+      answers: Object.assign({}, saved),
+      occupation: (app1.globalData && app1.globalData.turnaroundV6HybridOccupation) || this.data.occupation,
+      selectedMainId: (s && saved[s.key]) || '',
+      selectedSecondaryId: (s && s.secondary && saved[s.secondary.key]) || '',
+      progressPercent: this._pct(idx + 1),
+      submitting: false,
+      submitted: false,
+      error: '',
     })
   },
 
@@ -72,6 +112,7 @@ Page({
   startSession() {
     this.setData({
       started: true,
+      reviewMode: false,
       currentIndex: 0,
       answers: {},
       occupation: '',
@@ -175,6 +216,11 @@ Page({
     }
 
     this.setData({ submitting: true, submitted: true, error: '' })
+
+    // R48 §15 — persist the exact submission so a conflict "返回确认" can
+    // restore every answer (EXISTING_ANSWER_LOSS_COUNT = 0).
+    app.globalData.turnaroundV6HybridAnswers = Object.assign({}, payload)
+    app.globalData.turnaroundV6HybridOccupation = payload.occupationDetail || ''
 
     const req = buildCloudRequestHybridV10(payload)
     try {

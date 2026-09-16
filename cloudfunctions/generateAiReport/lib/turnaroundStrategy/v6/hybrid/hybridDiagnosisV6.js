@@ -41,7 +41,9 @@ const { buildTrace } = require('../diagnosisTraceV6.js')
 
 const { buildHybridProfileV6 } = require('./hybridProfileV6.js')
 const { adaptHybridToV6 } = require('./hybridB1AdapterV6.js')
+const { computeAssetStateV6 } = require('./assetAxisV6.js')
 const { buildHybridReportContextV6 } = require('./hybridReportContextV6.js')
+const { evaluateHybridEvidenceCompatibility } = require('./hybridCompatibilityV6.js')
 
 /**
  * Run the V6 kernel against an ALREADY-BUILT canonical profile. Mirrors
@@ -66,7 +68,7 @@ function diagnoseFromProfile (profile) {
     .filter(c => c.eligible)
     .map(c => ({ bottleneck: c.bottleneck, ruleId: c.ruleId }))
 
-  return {
+  const diagnosis = {
     contractVersion: CONTRACT_VERSION,
     schema: 'v6-diagnosis/1',
     profile: {
@@ -87,6 +89,21 @@ function diagnoseFromProfile (profile) {
     inputErrors: { missing: [], malformed: [], unresolved: [] },
     trace
   }
+
+  // ── R48 §2 — deterministic pre-report EVIDENCE COMPATIBILITY gate ──
+  // Sits AFTER the B1 diagnosis + asset/proof normalization and BEFORE the
+  // five-card report. ZERO authority over the diagnosis: attached as metadata.
+  // A native V6 profile carries no asset axis, so no cross-axis market claim can
+  // arise -> always COMPATIBLE.
+  diagnosis.compatibility = evaluateHybridEvidenceCompatibility({
+    diagnosis,
+    executionStage: diagnosis.executionStage,
+    assetState: null,
+    marketValidated: null,
+    hybridProfile: null
+  })
+
+  return diagnosis
 }
 
 /**
@@ -124,9 +141,27 @@ function runHybridDiagnosisV6 (rawAnswers) {
 
   const adapted = adaptHybridToV6(hybridProfile)
   const diagnosis = diagnoseFromProfile(adapted.profile)
+
+  // ── R48 §2/§3/§7 — cross-axis evidence compatibility (deterministic) ──
+  // Evaluated here, where BOTH the asset/proof axis and the B1 stage anchor are
+  // known. The verdict is stamped on the diagnosis as metadata; it NEVER mutates
+  // primaryBottleneck / beliefRealityGap / executionStage / firstActionType.
+  const asset = computeAssetStateV6(hybridProfile)
+  diagnosis.compatibility = evaluateHybridEvidenceCompatibility({
+    diagnosis,
+    executionStage: diagnosis.executionStage,
+    assetState: asset.state,
+    marketValidated: asset.marketValidated,
+    hybridProfile
+  })
+
   // R46 §6: the report context reads the diagnosis (bottleneck / action type) to
   // produce proof-aware wording; it NEVER changes those authority fields.
-  const hybridContext = buildHybridReportContextV6(hybridProfile, diagnosis)
+  // R48 §4: on a hard conflict NO report context is built at all (report is
+  // stopped upstream) — the gate owns that decision, not the copy layer.
+  const hybridContext = diagnosis.compatibility.verdict === 'EVIDENCE_CONFLICT'
+    ? null
+    : buildHybridReportContextV6(hybridProfile, diagnosis)
 
   return {
     valid: true,

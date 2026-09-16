@@ -17,6 +17,12 @@
 
   <!-- 答题中 -->
   <view wx:if="{{started && !submitted}}" class="quiz">
+    <!-- R48 §5/§15 — 冲突返回确认：保留原选择，只提示核对相关题目 -->
+    <view wx:if="{{reviewMode}}" class="review-banner">
+      <view class="review-banner-title">请确认这两处信息</view>
+      <view class="review-banner-desc">你的选择都还在，只需核对下面这几题，确认后即可重新生成策略。</view>
+    </view>
+
     <view class="progress-wrap">
       <view class="progress-label">第 {{currentIndex + 1}} / {{totalCount}} 题</view>
       <view class="progress-bar">

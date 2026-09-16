@@ -121,6 +121,17 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
     actionType: (diagnosis && diagnosis.firstActionType) || null
   })
 
+  // ── R48 §7 — CONDITIONALLY COMPATIBLE cross-axis scope ──
+  // When the two axes are UNPROVEN-same-object (a paid asset + a pre-payment
+  // execution gap), the asset axis may still state the FACTUAL market position,
+  // but the STRATEGY may not be linked across axes (it may not assume the paid
+  // asset IS the object of the current desired change). Scope-limited contexts
+  // therefore KEEP the factual CARD04-FROM + CARD02 asset line, and DROP the
+  // proof-aware strategy overrides (CARD02 leap / CARD04 TO / CARD03 / CARD05) so
+  // the cards fall back to the frozen, axis-agnostic base copy.
+  const crossAxisScope = (diagnosis && diagnosis.compatibility && diagnosis.compatibility.crossAxisScope) || 'COMPATIBLE'
+  const scopeLimited = crossAxisScope === 'UNPROVEN'
+
   return {
     occupation,
     assetState: asset.state,
@@ -134,16 +145,21 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
     sizingLine,
     riskLine,
     goalLine,
+    crossAxisScope,
+    scopeLimited,
     // proof-aware overrides (null/absent => card uses frozen base copy)
     // R46 §8: CARD04 "现在"(FROM) is a pure market-position FACT and is
     // proof-aware for ALL states (the stage-keyed base copy can contradict the
-    // proof state). "接下来"(TO) is proof-refined only for paid bands.
+    // proof state). R48 §7: this FACT is KEPT even when the scope is limited -
+    // it asserts the user's market position, never a cross-axis strategy link.
     proofFrom: proof.card04.from,
-    proofTo: proof.isPaidBand ? proof.card04.to : null,
-    card02Leap: proof.card02Leap || null,
-    card03: proof.card03 || null,
-    card05: proof.card05 || null,
-    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal', 'proofConsistency']
+    // R46 §8: "接下来"(TO) is proof-refined only for paid bands, and (R48 §7)
+    // only when the cross-axis scope is NOT limited.
+    proofTo: (!scopeLimited && proof.isPaidBand) ? proof.card04.to : null,
+    card02Leap: (!scopeLimited && proof.card02Leap) ? proof.card02Leap : null,
+    card03: (!scopeLimited && proof.card03) ? proof.card03 : null,
+    card05: (!scopeLimited && proof.card05) ? proof.card05 : null,
+    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal', 'proofConsistency', 'compatibility']
   }
 }
 

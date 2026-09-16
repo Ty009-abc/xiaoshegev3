@@ -46,16 +46,26 @@ async function ta (name, fn) {
 }
 
 function base (o) {
+  // R48 default = a COMPATIBLE pair (REPEATABILITY_GAP + PAID_ONCE). Before R48
+  // this was VALIDATION_GAP + PAID_ONCE, which the new evidence-compatibility
+  // gate now (correctly) classifies as EVIDENCE_CONFLICT.
   return Object.assign({
     lifeStage: 'LIFE_31_40', incomeStructure: 'INC_SALARY', occupationDetail: '程序员',
     monthlySurplus: 'SURPLUS_1K_5K', safetyMonths: 'SAFETY_3_6', debtPressure: 'DEBT_NONE',
     skillValidation: 'PROOF_PAID_ONCE', monetizableSkill: 'ASSET_TECHNICAL',
     weeklyTime: 'TIME_5_10', executionStability: 'EXEC_STABLE',
-    pastAttemptStage: 'ATTEMPT_NO_SALE', selfBelief: 'BELIEF_ABILITY',
+    pastAttemptStage: 'ATTEMPT_FEW_SALES', selfBelief: 'BELIEF_TRIED_NO_RESULT',
     decisionStyle: 'DECISION_SMALL_TEST', timeBehavior: 'TIME_SHORT_FIRST',
     primaryProblem: 'PROBLEM_INCOME_STUCK', primaryGoal: 'GOAL_SIDE_INCOME',
     maxTrialCost: 'COST_1K_5K', failureResponse: 'FAIL_RECHECK'
   }, o || {})
+}
+// R48: a COMPATIBLE no-proof fixture (VALIDATION_GAP + no market proof).
+function noProofBase (o) {
+  return base(Object.assign({
+    pastAttemptStage: 'ATTEMPT_NO_SALE', selfBelief: 'BELIEF_ABILITY',
+    primaryProblem: 'PROBLEM_MONETIZE'
+  }, o || {}))
 }
 function render (raw) {
   const out = H.runHybridDiagnosisV6(raw)
@@ -243,9 +253,7 @@ const authMatrix = [
   // ══════════════════════════════════════════════════════════════════
   console.log('\n   §14 GOLDEN PROOF-STAGE MATRIX')
   const proofStates = {
-    NONE: { skillValidation: 'PROOF_NEVER', monetizableSkill: 'ASSET_TECHNICAL' },
-    FREE_PROOF: { skillValidation: 'PROOF_FREE_HELPED', monetizableSkill: 'ASSET_TECHNICAL' },
-    PAID_ONCE: {},
+    PAID_ONCE: { skillValidation: 'PROOF_PAID_ONCE' },
     OCCASIONAL_PAID: { skillValidation: 'PROOF_OCCASIONAL' },
     REPEATABLE: { skillValidation: 'PROOF_STABLE' }
   }
@@ -254,7 +262,7 @@ const authMatrix = [
 
   t('§14 B1_DIAGNOSIS_DIFF_COUNT = 0 (same bottleneck/stage/action across proof states)', () => {
     const sig = (r) => [r.out.diagnosis.primaryBottleneck, r.out.diagnosis.executionStage, r.out.diagnosis.firstActionType, r.out.diagnosis.beliefRelation.relation].join('|')
-    const s0 = sig(rendered.NONE)
+    const s0 = sig(rendered.PAID_ONCE)
     for (const k of Object.keys(rendered)) assert.strictEqual(sig(rendered[k]), s0, k + ' changed the diagnosis')
   })
 
@@ -263,9 +271,13 @@ const authMatrix = [
     assert.ok(set.size > 1, 'CARD04 wording identical across proof states')
   })
 
-  t('§14 CARD05_ACTION_WORDING_DIFF_COUNT > 0', () => {
+  t('§14 CARD05_ACTION_WORDING_DIFF_COUNT = 0 under R48 (cross-axis override suppressed)', () => {
+    // R48 §7: proof-aware CARD05 overrides only fire for a COMPATIBLE paid band
+    // with a mapped action type. REPEATABILITY_GAP has no CARD05 mapping and the
+    // conditional bands are scope-limited, so the action copy is the frozen base
+    // copy across this paid progression (no unsupported cross-axis strategy).
     const set = new Set(Object.values(rendered).map((r) => r.vm[4].primaryAction))
-    assert.ok(set.size > 1, 'CARD05 action wording identical across proof states')
+    assert.strictEqual(set.size, 1, 'CARD05 proof-aware override unexpectedly fired')
   })
 
   // ══════════════════════════════════════════════════════════════════
@@ -278,10 +290,10 @@ const authMatrix = [
     REPEATABLE_PAID: base({ skillValidation: 'PROOF_STABLE' })
   }
   const unprovenCases = {
-    NO_CLEAR_ASSET: base({ skillValidation: 'PROOF_NEVER', monetizableSkill: 'ASSET_UNCLEAR', occupationDetail: undefined }),
-    SKILL_IDENTIFIED_UNPROVEN: base({ skillValidation: 'PROOF_NEVER' }),
-    SKILL_USED_FREE: base({ skillValidation: 'PROOF_FREE_THANKED' }),
-    PROBLEM_SOLVING_PROOF: base({ skillValidation: 'PROOF_FREE_HELPED' })
+    NO_CLEAR_ASSET: noProofBase({ skillValidation: 'PROOF_NEVER', monetizableSkill: 'ASSET_UNCLEAR', occupationDetail: undefined }),
+    SKILL_IDENTIFIED_UNPROVEN: noProofBase({ skillValidation: 'PROOF_NEVER' }),
+    SKILL_USED_FREE: noProofBase({ skillValidation: 'PROOF_FREE_THANKED' }),
+    PROBLEM_SOLVING_PROOF: noProofBase({ skillValidation: 'PROOF_FREE_HELPED' })
   }
 
   t('§9 all five cards free of proof contradictions (paid states)', () => {
@@ -341,22 +353,29 @@ const authMatrix = [
   console.log('\n   §11 FIRST ACTION TYPE')
   t('§11 FIRST_ACTION_TYPE_MUTATION_COUNT = 0 (wording changes, type does not)', () => {
     const byBottleneck = {
-      VALIDATION_GAP: base({}),
+      VALIDATION_GAP: noProofBase({}),
       OCCASIONAL: base({ skillValidation: 'PROOF_OCCASIONAL' }),
       STABLE: base({ skillValidation: 'PROOF_STABLE' })
     }
+    const expected = {
+      VALIDATION_GAP: 'BUYER_FEEDBACK_COLLECTION',
+      OCCASIONAL: 'REPEAT_SUCCESS_PATH',
+      STABLE: 'REPEAT_SUCCESS_PATH'
+    }
     for (const [k, raw] of Object.entries(byBottleneck)) {
       const r = render(raw)
-      assert.strictEqual(r.out.diagnosis.firstActionType, 'BUYER_FEEDBACK_COLLECTION', k + ' mutated action type')
+      assert.strictEqual(r.out.diagnosis.firstActionType, expected[k], k + ' mutated action type')
     }
   })
 
-  t('§11 proof-aware CARD05 stays inside the action type semantic bound', () => {
-    const r = render(base({ skillValidation: 'PROOF_STABLE' }))
-    // REPEATABLE + BUYER_FEEDBACK_COLLECTION must still ask buyers, not "get first feedback"
-    const a = r.vm[4].primaryAction
-    assert.ok(!/第一笔钱|第一次真实反馈|从来没人/.test(a), 'sent a stable user back to first-feedback')
-    assert.ok(/已经成交|持续|新用户|买过/.test(a), 'not buyer-feedback shaped: ' + a)
+  t('§11 R48: proof-aware CARD05 is BLOCKED for an invalid combination', () => {
+    // R46 rendered a proof-aware CARD05 for VALIDATION_GAP + REPEATABLE_PAID.
+    // R48 stops the report entirely (EVIDENCE_CONFLICT) for that combination.
+    const raw = Object.assign(noProofBase({}), { skillValidation: 'PROOF_STABLE' })
+    const r = render(raw)
+    assert.strictEqual(r.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT')
+    assert.strictEqual(r.rep.reportState, 'EVIDENCE_CONFLICT')
+    assert.strictEqual(r.vm.length, 0)
   })
 
   // ══════════════════════════════════════════════════════════════════
@@ -387,12 +406,20 @@ const authMatrix = [
     assert.strictEqual(copy.PATH_FROM.TESTING, '做了东西，却没卖出去', 'base copy changed')
     assert.ok(PC.CLAIM_CONTRACT.PAID_ONCE.forbidden.includes('却没卖出去'), 'contradiction not modelled')
   })
-  t('§16 R46_A_CONTRADICTION_AFTER_FIX = NO', () => {
+  t('§16 R48: the R45 Report-A combination is now EVIDENCE_CONFLICT (no masked report)', () => {
+    // R45 Report A = VALIDATION_GAP + PAID_ONCE. R46 made it read coherently by
+    // overriding copy; R48 stops it deterministically at the gate.
+    const raw = Object.assign(noProofBase({}), { skillValidation: 'PROOF_PAID_ONCE' })
+    const r = render(raw)
+    assert.strictEqual(r.out.diagnosis.primaryBottleneck, 'VALIDATION_GAP')
+    assert.strictEqual(r.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT')
+    assert.strictEqual(r.rep.cards, null)
+  })
+  t('§16 R46_A_CONTRADICTION_AFTER_FIX = NO (compatible paid case stays coherent)', () => {
     const text = vmText(reportA.vm)
     assert.ok(!text.includes('却没卖出去'), 'still says 却没卖出去')
     assert.ok(!text.includes('为什么没买'), 'still asks 为什么没买')
     assert.strictEqual(reportA.vm[3].from, '已经有人为它付过一次钱，但还没证明需求能重复')
-    assert.strictEqual(reportA.vm[3].to, '验证谁会再次购买，以及为什么买')
   })
 
   // ══════════════════════════════════════════════════════════════════

@@ -33,6 +33,8 @@
 const RETRY_MESSAGE = '策略引擎暂时不可用，请稍后重试。'
 const RETAKE_MESSAGE = '问卷数据不完整，请重新测评。'
 const NO_REPORT_MESSAGE = '暂时无法生成翻身策略，请稍后重试。'
+const CONFLICT_TITLE = '有两处信息对不上'
+const CONFLICT_BODY = '你前面的两处回答有点对不上：一处显示这项能力还没有成交，另一处显示你已经有过付费结果。确认一下这两处后，我才能继续给你策略。'
 
 const CARD_TITLE_FALLBACK = {
   fatalInsight: '致命一句话',
@@ -144,7 +146,31 @@ function buildTurnaroundReportViewModelV6 (result) {
   const state = data.reportState
 
   if (state === 'INVALID_INPUT') {
-    return { uiState: 'INVALID_INPUT', hasReport: false, cards: [], message: RETAKE_MESSAGE, retake: true }
+    return { uiState: 'INVALID_INPUT', hasReport: false, cards: [], message: RETAKE_MESSAGE, retake: true, conflict: null }
+  }
+
+  // R48 §5 — EVIDENCE_CONFLICT: dedicated lightweight conflict state.
+  // NEVER the five cards, NEVER the generic "暂时无法生成翻身策略" message.
+  // Only the review metadata (fields + screens) is surfaced; internal ids
+  // (VALIDATION_GAP / REPEATABILITY_GAP / STAGE_TESTING) are NEVER exposed.
+  if (state === 'EVIDENCE_CONFLICT') {
+    const c = data.conflict || {}
+    return {
+      uiState: 'EVIDENCE_CONFLICT',
+      hasReport: false,
+      cards: [],
+      title: CONFLICT_TITLE,
+      message: CONFLICT_BODY,
+      retake: false,
+      ctas: [
+        { id: 'review', label: '返回确认', primary: true },
+        { id: 'back', label: '返回', primary: false },
+      ],
+      conflict: {
+        conflictingFields: Array.isArray(c.conflictingFields) ? c.conflictingFields.slice() : [],
+        recommendedReviewScreens: Array.isArray(c.recommendedReviewScreens) ? c.recommendedReviewScreens.slice() : [],
+      },
+    }
   }
 
   const active = data.v6PrimaryActive === true
@@ -157,18 +183,21 @@ function buildTurnaroundReportViewModelV6 (result) {
       cards: cards,
       message: '',
       retake: true,
+      conflict: null,
     }
   }
 
   // V6 not enabled / unavailable (e.g. production MODE != ON for this account),
   // or a non-shippable fallback. Never surface engineering detail.
-  return { uiState: 'UNAVAILABLE', hasReport: false, cards: [], message: NO_REPORT_MESSAGE, retake: true }
+  return { uiState: 'UNAVAILABLE', hasReport: false, cards: [], message: NO_REPORT_MESSAGE, retake: true, conflict: null }
 }
 
 module.exports = {
   RETRY_MESSAGE,
   RETAKE_MESSAGE,
   NO_REPORT_MESSAGE,
+  CONFLICT_TITLE,
+  CONFLICT_BODY,
   CARD_TITLE_FALLBACK,
   buildCardListV6,
   buildTurnaroundReportViewModelV6,

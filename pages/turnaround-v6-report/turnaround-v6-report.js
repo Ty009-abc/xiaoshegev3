@@ -36,7 +36,10 @@ Page({
     hasReport: false,
     cards: [],
     message: '',
+    title: '',
     retake: false,
+    conflict: null,
+    ctas: [],
     totalNavHeight: 0,
   },
 
@@ -66,8 +69,28 @@ Page({
       hasReport: vm.hasReport,
       cards: vm.cards,
       message: vm.message,
+      title: vm.title || '',
       retake: vm.retake,
+      conflict: vm.conflict || null,
+      ctas: vm.ctas || [],
     })
+  },
+
+  // R48 §5/§15 — EVIDENCE_CONFLICT CTA "返回确认".
+  // Return the user to the relevant questionnaire answers with their EXISTING
+  // selections preserved (no full restart). The review handoff carries the
+  // recommended review screens; the questionnaire page keeps every saved answer
+  // and only jumps to the first screen that needs confirming.
+  onReviewConflict() {
+    const src = app.globalData.turnaroundV6SourceRoute
+    const url = ALLOWED_RETAKE_ROUTES.indexOf(src) !== -1 ? src : HYBRID_QUESTIONNAIRE_ROUTE
+    const vm = buildTurnaroundReportViewModelV6(app.globalData.turnaroundV6Result)
+    const screens = (vm && vm.conflict && vm.conflict.recommendedReviewScreens) || []
+    app.globalData.turnaroundV6Review = {
+      mode: 'REVIEW',
+      screens: screens,
+    }
+    wx.redirectTo({ url: url })
   },
 
   // Retake the questionnaire (clear prior result so a stale report can't show).
@@ -79,6 +102,13 @@ Page({
     const src = app.globalData.turnaroundV6SourceRoute
     const url = ALLOWED_RETAKE_ROUTES.indexOf(src) !== -1 ? src : QUESTIONNAIRE_ROUTE
     wx.redirectTo({ url: url })
+  },
+
+  // R48 §5 — conflict state CTA router.
+  onConflictCta(e) {
+    const id = e && e.currentTarget && e.currentTarget.dataset ? e.currentTarget.dataset.cta : ''
+    if (id === 'back') return this.onBack()
+    return this.onReviewConflict()
   },
 
   // Plain back to the previous page.

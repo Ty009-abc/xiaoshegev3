@@ -743,6 +743,28 @@ function buildTurnaroundV6HybridReport (report) {
   })
 }
 
+// ═══ R48 §4/§6: explicit deterministic EVIDENCE_CONFLICT envelope ═══
+// Returned (instead of any five-card report) when the frozen B1 stage evidence
+// and the Hybrid asset/proof evidence contradict each other. It carries the
+// conflict STATE + review METADATA only — NEVER a card, NEVER a winner between
+// the two answers, NEVER a raw user answer. The client renders a dedicated
+// lightweight conflict state and sends the user back to review the two answers.
+function buildTurnaroundV6HybridConflict (compat) {
+  const c = compat || {}
+  return ok({
+    reportType: 'turnaround_strategy_v6',
+    diagnosticVersion: 'turnaround_strategy_v6_hybrid_10q',
+    v6PrimaryActive: false,
+    reportState: 'EVIDENCE_CONFLICT',
+    conflict: {
+      conflictType: c.conflictType || 'MARKET_PROOF_VS_ATTEMPT_STAGE',
+      conflictingFields: Array.isArray(c.conflictingFields) ? c.conflictingFields.slice() : [],
+      recommendedReviewScreens: Array.isArray(c.recommendedReviewScreens) ? c.recommendedReviewScreens.slice() : [],
+    },
+    cards: null,
+  })
+}
+
 async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible }) {
   var { runHybridDiagnosisV6 } = require('./lib/turnaroundStrategy/v6/hybrid/hybridDiagnosisV6.js')
   var { buildReportV6 } = require('./lib/turnaroundStrategy/v6/report')
@@ -763,6 +785,7 @@ async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible 
     primaryBottleneck: (out && out.diagnosis && out.diagnosis.primaryBottleneck) || null,
     unmappedCount: Array.isArray(out && out.unmapped) ? out.unmapped.length : 0,
     assetState: (out && out.hybridContext && out.hybridContext.assetState) || null,
+    compatVerdict: (out && out.diagnosis && out.diagnosis.compatibility && out.diagnosis.compatibility.verdict) || null,
   }))
 
   // SHADOW authorizes INTERNAL observation only — the user-visible primary stays
@@ -772,6 +795,13 @@ async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible 
   if (!out || !out.valid) {
     // Contract-level invalid submission -> explicit INVALID_INPUT (fail-closed).
     return buildTurnaroundV6HybridReport(buildReportV6(out ? out.diagnosis : null, null))
+  }
+
+  // R48 §4: cross-axis evidence conflict STOPPED the report at the gate. No
+  // five-card report is ever built from contradictory user facts.
+  var compat = out.diagnosis && out.diagnosis.compatibility
+  if (compat && compat.verdict === 'EVIDENCE_CONFLICT') {
+    return buildTurnaroundV6HybridConflict(compat)
   }
 
   var report = buildReportV6(out.diagnosis, out.hybridContext)

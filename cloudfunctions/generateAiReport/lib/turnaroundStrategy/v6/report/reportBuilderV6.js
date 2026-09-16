@@ -37,6 +37,14 @@ function buildReportV6 (diagnosis, hybridContext) {
     return invalidReport()
   }
 
+  // ── R48 §4/§9 — cross-axis EVIDENCE CONFLICT is a REPORT BLOCKER ──
+  // Defense-in-depth: even if a caller reaches this builder with a conflicting
+  // diagnosis + context, NO five-card report may ever be produced from
+  // contradictory user facts, and no copy layer may mask the conflict.
+  if (diagnosis.compatibility && diagnosis.compatibility.verdict === 'EVIDENCE_CONFLICT') {
+    return conflictReport(diagnosis)
+  }
+
   switch (diagnosis.diagnosisState) {
     case 'INVALID_INPUT':
       return invalidReport(diagnosis)
@@ -156,6 +164,26 @@ function invalidReport (r) {
       contractVersion: r ? r.contractVersion : null,
       diagnosisState: 'INVALID_INPUT',
       inputErrors: r ? r.inputErrors : null
+    }
+  }
+}
+
+// ── EVIDENCE_CONFLICT (R48): NO cards, review metadata only ──────
+function conflictReport (r) {
+  return {
+    reportVersion: REPORT_VERSION,
+    reportState: 'EVIDENCE_CONFLICT',
+    cards: null,
+    conflict: {
+      conflictType: (r.compatibility && r.compatibility.conflictType) || null,
+      conflictingFields: (r.compatibility && r.compatibility.conflictingFields) || [],
+      recommendedReviewScreens: (r.compatibility && r.compatibility.recommendedReviewScreens) || []
+    },
+    provenance: {
+      contractVersion: r.contractVersion,
+      diagnosisState: r.diagnosisState,
+      primaryBottleneck: r.primaryBottleneck || null,
+      compatibility: r.compatibility || null
     }
   }
 }

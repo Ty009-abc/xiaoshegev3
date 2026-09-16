@@ -42,13 +42,15 @@ function t (name, fn) {
 }
 
 // ── fixtures ────────────────────────────────────────────────────────────
-function rawA () { // programmer + technical + paid once + side income
+function rawA () { // programmer + technical + repeatable paid + side income (COMPATIBLE)
+  // R48: pastAttemptStage=ATTEMPT_STABLE_SIDE (REPEATABILITY_GAP) paired with a paid
+  // proof state keeps the two evidence axes COMPATIBLE so a five-card report is built.
   return {
     lifeStage: 'LIFE_31_40', incomeStructure: 'INC_SALARY', occupationDetail: '程序员',
     monthlySurplus: 'SURPLUS_1K_5K', safetyMonths: 'SAFETY_3_6', debtPressure: 'DEBT_NONE',
-    skillValidation: 'PROOF_PAID_ONCE', monetizableSkill: 'ASSET_TECHNICAL',
+    skillValidation: 'PROOF_OCCASIONAL', monetizableSkill: 'ASSET_TECHNICAL',
     weeklyTime: 'TIME_5_10', executionStability: 'EXEC_STABLE',
-    pastAttemptStage: 'ATTEMPT_NO_SALE', selfBelief: 'BELIEF_ABILITY',
+    pastAttemptStage: 'ATTEMPT_FEW_SALES', selfBelief: 'BELIEF_TRIED_NO_RESULT',
     decisionStyle: 'DECISION_SMALL_TEST', timeBehavior: 'TIME_SHORT_FIRST',
     primaryProblem: 'PROBLEM_INCOME_STUCK', primaryGoal: 'GOAL_SIDE_INCOME',
     maxTrialCost: 'COST_1K_5K', failureResponse: 'FAIL_RECHECK'
@@ -121,7 +123,7 @@ t('§4 no field silently overwrites another (profile slots distinct)', () => {
   const p = H.buildHybridProfileV6(rawA())
   assert.strictEqual(p.reality.occupation, '程序员')
   assert.strictEqual(p.asset.type, 'ASSET_TECHNICAL')
-  assert.strictEqual(p.asset.marketProof, 'PROOF_PAID_ONCE')
+  assert.strictEqual(p.asset.marketProof, 'PROOF_OCCASIONAL')
   assert.strictEqual(p.behavior.decisionStyle, 'DECISION_SMALL_TEST')
   assert.strictEqual(p.behavior.timeAllocation, 'TIME_SHORT_FIRST')
   assert.strictEqual(p.desiredChange.primaryGoal, 'GOAL_SIDE_INCOME')
@@ -256,15 +258,17 @@ t('§13 occupation optional; absent → null, never invented', () => {
   const out = H.runHybridDiagnosisV6(raw)
   assert.strictEqual(out.valid, true, 'occupation must NOT block')
   assert.strictEqual(out.hybridProfile.reality.occupation, null)
-  const ctx = out.hybridContext
+  // R48: a conflict has no report context; use a COMPATIBLE fixture to inspect.
+  const ctx = out.hybridContext || H.buildHybridReportContextV6(out.hybridProfile, out.diagnosis)
   assert.ok(!ctx.realityLine.includes('「'), 'no invented occupation clause')
 })
 
 t('§13 occupation captured + used downstream when present', () => {
   const out = H.runHybridDiagnosisV6(rawA())
   assert.strictEqual(out.hybridProfile.reality.occupation, '程序员')
-  assert.ok(out.hybridContext.realityLine.includes('程序员'), 'occupation not used in context')
-  assert.ok(out.hybridContext.pathLine.includes('程序员'), 'occupation not used in pathLine')
+  const ctx = out.hybridContext || H.buildHybridReportContextV6(out.hybridProfile, out.diagnosis)
+  assert.ok(ctx.realityLine.includes('程序员'), 'occupation not used in context')
+  assert.ok(ctx.pathLine.includes('程序员'), 'occupation not used in pathLine')
 })
 
 // ── §14 market proof overclaim ──────────────────────────────────────────
@@ -282,7 +286,7 @@ t('§14 MARKET_PROOF_OVERCLAIM_COUNT = 0 (never claims validation when unproven)
   }
 })
 
-t('§14 proven cases MAY state market validation', () => {
+t('§14 provable cases MAY state market validation', () => {
   const ctx = H.buildHybridReportContextV6(H.buildHybridProfileV6(Object.assign(rawA(), { skillValidation: 'PROOF_PAID_ONCE' })))
   assert.strictEqual(ctx.marketValidated, true)
   assert.ok(/付过一次钱/.test(ctx.assetLine))
@@ -346,7 +350,7 @@ t('§23 unknown BELIEF id never becomes BELIEF_MATCH', () => {
 t('§25 B1_EQUIVALENT_INPUT_DIFF_COUNT = 0 (hybrid == native V6 for equivalent semantics)', () => {
   const NATIVE = [
     {
-      native: { Q1: '31–40', Q2: '固定工资', Q3: '1000–5000元', Q4: '收入一直上不去', Q5: '能力还不够', Q6: '做过产品/服务，但没人买单', Q7: '先做个很小的版本试试', Q8: '先做马上有结果的', Q9: '重新检查方法和步骤' },
+      native: { Q1: '31–40', Q2: '固定工资', Q3: '1000–5000元', Q4: '收入一直上不去', Q5: '做过不少尝试，但没结果', Q6: '已经有人愿意付钱', Q7: '先做个很小的版本试试', Q8: '先做马上有结果的', Q9: '重新检查方法和步骤' },
       hybrid: rawA()
     },
     {
@@ -385,7 +389,7 @@ t('§26 three hybrid reports are complete and differ by REALITY + ASSET', () => 
     return { out, rep, vm: VM.buildCardListV6(rep.cards) }
   })
   for (const r of reports) {
-    assert.strictEqual(r.rep.reportState, 'PRIMARY')
+    assert.strictEqual(r.rep.reportState, 'PRIMARY', 'fixture must be COMPATIBLE (no conflict)')
     assert.strictEqual(r.vm.length, 5)
     assert.ok(r.rep.cards.coreProblem.text.length > 30)
     assert.ok(r.rep.cards.firstAction.action.length > 0)
