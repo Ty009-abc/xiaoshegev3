@@ -12,9 +12,17 @@
  * Env:
  *   RC84_V6_WORLDVIEW_MODE   = OFF | SHADOW | ON
  *   RC84_V6_SHADOW_ALLOWLIST = comma-separated openids (only consulted in SHADOW)
+ *   RC84_V6_ON_ALLOWLIST     = comma-separated openids (only consulted in ON)
  *
  * Fail-closed: missing / malformed / empty / non-string → OFF.
  * SHADOW allowlist fail-closed: missing / empty → authorize NOBODY.
+ * ON allowlist fail-closed: missing / empty → authorize NOBODY.
+ *
+ * R21 §8: SHADOW and ON allowlists are INDEPENDENT. Permission to silently
+ * observe (SHADOW) is NOT permission to change user-visible output (ON). Being
+ * on the SHADOW allowlist never authorizes ON, and vice-versa. Neither parser
+ * reads the other's env var.
+ *
  * `ON` is PARSED (so a future owner-authorized task can flip it) but this task
  * never sets it; default is OFF and OFF is the production-safe state.
  *
@@ -26,6 +34,7 @@
 
 const V6_WORLDVIEW_MODE_ENV = 'RC84_V6_WORLDVIEW_MODE'
 const V6_SHADOW_ALLOWLIST_ENV = 'RC84_V6_SHADOW_ALLOWLIST'
+const V6_ON_ALLOWLIST_ENV = 'RC84_V6_ON_ALLOWLIST'
 
 // Closed allowed-mode set.
 const V6_ALLOWED_MODES = Object.freeze(['OFF', 'SHADOW', 'ON'])
@@ -93,9 +102,53 @@ function isV6ShadowAuthorized (openid, allowlistRaw) {
   }
 }
 
+/**
+ * Parse the optional ON allowlist (comma-separated openids) — R21 §7/§8.
+ * INDEPENDENT from the SHADOW allowlist. Fail-closed: missing / malformed /
+ * empty / non-string → empty set (authorize NOBODY). No hard-coded openid.
+ * @param {*} raw
+ * @returns {Set<string>}
+ */
+function parseV6OnAllowlist (raw) {
+  if (typeof raw !== 'string' || raw.trim() === '') return new Set()
+  try {
+    return new Set(
+      raw.split(',')
+        .map(function (e) { return e.trim() })
+        .filter(function (e) { return e.length > 0 })
+    )
+  } catch (e) {
+    return new Set()
+  }
+}
+
+function getV6OnAllowlistFromEnv () {
+  try { return process.env[V6_ON_ALLOWLIST_ENV] || '' } catch (e) { return '' }
+}
+
+/**
+ * Authorize a SERVER-DERIVED openid for V6 ON (user-visible AI report).
+ * An empty / missing ON allowlist authorizes NOBODY. Client-supplied openid is
+ * never consulted. The SHADOW allowlist is NEVER consulted here (R21 §8).
+ * @param {string|null|undefined} openid  server-derived OPENID
+ * @param {*} allowlistRaw  RC84_V6_ON_ALLOWLIST value
+ * @returns {boolean}
+ */
+function isV6OnAuthorized (openid, allowlistRaw) {
+  if (!openid || typeof openid !== 'string' || openid.trim() === '') return false
+  try {
+    const set = parseV6OnAllowlist(allowlistRaw)
+    if (set.size === 0) return false
+    return set.has(openid)
+  } catch (e) {
+    return false
+  }
+}
+
 module.exports = {
   V6_WORLDVIEW_MODE_ENV,
   V6_SHADOW_ALLOWLIST_ENV,
+  V6_ON_ALLOWLIST_ENV,
   V6_ALLOWED_MODES,
   V6_DEFAULT_MODE,
   parseV6WorldviewMode,
@@ -103,4 +156,7 @@ module.exports = {
   parseV6ShadowAllowlist,
   getV6ShadowAllowlistFromEnv,
   isV6ShadowAuthorized,
+  parseV6OnAllowlist,
+  getV6OnAllowlistFromEnv,
+  isV6OnAuthorized,
 }

@@ -139,9 +139,21 @@ async function runDraftReportRuntimeV6 (answers, opts) {
   const attempts = []
   let lastFailure = 'DRAFT_ATTEMPTS_EXHAUSTED'
   let draftMetrics = null
+  // R21 §15 OPTION B (ON only): a retry is allowed ONLY if the previous attempt
+  // failed FAST (<= retryFastFailMs) AND the remaining deadline can still fit a
+  // full attempt. SHADOW does not pass retryFastFailMs, so its retry behavior
+  // is unchanged.
+  const retryFastFailMs = o.retryFastFailMs != null ? o.retryFastFailMs : null
 
   for (let i = 1; i <= maxAttempts; i++) {
-    if (i > 1 && remaining() < attemptTimeoutMs) { lastFailure = 'TOTAL_BUDGET_EXHAUSTED'; break }
+    if (i > 1) {
+      if (remaining() < attemptTimeoutMs) { lastFailure = 'TOTAL_BUDGET_EXHAUSTED'; break }
+      if (retryFastFailMs != null) {
+        const prev = attempts[attempts.length - 1]
+        const prevLatency = prev ? (prev.latencyMs || 0) : Infinity
+        if (prevLatency > retryFastFailMs) { lastFailure = 'RETRY_SKIPPED_SLOW_FAILURE'; break }
+      }
+    }
     const t0 = Date.now()
     let res = null
     let failureReason = null

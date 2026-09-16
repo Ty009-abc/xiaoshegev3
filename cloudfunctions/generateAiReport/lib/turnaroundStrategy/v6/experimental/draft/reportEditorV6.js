@@ -74,6 +74,16 @@ function clipToLimit (text, limit) {
   return out || t
 }
 
+// ── R21 §3 copy-completeness invariant ──────────────────────────────────────
+// A user-facing CARD01/CARD04 AI expression is valid only if it ends at a
+// proven semantic boundary (。！？；). Transparent trailing closing marks are
+// ignored so “……。」 ” still counts as complete.
+const SEMANTIC_TERMINATOR = /[。！？；!?;]$/
+function endsAtSemanticBoundary (s) {
+  const x = trim(s).replace(/[”"』）)】」》»\]]+$/, '')
+  return !!x && SEMANTIC_TERMINATOR.test(x)
+}
+
 // Sentence terminators (kept), vs clause separators (stripped when trailing).
 const SENTENCE_TERMINATOR = /[。！？!?]$/
 const CLAUSE_SEP_CHARS = ['，', ',', '、', '；', ';', '：', ':']
@@ -81,16 +91,21 @@ const CLAUSE_SEP_CHARS = ['，', ',', '、', '；', ';', '：', ':']
  * §1 CARD01 compression with an explicit preference order:
  *   1. complete sentence(s) that fit within `limit` (ends on 。！？)
  *   2. complete clause (accumulated on ，、；：) that fits
- *   3. punctuation-aware cut at the last punctuation inside `limit`
- *   4. hard truncation (ABSOLUTE LAST RESORT only)
+ *   3. punctuation-aware cut at the last COMPLETE terminator inside `limit`
+ *   4. no complete unit fits `limit` → null (caller uses deterministic B2)
  * Never fabricates: the result is always a prefix of the input.
+ * R21 §3/§4: a comma-cut prefix (no terminator) is NOT user-facing copy and is
+ * rejected rather than shipped; a complete B2 fallback is preferred to a broken
+ * AI sentence. Hard truncation is never a user-facing option.
  * Deterministic; no AI call.
  */
 function compressCard01 (text, limit) {
   const t = removeGenericFiller(trim(text))
-  if (chars(t) <= limit) return t
+  if (!t) return t
+  // A sub-limit string is usable AS-IS only if it already ends complete.
+  if (chars(t) <= limit && endsAtSemanticBoundary(t)) return t
 
-  // 1) whole sentences
+  // 1) whole sentences that fit AND end at a semantic boundary
   const sents = t.split(SENT_SPLIT).filter((x) => trim(x).length > 0)
   let acc = ''
   for (const s of sents) {
@@ -98,9 +113,9 @@ function compressCard01 (text, limit) {
     acc += s
   }
   acc = trim(acc)
-  if (acc) { const p = polishTail(acc); if (p) return p }
+  if (acc) { const p = polishTail(acc); if (p && endsAtSemanticBoundary(p)) return p }
 
-  // 2) whole clauses
+  // 2) whole clauses that fit AND end at a semantic boundary
   const clauses = t.split(COMMA_SPLIT).filter((x) => trim(x).length > 0)
   acc = ''
   for (const c of clauses) {
@@ -108,20 +123,19 @@ function compressCard01 (text, limit) {
     acc += c
   }
   acc = trim(acc)
-  if (acc) { const p = polishTail(acc); if (p) return p }
+  if (acc) { const p = polishTail(acc); if (p && endsAtSemanticBoundary(p)) return p }
 
-  // 3) punctuation-aware cut at the last punctuation within `limit`
+  // 3) last semantic terminator inside `limit`
   const arr = [...t]
   const head = arr.slice(0, limit).join('')
-  let cut = -1
-  for (const ch of CLAUSE_SEP_CHARS.concat(['。', '！', '？', '!', '?'])) {
-    const idx = head.lastIndexOf(ch)
-    if (idx > cut) cut = idx
+  const cut = lastIndexWhere(head, (ch) => SEMANTIC_TERMINATOR.test(ch))
+  if (cut >= 0) {
+    const out = trim(arr.slice(0, cut + 1).join(''))
+    if (endsAtSemanticBoundary(out)) return out
   }
-  if (cut > 0) { const p = polishTail(trim(arr.slice(0, cut).join(''))); if (p) return p }
 
-  // 4) hard truncation — absolute last resort
-  return polishTail(trim(head)) || trim(head)
+  // 4) no complete AI unit fits → caller falls back to deterministic B2.
+  return null
 }
 
 // §3 CARD04 true-sentence boundary: terminator set EXCLUDES clause separators
@@ -192,25 +206,25 @@ function compressCard04Logic (text, limit, softMax) {
 
   // 2) last full sentence ender inside the soft window (keep the ender)
   const term = lastIndexWhere(headS, (ch) => C04_SENT_TERM.includes(ch))
-  if (term >= 0) return trim(headS.slice(0, term + 1))
+  if (term >= 0) {
+    const out = trim(headS.slice(0, term + 1))
+    if (!c04EndsLeadIn(out)) return out
+  }
 
   // 3) last complete-clause ender inside the window (；：, keep the ender).
   const clauseEnd = lastIndexWhere(headS, (ch) => C04_CLAUSE_TERM.includes(ch))
   if (clauseEnd >= 0) {
     const out = trim(headS.slice(0, clauseEnd + 1))
-    if (chars(out.replace(/[；;：:]+$/, '')) >= 8) return out
+    if (chars(out.replace(/[；;：:]+$/, '')) >= 8 && !c04EndsLeadIn(out)) return out
   }
 
-  // 4) last partial-clause separator inside the window (cut BEFORE it)
-  const partial = lastIndexWhere(headS, (ch) => C04_PARTIAL_SEP.includes(ch))
-  if (partial > 0) {
-    const out = polishTail(headS.slice(0, partial))
-    if (chars(out) >= 8 && !c04EndsLeadIn(out)) return out
-  }
+  // 4) whole material already fits the target AND ends at a complete boundary.
+  if (chars(t) <= T && c04EndsComplete(t) && !c04EndsLeadIn(t)) return t
 
-  // 5) no complete unit fits the soft ceiling → signal caller to use complete
-  //    B2-derived expression, unless the whole material already fits the target.
-  if (chars(t) <= T && !c04EndsLeadIn(t)) return t
+  // 5) R21 §3/§4: NO complete unit fits the soft ceiling. A comma-cut prefix is
+  //    NOT a semantic boundary (it produced the R20 mid-clause fragment
+  //    “……能否在你忙碌”), so return null and let the caller use a complete
+  //    B2-derived expression. Hard truncation is never user-facing.
   return null
 }
 
@@ -341,6 +355,8 @@ function editReportV6 (args) {
   }
   // HARD cap enforcement (CARD01 must never exceed 60).
   if (chars(card01) > FINAL_LIMITS.card01Max) card01 = clipToLimit(card01, FINAL_LIMITS.card01Max)
+  // R21 §4: never ship a non-boundary stub; use the complete B2 sentence instead.
+  if (!endsAtSemanticBoundary(card01)) card01 = b2.fatalInsight.text
 
   // ── CARD02 ──────────────────────────────────────────────────
   let card02
@@ -368,19 +384,17 @@ function editReportV6 (args) {
     let t = compressCard04Logic(dedupeThesis(d.transitionExplanation), FINAL_LIMITS.card04ToMax, FINAL_LIMITS.card04SoftMax)
     let c04Reason = null
     if (t == null) {
-      // AI material has no complete unit within the soft ceiling → use a
-      // complete B2-derived unit instead of shipping a fragment.
-      t = compressCard04Logic(b2.turnaroundPath.text || b2.turnaroundPath.logic || '', FINAL_LIMITS.card04ToMax, FINAL_LIMITS.card04SoftMax)
+      // R21 §3/§4: AI material has no COMPLETE unit within the soft ceiling →
+      // use a complete B2-derived expression instead of a broken fragment.
+      // Never ship a mid-clause cut or a hard truncation to the user.
+      const b2Material = b2.turnaroundPath.logic || b2.turnaroundPath.text || ''
+      t = compressCard04Logic(b2Material, FINAL_LIMITS.card04ToMax, FINAL_LIMITS.card04SoftMax)
+      if (t == null || !c04EndsComplete(t)) t = trim(b2Material) // complete B2 copy is the guaranteed-safe last resort
       c04Reason = 'NO_COMPLETE_UNIT_AI_USE_B2'
-    }
-    if (t == null) {
-      // Absolute last resort: hard-truncate the AI material within the target.
-      t = compressCard04LogicHard(d.transitionExplanation, FINAL_LIMITS.card04ToMax, FINAL_LIMITS.card04SoftMax)
-      c04Reason = 'HARD_TRUNCATE_LAST_RESORT'
     }
     if (c04Reason == null && chars(t) >= 10) {
       card04Logic = t; fieldsUsed.push('transitionExplanation')
-    } else if (chars(t) >= 10) {
+    } else if (t && chars(t) >= 10) {
       // Copy used, but not from the AI material → field fallback (honest).
       card04Logic = t; fieldsFellBack.push('transitionExplanation'); fieldReasons.transitionExplanation = c04Reason
     } else {
@@ -392,6 +406,8 @@ function editReportV6 (args) {
   }
   const card04From = b2.turnaroundPath.from
   const card04To = b2.turnaroundPath.to
+  // R21 §3/§4 belt-and-suspenders: CARD04 must never ship incomplete copy.
+  if (!c04EndsComplete(card04Logic)) card04Logic = b2.turnaroundPath.logic || b2.turnaroundPath.text || card04Logic
 
   // ── CARD05 ── frozen firstActionType + AI explanation as supporting line
   const card05Action = b2.firstAction.action

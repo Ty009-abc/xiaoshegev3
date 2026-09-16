@@ -117,7 +117,7 @@ exports.main = async (event, context) => {
       //   ON     : parsed so a future owner-authorized task can enable it; NOT
       //            implemented in this task (fails closed to a disabled ack).
       if (diagnosticVersion === 'turnaround_strategy_v6') {
-        const { parseV6WorldviewMode, getV6WorldviewModeFromEnv, getV6ShadowAllowlistFromEnv, isV6ShadowAuthorized } = require('./lib/config/worldviewV6Mode')
+        const { parseV6WorldviewMode, getV6WorldviewModeFromEnv, getV6ShadowAllowlistFromEnv, isV6ShadowAuthorized, getV6OnAllowlistFromEnv, isV6OnAuthorized } = require('./lib/config/worldviewV6Mode')
         const v6Mode = parseV6WorldviewMode(getV6WorldviewModeFromEnv())
         if (v6Mode === 'SHADOW') {
           // Internal allowlist gate (fail-closed). SHADOW runs ONLY for a
@@ -133,6 +133,14 @@ exports.main = async (event, context) => {
           return runTurnaroundV6Off()
         }
         if (v6Mode === 'ON') {
+          // R21 §7/§8: ON is a SEPARATE, fail-closed gate. The SHADOW allowlist
+          // NEVER authorizes ON (permission to observe is not permission to
+          // change user-visible output). Empty/missing ON allowlist → NOBODY,
+          // and the request gets existing baseline behavior.
+          const v6OnAllowed = isV6OnAuthorized(openid, getV6OnAllowlistFromEnv())
+          if (v6OnAllowed) {
+            return await runTurnaroundV6On({ event, openid, ts, answers })
+          }
           return runTurnaroundV6OnNotEnabled()
         }
         // OFF (default / fail-closed): V6 runtime never executes, no model call.
@@ -694,6 +702,84 @@ function runTurnaroundV6Off () {
 // task (returns the baseline response, no model call).
 function runTurnaroundV6OnNotEnabled () {
   return buildTurnaroundV6BaselineResponse()
+}
+
+// ═══ R21 §7–§16: LIMITED ON (user-visible edited V6 report) ═══
+// Reached ONLY when MODE=ON AND the SERVER-DERIVED openid is on the INDEPENDENT
+// RC84_V6_ON_ALLOWLIST (R21 §8: the SHADOW allowlist NEVER authorizes ON).
+// Response authority is fail-closed:
+//   - B1 != PRIMARY (INVALID_INPUT / NO_PRIMARY) → deterministic B2, ZERO model
+//     calls (the runtime returns the whole-report fallback without calling AI).
+//   - Any model/validator failure or deadline → deterministic B2 report.
+//   - Only a VALID edited AI report (or its field-level B2 fallbacks) is returned.
+// NEVER returns an error, a partial AI draft, raw AI output, or invalid JSON.
+// Internal renderSource / provenance is NOT exposed to the user.
+function buildTurnaroundV6UserReport (report) {
+  return ok({
+    reportType: 'turnaround_strategy_v6',
+    diagnosticVersion: 'turnaround_strategy_v6',
+    v6PrimaryActive: true,
+    reportVersion: report.reportVersion,
+    reportState: report.reportState,
+    cards: report.cards,
+  })
+}
+
+// ON is fail-closed: a report is shippable only if it is a real five-card
+// report (deterministic B2 for INVALID_INPUT yields NO cards → not shippable).
+function isShippableV6Report (report) {
+  var c = report && report.cards
+  if (!c) return false
+  return !!(c.fatalInsight && c.fatalInsight.text) &&
+    !!(c.coreProblem && c.coreProblem.text) &&
+    !!(c.systemLoop && Array.isArray(c.systemLoop.steps) && c.systemLoop.steps.length) &&
+    !!(c.turnaroundPath) &&
+    !!(c.firstAction && c.firstAction.action)
+}
+
+async function runTurnaroundV6On ({ event, openid, ts, answers }) {
+  var { onRuntimeOpts } = require('./lib/config/worldviewV6On')
+  var detReport = null
+  try {
+    var { runDraftReportRuntimeV6 } = require('./lib/turnaroundStrategy/v6/experimental/draft/draftReportRuntimeV6')
+    var { diagnoseTurnaroundV6 } = require('./lib/turnaroundStrategy/v6')
+    var { buildReportV6 } = require('./lib/turnaroundStrategy/v6/report')
+    // Deterministic B2 is ALWAYS available as the fail-closed response.
+    detReport = buildReportV6(diagnoseTurnaroundV6(answers || {}))
+    var out = await runDraftReportRuntimeV6(answers || {}, onRuntimeOpts())
+    var m = (out && out.meta) || {}
+    var report = out && out.report
+    var src = m.renderSource || (out && out.renderSource)
+    // SAFE internal observability ONLY (R21 §13) — no openid/answers/prompt/
+    // draft/report text/secret.
+    var ed = m.editor || {}
+    console.log('[V6On] meta ' + JSON.stringify({
+      renderSource: src || 'unknown',
+      attemptCount: m.attemptCount || 0,
+      fieldsUsedCount: Array.isArray(ed.fieldsUsed) ? ed.fieldsUsed.length : 0,
+      fieldFallbackCount: Array.isArray(ed.fieldsFellBack) ? ed.fieldsFellBack.length : 0,
+      wholeReportFallback: src === 'deterministic_fallback',
+      finalValidatorResult: (m.finalHardFailures && m.finalHardFailures.length) ? 'FAIL' : 'PASS',
+      attemptLatencyMs: Array.isArray(m.attempts) ? m.attempts.map(function (a) { return { attemptNumber: a.attempt, latencyMs: a.latencyMs || 0, resultCategory: a.resultCategory || (a.ok ? 'PASS' : 'UNKNOWN') } }) : [],
+      attemptLatencyMetrics: m.attemptLatencyMetrics || null,
+      shadowTotalLatencyMs: m.shadowTotalLatencyMs || 0,
+      fallbackReason: m.fallbackReason || null,
+    }))
+    // Fail-closed: ship the AI-edited report only if it is a valid, shippable
+    // five-card report. Otherwise ship the deterministic B2 report; if EVEN the
+    // deterministic report is not shippable (e.g. INVALID_INPUT → no cards),
+    // return the baseline response (R21 §10: AI report return = 0).
+    if (report && src !== 'deterministic_fallback' && isShippableV6Report(report)) {
+      return buildTurnaroundV6UserReport(report)
+    }
+    if (isShippableV6Report(detReport)) return buildTurnaroundV6UserReport(detReport)
+    return buildTurnaroundV6BaselineResponse()
+  } catch (e) {
+    // Any ON-side failure → deterministic B2 (or baseline); NEVER an error.
+    console.error('[V6On] runtime exception:', (e && e.message) || e)
+    try { if (!detReport || !isShippableV6Report(detReport)) return buildTurnaroundV6BaselineResponse() } catch (e2) { return buildTurnaroundV6BaselineResponse() }
+    return buildTurnaroundV6UserReport(detReport)
+  }
 }
 
 // V6 SHADOW: run the isolated chain on a SIDE PATH for internal observability
