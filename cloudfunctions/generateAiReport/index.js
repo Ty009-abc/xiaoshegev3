@@ -147,6 +147,17 @@ exports.main = async (event, context) => {
         return runTurnaroundV6Off()
       }
 
+      // ═══ RC8.4 V6 R44: turnaround_strategy_v6_hybrid_10q — dedicated HYBRID branch ═══
+      // A NEW, explicit diagnostic contract that never masquerades as a legacy
+      // world-model version. Pipeline:
+      //   validate Hybrid contract → build HybridProfile → adapt safe canonical
+      //   B1 evidence → run V6 B1 (SOLE bottleneck authority) → build asset/reality
+      //   context → V6 report → V6-compatible response.
+      // V4_ENGINE_RUNTIME_CALL_COUNT = 0: the V4 engine is NEVER called here.
+      if (diagnosticVersion === 'turnaround_strategy_v6_hybrid_10q') {
+        return await runTurnaroundV6Hybrid({ event, openid, ts, answers })
+      }
+
       // ═══ V3 原有链路（不变）═══
       const { buildDiagnosticPrompt } = require('./lib/ai.js')
 
@@ -701,6 +712,55 @@ function runTurnaroundV6Off () {
 // V6 ON mode: parsed for forward-compatibility only; NOT implemented in this
 // task (returns the baseline response, no model call).
 function runTurnaroundV6OnNotEnabled () {
+  return buildTurnaroundV6BaselineResponse()
+}
+
+// ═══ RC8.4 V6 R44: HYBRID 10-screen dedicated branch ═══
+// Deterministic V6 B1 diagnosis over the adapted HybridProfile + asset/reality
+// report context. NO AI call (deterministic five-card report), NO V4 engine call.
+// Fail-closed: contract-invalid -> explicit INVALID_INPUT envelope (never a
+// normal card report); non-shippable deterministic output -> baseline response.
+function buildTurnaroundV6HybridReport (report) {
+  return ok({
+    reportType: 'turnaround_strategy_v6',
+    diagnosticVersion: 'turnaround_strategy_v6_hybrid_10q',
+    v6PrimaryActive: true,
+    reportVersion: report.reportVersion,
+    reportState: report.reportState,
+    cards: report.cards,
+  })
+}
+
+async function runTurnaroundV6Hybrid ({ event, openid, ts, answers }) {
+  var { runHybridDiagnosisV6 } = require('./lib/turnaroundStrategy/v6/hybrid/hybridDiagnosisV6.js')
+  var { buildReportV6 } = require('./lib/turnaroundStrategy/v6/report')
+  var out = null
+  try {
+    out = runHybridDiagnosisV6(answers || {})
+  } catch (e) {
+    console.error('[V6Hybrid] runtime exception:', (e && e.message) || e)
+    return buildTurnaroundV6BaselineResponse()
+  }
+
+  // SAFE internal observability ONLY — no openid / raw answers / report text.
+  console.log('[V6Hybrid] meta ' + JSON.stringify({
+    hybridValid: !!(out && out.valid),
+    diagnosisState: (out && out.diagnosis && out.diagnosis.diagnosisState) || 'UNKNOWN',
+    primaryBottleneck: (out && out.diagnosis && out.diagnosis.primaryBottleneck) || null,
+    unmappedCount: Array.isArray(out && out.unmapped) ? out.unmapped.length : 0,
+    assetState: (out && out.hybridContext && out.hybridContext.assetState) || null,
+  }))
+
+  if (!out || !out.valid) {
+    // Contract-level invalid submission -> explicit INVALID_INPUT (fail-closed).
+    return buildTurnaroundV6HybridReport(buildReportV6(out ? out.diagnosis : null, null))
+  }
+
+  var report = buildReportV6(out.diagnosis, out.hybridContext)
+  // INVALID_INPUT deterministic report has NO cards -> not shippable, but it IS
+  // the correct explicit state envelope for a broken submission.
+  if (report.reportState === 'INVALID_INPUT') return buildTurnaroundV6HybridReport(report)
+  if (isShippableV6Report(report)) return buildTurnaroundV6HybridReport(report)
   return buildTurnaroundV6BaselineResponse()
 }
 

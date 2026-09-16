@@ -1,0 +1,82 @@
+<!--
+  pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire.wxml
+  RC8.4 V6 R44 — 生产 Hybrid 10 屏翻身策略问卷（客户端入口）
+  UI 全部由 screens.length 驱动（不硬编码 9/18）
+-->
+<view class="page">
+
+  <!-- 自定义导航安全区（仅布局） -->
+  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
+
+  <!-- 未开始 -->
+  <view wx:if="{{!started}}" class="intro">
+    <view class="title">翻身策略测评</view>
+    <view class="desc">{{totalCount}} 道题，先看清你手里真正的牌，再给你一份能落地的翻身路径。</view>
+    <button class="btn-primary" bindtap="startSession">开始测评</button>
+  </view>
+
+  <!-- 答题中 -->
+  <view wx:if="{{started && !submitted}}" class="quiz">
+    <view class="progress-wrap">
+      <view class="progress-label">第 {{currentIndex + 1}} / {{totalCount}} 题</view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+    </view>
+
+    <view class="q-prompt">{{screens[currentIndex].prompt}}</view>
+
+    <view class="options">
+      <view
+        wx:for="{{screens[currentIndex].options}}"
+        wx:key="optionId"
+        class="option {{selectedMainId === item.optionId ? 'option-selected' : ''}}"
+        data-option-id="{{item.optionId}}"
+        bindtap="selectMain"
+      >
+        <view class="option-text">{{item.text}}</view>
+      </view>
+    </view>
+
+    <!-- 同屏次级选择器 -->
+    <view class="secondary" wx:if="{{screens[currentIndex].secondary}}">
+      <view class="secondary-label">{{screens[currentIndex].secondary.prompt}}</view>
+      <view class="options">
+        <view
+          wx:for="{{screens[currentIndex].secondary.options}}"
+          wx:key="optionId"
+          class="option {{selectedSecondaryId === item.optionId ? 'option-selected' : ''}}"
+          data-option-id="{{item.optionId}}"
+          bindtap="selectSecondary"
+        >
+          <view class="option-text">{{item.text}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 可选职业自由文本（不阻塞） -->
+    <view class="occupation" wx:if="{{screens[currentIndex].secondaryText}}">
+      <input
+        class="occupation-input"
+        placeholder="{{screens[currentIndex].secondaryText.placeholder}}"
+        value="{{occupation}}"
+        bindinput="onOccupationInput"
+      />
+    </view>
+
+    <view class="nav">
+      <button class="btn-ghost" bindtap="goBack" disabled="{{currentIndex === 0}}">上一题</button>
+      <button class="btn-primary" bindtap="goNext" wx:if="{{currentIndex < totalCount - 1}}">下一题</button>
+      <button class="btn-primary" bindtap="submit" wx:if="{{currentIndex === totalCount - 1}}" loading="{{submitting}}">生成我的翻身策略</button>
+    </view>
+
+    <view wx:if="{{error}}" class="result-error">{{error}}</view>
+  </view>
+
+  <!-- 已提交 / 加载中 -->
+  <view wx:if="{{submitted}}" class="result">
+    <view class="title">正在生成翻身策略…</view>
+    <view class="hint">请稍候，正在根据你的回答生成报告。</view>
+  </view>
+
+</view>

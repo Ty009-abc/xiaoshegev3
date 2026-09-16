@@ -42,12 +42,20 @@ function buildCoreProblem (r) {
   // L2 -> L3 leap: why the operating rule conflicts with the world mechanism.
   const leap = copy.getCard02Leap(pb)
 
-  const text = `${lead}${belief}${leap}`
+  // R44 §16 — ADDITIVE hybrid specificity (reality position + asset position).
+  // Gated: when `r.hybrid` is absent this block is empty and `text` is
+  // byte-identical to the pre-R44 9Q output.
+  const hy = r.hybrid || null
+  const realityLine = hy ? (hy.realityLine || '') : ''
+  const assetLine = hy ? (hy.assetLine || '') : ''
+
+  const text = `${realityLine}${lead}${belief}${assetLine}${leap}`
 
   return {
     text,
     provenance: {
-      sourceFields: ['reality.incomeMode', 'desiredChange.primaryProblem', 'userBelief.perceivedRootCause', 'primaryBottleneck', 'beliefRelation.relation'],
+      sourceFields: ['reality.incomeMode', 'desiredChange.primaryProblem', 'userBelief.perceivedRootCause', 'primaryBottleneck', 'beliefRelation.relation']
+        .concat(hy ? ['reality.occupation', 'reality.lifeStage', 'reality.monthlySurplus', 'asset.state'] : []),
       sourceQuestionIds: ['Q2', 'Q4', 'Q5'],
       sourceRuleIds: [r.trace.selectedRuleId, r.beliefRelation.explanationRuleId].filter(Boolean)
     }

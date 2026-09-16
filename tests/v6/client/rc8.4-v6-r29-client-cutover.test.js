@@ -118,15 +118,19 @@ h.section('CLIENT ↔ BACKEND CONTRACT')
 }
 
 // ── SECTION 2: HOME CTA cutover ──────────────────────────────────────────
-h.section('HOME CTA → V6 9Q')
+h.section('HOME CTA → V6 HYBRID 10Q')
 {
   const app = { globalData: {} }
   const wx = makeWx()
   const home = instantiate(loadClientModule('pages/home/home.js', app, wx), app)
   home.goStrategy()
   const nav = wx._calls.filter((c) => c.type === 'navigateTo')
-  h.ok(nav.some((c) => c.url === '/pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire'),
-    'HOME_CTA_V6_ROUTE: goStrategy navigates to V6 9Q questionnaire')
+  // R44 §19: the single primary Home entry now points at the Hybrid 10Q route.
+  h.ok(nav.some((c) => c.url === '/pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire'),
+    'HOME_CTA_HYBRID_ROUTE: goStrategy navigates to the Hybrid 10Q questionnaire')
+  h.eq(nav.length, 1, 'HOME has exactly ONE primary strategy entry')
+  h.ok(!nav.some((c) => c.url === '/pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire'),
+    'V6 9Q page is frozen as reference, no longer the primary CTA')
   h.ok(!nav.some((c) => c.url.includes('v21-questionnaire')),
     'HOME no longer navigates to legacy 18Q v21-questionnaire')
   h.ok(!nav.some((c) => c.url.includes('challenge-play?mode=diagnostic')),
@@ -279,7 +283,7 @@ h.section('REPORT PAGE + E2E 9Q FLOW')
   const home = instantiate(loadClientModule('pages/home/home.js', app, wx), app)
   home.goStrategy()
   const navUrl = wx._calls.filter((c) => c.type === 'navigateTo').pop().url
-  h.eq(navUrl, '/pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire', 'E2E step 1: HOME → V6 9Q')
+  h.eq(navUrl, '/pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire', 'E2E step 1: HOME → Hybrid 10Q')
 
   const qpage = instantiate(loadClientModule('pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire.js', app, wx), app)
   qpage.onLoad()

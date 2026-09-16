@@ -47,6 +47,12 @@ function buildFirstAction (r) {
     sized = `${sized}（${copy.getScaleNote(q3)}。）`
   }
 
+  // R44 §16/§17/§18 — ADDITIVE capacity sizing from the hybrid profile (time /
+  // budget / proof stage). Gated: absent `r.hybrid` -> sizingLine '' and the
+  // action is byte-identical to pre-R44 output.
+  const hy = r.hybrid || null
+  const specificity = hy ? (hy.sizingLine || '') : ''
+
   const timebox = spec.timebox || '今天内完成'
   const verifyWith = spec.target || '一个真实的人'
   // §6: the observable signal IS the branch outcome (positive/negative/ambiguous)
@@ -86,6 +92,7 @@ function buildFirstAction (r) {
     verifyWith,
     done,
     decision,
+    specificity,
     evidenceStrength,
     firstSignalOnly,
     overclaim,
@@ -93,7 +100,8 @@ function buildFirstAction (r) {
     eventPrimary,
     text,
     provenance: {
-      sourceFields: ['firstActionType', 'executionStage', 'primaryBottleneck', 'realityConstraint', 'desiredChange.primaryProblem', 'beliefRelation.relation'],
+      sourceFields: ['firstActionType', 'executionStage', 'primaryBottleneck', 'realityConstraint', 'desiredChange.primaryProblem', 'beliefRelation.relation']
+        .concat(hy ? ['capacity.weeklyTime', 'capacity.maxTrialCost', 'asset.state'] : []),
       sourceQuestionIds: ['Q6', 'Q3', 'Q4', 'Q5'],
       sourceRuleIds: [r.trace.selectedRuleId].filter(Boolean)
     }

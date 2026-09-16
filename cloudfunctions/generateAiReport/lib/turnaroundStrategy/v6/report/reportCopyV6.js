@@ -796,7 +796,7 @@ module.exports = {
   SCALE_NOTE,
   getBeliefShort: (q5) => pick(BELIEF_SHORT, q5, '还没想清原因'),
   getBeliefLack: (q5) => pick(BELIEF_LACK, q5, '一个明确的原因'),
-  getIncomeShort: (q2) => pick(INCOME_SHORT, q2, '现在的收入状态'),
+  getIncomeShort: (q2) => pick(INCOME_SHORT, q2, '收入来源有点模糊'),
   getBeliefClause: (q5) => pick(BELIEF_CLAUSE, q5, '自己还没找到真正的原因'),
   getProblemPhrase: (q4) => pick(PROBLEM_PHRASE, q4, '现在的处境'),
   getInsight: (b) => pick(INSIGHT_SHORT, b, '真正的原因还没被看见'),

@@ -97,6 +97,8 @@ function buildCardListV6 (cards) {
         from: from,
         to: to,
         worldRule: worldRule,
+        // R44 §16 — additive strategy specificity (empty for the 9Q path).
+        specificity: str(cards.turnaroundPath.specificity),
       })
     }
   }
@@ -116,6 +118,8 @@ function buildCardListV6 (cards) {
         timebox: str(cards.firstAction.timebox),
         signal: str(cards.firstAction.done),
         decision: str(cards.firstAction.decision),
+        // R44 §16 — additive action sizing (empty for the 9Q path).
+        specificity: str(cards.firstAction.specificity),
       })
     }
   }

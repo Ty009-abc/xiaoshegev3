@@ -35,6 +35,12 @@ function buildTurnaroundPath (r) {
   const logic = `从「${oldRule}」换成「${newRule}」。具体就是：${mech}`
   const display = `${logic}\n${worldRuleLine}`
 
+  // R44 §16/§17/§18 — ADDITIVE strategy specificity (old value position -> new
+  // value/strategy position), evidence-gated by the asset axis. Gated: when
+  // `r.hybrid` is absent this is '' and the card is byte-identical to pre-R44.
+  const hy = r.hybrid || null
+  const specificity = hy ? (hy.pathLine || '') : ''
+
   const text = [
     `你现在：${from}。`,
     `卡在：${copy.getProblemPhrase(q4)}。`,
@@ -50,9 +56,11 @@ function buildTurnaroundPath (r) {
     logic,
     display,
     worldRuleLine,
+    specificity,
     text,
     provenance: {
-      sourceFields: ['executionStage', 'recommendedNextStage', 'primaryBottleneck', 'desiredChange.primaryProblem', 'beliefRelation.relation'],
+      sourceFields: ['executionStage', 'recommendedNextStage', 'primaryBottleneck', 'desiredChange.primaryProblem', 'beliefRelation.relation']
+        .concat(hy ? ['asset.state', 'reality.occupation'] : []),
       sourceQuestionIds: ['Q6', 'Q4', 'Q5'],
       sourceRuleIds: [r.trace.selectedRuleId].filter(Boolean)
     }

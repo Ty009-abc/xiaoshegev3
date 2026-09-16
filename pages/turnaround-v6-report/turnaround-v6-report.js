@@ -26,6 +26,8 @@ const {
 const app = getApp()
 
 const QUESTIONNAIRE_ROUTE = '/pages/turnaround-v6-questionnaire/turnaround-v6-questionnaire'
+const HYBRID_QUESTIONNAIRE_ROUTE = '/pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire'
+const ALLOWED_RETAKE_ROUTES = [QUESTIONNAIRE_ROUTE, HYBRID_QUESTIONNAIRE_ROUTE]
 
 Page({
   data: {
@@ -69,9 +71,14 @@ Page({
   },
 
   // Retake the questionnaire (clear prior result so a stale report can't show).
+  // R44 §19: returns to the ORIGINATING questionnaire — the hybrid source when
+  // the session came from the hybrid flow, otherwise the frozen V6 9Q route.
+  // Only the two in-product V6 routes are ever allowed (no legacy leak).
   onRetake() {
     app.globalData.turnaroundV6Result = null
-    wx.redirectTo({ url: QUESTIONNAIRE_ROUTE })
+    const src = app.globalData.turnaroundV6SourceRoute
+    const url = ALLOWED_RETAKE_ROUTES.indexOf(src) !== -1 ? src : QUESTIONNAIRE_ROUTE
+    wx.redirectTo({ url: url })
   },
 
   // Plain back to the previous page.
