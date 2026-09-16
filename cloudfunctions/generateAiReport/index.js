@@ -731,6 +731,9 @@ async function runTurnaroundV6Shadow ({ event, openid, ts, answers }) {
       editorResult: { aiCallCount: ed.aiCallCount || 0, fieldsUsed: ed.fieldsUsed || [], fieldsFellBack: ed.fieldsFellBack || [] },
       finalValidatorResult: (m.finalHardFailures && m.finalHardFailures.length) ? 'FAIL' : 'PASS',
       modelLatencyMs: m.modelLatencyMs || 0,
+      shadowTotalLatencyMs: m.shadowTotalLatencyMs || 0,
+      attemptLatencyMs: Array.isArray(m.attempts) ? m.attempts.map(function (a) { return { attemptNumber: a.attempt, latencyMs: a.latencyMs || 0, resultCategory: a.resultCategory || (a.ok ? 'PASS' : 'UNKNOWN') } }) : [],
+      attemptLatencyMetrics: m.attemptLatencyMetrics || null,
       fallbackReason: m.fallbackReason || null,
     }))
   } catch (e) {

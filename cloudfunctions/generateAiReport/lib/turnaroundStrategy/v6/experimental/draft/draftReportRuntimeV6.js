@@ -40,6 +40,55 @@ const DRAFT_MAX_TOKENS = 2400
 
 const RENDER_SOURCE = { AI: 'ai_draft_edited', FALLBACK: 'deterministic_fallback' }
 
+// R19 §2 SAFE per-attempt result categories (closed set — no raw content).
+const ATTEMPT_RESULT = Object.freeze({
+  PASS: 'PASS',
+  INVALID_JSON: 'INVALID_JSON',
+  SEMANTIC_FAIL: 'SEMANTIC_FAIL',
+  FINAL_VALIDATION_FAIL: 'FINAL_VALIDATION_FAIL',
+  MODEL_TIMEOUT: 'MODEL_TIMEOUT',
+  MODEL_ERROR: 'MODEL_ERROR'
+})
+
+/** Map a runtime attempt outcome to the closed SAFE resultCategory set. */
+function attemptResultCategory (failureReason, finalValid, draftValid) {
+  if (finalValid) return ATTEMPT_RESULT.PASS
+  if (failureReason === 'MODEL_TIMEOUT') return ATTEMPT_RESULT.MODEL_TIMEOUT
+  if (failureReason === 'MODEL_ERROR') return ATTEMPT_RESULT.MODEL_ERROR
+  if (failureReason === 'INVALID_JSON' || failureReason === 'JSON_TRUNCATED') return ATTEMPT_RESULT.INVALID_JSON
+  if (draftValid === false) return ATTEMPT_RESULT.SEMANTIC_FAIL
+  return ATTEMPT_RESULT.FINAL_VALIDATION_FAIL
+}
+
+/**
+ * R19 §4 — derive SAFE aggregate latency metrics from an attempts[] array.
+ * Pure, deterministic, no raw content. Percentile = nearest-rank.
+ * @param {Array<{latencyMs:number,resultCategory:string}>} attempts
+ */
+function deriveAttemptLatencyMetrics (attempts) {
+  const a = Array.isArray(attempts) ? attempts : []
+  const nums = a.map((x) => (typeof x.latencyMs === 'number' ? x.latencyMs : 0)).filter((n) => n >= 0)
+  const okNums = a.filter((x) => x.resultCategory === ATTEMPT_RESULT.PASS).map((x) => x.latencyMs).filter((n) => typeof n === 'number')
+  const toNums = a.filter((x) => x.resultCategory === ATTEMPT_RESULT.MODEL_TIMEOUT).map((x) => x.latencyMs).filter((n) => typeof n === 'number')
+  return {
+    ATTEMPT_P50_MS: nearestRank(nums, 0.5),
+    ATTEMPT_P95_MS: nearestRank(nums, 0.95),
+    ATTEMPT_MAX_MS: nums.length ? Math.max(...nums) : 0,
+    SUCCESSFUL_ATTEMPT_P50_MS: nearestRank(okNums, 0.5),
+    SUCCESSFUL_ATTEMPT_P95_MS: nearestRank(okNums, 0.95),
+    TIMEOUT_ATTEMPT_COUNT: toNums.length,
+    TIMEOUT_ATTEMPT_MIN_MS: toNums.length ? Math.min(...toNums) : 0,
+    TIMEOUT_ATTEMPT_MAX_MS: toNums.length ? Math.max(...toNums) : 0
+  }
+}
+
+function nearestRank (sortedOrRaw, p) {
+  const s = sortedOrRaw.slice().sort((x, y) => x - y)
+  if (!s.length) return 0
+  const idx = Math.max(0, Math.min(s.length - 1, Math.round(p * (s.length - 1))))
+  return s[idx]
+}
+
 function withTimeout (promise, ms) {
   if (!ms || ms <= 0) return promise
   let timer
@@ -71,6 +120,7 @@ async function runDraftReportRuntimeV6 (answers, opts) {
   const attemptTimeoutMs = o.attemptTimeoutMs != null ? o.attemptTimeoutMs : MODEL_ATTEMPT_TIMEOUT_MS
   const totalBudgetMs = o.totalBudgetMs != null ? o.totalBudgetMs : TOTAL_WORLDVIEW_BUDGET_MS
   const budgetStart = Date.now()
+  const shadowStart = Date.now() // R19 §3 total shadow side-path elapsed
   const remaining = () => totalBudgetMs - (Date.now() - budgetStart)
 
   // §2 Dedicated V6 model: RC84_V6_WORLDVIEW_MODEL → V6_DEFAULT_MODEL.
@@ -82,7 +132,7 @@ async function runDraftReportRuntimeV6 (answers, opts) {
   const detReport = buildReportV6(diagnosis)
 
   if (diagnosis.diagnosisState !== 'PRIMARY') {
-    return wholeReportFallback(detReport, { attempts: [], fallbackReason: diagnosis.diagnosisState === 'INVALID_INPUT' ? 'INVALID_INPUT' : 'NO_PRIMARY' })
+    return wholeReportFallback(detReport, { attempts: [], shadowTotalLatencyMs: Date.now() - shadowStart, fallbackReason: diagnosis.diagnosisState === 'INVALID_INPUT' ? 'INVALID_INPUT' : 'NO_PRIMARY' })
   }
 
   const payload = { id: null, answers, diagnosis, b2Report: detReport, userFacts: answers }
@@ -107,7 +157,8 @@ async function runDraftReportRuntimeV6 (answers, opts) {
     const latencyMs = Date.now() - t0
 
     if (!res || !res.ok) {
-      attempts.push({ attempt: i, ok: false, failureReason: failureReason || 'INVALID_JSON', latencyMs, rawLen: res && res.meta ? res.meta.rawLen : 0, finishReason: res && res.meta ? res.meta.finishReason : null })
+      const cat = attemptResultCategory(failureReason || 'INVALID_JSON', false, null)
+      attempts.push({ attempt: i, ok: false, failureReason: failureReason || 'INVALID_JSON', resultCategory: cat, latencyMs, rawLen: res && res.meta ? res.meta.rawLen : 0, finishReason: res && res.meta ? res.meta.finishReason : null })
       lastFailure = failureReason || 'INVALID_JSON'
       draftMetrics = res && res.meta ? res.meta : null
       continue
@@ -123,6 +174,7 @@ async function runDraftReportRuntimeV6 (answers, opts) {
 
     attempts.push({
       attempt: i, ok: finalVerdict.valid, failureReason: finalVerdict.valid ? null : 'FINAL_VALIDATION_FAIL',
+      resultCategory: attemptResultCategory(null, finalVerdict.valid, dv.valid),
       latencyMs, rawLen: res.meta ? res.meta.rawLen : 0, finishReason: res.meta ? res.meta.finishReason : null,
       draftValid: dv.valid, draftHardFailures: dv.hardFailures,
       finalHardFailures: finalVerdict.hardFailures,
@@ -138,6 +190,8 @@ async function runDraftReportRuntimeV6 (answers, opts) {
           attemptCount: i,
           editor: edited.editor,
           modelLatencyMs: latencyMs,
+          shadowTotalLatencyMs: Date.now() - shadowStart,
+          attemptLatencyMetrics: deriveAttemptLatencyMetrics(attempts),
           draftHardFailures: dv.hardFailures,
           finalHardFailures: [],
           attempts
@@ -148,7 +202,7 @@ async function runDraftReportRuntimeV6 (answers, opts) {
     draftMetrics = res.meta
   }
 
-  return wholeReportFallback(detReport, { attempts, fallbackReason: lastFailure, attemptCount: attempts.length })
+  return wholeReportFallback(detReport, { attempts, shadowTotalLatencyMs: Date.now() - shadowStart, attemptLatencyMetrics: deriveAttemptLatencyMetrics(attempts), fallbackReason: lastFailure, attemptCount: attempts.length })
 }
 
 module.exports = {
@@ -159,5 +213,8 @@ module.exports = {
   DRAFT_MAX_TOKENS,
   V6_DEFAULT_MODEL,
   RENDER_SOURCE,
-  REPORT_VERSION
+  REPORT_VERSION,
+  ATTEMPT_RESULT,
+  attemptResultCategory,
+  deriveAttemptLatencyMetrics
 }
