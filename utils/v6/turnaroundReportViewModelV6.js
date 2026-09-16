@@ -65,6 +65,12 @@ function buildCardListV6 (cards) {
   pushCard(out, 'firstAction', cards.firstAction, (c) => ({
     action: typeof c.action === 'string' ? c.action : '',
     checks: Array.isArray(c.checks) ? c.checks.slice() : [],
+    // R33 §9 REALITY TEST components (WHAT/WHERE+TIMEBOX/SIGNAL/DECISION).
+    // Pure presentation passthrough of backend-authoritative strings.
+    timebox: typeof c.timebox === 'string' ? c.timebox : '',
+    where: typeof c.verifyWith === 'string' ? c.verifyWith : '',
+    signal: typeof c.done === 'string' ? c.done : '',
+    decision: typeof c.decision === 'string' ? c.decision : '',
   }))
   return out
 }

@@ -5,7 +5,7 @@
  * CARD 03 — 系统困局.
  * R33 §7 — CONSEQUENCE LOOP: ONE representation only, exactly 5 short nodes:
  *   旧规则 → 触发/默认反应 → 短期安慰 → 长期代价 → 同一问题回来
- * Then one structural-consequence line.
+ * Then one structural-consequence line. No STEP labels.
  * CONSUMER LAYER ONLY. Deterministic. No AI. No STEP labels.
  *
  * NOTE: finalValidatorV6 requires exactly 5 loop nodes — keep the count at 5.

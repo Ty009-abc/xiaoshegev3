@@ -211,13 +211,16 @@ const REL_BRIDGE = {
 }
 
 // ── first action type -> action sentence (Card05) ───────────────
+// R33 §10 — the PRIMARY action must itself create a real-world event
+// (publish / ask / send / show / contact / transact), never a bare habit.
+// FirstActionType authority is unchanged — only the consumer wording is.
 const ACTION_EXPRESSION = {
-  DIRECTION_NARROWING: '今天只选一个方向，用一句话写下你要为谁解决什么问题，再列出3个一周内能问到反馈的人。',
-  SMALLEST_EXTERNAL_TEST: '今天选一个方向，做一个24小时内能完成、并能拿到外部反馈的最小测试。',
-  CONSISTENCY_PROTECTION: '今天先定一个每天固定30分钟的时段，只做这件事，先连续做满5天。',
+  DIRECTION_NARROWING: '今天只选一个方向，写清楚你要为谁解决什么问题，然后直接去问1个这样的人：你需要这个吗？',
+  SMALLEST_EXTERNAL_TEST: '今天选一个方向，做一个最小版本，把它发给1个真实用户看，拿到一条真实反馈。',
+  CONSISTENCY_PROTECTION: '今天定一个每天固定30分钟的时段做这件事，每做一天就把当天的结果发给1个真实用户看，先连续5天。',
   BUYER_FEEDBACK_COLLECTION: '今天找3个真实用户，直接问清楚他们为什么没买。',
-  REPEAT_SUCCESS_PATH: '把最近一次成交从头到尾拆出来，标出最可能重复的3个步骤。',
-  CASHFLOW_SAFE_EXPERIMENT: '今天做一个不需要追加资金、失败也不会伤到现金流的最小验证。'
+  REPEAT_SUCCESS_PATH: '把最近一次成交的步骤拆出来，用同一套做法再去找1个新用户成交一次。',
+  CASHFLOW_SAFE_EXPERIMENT: '今天做一个不花钱的最小验证，把它拿给1个真实用户看，拿到一条真实反馈。'
 }
 
 // ── reality: monthly surplus -> sizing note ─────────────────────
@@ -278,33 +281,33 @@ const OPERATING_MECH = {
 const ACTION_SPEC = {
   DIRECTION_NARROWING: {
     timebox: '今天内完成',
-    verifyWith: '找1个你目标用户里认识的人',
-    done: '对方明确说出“我会想要/我不需要”，而不是“还行”'
+    verifyWith: '直接问1个你目标用户里的人',
+    done: '对方明确回复“我要/我不要”，而不是“还行”'
   },
   SMALLEST_EXTERNAL_TEST: {
     timebox: '24小时内完成',
-    verifyWith: '放到1个真实用户看得到的地方',
+    verifyWith: '把最小版本发给1个真实用户看',
     done: '收到至少1条真实反馈，哪怕是否定'
   },
   CONSISTENCY_PROTECTION: {
     timebox: '连续5天、每天固定时段',
-    verifyWith: '自己打卡，并找1个人监督',
-    done: '这5天里真正做到不少于4天'
+    verifyWith: '把每天的成果发给1个真实用户看',
+    done: '每天的结果都被1个真实用户看到，并收到一句真实反馈'
   },
   BUYER_FEEDBACK_COLLECTION: {
     timebox: '今天内完成',
-    verifyWith: '问3个已经看过或可能买的真实用户',
-    done: '至少1个人讲清楚“为什么现在不买”'
+    verifyWith: '直接问3个真实用户',
+    done: '至少1个真实用户回复“为什么现在不买”'
   },
   REPEAT_SUCCESS_PATH: {
     timebox: '今天内完成',
-    verifyWith: '对照最近一次真实成交回顾',
-    done: '标出不少于2步可以原样照搬'
+    verifyWith: '用同一套做法找1个新用户试',
+    done: '再成交1次，或拿到1个明确的拒绝'
   },
   CASHFLOW_SAFE_EXPERIMENT: {
     timebox: '24小时内完成',
-    verifyWith: '找一个真实用户看结果',
-    done: '拿到1条不花钱就能得到的外部结果'
+    verifyWith: '把最小验证拿给1个真实用户看',
+    done: '拿到1条来自真实用户的外部反馈'
   }
 }
 
@@ -328,6 +331,28 @@ const WORLD_RULE_TAIL = {
   CONSISTENCY_GAP: '一断档，就等于从头再来',
   VALIDATION_GAP: '有人愿意买单，才算真的好',
   REPEATABILITY_GAP: '能重复做出来，才算真会'
+}
+
+// ── R33.1 §6/§13 Card01 shorten: ≤40-char rule-collision templates ──
+// MATCH form is keyed on bottleneck (wrong rule) + primaryProblem (outcome noun)
+// so two MATCH reports under the same bottleneck never collide. {w}=wrong rule,
+// {n}=outcome noun.
+const C01_OUTCOME_NOUN = {
+  PROBLEM_INCOME_STUCK: '收入',
+  PROBLEM_NO_FUTURE: '未来',
+  PROBLEM_DEBT: '现金流',
+  PROBLEM_CAREER_SWITCH: '方向',
+  PROBLEM_SIDE_UNSTARTED: '副业',
+  PROBLEM_MONETIZE: '变现',
+  PROBLEM_FOCUS: '专注',
+  PROBLEM_OTHER: '改变'
+}
+const MATCH_C01 = {
+  DIRECTION_GAP: '你想{n}，但「{w}」行不通。',
+  ACTION_GAP: '你的目标没错，但「{w}」换不来{n}。',
+  CONSISTENCY_GAP: '你的目标没错，但「{w}」撑不下去。',
+  VALIDATION_GAP: '判断没错，但「{w}」换不来{n}。',
+  REPEATABILITY_GAP: '你判断得没错，但「{w}」只灵一次。'
 }
 
 // ── R33 §6 Card02: why the old rule conflicts with how the world works ──
@@ -459,6 +484,13 @@ module.exports = {
   // R33 world-model layer
   getWrongRule: (b) => pick(WRONG_RULE, b, '沿用现在的做法'),
   getWorldRuleTail: (b) => pick(WORLD_RULE_TAIL, b, '现实会告诉你答案'),
+  getOutcomeNoun: (q4) => pick(C01_OUTCOME_NOUN, q4, '改变'),
+  getMatchC01: (b, q4) => {
+    const tpl = pick(MATCH_C01, b, '你判断得没错，但「{w}」行不通。')
+    const w = pick(WRONG_RULE, b, '沿用现在的做法')
+    const n = pick(C01_OUTCOME_NOUN, q4, '改变')
+    return tpl.split('{w}').join(w).split('{n}').join(n)
+  },
   getWhyRuleFails: (b) => pick(WHY_RULE_FAILS, b, '现在的做法和想要的结果之间，缺了一次真实反馈。'),
   getStructuralConsequence: (b) => pick(STRUCTURAL_CONSEQUENCE, b, '你一直在原地打转。'),
   getLoopNode1: (b) => pick(LOOP_NODE1, b, '旧规则：沿用现在的做法。'),
@@ -471,6 +503,8 @@ module.exports = {
   EXTERNAL_SIGNAL_PAT,
   WRONG_RULE,
   WORLD_RULE_TAIL,
+  MATCH_C01,
+  C01_OUTCOME_NOUN,
   WHY_RULE_FAILS,
   STRUCTURAL_CONSEQUENCE,
   LOOP_NODE1,

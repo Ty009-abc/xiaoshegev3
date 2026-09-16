@@ -48,10 +48,13 @@ function buildFirstAction (r) {
     decision = `${decision}同时把每一天的完成结果，发给一个真实的人，拿到一句真实反馈。`
   }
 
-  // R33 §9/§13: one headline + max 3 short execution lines.
+  // R33 §10/§14: one headline + max 3 short execution lines. `text` is the
+  // internal full form (keyed on stage + q4 + relation so no two profiles
+  // collide); the CLIENT renders only the structured REALITY-TEST block
+  // (action / where+timebox / signal / decision) — no duplicated prose.
   const headline = `你${copy.getStageLead(stage)}，最想解决的是${copy.getProblemPhrase(q4)}。今天就做这一件：${sized}`
   const line1 = `在哪做：${spec.verifyWith}；时限：${spec.timebox}。`
-  const line2 = `看什么信号：${spec.done}——是外部反馈，不是“我想清楚了”。`
+  const line2 = `看什么信号：${spec.done}。`
   const line3 = `怎么用它：${decision}`
   const text = `${headline}${line1}${line2}${line3}${copy.getRelBridge(rel)}`
 

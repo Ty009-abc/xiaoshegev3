@@ -55,9 +55,15 @@
         </view>
       </view>
 
-      <!-- 现在就做：动作 + 检查项 -->
+      <!-- 现在就做：动作 + 真实测试要件（在哪/时限/信号/决策规则） -->
       <view wx:if="{{item.action}}" class="action-block">
         <view class="action-main">{{item.action}}</view>
+        <view wx:if="{{item.where || item.timebox}}" class="action-line">
+          <text wx:if="{{item.where}}">在哪做：{{item.where}}</text>
+          <text wx:if="{{item.timebox}}">　时限：{{item.timebox}}</text>
+        </view>
+        <view wx:if="{{item.signal}}" class="action-line">看什么信号：{{item.signal}}</view>
+        <view wx:if="{{item.decision}}" class="action-line">怎么用它：{{item.decision}}</view>
         <view wx:if="{{item.checks && item.checks.length}}" class="action-checks">
           <view class="action-check" wx:for="{{item.checks}}" wx:for-item="chk" wx:key="*this">· {{chk}}</view>
         </view>

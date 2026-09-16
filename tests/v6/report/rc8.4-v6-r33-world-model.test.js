@@ -59,13 +59,14 @@ t('§3/§4 selectWorldRule is deterministic + evidence-gated + zero diagnosis au
 })
 
 // ── §5 CARD01 wrong-rule collision ──────────────────────────────
-t('§5 CARD01 exposes an old rule vs world rule; <=60 chars; no forbidden jargon', () => {
+t('§5 CARD01 exposes an old rule vs world rule; <=40 chars; no forbidden jargon', () => {
   const banned = ['判断被强化', '形成闭环', '执行阶段', '行为模式', '系统判定', '证据链', '认知偏差']
   for (const c of primary) {
     const x = buildReportV6(c.d).cards.fatalInsight.text
-    assert.ok([...x].length <= 60, c.id + ' len=' + [...x].length)
+    assert.ok([...x].length <= 40, c.id + ' len=' + [...x].length)
     for (const b of banned) assert.ok(!x.includes(b), c.id + ' CARD01 has ' + b)
-    assert.ok(/(现实|其实|恰恰相反|真正的规则|卡住你|行不通|反而)/.test(x), c.id + ' CARD01 lacks rule collision: ' + x)
+    // rule collision: the old rule is QUOTED and held against reality/mechanism
+    assert.ok(/(「[^」]+」|"[^"]+"|“[^”]+”)/.test(x) && /(现实|其实|恰恰相反|真正的规则|卡住你|行不通|反而|换不来|撑不下去|只灵一次|当成了全部原因)/.test(x), c.id + ' CARD01 lacks rule collision: ' + x)
   }
 })
 
@@ -159,6 +160,36 @@ t('§18 FINAL_VALID_RATE = 100%', () => {
   const rate = 100 * ok / primary.length
   console.log('   FINAL_VALID_RATE = ' + rate.toFixed(1) + '% (n=' + primary.length + ')')
   assert.strictEqual(rate, 100)
+})
+
+// ── §6/§19 TEMPLATE_PHRASE_DOMINANCE_RATE < 30% ────────────────
+t('§6/§19 TEMPLATE_PHRASE_DOMINANCE_RATE < 30%', () => {
+  const tpl = worldModelValidatorV6.templatePhraseDominance(primary.map((c) => buildReportV6(c.d)))
+  console.log('   TEMPLATE_PHRASE_DOMINANCE_RATE = ' + tpl.rate.toFixed(1) + '% ' + JSON.stringify(tpl.counts))
+  assert.ok(tpl.rate < 30, 'template dominance must be < 30%, got ' + tpl.rate.toFixed(1) + '%')
+})
+
+// ── §4/§19 world-rule evidence support ─────────────────────────
+t('§4/§19 WORLD_RULE_SELECTED_BY_BOTTLENECK_ONLY_COUNT = 0 and support rate = 100%', () => {
+  const ev = worldModelValidatorV6.worldRuleEvidenceSupport(primary.map((c) => c.d))
+  console.log('   WORLD_RULE_SELECTED_BY_BOTTLENECK_ONLY_COUNT = ' + ev.bottleneckOnly)
+  console.log('   WORLD_RULE_EVIDENCE_SUPPORT_RATE = ' + ev.rate.toFixed(1) + '%')
+  assert.strictEqual(ev.bottleneckOnly, 0)
+  assert.strictEqual(ev.rate, 100)
+})
+
+// ── §10/§11/§19 reality test primary + no decorative signal ────
+t('§10/§11 REALITY_TEST_IS_PRIMARY_ACTION_RATE = 100% and DECORATIVE_EXTERNAL_SIGNAL_COUNT = 0', () => {
+  let rtp = 0; let dec = 0
+  for (const c of primary) {
+    const a = buildReportV6(c.d).cards.firstAction
+    if (worldModelValidatorV6.realityTestIsPrimaryAction(a)) rtp++
+    if (worldModelValidatorV6.decorativeExternalSignal(a)) { dec++; console.log('   decorative:', c.id, a.done) }
+  }
+  console.log('   REALITY_TEST_IS_PRIMARY_ACTION_RATE = ' + (100 * rtp / primary.length).toFixed(1) + '%')
+  console.log('   DECORATIVE_EXTERNAL_SIGNAL_COUNT = ' + dec)
+  assert.strictEqual(rtp, primary.length)
+  assert.strictEqual(dec, 0)
 })
 
 // ── §17 authority preserved ────────────────────────────────────

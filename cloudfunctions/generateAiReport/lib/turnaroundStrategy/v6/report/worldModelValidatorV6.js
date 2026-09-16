@@ -21,7 +21,18 @@ const copy = require('./reportCopyV6.js')
 
 const CARD_KEYS = ['fatalInsight', 'coreProblem', 'systemLoop', 'turnaroundPath', 'firstAction']
 
-const OLD_RULE_MARK = /(旧规则|你一直|你以为|按“|按"|你把|当成了全部原因|真正的规则)/
+// §6 — leading template phrases whose over-use would make copy feel stamped.
+const C01_TEMPLATES = [
+  /^你以为缺的是/,
+  /^卡住你的不是/,
+  /^你把["「“].*["」”]当成了全部原因/,
+  /^你判断得没错，但/,
+  /^你的目标没错，但/,
+  /^判断没错，但/,
+  /^你想.*，但/
+]
+
+const OLD_RULE_MARK = /(旧规则|你一直|你以为|按“|按"|你把|当成了全部原因|真正的规则|真正卡住你的是|卡住你的不是|但「|但“)/
 const NEW_RULE_MARK = /(新规则|换成|恰恰相反|真正的规则|现实|其实)/
 const MECHANISM_MARK = /(概率|反馈|积累|买单|清零|重复|验证|说不清|运气|说了算|不由|市场|外部)/
 const LEAP_MARK = /(概率|反馈|积累|买单|清零|重复|验证|说不清|运气|说了算|不由|市场|外部|恰恰|相反|只是|并非|并不|不代表)/
@@ -120,6 +131,82 @@ function actionExternalSignal (card05) {
 }
 
 /**
+ * §6 TEMPLATE_PHRASE_DOMINANCE_RATE.
+ * Share of PRIMARY reports whose CARD01 opens with the SAME leading template
+ * (the max over templates, as a percentage). Target < 30%.
+ * @param {Array<Object>} reports
+ * @returns {{rate:number, counts:Object, max:number, n:number}}
+ */
+function templatePhraseDominance (reports) {
+  const counts = {}; const n = (reports || []).length
+  for (const r of reports || []) {
+    const s = text(r && r.cards && r.cards.fatalInsight && r.cards.fatalInsight.text)
+    let hit = null
+    for (let i = 0; i < C01_TEMPLATES.length; i++) { if (C01_TEMPLATES[i].test(s)) { hit = 'T' + i; break } }
+    const key = hit || 'OTHER'
+    counts[key] = (counts[key] || 0) + 1
+  }
+  const max = n ? Math.max.apply(null, Object.keys(counts).map((k) => counts[k])) : 0
+  return { rate: n ? 100 * max / n : 0, counts: counts, max: max, n: n }
+}
+
+/**
+ * §4 WORLD_RULE_EVIDENCE_SUPPORT_RATE.
+ * Share of PRIMARY reports whose world-rule selection was evidence-gated
+ * (`reason === 'evidence_guard'`), NOT chosen by bottleneck mapping alone.
+ * @returns {{rate:number, supported:number, bottleneckOnly:number, n:number}}
+ */
+function worldRuleEvidenceSupport (diagnoses) {
+  const lib = require('./worldRuleLibraryV6.js')
+  let supported = 0; let bottleneckOnly = 0
+  for (const d of diagnoses || []) {
+    const sel = lib.selectWorldRule(d)
+    if (!sel) continue
+    if (sel.reason === 'evidence_guard') supported++; else bottleneckOnly++
+  }
+  const n = (diagnoses || []).length
+  return { rate: n ? 100 * supported / n : 0, supported: supported, bottleneckOnly: bottleneckOnly, n: n }
+}
+
+// §10 — external-world event verbs: the PRIMARY action must itself create a
+// real-world event (publish/quote/send/ask/show/contact/transaction).
+const REALITY_EVENT_PAT = /(发布|上传|公开|展示|寄出|发出|发一份|递交|提交|报价|定价|收费|收款|付款|收款|开价|联系|约谈|面试|报名|参加|上线|投放|寄样|寄送|拿给|递给|问|请人|找人|发给|卖出|出售|挂出|接单|成交|招募|邀请|演示|试卖|试产|投稿|申请)/
+// §11 — habit/inner-state completion markers that are NOT an external world
+// event (used by the §10 DECORATIVE_EXTERNAL_SIGNAL completion check).
+const DECORATIVE_SIGNAL_PAT = /(打卡|想清楚|想明白|做了个?计划|有了计划|坚持\s*\d*\s*[天周月]|感觉|心情|心态|状态|自律|复盘|思考|反思|整理了?)/
+
+/**
+ * §10 REALITY_TEST_IS_PRIMARY_ACTION.
+ * TRUE when CARD05's PRIMARY action itself creates a real-world event (not a
+ * habit/inner state) AND is paired with an external signal + decision rule.
+ */
+function realityTestIsPrimaryAction (card05) {
+  const c = card05 || {}
+  const act = text(c.action)
+  const eventPrimary = REALITY_EVENT_PAT.test(act)
+  const external = actionExternalSignal(c)
+  const hasDecision = text(c.decision).trim().length > 0
+  return eventPrimary && external && hasDecision
+}
+
+/**
+ * §10 DECORATIVE_EXTERNAL_SIGNAL.
+ * TRUE when CARD05's completion `done` is missing or is an internal/habitistic
+ * state (打卡/自己打卡/想清楚了/坚持N天) rather than a real external-world event.
+ * Scoped to the SIGNAL (§10: completion cannot merely be “worked 30 minutes /
+ * thought clearly / made a plan”); the action-habit concern is covered by
+ * genericProductivityAction.
+ */
+function decorativeExternalSignal (card05) {
+  const c = card05 || {}
+  const sig = text(c.done)
+  if (!sig.trim()) return true
+  const external = copy.EXTERNAL_SIGNAL_PAT.test(sig)
+  const decorative = DECORATIVE_SIGNAL_PAT.test(sig)
+  return decorative && !external
+}
+
+/**
  * Aggregate R33 product validators.
  */
 function assessWorldModelV6 (report, diagnosis) {
@@ -138,10 +225,17 @@ function assessWorldModelV6 (report, diagnosis) {
 
 module.exports = {
   CARD_KEYS,
+  C01_TEMPLATES,
+  REALITY_EVENT_PAT,
+  DECORATIVE_SIGNAL_PAT,
   worldModelShiftPresent,
   genericProductivityAction,
   answerRestatementOnly,
   evidenceAnchors,
   actionExternalSignal,
+  templatePhraseDominance,
+  worldRuleEvidenceSupport,
+  realityTestIsPrimaryAction,
+  decorativeExternalSignal,
   assessWorldModelV6
 }

@@ -3,9 +3,9 @@
  * turnaroundStrategy/v6/report/coreProblemV6.js
  *
  * CARD 02 — 核心问题.
- * R33 §6 — WHY THE RULE FAILS: 2–3 personal evidence anchors, then explain why
- * the user's current rule conflicts with how the world actually works
- * (a DIAGNOSTIC LEAP, never an answer restatement).
+ * R33 §6 — WHY THE RULE FAILS: 2–3 personal evidence anchors (reality + goal
+ * + belief-lack), then explain why the user's current rule conflicts with how
+ * the world actually works (a DIAGNOSTIC LEAP, never an answer restatement).
  * CONSUMER LAYER ONLY. Deterministic. No diagnosis. No AI.
  */
 
@@ -21,9 +21,9 @@ function buildCoreProblem (r) {
   const q4 = r.profile.desiredChange.primaryProblem
   const pb = r.primaryBottleneck
 
-  // L1 USER EVIDENCE (<=2 anchors): reality + goal.
+  // L1 USER EVIDENCE (2–3 anchors): reality + goal + belief-lack.
   const e1 = `你现在${copy.getIncomeShort(q2)}，想要的其实是${copy.getProblemPhrase(q4)}。`
-  const e2 = `你以为${copy.getBeliefShort(q5)}。`
+  const e2 = `你以为缺的是${copy.getBeliefLack(q5)}。`
   // L2 -> L3 leap: why the operating rule conflicts with the world mechanism.
   const leap = copy.getWhyRuleFails(pb)
 

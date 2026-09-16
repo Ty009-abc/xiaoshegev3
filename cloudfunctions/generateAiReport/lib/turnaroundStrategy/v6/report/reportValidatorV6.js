@@ -21,7 +21,9 @@ const FORBIDDEN_USER_TOKENS = [
 ]
 
 const CARD_KEYS = ['fatalInsight', 'coreProblem', 'systemLoop', 'turnaroundPath', 'firstAction']
-const CARD01_MAX_CHARS = 60
+// §6/§13 — CARD01 must stay ≤40 Chinese chars in the deterministic report
+// (sharper; R33.1 tightened from the earlier 60-char ceiling).
+const CARD01_MAX_CHARS = 40
 
 /** Collect all user-visible text from a report. */
 function visibleText (report) {

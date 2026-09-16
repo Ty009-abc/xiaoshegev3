@@ -409,7 +409,7 @@ async function run () {
     const canonical = copy.ACTION_EXPRESSION.CASHFLOW_SAFE_EXPERIMENT
     const sig = ACTION_SIGS.CASHFLOW_SAFE_EXPERIMENT
 
-    h.eq(canonical, '今天做一个不需要追加资金、失败也不会伤到现金流的最小验证。',
+    h.eq(canonical, '今天做一个不花钱的最小验证，把它拿给1个真实用户看，拿到一条真实反馈。',
       'canonical deterministic CASHFLOW_SAFE_EXPERIMENT copy read from clean SHA')
     h.ok(sig(canonical), 'CANONICAL_CASHFLOW_SAFE_COPY_VALIDATES=YES (signature accepts)')
 

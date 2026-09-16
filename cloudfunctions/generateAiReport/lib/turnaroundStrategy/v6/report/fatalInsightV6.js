@@ -5,6 +5,7 @@
  * CARD 01 — 致命一句话.
  * R33 §5 — WRONG RULE COLLISION: expose ONE mistaken decision rule and the
  * world rule that contradicts it, in one sharp sentence.
+ * R33.1 §6/§13 — shorten to ≤40 Chinese chars with natural variation.
  *
  * CONSUMER LAYER ONLY: no diagnosis, no eligibility, no scoring, no AI.
  * Differentiation: keys on belief-lack (GAP), primaryProblem (MATCH), or belief
@@ -15,6 +16,8 @@ const copy = require('./reportCopyV6.js')
 
 const REL_GAP = 'BELIEF_REALITY_GAP'
 const REL_PARTIAL = 'BELIEF_PARTIAL'
+// R33 §6/§13: CARD01 target ceiling (40 Chinese chars).
+const CARD01_MAX = 40
 
 /**
  * @param {Object} r diagnoseTurnaroundV6 output (PRIMARY state only)
@@ -29,19 +32,27 @@ function buildFatalInsight (r) {
   const wrongRule = copy.getWrongRule(pb)
   const worldTail = copy.getWorldRuleTail(pb)
 
+  // §6/§13 — natural variation within ≤40 chars. Each rule-collision carries
+  // the evidence anchor (belief-lack / belief / problem) so two distinct 9Q
+  // profiles never receive identical copy, while no single template dominates.
   let text
   if (rel === REL_PARTIAL) {
-    text = `你把“${copy.getBeliefShort(q5)}”当成了全部原因，真正的规则是：${worldTail}。`
+    text = `你把“${copy.getBeliefShort(q5)}”当成了全部原因，规则其实是“${wrongRule}”。`
+    if ([...text].length > CARD01_MAX) {
+      text = `卡住你的不是“${copy.getBeliefShort(q5)}”，是“${wrongRule}”。`
+    }
   } else if (rel === REL_GAP) {
-    // Expose the mistaken lack-frame, then the mistaken rule, then the world rule.
-    text = `你以为缺的是${copy.getBeliefLack(q5)}，其实卡住你的是“${wrongRule}”——${worldTail}。`
+    text = `你以为缺的是${copy.getBeliefLack(q5)}，真正卡住你的是“${wrongRule}”。`
+    if ([...text].length > CARD01_MAX) {
+      text = `卡住你的不是缺${copy.getBeliefLack(q5)}，是“${wrongRule}”。`
+    }
   } else {
     // MATCH: the goal is right; the rule to reach it is wrong.
-    text = `你判断得没错，${copy.getProblemPhrase(q4)}；但按“${wrongRule}”做行不通——${worldTail}。`
+    text = copy.getMatchC01(pb, q4)
   }
 
-  if ([...text].length > 60) {
-    text = `问题不在缺${copy.getBeliefLack(q5)}，而在于“${wrongRule}”——${worldTail}。`
+  if ([...text].length > CARD01_MAX) {
+    text = `卡住你的是“${wrongRule}”这条规则。`
   }
 
   return {

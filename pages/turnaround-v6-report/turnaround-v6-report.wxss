@@ -171,6 +171,14 @@
   gap: 10rpx;
 }
 
+.action-line {
+  margin-top: 12rpx;
+  font-size: 28rpx;
+  color: #5a6078;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
 .action-check {
   font-size: 28rpx;
   color: #5a6078;

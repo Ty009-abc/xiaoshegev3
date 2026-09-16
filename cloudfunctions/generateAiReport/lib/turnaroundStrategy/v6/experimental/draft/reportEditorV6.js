@@ -33,10 +33,10 @@ const CARD_TITLES = {
   firstAction: '现在就做'
 }
 
-// Final UI targets (§6). CARD01 is a HARD cap (must not exceed 60).
+// Final UI targets (§6). CARD01 is a HARD cap (must not exceed 40).
 const FINAL_LIMITS = {
-  card01Min: 30,
-  card01Max: 60,
+  card01Min: 12,
+  card01Max: 40,
   card02Max: 120,
   card04ToMax: 40,
   card04SoftMax: 48,
