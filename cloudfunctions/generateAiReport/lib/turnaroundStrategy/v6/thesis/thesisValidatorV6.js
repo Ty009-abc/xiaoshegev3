@@ -47,6 +47,14 @@ const FATE_PATTERNS = [
 const MARKET_PROOF_PAT = /已经被市场验证|已被市场验证|市场已经为|让市场.{0,6}付过|市场反复验证|反复验证过|已经让市场|已经能被市场验证/
 // Precise invented price numbers (R57: numeric pricing DISABLED).
 const PRICE_PATTERN = /(?:￥|¥|\$|RMB|人民币)?\s*\d{2,6}\s*(?:元|块|万|k|K)/
+// R62 §11 — CROSS-OBJECT COLLAPSE guard.
+// skillValidation (capability market proof) and pastAttemptStage (past-year
+// attempt) are INDEPENDENT facts. A valid report may contrast them, but it may
+// NEVER tell the user their own two answers contradict each other (there is no
+// same-object binding, so there is nothing to contradict). This detector is
+// additive: the phrases below never occur in a well-formed report, so every
+// previously-accepted R59 output still passes.
+const CROSS_OBJECT_CONTRADICTION_PAT = /(你的回答|你这两处|两处回答|前后两处|上面两处|这两处信息|两处信息|你填的|你选的)[^。！？\n]{0,6}(矛盾|对不上|冲突|不一致|自相矛盾|打架)|自相矛盾|答案互相矛盾|回答互相矛盾|信息互相矛盾/
 // R59 — the user's own financial facts (surplus / trial budget) are echoed
 // back by the model as numbers; that is NOT an invented price. If the ~12
 // chars before a number+unit carry one of these fact contexts, it is an echo.
@@ -140,6 +148,9 @@ function validateThesisV6 (output, envelope) {
   if (scan.fate.length) hard.push('UNSUPPORTED_AGE_OR_INDUSTRY_CLAIM:' + scan.fate.join(','))
   // §14 — numeric price forbidden.
   if (scan.price.length) hard.push('INVENTED_PRICE:' + scan.price.join(','))
+  // R62 §11 — must never claim the user's own two answers contradict.
+  const collapse = detectCrossObjectCollapse(text)
+  if (collapse) hard.push('CROSS_OBJECT_CONTRADICTION_CLAIM:' + collapse)
   // internal ontology leakage
   if (scan.forbiddenTokens.length) hard.push('INTERNAL_TOKEN_LEAK:' + scan.forbiddenTokens.join(','))
 
@@ -192,11 +203,26 @@ function validateThesisV6 (output, envelope) {
 }
 
 /**
+ * R62 §11 — detect a CROSS-OBJECT COLLAPSE: the copy claims the user's two
+ * independent answers contradict each other, or otherwise asserts a
+ * same-object contradiction between capability-progress and attempt-history.
+ * Returns the matched phrase, or null. Deterministic; no AI.
+ *
+ * NOTE: this is NOT a same-object-fabrication detector (that would be
+ * speculative). It only catches explicit contradiction claims, which the R62
+ * prompt forbids and which no valid report contains.
+ */
+function detectCrossObjectCollapse (text) {
+  const s = text == null ? '' : String(text)
+  const m = s.match(CROSS_OBJECT_CONTRADICTION_PAT)
+  return m ? m[0] : null
+}
+
+/**
  * §17 explicit drift detection. Returns a reason string or null.
  * Card01 theme vs card04 theme must not imply different strategies.
  */
-function detectThesisDrift (o, env) {
-  const c1 = o.cards.card01
+function detectThesisDrift (o, env) {  const c1 = o.cards.card01
   const c4 = o.cards.card04.from + ' ' + o.cards.card04.to + ' ' + o.cards.card04.logic
   // theme vocabularies (mutually-exclusive strategy families)
   const COMMERCIAL = /(卖成|成交|付费|买单|收入|变现|客户|报价|服务)/
@@ -215,11 +241,13 @@ function detectThesisDrift (o, env) {
 module.exports = {
   validateThesisV6,
   detectThesisDrift,
+  detectCrossObjectCollapse,
   scanClaims,
   BUDGET,
   ABSOLUTE_PATTERNS,
   PRICE_PATTERN,
   FACT_ECHO_PAT,
   OCCUPATION_NOUN_PAT,
-  MARKET_PROOF_PAT
+  MARKET_PROOF_PAT,
+  CROSS_OBJECT_CONTRADICTION_PAT
 }

@@ -1,23 +1,28 @@
 {
-  "taskId": "RC8.4_V6_R59_THESIS_EXPRESSION_RUNTIME_RECOVERY",
-  "baseCommit": "f3b193373b663c7c367791adf30a3a618b43b45b",
+  "taskId": "RC8.4_V6_R62_CROSS_OBJECT_FALSE_CONFLICT_FIX",
+  "baseCommit": "31a0e7f9c6cf72b7eb0fc32be20e301bea6c6e16",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "P0: R57 ONE-CALL thesis expression path unusable in production — (1) reasoning-tier model spends the whole token budget on hidden reasoning -> empty content -> 100% deterministic fallback; (2) thesisAdapterV6 default require path pointed at a nonexistent module -> NO_CALL_AI in production; (3) validator false-positives on bare pronoun 你是 and on the user's own surplus echo.",
+  "problem": "P0: the R48 pre-report evidence compatibility gate produced a FALSE hard EVIDENCE_CONFLICT. Q5 skillValidation (CAPABILITY / ASSET MARKET PROOF) and Q7 pastAttemptStage (PAST-YEAR ATTEMPT / EXECUTION HISTORY) are collected as two INDEPENDENT answers describing DIFFERENT SEMANTIC OBJECTS (R61: 3/3 reachable conflicts were dual-true). The gate compared them directly and blocked the report before thesis generation (owner real-device test hit it in R60).",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/ai.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisAdapterV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridCompatibilityV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridReportContextV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/report/firstActionCopyV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisEnvelopeV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisPromptV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisReportRuntimeV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisValidatorV6.js",
+    "tests/v6/hybrid/rc8.4-v6-r48-evidence-compatibility-gate.test.js",
+    "tests/v6/hybrid/rc8.4-v6-r46-authority-and-fact-consistency.test.js",
+    "tests/v6/hybrid/rc8.4-v6-r62-cross-object-false-conflict.test.js",
     "tests/v6/thesis/rc8.4-v6-r57-shared-strategic-thesis.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [],
   "contractsAffected": [],
   "requiredTests": [
-    "node tests/v6/thesis/rc8.4-v6-r57-shared-strategic-thesis.test.js",
-    "node tests/v6/report/rc8.4-v6-report.test.js",
-    "node tests/v6/hybrid/rc8.4-v6-r48-evidence-compatibility-gate.test.js"
+    "node tests/v6/hybrid/rc8.4-v6-r62-cross-object-false-conflict.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r48-evidence-compatibility-gate.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r46-authority-and-fact-consistency.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r57-shared-strategic-thesis.test.js"
   ],
-  "rollbackPlan": "git checkout f3b193373b663c7c367791adf30a3a618b43b45b -- cloudfunctions/generateAiReport/lib/ai.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/ tests/v6/thesis/"
+  "rollbackPlan": "git checkout 31a0e7f9c6cf72b7eb0fc32be20e301bea6c6e16 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridCompatibilityV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridReportContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/report/firstActionCopyV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/ tests/v6/"
 }

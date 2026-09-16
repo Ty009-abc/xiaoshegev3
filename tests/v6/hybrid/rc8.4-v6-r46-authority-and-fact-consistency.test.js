@@ -368,14 +368,21 @@ const authMatrix = [
     }
   })
 
-  t('§11 R48: proof-aware CARD05 is BLOCKED for an invalid combination', () => {
+  t('§11 R62: cross-object divergence uses link-first CARD05 (no same-object step)', () => {
     // R46 rendered a proof-aware CARD05 for VALIDATION_GAP + REPEATABLE_PAID.
-    // R48 stops the report entirely (EVIDENCE_CONFLICT) for that combination.
+    // R48 stopped the report entirely. R62 correctly treats the two fields as
+    // DIFFERENT objects: the report BUILDS (scope UNPROVEN) with a LINK-first
+    // CARD05 that verifies whether the paid capability is even the same object as
+    // the current change — it never asserts a same-object repeat/systematize step.
     const raw = Object.assign(noProofBase({}), { skillValidation: 'PROOF_STABLE' })
     const r = render(raw)
-    assert.strictEqual(r.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT')
-    assert.strictEqual(r.rep.reportState, 'EVIDENCE_CONFLICT')
-    assert.strictEqual(r.vm.length, 0)
+    assert.strictEqual(r.out.diagnosis.compatibility.verdict, 'CONDITIONALLY_COMPATIBLE')
+    assert.strictEqual(r.out.diagnosis.compatibility.crossAxisScope, 'UNPROVEN')
+    assert.strictEqual(r.rep.reportState, 'PRIMARY')
+    assert.strictEqual(r.vm.length, 5)
+    const c05 = r.vm[4].primaryAction
+    assert.ok(/先确认|连接|能不能用上|用得上|用不上|已经走在你现在想解决/.test(c05), 'CARD05 must be link-first')
+    assert.ok(!/(扩大|放大|复制|系统化|规模化|多接|接更多|做成方法)/.test(c05), 'CARD05 must not scale the asset')
   })
 
   // ══════════════════════════════════════════════════════════════════
@@ -406,14 +413,18 @@ const authMatrix = [
     assert.strictEqual(copy.PATH_FROM.TESTING, '做了东西，却没卖出去', 'base copy changed')
     assert.ok(PC.CLAIM_CONTRACT.PAID_ONCE.forbidden.includes('却没卖出去'), 'contradiction not modelled')
   })
-  t('§16 R48: the R45 Report-A combination is now EVIDENCE_CONFLICT (no masked report)', () => {
+  t('§16 R62: the R45 Report-A combination builds with link-first scope (no masked report)', () => {
     // R45 Report A = VALIDATION_GAP + PAID_ONCE. R46 made it read coherently by
-    // overriding copy; R48 stops it deterministically at the gate.
+    // overriding copy; R48 stopped it at the gate. R62 (cross-object) lets the
+    // report proceed with scope UNPROVEN and link-first CARD04/CARD05 — the paid
+    // capability is NOT silently asserted to be the current path.
     const raw = Object.assign(noProofBase({}), { skillValidation: 'PROOF_PAID_ONCE' })
     const r = render(raw)
     assert.strictEqual(r.out.diagnosis.primaryBottleneck, 'VALIDATION_GAP')
-    assert.strictEqual(r.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT')
-    assert.strictEqual(r.rep.cards, null)
+    assert.strictEqual(r.out.diagnosis.compatibility.verdict, 'CONDITIONALLY_COMPATIBLE')
+    assert.strictEqual(r.out.diagnosis.compatibility.crossAxisScope, 'UNPROVEN')
+    assert.ok(r.rep.cards, 'report must build')
+    assert.ok(/先确认|连接|能不能用在你现在/.test(r.vm[3].to), 'CARD04 TO must be link-first')
   })
   t('§16 R46_A_CONTRADICTION_AFTER_FIX = NO (compatible paid case stays coherent)', () => {
     const text = vmText(reportA.vm)

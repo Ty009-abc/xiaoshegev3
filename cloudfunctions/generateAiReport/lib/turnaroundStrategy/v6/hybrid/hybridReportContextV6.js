@@ -65,6 +65,63 @@ function pick (map, v, fb) {
   return (v && Object.prototype.hasOwnProperty.call(map, v)) ? map[v] : (fb || null)
 }
 
+// ── R62 §5/§6/§11 — CROSS-OBJECT LINK-FIRST COPY ──────────────────────
+// When the CAPABILITY axis (skillValidation = market proof) and the ATTEMPT
+// axis (pastAttemptStage = past-year attempt) DIVERGE, the two facts describe
+// DIFFERENT objects. The deterministic fallback must NOT collapse them: it may
+// not assert the paid capability caused the recent attempt, nor that a past
+// sale is about this capability. Instead it falls to a LINK test — verify
+// whether the two are even the same object — exactly the R53 link-first
+// philosophy. This is the deterministic counterpart of what the AI thesis is
+// asked to do. ZERO B1 authority (it scopes the CARD04 target + CARD05 step
+// only; bottleneck / stage / action type are untouched).
+const CROSS_OBJECT_LINK = {
+  PROVEN_CAPABILITY_RECENT_ATTEMPT_FAILED: {
+    to: '先确认这项已经有付费证据的能力，能不能用在你现在想解决的问题上',
+    stageLead: '你手里的能力已经被证明能换钱，但最近这一次尝试，未必是在验证同一件事',
+    card03: {
+      steps: [
+        '你手里的这项能力，确实有过人愿意为它付费的证据。',
+        '但你现在想解决的问题、以及最近这一次尝试，未必和当初被付费的那件事是同一件。',
+        '你把这两件事当成了一件事，于是要么高估了这次尝试，要么低估了已有的证明。',
+        '真正没被看清的，是这两者之间到底连不连得上。',
+        '在连接被验证之前，任何“这条路行不行”的结论都还太早。'
+      ],
+      insight: '你已经证明过这项能力能换钱，但还没证明它就是你现在该走的那条路。'
+    },
+    card05: {
+      hypothesis: '这项已经有人付过钱的能力，能不能用在你现在想解决的问题上。',
+      action: '今天找1个已经走在你现在想解决问题那条路上的人，问清楚：他手上的事，能不能用上你这项已经有人付过钱的能力。',
+      target: '1个已经走在你现在想解决问题那条路上的人',
+      checks: ['写下你现在真正想解决的那一个问题', '列出这项能力可能的1种用法'],
+      done: '对方明确说这件事用得上、或用不上你现有的这项能力。',
+      decision: '只要这个连接被证实或证伪，就用它决定要不要把这项能力用在现在的问题上。'
+    }
+  },
+  UNPROVEN_CAPABILITY_PRIOR_SALE_EXPERIENCE: {
+    to: '先确认你过去成交过的那一件事，和你现在这条路是不是同一件事',
+    stageLead: '你过去有过一次成交，但那是不是你现在这条路，还没有被看清',
+    card03: {
+      steps: [
+        '你过去确实有过一次成交，那是一次真实发生过的结果。',
+        '但现在这条路要用的能力，和你当时靠的那件事，未必是同一件事。',
+        '你把那次成交直接当成了“这条路能走”的证据。',
+        '真正没被看清的，是那次成交到底靠的是什么，以及它适不适用于现在。',
+        '在这一点弄清楚之前，照搬上一次的做法也只是碰运气。'
+      ],
+      insight: '你有过一次成交，但还没看清它和你现在这条路是不是同一件事。'
+    },
+    card05: {
+      hypothesis: '你过去那次成交，和你现在这条路是不是同一件事。',
+      action: '今天把你过去有成交的那一次写清楚：买的人当时到底买的是什么，这件事和你现在想做的事是不是同一件。',
+      target: '你自己（写清上次成交真正靠的是什么）',
+      checks: ['写下那次成交里，客户当时真正买的是什么', '写下你现在这条路要用的能力'],
+      done: '你能讲清上次成交靠的是什么，以及它适不适用于现在这条路。',
+      decision: '只要搞清上次成交靠的是什么，就用它判断现在这条路能不能照做。'
+    }
+  }
+}
+
 /**
  * Build the report specificity context. Returns null when no hybrid profile is
  * present (keeps the 9Q path byte-identical).
@@ -132,6 +189,17 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
   const crossAxisScope = (diagnosis && diagnosis.compatibility && diagnosis.compatibility.crossAxisScope) || 'COMPATIBLE'
   const scopeLimited = crossAxisScope === 'UNPROVEN'
 
+  // ── R62 §5 — NEUTRAL CROSS-OBJECT EVIDENCE SIGNAL ──
+  // Describes how the CAPABILITY axis and the ATTEMPT axis DIVERGE (e.g. a
+  // proven capability + a recent failed attempt). It carries ZERO B1 diagnosis
+  // authority and never claims a contradiction: the two facts are about
+  // different objects, so the divergence is not a conflict. It exists only so
+  // the Thesis layer may interpret the divergence without collapsing objects.
+  const crossObjectEvidencePattern = (diagnosis && diagnosis.compatibility && diagnosis.compatibility.crossObjectEvidencePattern) || 'UNKNOWN'
+  // R62 — divergence of the two INDEPENDENT axes => link-first deterministic
+  // copy (no same-object collapse). Only the two divergence patterns qualify.
+  const crossLink = scopeLimited ? (CROSS_OBJECT_LINK[crossObjectEvidencePattern] || null) : null
+
   return {
     occupation,
     assetState: asset.state,
@@ -164,6 +232,7 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
     },
     crossAxisScope,
     scopeLimited,
+    crossObjectEvidencePattern,
     // proof-aware overrides (null/absent => card uses frozen base copy)
     // R46 §8: CARD04 "现在"(FROM) is a pure market-position FACT and is
     // proof-aware for ALL states (the stage-keyed base copy can contradict the
@@ -171,12 +240,20 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
     // it asserts the user's market position, never a cross-axis strategy link.
     proofFrom: proof.card04.from,
     // R46 §8: "接下来"(TO) is proof-refined only for paid bands, and (R48 §7)
-    // only when the cross-axis scope is NOT limited.
-    proofTo: (!scopeLimited && proof.isPaidBand) ? proof.card04.to : null,
+    // only when the cross-axis scope is NOT limited. R62: when the two axes
+    // DIVERGE (cross-object), the TO is a deterministic LINK-FIRST target so the
+    // fallback never asserts the paid asset IS the current path.
+    proofTo: crossLink ? crossLink.to : ((!scopeLimited && proof.isPaidBand) ? proof.card04.to : null),
     card02Leap: (!scopeLimited && proof.card02Leap) ? proof.card02Leap : null,
-    card03: (!scopeLimited && proof.card03) ? proof.card03 : null,
-    card05: (!scopeLimited && proof.card05) ? proof.card05 : null,
-    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal', 'proofConsistency', 'compatibility']
+    // R62: cross-object divergence => link-first CARD03 loop (never a same-object
+    // claim). Routed through the existing `card03` field that systemLoopV6 reads.
+    card03: crossLink ? crossLink.card03 : ((!scopeLimited && proof.card03) ? proof.card03 : null),
+    // R62: cross-object divergence => link-first CARD05 (never a same-object step).
+    card05: crossLink ? crossLink.card05 : ((!scopeLimited && proof.card05) ? proof.card05 : null),
+    // R62: neutral link-framed stage lead for divergence (prevents a B1 stage lead
+    // from asserting the opposite market fact as if it were the SAME object).
+    crossStageLead: crossLink ? crossLink.stageLead : null,
+    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal', 'proofConsistency', 'compatibility', 'crossObjectEvidencePattern']
   }
 }
 
@@ -232,4 +309,4 @@ function pathSpecificityFor (asset, assetTypeText, occupation) {
   }
 }
 
-module.exports = { buildHybridReportContextV6, LIFE_STAGE, ASSET_TYPE }
+module.exports = { buildHybridReportContextV6, LIFE_STAGE, ASSET_TYPE, CROSS_OBJECT_LINK }

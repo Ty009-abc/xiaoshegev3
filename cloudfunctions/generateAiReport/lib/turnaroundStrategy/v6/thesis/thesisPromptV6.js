@@ -58,6 +58,14 @@ function buildSystemPrompt () {
     'crossAxisScope=UNPROVEN 时：只能验证“能力 ↔ 当前目标”的连接，禁止“扩大/复制/系统化这项能力”。',
     'diagnosisState=NO_PRIMARY 时：禁止宣称“你真正的瓶颈就是…”。',
     '',
+    '== 能力证据 vs 尝试历史（两条独立轴）==',
+    '信封里“能力/市场证明”与“过去一年的尝试阶段”是两条独立事实，描述的不是同一个对象。',
+    '两者不一致是正常且有用的信息，不是矛盾。',
+    '禁止说“你的回答互相矛盾 / 前后对不上 / 你这样说不对”。',
+    '禁止把两条事实强绑成同一个对象（例如把“有过付费证据”直接当成“最近这次尝试卖得出去”）。',
+    'crossObjectEvidencePattern 只是提示两条轴如何不同，不得据此改变诊断或编造同一对象。',
+    '正确做法：两条事实都当作真实素材，例如“你不是完全没有市场证明；你手里有过付费证据，但最近一次商业尝试没有跑通”——并据此打开策略空间。',
+    '',
     '== 五张卡的职责（同一套 thesis）==',
     'card01 致命一句话：coreContradiction 的锋利碰撞（<=45字）。',
     'card02 核心问题：identityInterpretation + currentValuePosition（<=140字）。',
@@ -88,6 +96,7 @@ function buildUserMessage (envelope, fallbackCards) {
   lines.push('assetState: ' + (e.assetState || ''))
   lines.push('marketProof: ' + JSON.stringify(e.marketProof || {}))
   lines.push('crossAxisScope: ' + (e.crossAxisScope || ''))
+  lines.push('crossObjectEvidencePattern: ' + (e.crossObjectEvidencePattern || 'UNKNOWN'))
   lines.push('currentValuePosition: ' + (e.currentValuePosition || ''))
   lines.push('experimentClass: ' + (e.experimentClass || ''))
   lines.push('allowedWorldRules: ' + JSON.stringify((e.allowedWorldRules || [])))

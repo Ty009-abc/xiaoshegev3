@@ -3,18 +3,19 @@
  * tests/v6/hybrid/rc8.4-v6-r48-evidence-compatibility-gate.test.js
  *
  * RC8.4 V6 R48 — DETERMINISTIC PRE-REPORT EVIDENCE COMPATIBILITY GATE.
+ * RC8.4 V6 R62 — matrix updated for the CROSS-OBJECT FALSE-CONFLICT FIX.
  * Deterministic; no AI, no network, no deploy.
  *
- * §2/§3  35-pair matrix (5 bottlenecks × 7 asset states) = 19 / 9 / 7
- * §4     hard conflict => EVIDENCE_CONFLICT state + review metadata, no winner
- * §5     client conflict UX contract
- * §6     conflict field targeting (skillValidation / pastAttemptStage)
+ * §2/§3  35-pair matrix (5 bottlenecks × 7 asset states) = 19 / 16 / 0
+ * §4     cross-object divergence => NO conflict; report builds (R62)
+ * §5     client conflict UX contract (machinery preserved)
+ * §6     cross-object pair no longer hard-conflicts (R62)
  * §7     conditional policy: B1 mutation = 0 · unsupported strategy = 0
- * §9     adversarial: no copy layer can mask a hard conflict into five cards
+ * §9     adversarial: no copy layer can mask a bound conflict into five cards
  * §10    B1 immutability across all 35 pairs
- * §12    conflict reachability through index.main
- * §13    Report E replay (VALIDATION_GAP + REPEATABLE_PAID)
- * §14    repeatability conflict replay (REPEATABILITY_GAP + NO_CLEAR_ASSET)
+ * §12    no hard conflict reachable through index.main (R62)
+ * §13    Report E replay (VALIDATION_GAP + REPEATABLE_PAID) => report, no conflict
+ * §14    repeatability replay (REPEATABILITY_GAP + NO_CLEAR_ASSET) => report
  * §15    client state preservation
  * §17    hybrid authority / privacy regression
  */
@@ -49,7 +50,7 @@ function base (o) {
     lifeStage: 'LIFE_31_40', incomeStructure: 'INC_SALARY', occupationDetail: '程序员',
     monthlySurplus: 'SURPLUS_1K_5K', safetyMonths: 'SAFETY_3_6', debtPressure: 'DEBT_NONE',
     // Default = a COMPATIBLE case (VALIDATION_GAP + PROBLEM_SOLVING_PROOF).
-    // Callers that want a conflict pass the axis fields explicitly.
+    // Callers that want a specific axis pass the fields explicitly.
     skillValidation: 'PROOF_FREE_HELPED', monetizableSkill: 'ASSET_TECHNICAL',
     weeklyTime: 'TIME_5_10', executionStability: 'EXEC_STABLE',
     pastAttemptStage: 'ATTEMPT_NO_SALE', selfBelief: 'BELIEF_ABILITY',
@@ -90,7 +91,7 @@ function sig (d) {
     JSON.stringify(d.realityConstraint && d.realityConstraint.types)].join('|')
 }
 
-console.log('\n── RC8.4 V6 R48 — EVIDENCE COMPATIBILITY GATE ──')
+console.log('\n── RC8.4 V6 R48 — EVIDENCE COMPATIBILITY GATE (R62 matrix) ──')
 
 // ══════════════════════════════════════════════════════════════════
 // §11 35-PAIR MATRIX
@@ -113,26 +114,25 @@ for (const bn of BOTTLENECKS) {
   }
 }
 t('§11 COMPATIBLE_PAIR_COUNT = 19', () => assert.strictEqual(nCompat, 19))
-t('§11 CONDITIONALLY_COMPATIBLE_PAIR_COUNT = 9', () => assert.strictEqual(nCond, 9))
-t('§11 HARD_CONFLICT_PAIR_COUNT = 7', () => assert.strictEqual(nConflict, 7))
+t('§11 CONDITIONALLY_COMPATIBLE_PAIR_COUNT = 16 (R62)', () => assert.strictEqual(nCond, 16))
+t('§11 HARD_CONFLICT_PAIR_COUNT = 0 (R62)', () => assert.strictEqual(nConflict, 0))
 t('§11 total = 35 pairs fully classified', () => assert.strictEqual(nCompat + nCond + nConflict, 35))
 
-// Exact frozen pair membership (no hand-edited expectation beyond the mission spec)
-const expectedHard = [
-  ['VALIDATION_GAP', 'PAID_ONCE'], ['VALIDATION_GAP', 'OCCASIONAL_PAID'], ['VALIDATION_GAP', 'REPEATABLE_PAID'],
-  ['REPEATABILITY_GAP', 'NO_CLEAR_ASSET'], ['REPEATABILITY_GAP', 'SKILL_IDENTIFIED_UNPROVEN'],
-  ['REPEATABILITY_GAP', 'SKILL_USED_FREE'], ['REPEATABILITY_GAP', 'PROBLEM_SOLVING_PROOF']
-]
-t('§11 HARD_CONFLICT pairs match frozen semantics exactly', () => {
+// R62 §3 — the cross-object pair (skillValidation vs pastAttemptStage) must NOT
+// hard-conflict in EITHER direction.
+const expectedHard = []
+t('§11 no pair is a hard conflict (cross-object pair removed)', () => {
   const got = Object.keys(matrix).filter(k => matrix[k] === 'EVIDENCE_CONFLICT').sort()
-  const exp = expectedHard.map(p => p[0] + '|' + p[1]).sort()
-  assert.deepStrictEqual(got, exp)
+  assert.deepStrictEqual(got, expectedHard)
 })
-t('§11 CONDITIONAL pairs = pre-payment bottlenecks × paid assets', () => {
+t('§11 CONDITIONAL pairs = non-repeat paid-asset gaps + repeatability vs unproven asset', () => {
   const got = Object.keys(matrix).filter(k => matrix[k] === 'CONDITIONALLY_COMPATIBLE').sort()
   const exp = []
-  for (const bn of ['DIRECTION_GAP', 'ACTION_GAP', 'CONSISTENCY_GAP']) {
+  for (const bn of ['DIRECTION_GAP', 'ACTION_GAP', 'CONSISTENCY_GAP', 'VALIDATION_GAP']) {
     for (const a of ['PAID_ONCE', 'OCCASIONAL_PAID', 'REPEATABLE_PAID']) exp.push(bn + '|' + a)
+  }
+  for (const a of ['NO_CLEAR_ASSET', 'SKILL_IDENTIFIED_UNPROVEN', 'SKILL_USED_FREE', 'PROBLEM_SOLVING_PROOF']) {
+    exp.push('REPEATABILITY_GAP|' + a)
   }
   assert.deepStrictEqual(got, exp.sort())
 })
@@ -152,39 +152,43 @@ t('§10 gate adds metadata only, never deletes/rewrites a diagnosis field', () =
   assert.strictEqual(d.executionStage, 'TESTING')
   assert.strictEqual(d.firstActionType, 'BUYER_FEEDBACK_COLLECTION')
   assert.strictEqual(d.beliefRelation.relation, 'BELIEF_REALITY_GAP')
-  assert.ok(d.compatibility && d.compatibility.verdict === 'EVIDENCE_CONFLICT')
+  // R62: cross-object divergence => scope UNPROVEN, NOT a hard conflict.
+  assert.strictEqual(d.compatibility.verdict, 'CONDITIONALLY_COMPATIBLE')
+  assert.strictEqual(d.compatibility.crossAxisScope, 'UNPROVEN')
 })
 
 // ══════════════════════════════════════════════════════════════════
-// §4 HARD CONFLICT BEHAVIOR
+// §4 CROSS-OBJECT NON-CONFLICT (R62)
 // ══════════════════════════════════════════════════════════════════
-console.log('\n   §4 HARD CONFLICT BEHAVIOR')
-t('§4 hard conflict => reportState EVIDENCE_CONFLICT, cards = null', () => {
+console.log('\n   §4 CROSS-OBJECT NON-CONFLICT (R62)')
+t('§4 VALIDATION_GAP + REPEATABLE_PAID => NO conflict, report builds', () => {
   const r = run(Object.assign({}, B1_REP.VALIDATION_GAP, ASSET_DRIVER.REPEATABLE_PAID))
-  assert.strictEqual(r.rep.reportState, 'EVIDENCE_CONFLICT')
-  assert.strictEqual(r.rep.cards, null)
-  assert.strictEqual(r.vm.length, 0, 'conflict must render zero cards')
+  assert.notStrictEqual(r.rep.reportState, 'EVIDENCE_CONFLICT')
+  assert.ok(r.rep.cards, 'report must build (cross-object divergence is not a conflict)')
+  assert.strictEqual(r.vm.length, 5, 'five cards render')
 })
-t('§4 hard conflict => no report context was built (no winner taken)', () => {
-  const out = H.runHybridDiagnosisV6(base(Object.assign({}, B1_REP.VALIDATION_GAP, ASSET_DRIVER.REPEATABLE_PAID)))
-  assert.strictEqual(out.hybridContext, null, 'conflict must not build a proof-aware context')
-})
-t('§4 conflict metadata carries NO raw answer / no winner / no internal id in UI', () => {
+t('§4 REPEATABILITY_GAP + NO_CLEAR_ASSET => NO conflict, report builds', () => {
   const r = run(Object.assign({}, B1_REP.REPEATABILITY_GAP, ASSET_DRIVER.NO_CLEAR_ASSET))
-  const ci = r.out.diagnosis.compatibility
-  assert.strictEqual(ci.conflictType, 'MARKET_PROOF_VS_ATTEMPT_STAGE')
-  assert.deepStrictEqual(ci.conflictingFields, ['skillValidation', 'pastAttemptStage'])
-  assert.deepStrictEqual(ci.recommendedReviewScreens, [5, 7])
-  const blob = JSON.stringify(r.rep)
-  for (const bad of ['VALIDATION_GAP', 'REPEATABILITY_GAP', 'STAGE_TESTING']) {
-    assert.ok(!blob.includes(bad + '":'), 'internal id ' + bad + ' must not be a user-facing conflict value')
-  }
+  assert.notStrictEqual(r.rep.reportState, 'EVIDENCE_CONFLICT')
+  assert.ok(r.rep.cards)
+})
+t('§4 conflict machinery preserved (report blocker + client UX), unreachable', () => {
+  // The gate still exports the conflict verdict + the R48 report-blocker path.
+  assert.strictEqual(G.VERDICT_CONFLICT, 'EVIDENCE_CONFLICT')
+  assert.strictEqual(G.UNBOUND_HARD_CONFLICT_RULE_COUNT, 0)
+  assert.ok(Array.isArray(G.HARD_CONFLICT_RULES) && G.HARD_CONFLICT_RULES.length === 0)
+  assert.strictEqual(G.SEMANTIC_OBJECT.skillValidation, 'CURRENT_MONETIZABLE_CAPABILITY')
+  assert.strictEqual(G.SEMANTIC_OBJECT.pastAttemptStage, 'HISTORICAL_ATTEMPT')
+  const R = require(path.join(CF, 'report/reportBuilderV6.js'))
+  const conflictRep = R.buildReportV6({ contractVersion: 'x', diagnosisState: 'PRIMARY', primaryBottleneck: 'VALIDATION_GAP', executionStage: 'TESTING', beliefRelation: { relation: 'BELIEF_REALITY_GAP' }, realityConstraint: { types: [] }, trace: null, compatibility: { verdict: 'EVIDENCE_CONFLICT', conflictType: 'X', conflictingFields: [], recommendedReviewScreens: [] } }, null)
+  assert.strictEqual(conflictRep.reportState, 'EVIDENCE_CONFLICT')
+  assert.strictEqual(conflictRep.cards, null)
 })
 
 // ══════════════════════════════════════════════════════════════════
-// §5 CLIENT CONFLICT UX
+// §5 CLIENT CONFLICT UX (machinery preserved)
 // ══════════════════════════════════════════════════════════════════
-console.log('\n   §5 CLIENT CONFLICT UX')
+console.log('\n   §5 CLIENT CONFLICT UX (preserved machinery)')
 t('§5 conflict view model: title / body / CTA 返回确认, no five cards', () => {
   const env = { code: 0, data: { reportType: 'turnaround_strategy_v6', diagnosticVersion: 'turnaround_strategy_v6_hybrid_10q', v6PrimaryActive: false, reportState: 'EVIDENCE_CONFLICT', conflict: { conflictType: 'MARKET_PROOF_VS_ATTEMPT_STAGE', conflictingFields: ['skillValidation', 'pastAttemptStage'], recommendedReviewScreens: [5, 7] }, cards: null } }
   const vm = VM.buildTurnaroundReportViewModelV6(env)
@@ -205,45 +209,53 @@ t('§5 client report page renders a dedicated conflict block (source)', () => {
 })
 
 // ══════════════════════════════════════════════════════════════════
-// §6 CONFLICT FIELD TARGETING
+// §6 CROSS-OBJECT PAIR NO LONGER HARD-CONFLICTS (R62)
 // ══════════════════════════════════════════════════════════════════
-console.log('\n   §6 CONFLICT FIELD TARGETING')
-t('§6 every hard conflict targets skillValidation + pastAttemptStage', () => {
-  for (const p of expectedHard) {
-    const r = run(Object.assign({}, B1_REP[p[0]], ASSET_DRIVER[p[1]]))
-    const ci = r.out.diagnosis.compatibility
-    assert.deepStrictEqual(ci.conflictingFields, ['skillValidation', 'pastAttemptStage'], p.join('+'))
-    assert.deepStrictEqual(ci.recommendedReviewScreens, [5, 7], p.join('+'))
+console.log('\n   §6 CROSS-OBJECT PAIR (R62)')
+t('§6 Q5/Q7 pair never hard-conflicts across all 36 combos', () => {
+  const SV = ['PROOF_NEVER', 'PROOF_FREE_HELPED', 'PROOF_FREE_THANKED', 'PROOF_PAID_ONCE', 'PROOF_OCCASIONAL', 'PROOF_STABLE']
+  const PA = ['ATTEMPT_NONE', 'ATTEMPT_COURSE_ONLY', 'ATTEMPT_UNDER_30D', 'ATTEMPT_NO_SALE', 'ATTEMPT_FEW_SALES', 'ATTEMPT_STABLE_SIDE']
+  let conflicts = 0
+  for (const sv of SV) for (const pa of PA) {
+    const o = H.runHybridDiagnosisV6(base({ skillValidation: sv, pastAttemptStage: pa }))
+    if (o.diagnosis.compatibility.verdict === 'EVIDENCE_CONFLICT') conflicts++
   }
+  assert.strictEqual(conflicts, 0, 'cross-object pair produced a hard conflict')
 })
 
 // ══════════════════════════════════════════════════════════════════
 // §7 CONDITIONAL POLICY
 // ══════════════════════════════════════════════════════════════════
 console.log('\n   §7 CONDITIONAL POLICY')
+// R62: a conditional (UNPROVEN) pair may keep the FACTUAL market position and MAY
+// carry a LINK-FIRST strategy override (verify whether the two independent objects
+// are even the same thing). It may NEVER carry a SAME-OBJECT strategy that assumes
+// the proven capability IS the current path. So the invariant is not "no override"
+// but "every override is link-first / same-object-free".
+const LINK_FIRST_PAT = /连接|连不连|是不是同一件|是不是同一件事|同一件事|用得上|用不上|先确认|适不适用|照做|能不能用在你现在/
+const SAME_OBJECT_PAT = /(扩大|放大|复制|系统化|规模化|多接|接更多|做成方法|照搬|重复做)/
 let condB1Mutation = 0, condUnsupported = 0
-for (const bn of ['DIRECTION_GAP', 'ACTION_GAP', 'CONSISTENCY_GAP']) {
+for (const bn of ['DIRECTION_GAP', 'ACTION_GAP', 'CONSISTENCY_GAP', 'VALIDATION_GAP']) {
   for (const a of ['PAID_ONCE', 'OCCASIONAL_PAID', 'REPEATABLE_PAID']) {
     const r = run(Object.assign({}, B1_REP[bn], ASSET_DRIVER[a]))
     if (r.out.diagnosis.primaryBottleneck !== bn) condB1Mutation++
     const hy = r.out.hybridContext
     assert.ok(hy, 'conditional pair must still produce a report context')
     assert.strictEqual(hy.crossAxisScope, 'UNPROVEN', bn + '+' + a + ' scope')
-    // Unsupported cross-axis strategy must be suppressed: no proof-aware
-    // CARD04-TO / CARD02-leap / CARD03 / CARD05 overrides (fall back to base).
-    if (hy.proofTo || hy.card02Leap || hy.card03 || hy.card05) condUnsupported++
-    // The FACTUAL market position (CARD04 FROM) may remain.
+    const overrides = [hy.proofTo, hy.card02Leap, hy.card03, hy.card05].filter(Boolean)
+    const blob = JSON.stringify(overrides)
+    // Every UNPROVEN override must be link-first and must NOT assert the same-object
+    // strategy (scale/repeat/systematize the proven asset).
+    if (overrides.length && (!LINK_FIRST_PAT.test(blob) || SAME_OBJECT_PAT.test(blob))) condUnsupported++
     assert.ok(hy.proofFrom, 'factual market position may remain')
   }
 }
 t('§7 CONDITIONAL_PAIR_B1_MUTATION_COUNT = 0', () => assert.strictEqual(condB1Mutation, 0))
-t('§7 CONDITIONAL_PAIR_UNSUPPORTED_STRATEGY_COUNT = 0', () => assert.strictEqual(condUnsupported, 0))
+t('§7 CONDITIONAL_PAIR_UNSUPPORTED_STRATEGY_COUNT = 0 (R62: link-first only)', () => assert.strictEqual(condUnsupported, 0))
 t('§7 allowed fact / forbidden link: market fact may show, cross-axis strategy may not', () => {
   const r = run(Object.assign({}, B1_REP.ACTION_GAP, ASSET_DRIVER.REPEATABLE_PAID))
   const text = [r.vm[1] && r.vm[1].body, r.vm[3] && r.vm[3].from, r.vm[3] && r.vm[3].to, r.vm[4] && r.vm[4].primaryAction].filter(Boolean).join('\n')
-  // allowed: states the paid market position
   assert.ok(/能重复付费|已经有了能重复|重复付费的客户/.test(text), 'factual market position must be allowed')
-  // forbidden: assumes the paid asset IS the current desired change's object
   assert.ok(!/所以你这次要做的副业就应该直接卖这项能力/.test(text), 'must not assert the cross-axis link')
 })
 
@@ -251,7 +263,7 @@ t('§7 allowed fact / forbidden link: market fact may show, cross-axis strategy 
 // §9/§18 NO COPY MASKING + ADVERSARIAL
 // ══════════════════════════════════════════════════════════════════
 console.log('\n   §9/§18 ADVERSARIAL — NO COPY MASKING')
-t('§9 HARD_CONFLICT_RENDERED_FIVE_CARD_COUNT = 0', () => {
+t('§9 HARD_CONFLICT_RENDERED_FIVE_CARD_COUNT = 0 (no hard conflicts exist)', () => {
   let five = 0
   for (const p of expectedHard) {
     const r = run(Object.assign({}, B1_REP[p[0]], ASSET_DRIVER[p[1]]))
@@ -259,80 +271,75 @@ t('§9 HARD_CONFLICT_RENDERED_FIVE_CARD_COUNT = 0', () => {
   }
   assert.strictEqual(five, 0)
 })
-t('§9 adversarial: forcing a proof context cannot convert a conflict into five cards', () => {
-  let masked = 0
-  for (const p of expectedHard) {
-    const raw = base(Object.assign({}, B1_REP[p[0]], ASSET_DRIVER[p[1]]))
-    const out = H.runHybridDiagnosisV6(raw)
-    // Adversary bypasses the pipeline's nulling and hand-builds the R46 context.
-    const { buildHybridReportContextV6 } = require(path.join(CF, 'hybrid/hybridReportContextV6.js'))
-    const forcedCtx = buildHybridReportContextV6(out.hybridProfile, out.diagnosis)
-    const rep = buildReportV6(out.diagnosis, forcedCtx)
-    if (rep.reportState !== 'EVIDENCE_CONFLICT' || rep.cards) masked++
-  }
-  assert.strictEqual(masked, 0, 'proofConsistencyV6 masked a hard conflict into a report')
+t('§9 adversarial: a bound conflict cannot be masked into five cards', () => {
+  // Directly exercise the (unreachable) conflict machinery to prove the report
+  // blocker still refuses to render cards from a bound-conflict diagnosis.
+  const { buildHybridReportContextV6 } = require(path.join(CF, 'hybrid/hybridReportContextV6.js'))
+  const out = H.runHybridDiagnosisV6(base(Object.assign({}, B1_REP.VALIDATION_GAP, ASSET_DRIVER.REPEATABLE_PAID)))
+  // Force a conflict verdict on the diagnosis + hand-build the R46 context.
+  out.diagnosis.compatibility = { verdict: 'EVIDENCE_CONFLICT', conflictType: 'X', conflictingFields: ['skillValidation', 'pastAttemptStage'], recommendedReviewScreens: [5, 7], crossAxisScope: 'CONFLICT' }
+  const forcedCtx = buildHybridReportContextV6(out.hybridProfile, out.diagnosis)
+  const rep = buildReportV6(out.diagnosis, forcedCtx)
+  assert.strictEqual(rep.reportState, 'EVIDENCE_CONFLICT')
+  assert.strictEqual(rep.cards, null)
 })
 t('§9 proofConsistencyV6 alone has no gate authority (single responsibility)', () => {
   const pc = PC.buildProofConsistencyV6({ assetState: 'REPEATABLE_PAID', bottleneck: 'VALIDATION_GAP', actionType: 'BUYER_FEEDBACK_COLLECTION' })
-  // It only produces copy overrides; it never returns a verdict.
   assert.ok(!('verdict' in pc), 'proofConsistency must not carry a compatibility verdict')
 })
 
 // ══════════════════════════════════════════════════════════════════
-// §13 REPORT E REPLAY
+// §13 REPORT E REPLAY (now a cross-object non-conflict)
 // ══════════════════════════════════════════════════════════════════
 console.log('\n   §13 REPORT E REPLAY (VALIDATION_GAP + REPEATABLE_PAID)')
 const reportE = run(Object.assign({}, B1_REP.VALIDATION_GAP, ASSET_DRIVER.REPEATABLE_PAID))
 t('§13 R46_MASKED_INVALID_COMBINATION_REPRODUCED = YES (pre-R48 guard)', () => {
-  // Pre-R48, the R46 proof layer produced a coherent-looking five-card report:
-  // the proof-aware copy REPLACED the base wording so the invalid combination
-  // read as valid. Demonstrate the masking mechanism exists.
   assert.strictEqual(PC.CARD04_FROM_FACT.REPEATABLE_PAID, '已经有了能重复付费的客户，但还没形成体系')
   assert.ok(PC.CARD03.REPEATABLE_PAID.VALIDATION_GAP, 'R46 proof reframe existed')
 })
-t('§13 R48: EVIDENCE_CONFLICT · NO FIVE CARDS · RETURN TO REVIEW', () => {
-  assert.strictEqual(reportE.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT')
-  assert.strictEqual(reportE.rep.reportState, 'EVIDENCE_CONFLICT')
-  assert.strictEqual(reportE.rep.cards, null)
-  assert.deepStrictEqual(reportE.rep.conflict.recommendedReviewScreens, [5, 7])
+t('§13 R62: REPORT BUILDS (cross-object divergence) · scope UNPROVEN', () => {
+  assert.strictEqual(reportE.out.diagnosis.compatibility.verdict, 'CONDITIONALLY_COMPATIBLE')
+  assert.strictEqual(reportE.out.diagnosis.compatibility.crossAxisScope, 'UNPROVEN')
+  assert.notStrictEqual(reportE.rep.reportState, 'EVIDENCE_CONFLICT')
+  assert.ok(reportE.rep.cards, 'report must build')
 })
-t('§13 R48_MASKED_INVALID_COMBINATION_COUNT = 0', () => {
-  assert.strictEqual(reportE.vm.length, 0)
+t('§13 R48_MASKED_INVALID_COMBINATION_COUNT = 0 (no conflict masking)', () => {
+  assert.strictEqual(reportE.vm.length, 5)
 })
 
 // ══════════════════════════════════════════════════════════════════
-// §14 REPEATABILITY CONFLICT REPLAY
+// §14 REPEATABILITY REPLAY (now a cross-object non-conflict)
 // ══════════════════════════════════════════════════════════════════
-console.log('\n   §14 REPEATABILITY CONFLICT REPLAY (REPEATABILITY_GAP + NO_CLEAR_ASSET)')
+console.log('\n   §14 REPEATABILITY REPLAY (REPEATABILITY_GAP + NO_CLEAR_ASSET)')
 const reportR = run(Object.assign({}, B1_REP.REPEATABILITY_GAP, ASSET_DRIVER.NO_CLEAR_ASSET))
 t('§14 R47_REPEATABILITY_MISLEADING_REPRODUCED = YES (pre-R48 guard)', () => {
-  // R47 observed C03 "prior payment exists" + C04 "no market-tested asset" +
-  // C05 "replicate prior sale". Demonstrate the two R46 copy sources still exist
-  // independently (they would contradict if both rendered).
   assert.ok(PC.CARD03.REPEATABLE_PAID && PC.CARD03.REPEATABLE_PAID.VALIDATION_GAP, null)
   assert.strictEqual(PC.CARD04_FROM_FACT.NO_CLEAR_ASSET, '还没有一个被市场验证过的可售能力')
 })
-t('§14 R48: EVIDENCE_CONFLICT · NO FIVE CARDS', () => {
-  assert.strictEqual(reportR.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT')
-  assert.strictEqual(reportR.rep.reportState, 'EVIDENCE_CONFLICT')
-  assert.strictEqual(reportR.rep.cards, null)
+t('§14 R62: REPORT BUILDS · scope UNPROVEN', () => {
+  assert.strictEqual(reportR.out.diagnosis.compatibility.verdict, 'CONDITIONALLY_COMPATIBLE')
+  assert.strictEqual(reportR.out.diagnosis.compatibility.crossAxisScope, 'UNPROVEN')
+  assert.notStrictEqual(reportR.rep.reportState, 'EVIDENCE_CONFLICT')
+  assert.ok(reportR.rep.cards)
 })
-t('§14 R48_REPEATABILITY_MISLEADING_COUNT = 0', () => {
+t('§14 R48_REPEATABILITY_MISLEADING_COUNT = 0 (R62: link-first, no same-object collapse)', () => {
   const blob = JSON.stringify(reportR.rep)
-  assert.ok(!/最近一次成交|已经有人付钱/.test(blob), 'no misleading strategy copy may render')
+  // R62: the divergence renders a LINK-first CARD03/CARD05, so the old same-object
+  // misleading copy (asserting a prior sale proves this path) must not appear.
+  assert.ok(!/复制最近一次有效成交|把最近一次成交的每一步写下来/.test(blob), 'no same-object repeat copy may render')
 })
 
 // ══════════════════════════════════════════════════════════════════
 // §16 QUESTION SCOPE AUDIT (read-only recommendation)
 // ══════════════════════════════════════════════════════════════════
 console.log('\n   §16 QUESTION SCOPE AUDIT')
-t('§16 QUESTION_SCOPE_AMBIGUITY recorded (no rewrite in R48)', () => {
-  // Q5 skillValidation ("你的能力被市场验证到什么程度了？") and Q7 pastAttemptStage
-  // ("过去一年，你最接近赚钱的一次尝试是？") do not name the SAME object, so a
-  // user can answer them about two different abilities without noticing.
-  // Documented as MEDIUM; a later COPY-ONLY clarification may scope them.
-  const AUDIT = 'MEDIUM'
-  assert.strictEqual(AUDIT, 'MEDIUM')
+t('§16 CROSS_OBJECT pair frozen as independent axes (R62)', () => {
+  // Q5 skillValidation ("你的能力被市场验证到什么程度了？" = CAPABILITY_MARKET_PROOF)
+  // and Q7 pastAttemptStage ("过去一年，你最接近赚钱的一次尝试是？" = HISTORICAL_ATTEMPT)
+  // do not name the SAME object, so they have NO authority to hard-contradict.
+  // R62 collapses them to evidence + a neutral divergence pattern.
+  assert.strictEqual(G.SEMANTIC_OBJECT.skillValidation !== G.SEMANTIC_OBJECT.pastAttemptStage, true)
+  assert.ok(typeof G.crossObjectEvidencePattern === 'function')
 })
 
 // ══════════════════════════════════════════════════════════════════
@@ -346,7 +353,6 @@ t('§15 questionnaire persists answers on submit + restores in review (source)',
   assert.ok(/reviewMode/.test(js), 'no review mode')
 })
 t('§15 FULL_RESTART_REQUIRED = NO · EXISTING_ANSWER_LOSS_COUNT = 0', () => {
-  // Reconstruct the client restore path deterministically (no wx runtime).
   const saved = base({ skillValidation: 'PROOF_STABLE' })
   const screens = require(path.join(ROOT, 'utils/v6/turnaroundQuestionnaireHybridV10.js')).getScreensHybridV10()
   const targets = [5, 7]
@@ -452,11 +458,19 @@ function isPrimary (d) { return !!(d && d.cards && d.cards.fatalInsight && d.car
     if (d && d.reportState === 'EVIDENCE_CONFLICT' && !d.cards) reached++
     else reachableMisleading++
   }
-  t('§12 all 7 legal conflicts reach server as EVIDENCE_CONFLICT with no cards', () => {
-    assert.strictEqual(reached, 7, 'reached ' + reached)
+  t('§12 no hard conflict reaches the server (R62 UNBOUND_HARD_CONFLICT_RULE_COUNT=0)', () => {
+    assert.strictEqual(reached, 0, 'reached ' + reached)
   })
   t('§12 REACHABLE_MISLEADING_CONFLICT_COUNT = 0', () => assert.strictEqual(reachableMisleading, 0))
-  t('§12 conflict path makes ZERO model calls', () => assert.strictEqual(__aiCalls, 0))
+
+  // R62 §9 — the exact R60-class owner replay now reaches a report.
+  console.log('\n   §12 R60 OWNER REPLAY (cross-object) → report')
+  const ownerReplay = base(Object.assign({}, B1_REP.VALIDATION_GAP, ASSET_DRIVER.PAID_ONCE, { primaryGoal: 'GOAL_SKILL_MONETIZE' }))
+  const dOwner = await callHybrid('ON', 'u2', 'u1', 'u2', ownerReplay)
+  await ta('§12 R60_FALSE_CONFLICT_AFTER = NO (report proceeds)', () => {
+    assert.notStrictEqual(dOwner.reportState, 'EVIDENCE_CONFLICT')
+    assert.ok(dOwner.cards && dOwner.cards.fatalInsight && dOwner.cards.fatalInsight.text, 'report must render')
+  })
 
   // §18 product regression through the server
   console.log('\n   §18 PRODUCT REGRESSION (server)')

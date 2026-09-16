@@ -36,11 +36,12 @@ function buildFirstAction (r) {
   const cashflow = rcTypes.includes('CASHFLOW_PRESSURE')
 
   const spec = copy.getRealityTest(action) || {}
-  const checks = copy.getSupportChecks(pb).slice(0, 3)
-
   // R46 §9/§11 — MARKER: proof-aware CARD05 overrides (paid bands).
   const hy = r.hybrid || null
   const proofAction = hy && hy.card05
+  const checks = (proofAction && Array.isArray(proofAction.checks) && proofAction.checks.length)
+    ? proofAction.checks.slice(0, 3)
+    : copy.getSupportChecks(pb).slice(0, 3)
 
   // Base reality-test action (the PRIMARY action itself creates a real-world
   // event: ask / send / show / contact / transact).
@@ -77,15 +78,22 @@ function buildFirstAction (r) {
 
   // R34 §10: one headline + structured REALITY-TEST lines. `text` is the
   // internal full form; the CLIENT renders the structured block.
-  const headline = `今天要验证的是：${spec.hypothesis || '你的方向真的有人需要。'}`
-  const line0 = `先赌一个假设：${spec.hypothesis || '你的方向真的有人需要。'}`
+  // R62 — cross-object divergence: the hypothesis must be the LINK hypothesis
+  // (not a same-object repeat/reproduce claim), so the observable signal and the
+  // decision stay about verifying the connection between the two objects.
+  const headline = `今天要验证的是：${(proofAction && proofAction.hypothesis) || spec.hypothesis || '你的方向真的有人需要。'}`
+  const line0 = `先赌一个假设：${(proofAction && proofAction.hypothesis) || spec.hypothesis || '你的方向真的有人需要。'}`
   const line1 = `怎么做：${sized}`
   const line2 = `找谁：${verifyWith}；多久：${timebox}`
   const line3 = `看什么信号：${done}`
   const line4 = `怎么用它：${decision}`
   // §2 distinctness: fold the goal into an otherwise-identical action block so two
   // same-action-type reports never render byte-identical CARD05 copy.
-  const goalLine = `你现在${copy.getStageLead(stage)}，这一小步瞄准的是：${copy.getProblemRealization(q4)}。`
+  // R62 — cross-object divergence uses a neutral link-framed stage lead so a B1
+  // stage lead (e.g. “却还没人买单”) never asserts the opposite market fact as
+  // if it were the SAME object as the paid capability.
+  const stageLead = (hy && hy.crossStageLead) || copy.getStageLead(stage)
+  const goalLine = `你现在${stageLead}，这一小步瞄准的是：${copy.getProblemRealization(q4)}。`
   const text = `${headline}${line0}${goalLine}${line1}${line2}${line3}${line4}${copy.getRelBridge(rel)}`
 
   return {

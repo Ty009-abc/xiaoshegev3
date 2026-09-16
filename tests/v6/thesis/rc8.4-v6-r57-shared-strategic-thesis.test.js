@@ -62,7 +62,7 @@ const C_NO_ASSET = { // no clear asset + side income goal
   timeBehavior: 'TIME_BALANCE', primaryProblem: 'PROBLEM_SIDE_UNSTARTED', primaryGoal: 'GOAL_SIDE_INCOME',
   maxTrialCost: 'COST_1K_5K', failureResponse: 'FAIL_SWITCH'
 }
-const CONFLICT = { // R48 hard conflict: VALIDATION_GAP (asserts NO payment) + REPEATABLE_PAID
+const CONFLICT = { // R62: cross-object no longer conflicts; §2 forces a BOUND conflict below
   lifeStage: 'LIFE_31_40', incomeStructure: 'INC_SALARY', monthlySurplus: 'SURPLUS_1K_5K',
   safetyMonths: 'SAFETY_3_6', debtPressure: 'DEBT_NONE', skillValidation: 'PROOF_STABLE',
   monetizableSkill: 'ASSET_TECHNICAL', weeklyTime: 'TIME_10_20', executionStability: 'EXEC_STABLE',
@@ -100,6 +100,22 @@ function ctx (raw) {
   const out = runHybridDiagnosisV6(raw)
   const fallback = buildReportV6(out.diagnosis, out.hybridContext)
   return { out, fallback }
+}
+// R62 — the cross-object pair (skillValidation vs pastAttemptStage) no longer
+// hard-conflicts, so build a context that FORCES the R48 bound-conflict path
+// (the machinery is preserved for a future explicitly-bound rule) to prove
+// EVIDENCE_CONFLICT still makes 0 model calls.
+function conflictCtx (raw) {
+  const c = ctx(raw)
+  c.out.diagnosis.compatibility = {
+    verdict: 'EVIDENCE_CONFLICT', crossAxisScope: 'CONFLICT',
+    conflictType: 'MARKET_PROOF_VS_ATTEMPT_STAGE',
+    conflictingFields: ['skillValidation', 'pastAttemptStage'],
+    recommendedReviewScreens: [5, 7],
+    reasonCode: 'BOUND_RULE'
+  }
+  c.fallback = buildReportV6(c.out.diagnosis, null)
+  return c
 }
 function run (c, callAI) {
   return runThesisReportRuntimeV6({
@@ -142,8 +158,8 @@ async function main () {
   // ═══ §2 EVIDENCE_CONFLICT => 0 model calls ═══
   console.log('\n── §2 EVIDENCE_CONFLICT ──')
   await ta('EVIDENCE_CONFLICT_MODEL_CALL_COUNT=0 (no envelope, no call)', async () => {
-    const c = ctx(CONFLICT)
-    assert.strictEqual(c.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT', 'fixture is not a hard conflict')
+    const c = conflictCtx(CONFLICT)
+    assert.strictEqual(c.out.diagnosis.compatibility.verdict, 'EVIDENCE_CONFLICT', 'fixture is not a bound conflict')
     let calls = 0
     const counting = async () => { calls++; return { success: true, content: '{}' } }
     const r = await run(c, counting)

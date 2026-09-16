@@ -211,6 +211,10 @@ function buildThesisEnvelopeV6 (input) {
       assetNamed: !!(i.hybridContext && i.hybridContext.assetNamed)
     },
     crossAxisScope: crossAxisScope,
+    // R62 §5/§6 — neutral cross-object divergence signal (ZERO diagnosis
+    // authority). Lets the AI interpret the capability/attempt divergence as
+    // MATERIAL, never as a contradiction. The two facts stay independent.
+    crossObjectEvidencePattern: (i.hybridContext && i.hybridContext.crossObjectEvidencePattern) || 'UNKNOWN',
     currentValuePosition: currentValuePosition,
     allowedTargetPositions: allowedTargetPositions,
     allowedWorldRules: allowedWorldRules,
