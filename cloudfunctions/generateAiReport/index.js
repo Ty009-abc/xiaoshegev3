@@ -838,6 +838,12 @@ async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible 
     resultCategory: (thesisOut && thesisOut.meta && thesisOut.meta.resultCategory) || null,
     modelCalls: (thesisOut && thesisOut.meta && thesisOut.meta.modelCalls) || 0,
     validatorReasonCodeCount: (thesisOut && thesisOut.meta && thesisOut.meta.validatorReasonCodes) ? thesisOut.meta.validatorReasonCodes.length : 0,
+    // R65 §6 — privacy-safe observability: reason CODES only (never raw draft,
+    // final report, raw answers, openid or occupation literal).
+    validatorBlockingReasonCodes: (thesisOut && thesisOut.meta && thesisOut.meta.validatorBlockingReasonCodes) || [],
+    validatorRepairableReasonCodes: (thesisOut && thesisOut.meta && thesisOut.meta.validatorRepairableReasonCodes) || [],
+    localRepairApplied: !!(thesisOut && thesisOut.meta && thesisOut.meta.localRepairApplied),
+    localRepairTypes: (thesisOut && thesisOut.meta && thesisOut.meta.localRepairTypes) || [],
     worldRuleId: (thesisOut && thesisOut.meta && thesisOut.meta.worldRuleId) || null,
     migrationId: (thesisOut && thesisOut.meta && thesisOut.meta.migrationId) || null,
     experimentClass: (thesisOut && thesisOut.meta && thesisOut.meta.experimentClass) || null,

@@ -23,6 +23,8 @@ const { buildNoPrimaryReportV6 } = require('../report/noPrimaryReportV6.js')
 const { buildThesisEnvelopeV6 } = require('./thesisEnvelopeV6.js')
 const { runThesisAdapter } = require('./thesisAdapterV6.js')
 const { validateThesisV6 } = require('./thesisValidatorV6.js')
+// R65 §4 — deterministic LOCAL repair for repairable copy issues only (no AI).
+const { repairThesisOutput } = require('./thesisRepairV6.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
 const RENDER_SOURCE = Object.freeze({ AI: 'thesis_ai', FALLBACK: 'deterministic_fallback' })
@@ -46,7 +48,17 @@ function fallbackResult (detReport, reason, extraMeta) {
   return {
     renderSource: RENDER_SOURCE.FALLBACK,
     report: detReport,
-    meta: Object.assign({ renderSource: RENDER_SOURCE.FALLBACK, resultCategory: reason, modelCalls: 0, validatorReasonCodes: [] }, extraMeta || {})
+    meta: Object.assign({
+      renderSource: RENDER_SOURCE.FALLBACK,
+      resultCategory: reason,
+      modelCalls: 0,
+      validatorReasonCodes: [],
+      // R65 §6 — privacy-safe observability (reason CODES only, never raw text).
+      validatorBlockingReasonCodes: [],
+      validatorRepairableReasonCodes: [],
+      localRepairApplied: false,
+      localRepairTypes: []
+    }, extraMeta || {})
   }
 }
 
@@ -158,16 +170,48 @@ async function runThesisReportRuntimeV6 (args) {
     return fallbackResult(fb, cat, { envelopeBuilt: true, errorCode: (res && res.error) || 'AI_FAILED', modelCalls: 1 })
   }
 
-  const verdict = validateThesisV6(res.output, envelope)
+  let verdict = validateThesisV6(res.output, envelope)
+  let output = res.output
+  let localRepairApplied = false
+  let localRepairTypes = []
+  let initialBlocking = verdict.blockingFailures.slice()
+  let initialRepairable = verdict.repairableFailures.slice()
+
+  // R65 §4 — if the ONLY failures are REPAIRABLE, apply ONE deterministic local
+  // normalisation and re-run the SAME validator. NO second AI call (§16).
+  if (!verdict.valid && verdict.blockingFailures.length === 0 && verdict.repairableFailures.length > 0) {
+    const repaired = repairThesisOutput(output)
+    if (repaired.applied) {
+      const v2 = validateThesisV6(repaired.output, envelope)
+      localRepairTypes = repaired.repairTypes
+      if (v2.valid) {
+        output = repaired.output
+        verdict = v2
+        localRepairApplied = true
+      } else {
+        // Repair did not clear it -> keep the ORIGINAL blocking reason codes.
+        verdict = v2
+      }
+    }
+  }
+
   if (!verdict.valid) {
+    const blocking = verdict.blockingFailures.length ? verdict.blockingFailures : initialBlocking
+    const repairable = verdict.repairableFailures.length ? verdict.repairableFailures : initialRepairable
     return fallbackResult(fb, STATUS.VALIDATION_FAIL, {
-      envelopeBuilt: true, modelCalls: 1, validatorReasonCodes: verdict.hardFailures
+      envelopeBuilt: true,
+      modelCalls: 1,
+      validatorReasonCodes: verdict.hardFailures,
+      validatorBlockingReasonCodes: blocking,
+      validatorRepairableReasonCodes: repairable,
+      localRepairApplied: false,
+      localRepairTypes: localRepairTypes
     })
   }
 
   return {
     renderSource: RENDER_SOURCE.AI,
-    report: mapThesisToReport(fb, res.output),
+    report: mapThesisToReport(fb, output),
     meta: {
       renderSource: RENDER_SOURCE.AI,
       resultCategory: STATUS.PASS,
@@ -176,7 +220,11 @@ async function runThesisReportRuntimeV6 (args) {
       temperatureUsed: a.temperature != null ? a.temperature : THESIS_TEMPERATURE,
       maxTokensUsed: a.maxTokens != null ? a.maxTokens : THESIS_MAX_TOKENS,
       validatorReasonCodes: [],
-      worldRuleId: res.output.strategicThesis.worldRule.id,
+      validatorBlockingReasonCodes: [],
+      validatorRepairableReasonCodes: [],
+      localRepairApplied: localRepairApplied,
+      localRepairTypes: localRepairTypes,
+      worldRuleId: output.strategicThesis.worldRule.id,
       migrationId: (envelope.allowedTargetPositions[0] || {}).id || null,
       experimentClass: envelope.experimentClass,
       envelopeBuilt: true

@@ -50,7 +50,24 @@ const PRIMARY_MIGRATION_BY_BOTTLENECK = {
 
 // ── NO_PRIMARY migration, by value position + scope ──
 const NP_MIGRATION_LINK_FIRST = { id: 'TEST_ASSET_TO_GOAL_LINK', from: '把已证明的能力直接当成下一步的路', to: '先验证这项能力和当前目标之间到底连不连得上', conditional: true }
-const NP_MIGRATION_COMPATIBLE = { id: 'CONVERT_PROVEN_ASSET_TO_STABLE_INCOME', from: '有一项被市场验证过的能力，但收入还不稳定', to: '把它变成一份更稳定、可重复的收入', conditional: false }
+
+// R65 §7/§8 — value-position TRUTHFUL migrations (NO_PRIMARY, COMPATIBLE scope).
+// A migration may advance the user by exactly ONE evidence step. It must never
+// assume a proof level the user has not reached: an UNPAID, recognised capability
+// may NOT be told to jump straight to stable / repeatable / systematized income.
+// Semantic chain: recognised/used-free capability -> sellable offer -> first paid
+// proof -> second paid proof/repeatable offer -> repeatable pattern -> system.
+const NP_VALUE_MIGRATIONS = {
+  VALUE_NONE_YET: { id: 'BUILD_TESTABLE_CAPABILITY', from: '还没有一个能被验证的具体能力', to: '先做出一个能被真实的人检验的最小能力', conditional: false },
+  VALUE_UNVALIDATED_SKILL: { id: 'GET_FIRST_EXTERNAL_PROOF', from: '有具体能力，但还没被市场验证过', to: '先拿到一次外部真实反馈，验证它值不值得做下去', conditional: false },
+  VALUE_UNPAID_PROVEN_HELP: { id: 'TURN_RECOGNIZED_CAPABILITY_INTO_FIRST_PAID_OFFER', from: '一项被认可、却一直免费提供的能力', to: '把它变成一个别人愿意付费的最小交付，先拿到第一笔真实付费证据', conditional: false },
+  VALUE_ONE_OFF_PAID: { id: 'TURN_FIRST_PAYMENT_INTO_REPEATABLE_OFFER', from: '已经有人付过一次钱的能力', to: '把这次成交变成一份可以重复出售的报价', conditional: false },
+  VALUE_REPEATABLE_PAID: { id: 'TURN_REPEAT_SALES_INTO_SYSTEMATIZED_OFFER', from: '已经有能重复付费的客户', to: '把稳定成交的方式固定成可复用的方法', conditional: false },
+  VALUE_UNCLEAR: { id: 'TURN_RECOGNIZED_CAPABILITY_INTO_FIRST_PAID_OFFER', from: '一项被认可、却一直免费提供的能力', to: '把它变成一个别人愿意付费的最小交付，先拿到第一笔真实付费证据', conditional: false }
+}
+// Backwards-compatible alias: the COMPATIBLE migration is now value-position
+// selected; this remains only for callers that import the old symbol.
+const NP_MIGRATION_COMPATIBLE = NP_VALUE_MIGRATIONS.VALUE_UNPAID_PROVEN_HELP
 
 // ── allowed strategy hypotheses (commercial imagination, bounded) ──
 const HYP_MONETIZE = ['SERVICE_PACKAGING', 'OFFER_SHAPE', 'TARGET_CUSTOMER_CLASS', 'WILLINGNESS_TO_PAY_TEST']
@@ -179,10 +196,16 @@ function buildThesisEnvelopeV6 (input) {
       forbiddenClaims.push('CLAIM_ASSET_IS_GOAL_PATH', 'CLAIM_PRIMARY_BOTTLENECK', 'SCALE_PROVEN_ASSET')
     } else {
       allowedWorldRules = NP_WORLD_RULES_COMPATIBLE.slice()
-      allowedTargetPositions = [NP_MIGRATION_COMPATIBLE]
+      // R65 §7 — truthful ONE-STEP migration for THIS value position. An unpaid,
+      // recognised capability is never offered a paid-level target (stable /
+      // repeatable / systematized income) before it has first-paid evidence.
+      allowedTargetPositions = [NP_VALUE_MIGRATIONS[currentValuePosition] || NP_MIGRATION_COMPATIBLE]
       allowedStrategyHypotheses = (currentValuePosition === 'VALUE_REPEATABLE_PAID' ? HYP_SYSTEMATIZE : HYP_REPEAT).slice()
-      experimentClass = (npReport && npReport.proofStageProgression) || 'REPEAT'
+      experimentClass = currentValuePosition === 'VALUE_UNPAID_PROVEN_HELP'
+        ? 'FIRST_PAID_PROOF'
+        : ((npReport && npReport.proofStageProgression) || 'REPEAT')
       forbiddenClaims.push('CLAIM_PRIMARY_BOTTLENECK')
+      if (!marketValidated) forbiddenClaims.push('CLAIM_STABLE_INCOME_WITHOUT_PAID_PROOF', 'CLAIM_REPEATABLE_INCOME_WITHOUT_PAID_PROOF')
     }
   } else {
     // PRIMARY — B1 is authority. AI explains MEANING, may not rename/replace.
@@ -240,6 +263,7 @@ module.exports = {
   PRIMARY_MIGRATION_BY_BOTTLENECK,
   NP_MIGRATION_LINK_FIRST,
   NP_MIGRATION_COMPATIBLE,
+  NP_VALUE_MIGRATIONS,
   NP_WORLD_RULES_UNPROVEN,
   NP_WORLD_RULES_COMPATIBLE,
   BASE_FORBIDDEN,
