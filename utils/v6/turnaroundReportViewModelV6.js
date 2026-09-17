@@ -105,24 +105,39 @@ function buildCardListV6 (cards) {
     }
   }
 
-  // 05 — 现在就做 : primaryAction + target/timebox + signal + decision.
-  // The legacy `checks` bullets and aggregate `text` are DELIBERATELY NOT
-  // rendered (R38 §6): they are stale productivity leftovers, not part of the
-  // authoritative R35 reality-test payload.
+  // 05 — 现在就做 : TWO layouts, mutually exclusive.
+  //   (a) R75 compressed layer — when the v4_restored path exposes `visible`:
+  //       90天目标 + ACTION 1/2/3 + 验收标准 (no duplicate constraint lines).
+  //   (b) legacy deterministic layout — UNCHANGED R38 contract:
+  //       primaryAction + target/timebox + signal + decision.
+  // The legacy `checks` bullets / aggregate `text` are NEVER rendered.
   if (cards.firstAction) {
-    const primaryAction = str(cards.firstAction.action)
-    if (primaryAction) {
+    const vis = cards.firstAction.visible && typeof cards.firstAction.visible === 'object' ? cards.firstAction.visible : null
+    const title = str(cards.firstAction.title) || CARD_TITLE_FALLBACK.firstAction
+    if (vis && (str(vis.goal) || arr(vis.actions).length || str(vis.acceptance))) {
+      // (a) R75 compressed five-card layer (v4_restored path).
       out.push({
         key: 'firstAction',
-        title: str(cards.firstAction.title) || CARD_TITLE_FALLBACK.firstAction,
-        primaryAction: primaryAction,
-        target: str(cards.firstAction.verifyWith) || str(cards.firstAction.target),
-        timebox: str(cards.firstAction.timebox),
-        signal: str(cards.firstAction.done),
-        decision: str(cards.firstAction.decision),
-        // R44 §16 — additive action sizing (empty for the 9Q path).
-        specificity: str(cards.firstAction.specificity),
+        title: title,
+        goal: str(vis.goal),
+        actions: arr(vis.actions),
+        acceptance: str(vis.acceptance),
       })
+    } else {
+      // (b) legacy deterministic layout (R38 §6/§7 authority) — unchanged.
+      const primaryAction = str(cards.firstAction.action)
+      if (primaryAction) {
+        out.push({
+          key: 'firstAction',
+          title: title,
+          primaryAction: primaryAction,
+          target: str(cards.firstAction.verifyWith) || str(cards.firstAction.target),
+          timebox: str(cards.firstAction.timebox),
+          signal: str(cards.firstAction.done),
+          decision: str(cards.firstAction.decision),
+          specificity: str(cards.firstAction.specificity),
+        })
+      }
     }
   }
 

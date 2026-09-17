@@ -132,7 +132,7 @@
 .card-insight-line {
   margin-top: 16rpx;
   font-size: 30rpx;
-  color: #7f56d9;
+  color: #1a1a2e;
   font-weight: 600;
   line-height: 1.7;
   word-break: break-word;
@@ -188,6 +188,88 @@
   margin-top: 8rpx;
 }
 
+/* R75 §12 — 紫色仅用于：关键结论 / TO 状态 / 90天目标 / 验收标准。 */
+.action-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 20rpx 24rpx;
+  background: #f6f2fd;
+  border-radius: 14rpx;
+}
+
+.action-goal-label {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #7f56d9;
+  letter-spacing: 2rpx;
+}
+
+.action-goal-text {
+  font-size: 30rpx;
+  color: #7f56d9;
+  font-weight: 600;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.action-steps {
+  margin-top: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+
+.action-step {
+  display: flex;
+  gap: 14rpx;
+  align-items: flex-start;
+}
+
+.action-step-num {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #8a90a3;
+  letter-spacing: 1rpx;
+  flex-shrink: 0;
+  padding-top: 6rpx;
+  min-width: 116rpx;
+}
+
+.action-step-text {
+  font-size: 30rpx;
+  color: #2b2f42;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+.action-accept {
+  margin-top: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+  padding: 18rpx 24rpx;
+  border-left: 6rpx solid #7f56d9;
+  background: #faf8ff;
+  border-radius: 0 12rpx 12rpx 0;
+}
+
+.action-accept-label {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #7f56d9;
+  letter-spacing: 2rpx;
+}
+
+.action-accept-text {
+  font-size: 29rpx;
+  color: #4a3b7a;
+  font-weight: 600;
+  line-height: 1.7;
+  word-break: break-word;
+}
+
+/* legacy action styles retained for compatibility (no longer rendered) */
 .action-main {
   font-size: 30rpx;
   color: #1a1a2e;

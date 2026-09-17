@@ -30,6 +30,7 @@ const { buildEnvelopeFallbackReport } = require('./thesisEnvelopeFallbackV6.js')
 const { buildV4RestoredPayload } = require('./v4RestoredContextV6.js')
 const { runV4RestoredAdapter } = require('./v4RestoredAdapterV6.js')
 const { validateV4Restored } = require('./v4RestoredValidatorV6.js')
+const { compressVisibleCards } = require('./v4RestoredCompressV6.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
 const RENDER_SOURCE = Object.freeze({
@@ -83,20 +84,31 @@ function isShippableEnvelopeFallback (report) {
     !!(c.firstAction && c.firstAction.action && c.firstAction.target && c.firstAction.timebox && c.firstAction.done)
 }
 
-/** Map a VALID V4-restored output onto the frozen deterministic report shape. */
+/**
+ * Map a VALID V4-restored output onto the frozen deterministic report shape.
+ *
+ * R75 — the USER-VISIBLE card values are compressed (deterministic, post-thesis,
+ * no second model call). `strategicThesis` keeps its full depth; the frozen card
+ * FIELD NAMES are preserved so the client view model + presentation-authority
+ * contract are unchanged. The structured compressed layer is also exposed as
+ * `report.visibleCards` and `cards.<x>.visible`.
+ */
 function mapV4RestoredToReport (fb, output) {
   const c = fb.cards
   const o = output
   const st = o.strategicThesis
   const oc = o.cards
   const ct = st.commercialThesis || {}
-  const steps = oc.card03.slice()
   const c4steps = oc.card04.steps || []
-  const insight = st.systemTrap || (c.systemLoop && c.systemLoop.insight) || ''
+
+  // R75 — deterministic user-visible compression (AFTER thesis formation).
+  const cmp = compressVisibleCards(o)
+  const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
+  const insight = cmp.card03.rule || st.systemTrap || (c.systemLoop && c.systemLoop.insight) || ''
 
   const cards = {
-    fatalInsight: { title: '致命一句话', text: oc.card01, provenance: c.fatalInsight.provenance },
-    coreProblem: { title: '核心问题', text: oc.card02, provenance: c.coreProblem.provenance },
+    fatalInsight: { title: '致命一句话', text: cmp.card01 || oc.card01, provenance: c.fatalInsight.provenance },
+    coreProblem: { title: '核心问题', text: cmp.card02 || oc.card02, provenance: c.coreProblem.provenance },
     systemLoop: {
       title: '系统困局',
       steps: steps,
@@ -110,34 +122,36 @@ function mapV4RestoredToReport (fb, output) {
     },
     turnaroundPath: {
       title: '翻身路径',
-      from: oc.card04.from,
-      to: oc.card04.to,
+      from: cmp.card04.from || oc.card04.from,
+      to: cmp.card04.to || oc.card04.to,
       logic: c4steps.join(' / ') || (c.turnaroundPath && c.turnaroundPath.logic) || '',
-      display: oc.card04.to,
-      worldRuleLine: st.worldRule || '',
+      display: cmp.card04.to || oc.card04.to,
+      worldRuleLine: cmp.card04.rule || st.worldRule || '',
       specificity: (c.turnaroundPath && c.turnaroundPath.specificity) || '',
       steps: c4steps,
-      text: [oc.card04.from, oc.card04.to].concat(c4steps).filter(Boolean).join('\n'),
+      text: [cmp.card04.from || oc.card04.from, cmp.card04.to || oc.card04.to].concat(c4steps).filter(Boolean).join('\n'),
       provenance: c.turnaroundPath.provenance
     },
     firstAction: {
       title: '现在就做',
-      action: oc.card05.objective || oc.card05.primary,
+      action: cmp.card05.goal || oc.card05.objective || oc.card05.primary,
       hypothesis: ct.objective || (c.firstAction && c.firstAction.hypothesis) || '',
-      target: oc.card05.target,
-      checks: oc.card05.actions,
-      timebox: oc.card05.timebox,
-      verifyWith: oc.card05.target,
-      done: oc.card05.successSignal,
-      decision: ct.objective || (c.firstAction && c.firstAction.decision) || '',
+      target: '',
+      checks: [],
+      timebox: '',
+      verifyWith: '',
+      done: cmp.card05.acceptance || oc.card05.successSignal,
+      decision: '',
       specificity: (c.firstAction && c.firstAction.specificity) || '',
       externalSignal: (c.firstAction && c.firstAction.externalSignal) || true,
       eventPrimary: (c.firstAction && c.firstAction.eventPrimary) || true,
-      objective: oc.card05.objective || oc.card05.primary,
-      actions: oc.card05.actions,
-      successSignal: oc.card05.successSignal,
+      objective: cmp.card05.goal || oc.card05.objective || oc.card05.primary,
+      actions: cmp.card05.actions,
+      successSignal: cmp.card05.acceptance || oc.card05.successSignal,
+      // R75 — structured visible layer (client renders goal + ACTION 1/2/3 + 验收标准).
+      visible: { goal: cmp.card05.goal, actions: cmp.card05.actions, acceptance: cmp.card05.acceptance },
       commercialThesis: ct,
-      text: [oc.card05.objective || oc.card05.primary, (oc.card05.actions || []).join(' / '), oc.card05.target, oc.card05.timebox, oc.card05.successSignal].filter(Boolean).join('\n'),
+      text: [cmp.card05.goal, cmp.card05.actions.join(' / '), cmp.card05.acceptance].filter(Boolean).join('\n'),
       provenance: c.firstAction.provenance
     }
   }
@@ -146,6 +160,15 @@ function mapV4RestoredToReport (fb, output) {
     reportVersion: fb.reportVersion,
     reportState: fb.reportState,
     cards: cards,
+    // R75 — the compressed user-visible layer. strategicThesis keeps full depth.
+    visibleCards: {
+      card01: cmp.card01,
+      card02: cmp.card02,
+      card03: { steps: cmp.card03.steps, rule: cmp.card03.rule },
+      card04: cmp.card04,
+      card05: cmp.card05
+    },
+    visibleStats: cmp.stats,
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance
