@@ -110,6 +110,13 @@
       "installDependency": false
     },
     {
+      "name": "getPersonalizedContent",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
       "name": "generateAiReport",
       "runtime": "Nodejs18.15",
       "timeout": 60,
