@@ -55,7 +55,14 @@ const INSIGHTS = [
   { insightId: 'DI012', tags: ['注意力税', '信息茧房', '认知觉醒'], difficulty: 1 },
   { insightId: 'DI013', tags: ['圈层壁垒', '信息差', '认知觉醒'], difficulty: 2 },
   { insightId: 'DI014', tags: ['断臂求生', '沉没成本', '决策质量'], difficulty: 2 },
-  { insightId: 'DI015', tags: ['知行合一', '执行差', '认知觉醒'], difficulty: 1 }
+  { insightId: 'DI015', tags: ['知行合一', '执行差', '认知觉醒'], difficulty: 1 },
+  // ── R81 additions ──
+  { insightId: 'DI016', tags: ['定价', '报价测试', '执行差'], difficulty: 1 },
+  { insightId: 'DI017', tags: ['付费验证', '需求验证', '执行差'], difficulty: 1 },
+  { insightId: 'DI018', tags: ['复利思维', '长期主义', '连续性'], difficulty: 1 },
+  { insightId: 'DI019', tags: ['长期主义', '反馈循环', '系统思维'], difficulty: 2 },
+  { insightId: 'DI020', tags: ['可重复性', '系统思维', '执行差'], difficulty: 2 },
+  { insightId: 'DI021', tags: ['产品化', '交付', '系统思维'], difficulty: 2 }
 ]
 
 // ── canonical normalized profile builder (the recommender input contract) ──
@@ -91,21 +98,21 @@ function main () {
   ok('R78 §4 no recommendationCategoryV3 invented', !/recommendationCategoryV3/.test(mapsSrc))
   ok('R78 §4 reuses R77 crosswalk', /getCrosswalkForLens/.test(mapsSrc))
   ok('R78 §4 reuses existing lens candidate table', /CANDIDATES_BY_BOTTLENECK/.test(mapsSrc))
-  ok('R78 §4 WR id space is exactly WR001–WR015', MAPS.WORLD_RULE_IDS.length === 15 && MAPS.WORLD_RULE_IDS[0] === 'WR001' && MAPS.WORLD_RULE_IDS[14] === 'WR015')
+  ok('R78 §4 WR id space is exactly WR001–WR024 (R81)', MAPS.WORLD_RULE_IDS.length === 24 && MAPS.WORLD_RULE_IDS[0] === 'WR001' && MAPS.WORLD_RULE_IDS[23] === 'WR024')
 
   // ── §7 DIRECT / PARTIAL / NONE mapping behavior ──
   const dir = CROSS.getCrosswalkForLens('PROBABILITY_OVER_CERTAINTY')
   const part = CROSS.getCrosswalkForLens('SYSTEM_OVER_MOTIVATION')
-  const none = CROSS.getCrosswalkForLens('COMPOUNDING_OVER_RESTARTING')
+  const comp = CROSS.getCrosswalkForLens('COMPOUNDING_OVER_RESTARTING')
   ok('R78 §7 DIRECT lens → WR004', dir.status === 'DIRECT' && dir.wrId === 'WR004')
   ok('R78 §7 PARTIAL lens → WR008', part.status === 'PARTIAL' && part.wrId === 'WR008')
-  ok('R78 §7 NONE lens → null wrId (no force)', none.status === 'NONE' && none.wrId === null)
-  // NONE lens alone → no forced WR → date fallback (§10), personalized=false
-  const noneOnly = feedFor(canon({ lensIds: ['COMPOUNDING_OVER_RESTARTING'] }))
-  ok('R78 §7 NONE lens alone does NOT force a WR id (fallback)', noneOnly.worldRule.personalized === false && noneOnly.worldRule.reasonCode === 'FALLBACK_DATE')
-  // NONE lens + topic → topic drives (§7 continue to topics)
-  const nonePlusTopic = feedFor(canon({ lensIds: ['COMPOUNDING_OVER_RESTARTING'], topicIds: ['PROBLEM_MONETIZE'] }))
-  ok('R78 §7 NONE lens + topic → topic drives selection', nonePlusTopic.worldRule.personalized === true && nonePlusTopic.worldRule.wrId === 'WR003' && nonePlusTopic.worldRule.sourceSignal === 'topic')
+  ok('R78 §7 COMPOUNDING lens now DIRECT → WR019 (R81 repair)', comp.status === 'DIRECT' && comp.wrId === 'WR019')
+  // An UNMAPPED lens id (no crosswalk row) must never force a WR → date fallback (§10).
+  const noneOnly = feedFor(canon({ lensIds: ['NOT_A_MAPPED_LENS'] }))
+  ok('R78 §7 unmapped lens alone does NOT force a WR id (fallback)', noneOnly.worldRule.personalized === false && noneOnly.worldRule.reasonCode === 'FALLBACK_DATE')
+  // unmapped lens + topic → topic drives (§7 continue to topics)
+  const nonePlusTopic = feedFor(canon({ lensIds: ['NOT_A_MAPPED_LENS'], topicIds: ['PROBLEM_MONETIZE'] }))
+  ok('R78 §7 unmapped lens + topic → topic drives selection', nonePlusTopic.worldRule.personalized === true && nonePlusTopic.worldRule.wrId === 'WR003' && nonePlusTopic.worldRule.sourceSignal === 'topic')
 
   // ── §5 recommender output contract ──
   const fa = feedFor(A)
@@ -138,14 +145,14 @@ function main () {
   ok('R78 §10/§21 EMPTY_PROFILE_FALLBACK_PRESERVED (daily)', fe.dailyInsight.reasonCode === 'FALLBACK_DATE' && fe.dailyInsight.personalized === false && fe.strike.reasonCode === 'FALLBACK_DATE')
 
   // ── §10 legacy user world-rule behavior preserved ──
-  ok('R78 §10 LEGACY_USER_WORLD_RULE_BEHAVIOR_PRESERVED', fe.worldRule.wrId === MAPS.WORLD_RULE_IDS[DAY % 15])
+  ok('R78 §10 LEGACY_USER_WORLD_RULE_BEHAVIOR_PRESERVED', fe.worldRule.wrId === MAPS.WORLD_RULE_IDS[DAY % MAPS.WORLD_RULE_IDS.length])
 
   // ── §8 seen-rule avoidance ──
   const seenA = feedFor(canon({ topicIds: ['PROBLEM_MONETIZE'], seenRuleIds: ['WR003'] }))
-  ok('R78 §8 SEEN_RULE_AVOIDANCE_IMPLEMENTED (prefers unseen WR002)', seenA.worldRule.personalized === true && seenA.worldRule.wrId === 'WR002' && seenA.worldRule.reasonCode === 'TOPIC_MATCH')
+  ok('R78 §8 SEEN_RULE_AVOIDANCE_IMPLEMENTED (prefers unseen WR016)', seenA.worldRule.personalized === true && seenA.worldRule.wrId === 'WR016' && seenA.worldRule.reasonCode === 'TOPIC_MATCH')
   // all relevant seen → deterministic reuse, no dead-end
-  const allSeenA = feedFor(canon({ topicIds: ['PROBLEM_MONETIZE'], seenRuleIds: ['WR002', 'WR003'] }))
-  ok('R78 §8 all-seen → SEEN_EXHAUSTED_REUSE (no dead-end)', allSeenA.worldRule.wrId === 'WR003' && allSeenA.worldRule.reasonCode === 'SEEN_EXHAUSTED_REUSE' && allSeenA.worldRule.personalized === true)
+  const allSeenA = feedFor(canon({ topicIds: ['PROBLEM_MONETIZE'], seenRuleIds: ['WR003', 'WR016', 'WR017', 'WR018', 'WR022', 'WR023', 'WR002'] }))
+  ok('R78 §8 all-seen → SEEN_EXHAUSTED_REUSE (no dead-end)', allSeenA.worldRule.reasonCode === 'SEEN_EXHAUSTED_REUSE' && allSeenA.worldRule.personalized === true)
 
   // ── §9 same-user same-day stability ──
   const s1 = feedFor(A, DAY), s2 = feedFor(A, DAY), s3 = feedFor(A, DAY)
@@ -199,10 +206,10 @@ function main () {
   const uncovered = MAPS.WORLD_RULE_IDS.filter((id) => reach.indexOf(id) === -1)
   ok('R78 §23 every mapping row carries DIRECT/PARTIAL/NONE status', MAPS.BLINDSPOT_KEYWORD_MAP.every((r) => r.status === 'DIRECT' || r.status === 'PARTIAL'))
   ok('R78 §23 unmapped WR ids returned explicitly', Array.isArray(uncovered))
-  ok('R78 §7/§23 crosswalk counts: DIRECT3/PARTIAL3/NONE3', JSON.stringify(CROSS.crosswalkCounts()) === JSON.stringify({ DIRECT: 3, PARTIAL: 3, NONE: 3, TOTAL: 9, UNKNOWN_LENS: 0 }))
+  ok('R78 §7/§23 crosswalk counts after R81 (DIRECT6/PARTIAL3/NONE0)', JSON.stringify(CROSS.crosswalkCounts()) === JSON.stringify({ DIRECT: 6, PARTIAL: 3, NONE: 0, TOTAL: 9, UNKNOWN_LENS: 0 }))
 
   // ── §22 coverage ──
-  const wrCoverage = covered + '/15'
+  const wrCoverage = covered + '/24'
   const insightTags = new Set()
   for (const k of Object.keys(MAPS.LENS_KEYWORDS)) for (const t of MAPS.LENS_KEYWORDS[k]) insightTags.add(t)
   for (const k of Object.keys(MAPS.TOPIC_KEYWORDS)) for (const t of MAPS.TOPIC_KEYWORDS[k]) insightTags.add(t)
@@ -210,7 +217,7 @@ function main () {
   const reachDims = new Set([...Object.values(MAPS.LENS_DIMENSION), ...Object.values(MAPS.TOPIC_DIMENSION)].filter(Boolean))
   const strikeCovered = STRIKE_POOL.filter((s) => (s.dimensions || []).some((d) => reachDims.has(d))).length
   results.push('  INFO WORLD_RULE_PROFILE_MAPPING_COVERAGE=' + wrCoverage)
-  results.push('  INFO DAILY_INSIGHT_MAPPING_COVERAGE=' + insightCovered + '/15')
+  results.push('  INFO DAILY_INSIGHT_MAPPING_COVERAGE=' + insightCovered + '/21')
   results.push('  INFO STRIKE_MAPPING_COVERAGE=' + strikeCovered + '/' + STRIKE_POOL.length)
   ok('R78 §22 coverage reported (WR reachable > 0)', covered > 0)
   ok('R78 §22 daily insight coverage > 0', insightCovered > 0)

@@ -38,8 +38,8 @@ const CROSSWALK = Object.freeze({
     note: 'WR007 = 信息即权力（外部信息决定上限）；lens = 确定性只能来自外部反馈。同属"外部现实优先"，但论断对象不同。'
   },
   COMPOUNDING_OVER_RESTARTING: {
-    wr: null, status: 'NONE',
-    note: '种子库无"积累/复利 vs 重启"对应条目。'
+    wr: 'WR019', status: 'DIRECT',
+    note: 'WR019 = 积累只发生在不断档的重复里，重启一次清零一次；lens = 积累只发生在不断档的重复里。同一机制（复利/连续=不要断档）。'
   },
   PROBABILITY_OVER_CERTAINTY: {
     wr: 'WR004', status: 'DIRECT',
@@ -54,16 +54,16 @@ const CROSSWALK = Object.freeze({
     note: 'WR008 = 系统奖励让系统更高效的人；lens = 长期靠机制而非干劲。相关但命题层级不同。'
   },
   MARKET_PROOF_OVER_SELF_ASSESSMENT: {
-    wr: null, status: 'NONE',
-    note: '种子库无"市场付费 vs 自我评估"对应条目。'
+    wr: 'WR016', status: 'DIRECT',
+    note: 'WR016 = 别人说好不算数，愿意掏钱才算数；lens = 东西好不好由愿意掏钱的人说了算。同一机制（付费 > 自我/口头评估）。'
   },
   LOW_COST_EXPERIMENT_OVER_PERFECT_DIRECTION: {
     wr: 'WR013', status: 'PARTIAL',
     note: 'WR013 = 财富跃迁机会有限，错过就少一次；lens = 先低成本试验而非等完美方向。共享"机会稀缺→尽早行动"，非同一论断。'
   },
   REPEATABILITY_OVER_OCCASIONAL_SUCCESS: {
-    wr: null, status: 'NONE',
-    note: '种子库无"可重复 vs 一次成功"对应条目。'
+    wr: 'WR022', status: 'DIRECT',
+    note: 'WR022 = 一次做成只能叫运气，能重复的才叫能力；lens = 能重复的才叫能力，一次做成只能叫运气。同一机制。'
   },
   LEVERAGE_OVER_TIME_FOR_MONEY: {
     wr: 'WR010', status: 'DIRECT',

@@ -77,40 +77,64 @@ const WORLD_RULE_INDEX = Object.freeze({
   WR012: { category: 'mindset', tags: ['时间管理', '产出效率', '长期主义'] },
   WR013: { category: 'mindset', tags: ['范式转移', '周期思维', '战略性机会'] },
   WR014: { category: 'mindset', tags: ['配得分数', '净值认知', '长期主义'] },
-  WR015: { category: 'mindset', tags: ['认知升级', '终身学习', '思维进化'] }
+  WR015: { category: 'mindset', tags: ['认知升级', '终身学习', '思维进化'] },
+  // ── R81 additions (WR016–WR024), faithful copies of initDatabase/data/world_rules.js ──
+  WR016: { category: 'market', tags: ['付费验证', '需求验证', '市场信号'] },
+  WR017: { category: 'pricing', tags: ['定价', '报价测试', '价格信号'] },
+  WR018: { category: 'market', tags: ['付费验证', '规模', '需求验证'] },
+  WR019: { category: 'longterm', tags: ['复利', '连续性', '长期主义'] },
+  WR020: { category: 'longterm', tags: ['长期主义', '反馈循环', '复利'] },
+  WR021: { category: 'longterm', tags: ['长期主义', '反馈循环', '系统思维'] },
+  WR022: { category: 'system', tags: ['可重复性', '产品化', '系统思维'] },
+  WR023: { category: 'system', tags: ['产品化', '交付', '系统思维'] },
+  WR024: { category: 'system', tags: ['系统化', '可重复性', '杠杆'] }
 })
 
 const WORLD_RULE_IDS = Object.freeze(Object.keys(WORLD_RULE_INDEX))
 
 // ── §3.2 priorityTopicIds (PROBLEM_*) → WR. Reviewed; status DIRECT/PARTIAL. ──
 const TOPIC_WR_MAP = Object.freeze({
-  PROBLEM_INCOME_STUCK: [
-    { wr: 'WR001', status: 'DIRECT', note: '收入上不去 = 稀缺性/杠杆问题' },
-    { wr: 'WR006', status: 'PARTIAL', note: '收入结构' }
-  ],
-  PROBLEM_NO_FUTURE: [
-    { wr: 'WR013', status: 'PARTIAL', note: '战略性机会/范式转移' },
-    { wr: 'WR015', status: 'PARTIAL', note: '认知升级' }
-  ],
   PROBLEM_DEBT: [
     { wr: 'WR009', status: 'DIRECT', note: '负债管理/资产意识' },
     { wr: 'WR005', status: 'PARTIAL', note: '机会成本/认知税' }
   ],
-  PROBLEM_CAREER_SWITCH: [
-    { wr: 'WR010', status: 'DIRECT', note: '可迁移能力' },
-    { wr: 'WR002', status: 'PARTIAL', note: '赛道选择' }
-  ],
-  PROBLEM_SIDE_UNSTARTED: [
-    { wr: 'WR013', status: 'PARTIAL', note: '战略性机会' },
-    { wr: 'WR003', status: 'PARTIAL', note: '机会识别' }
-  ],
   PROBLEM_MONETIZE: [
     { wr: 'WR003', status: 'DIRECT', note: '变现 = 找到别人愿意付钱的机会（痛点即商机）' },
-    { wr: 'WR002', status: 'PARTIAL', note: '认知映射/赛道' }
+    { wr: 'WR016', status: 'DIRECT', note: '变现 = 真实付费验证（别人愿意掏钱才算数）' },
+    { wr: 'WR017', status: 'DIRECT', note: '变现 = 报价即市场测试' },
+    { wr: 'WR018', status: 'PARTIAL', note: '变现 = 先收钱再放大（付费验证 > 流量/规模）' },
+    { wr: 'WR023', status: 'PARTIAL', note: '变现 = 把能力产品化（可重复的价值）' },
+    { wr: 'WR002', status: 'PARTIAL', note: '认知映射/赛道' },
+    { wr: 'WR022', status: 'PARTIAL', note: '变现需要可重复（一次成功≠生意）' }
   ],
   PROBLEM_FOCUS: [
     { wr: 'WR012', status: 'DIRECT', note: '时间管理/产出效率' },
     { wr: 'WR011', status: 'PARTIAL', note: '思维层级/元认知' }
+  ],
+  // ── R81 breadth: existing signals reach long-term / repeatability / system content ──
+  PROBLEM_NO_FUTURE: [
+    { wr: 'WR013', status: 'PARTIAL', note: '战略性机会/范式转移' },
+    { wr: 'WR015', status: 'PARTIAL', note: '认知升级' },
+    { wr: 'WR019', status: 'PARTIAL', note: '长期：积累发生在不断档的重复里' },
+    { wr: 'WR020', status: 'PARTIAL', note: '长期：稳定微小反馈 > 周期性重来' },
+    { wr: 'WR021', status: 'PARTIAL', note: '长期主义需要反馈修正' }
+  ],
+  PROBLEM_CAREER_SWITCH: [
+    { wr: 'WR010', status: 'DIRECT', note: '可迁移能力' },
+    { wr: 'WR002', status: 'PARTIAL', note: '赛道选择' },
+    { wr: 'WR023', status: 'PARTIAL', note: '技能产品化 → 可重复的价值' }
+  ],
+  PROBLEM_SIDE_UNSTARTED: [
+    { wr: 'WR013', status: 'PARTIAL', note: '战略性机会' },
+    { wr: 'WR003', status: 'PARTIAL', note: '机会识别' },
+    { wr: 'WR018', status: 'PARTIAL', note: '先付费验证再谈规模' },
+    { wr: 'WR024', status: 'PARTIAL', note: '靠系统而非英雄式硬扛' }
+  ],
+  PROBLEM_INCOME_STUCK: [
+    { wr: 'WR001', status: 'DIRECT', note: '收入上不去 = 稀缺性/杠杆问题' },
+    { wr: 'WR006', status: 'PARTIAL', note: '收入结构' },
+    { wr: 'WR023', status: 'PARTIAL', note: '技能产品化 → 可重复的价值' },
+    { wr: 'WR024', status: 'PARTIAL', note: '系统化产出（不靠个人硬扛）' }
   ],
   PROBLEM_OTHER: []
 })
@@ -141,7 +165,17 @@ const BLINDSPOT_KEYWORD_MAP = Object.freeze([
   { kw: '变现', wr: 'WR003', status: 'DIRECT' },
   { kw: '付费', wr: 'WR003', status: 'DIRECT' },
   { kw: '买家', wr: 'WR003', status: 'DIRECT' },
-  { kw: '收入结构', wr: 'WR006', status: 'DIRECT' }
+  { kw: '收入结构', wr: 'WR006', status: 'DIRECT' },
+  // ── R81 additions: specific additions only (over-broad generic keys NOT added) ──
+  { kw: '付费', wr: 'WR016', status: 'DIRECT' },
+  { kw: '报价', wr: 'WR017', status: 'DIRECT' },
+  { kw: '定价', wr: 'WR017', status: 'DIRECT' },
+  { kw: '重启', wr: 'WR019', status: 'DIRECT' },
+  { kw: '延迟满足', wr: 'WR020', status: 'PARTIAL' },
+  { kw: '长期主义', wr: 'WR021', status: 'PARTIAL' },
+  { kw: '可重复', wr: 'WR022', status: 'DIRECT' },
+  { kw: '产品化', wr: 'WR023', status: 'DIRECT' },
+  { kw: '系统化', wr: 'WR024', status: 'PARTIAL' }
 ])
 
 // ── §3.5 legacy 9-dimension → WR (developmental GAP mapping). Only used for a
