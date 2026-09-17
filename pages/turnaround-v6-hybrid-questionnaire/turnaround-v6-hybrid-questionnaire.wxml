@@ -79,10 +79,23 @@
     <view wx:if="{{error}}" class="result-error">{{error}}</view>
   </view>
 
-  <!-- 已提交 / 加载中 -->
+  <!-- 已提交 / 加载中：R84-B §5 — 进度语言（体验文案，非字面阶段声明） -->
   <view wx:if="{{submitted}}" class="result">
-    <view class="title">正在生成翻身策略…</view>
-    <view class="hint">请稍候，正在根据你的回答生成报告。</view>
+    <view class="title">正在生成你的翻身策略</view>
+    <view class="thinking">
+      <view class="thinking-line thinking-line-active">
+        <view class="thinking-dot"></view>
+        <text>正在比对你的现实条件</text>
+      </view>
+      <view class="thinking-line">
+        <view class="thinking-dot"></view>
+        <text>正在寻找反复卡住你的模式</text>
+      </view>
+      <view class="thinking-line">
+        <view class="thinking-dot"></view>
+        <text>正在整理你的破局路径</text>
+      </view>
+    </view>
   </view>
 
 </view>

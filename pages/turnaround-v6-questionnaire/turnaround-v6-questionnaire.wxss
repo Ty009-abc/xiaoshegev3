@@ -145,3 +145,36 @@
   font-size: 28rpx;
   color: #5a6078;
 }
+
+/* R84-B §5 — thinking progress lines (experience copy) */
+.thinking {
+  margin-top: 40rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+}
+
+.thinking-line {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  font-size: 28rpx;
+  color: #8a90a3;
+}
+
+.thinking-dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: #d9d2ee;
+  flex-shrink: 0;
+}
+
+.thinking-line-active {
+  color: #4a3b7a;
+  font-weight: 600;
+}
+
+.thinking-line-active .thinking-dot {
+  background: #7f56d9;
+}

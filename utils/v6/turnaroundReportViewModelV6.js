@@ -48,6 +48,23 @@ function str (v) { return typeof v === 'string' ? v : '' }
 function arr (v) { return Array.isArray(v) ? v.slice() : [] }
 
 /**
+ * R84-B §8 — split the card02 body into IDENTITY vs EXPLANATION without
+ * changing a single character of the frozen R84-A copy.
+ *   identity   = the FIRST sentence (the label + its immediate naming clause)
+ *   explanation = the REMAINDER (any later sentences, verbatim)
+ * This is a pure VISUAL split: identity + explanation === body, byte-for-byte.
+ */
+function splitIdentity (body) {
+  const t = str(body)
+  if (!t) return { identity: '', explanation: '' }
+  const m = t.match(/^[\s\S]*?[。！？!?]/)
+  if (!m) return { identity: t, explanation: '' }
+  const identity = m[0].trim()
+  const explanation = t.slice(m[0].length).trim()
+  return { identity: identity, explanation: explanation }
+}
+
+/**
  * Build the ORDERED five-card list, each with exactly ONE presentation schema.
  * Cards with no renderable authoritative content are dropped.
  * @param {Object} cards backend report.cards
@@ -66,10 +83,20 @@ function buildCardListV6 (cards) {
   }
 
   // 02 — 核心问题 : body (single paragraph). Never re-render as bullets.
+  // R84-B §8 — expose an ADDITIVE visual split (identity / explanation) that
+  // reconstructs the exact body; the authoritative `body` is kept unchanged so
+  // every existing consumer + the R38 §4 contract stay byte-identical.
   if (cards.coreProblem) {
     const body = str(cards.coreProblem.text)
     if (body) {
-      out.push({ key: 'coreProblem', title: str(cards.coreProblem.title) || CARD_TITLE_FALLBACK.coreProblem, body: body })
+      const idp = splitIdentity(body)
+      out.push({
+        key: 'coreProblem',
+        title: str(cards.coreProblem.title) || CARD_TITLE_FALLBACK.coreProblem,
+        body: body,
+        identity: idp.identity,
+        explanation: idp.explanation,
+      })
     }
   }
 
@@ -88,6 +115,8 @@ function buildCardListV6 (cards) {
   }
 
   // 04 — 翻身路径 : from → to + one worldRule sentence. NO duplicate paragraph.
+  // R84-B §10 — additive directional labels (NOW → NEXT) + one-wayarrow; FROM
+  // and TO text stay verbatim, TO keeps the stronger presentation weight.
   if (cards.turnaroundPath) {
     const from = str(cards.turnaroundPath.from)
     const to = str(cards.turnaroundPath.to)
@@ -99,6 +128,10 @@ function buildCardListV6 (cards) {
         from: from,
         to: to,
         worldRule: worldRule,
+        fromLabel: '现在',
+        toLabel: '接下来',
+        arrow: '→',
+        worldRuleLabel: '世界规则',
         // R44 §16 — additive strategy specificity (empty for the 9Q path).
         specificity: str(cards.turnaroundPath.specificity),
       })
@@ -127,13 +160,18 @@ function buildCardListV6 (cards) {
         return { title: t, text: x }
       }).filter((it) => it.title || it.text)
       const fallbackItems = actionItems.length ? actionItems : arr(vis.actions).map((s) => ({ title: '', text: str(s) })).filter((it) => it.text)
+      // R84-B §11 — stable action index (行动1/2/3) + fixed section labels so the
+      // user can locate goal / each action / validation standard instantly.
+      const indexedItems = fallbackItems.map((it, i) => ({ index: i + 1, label: '行动' + (i + 1), title: it.title, text: it.text }))
       out.push({
         key: 'firstAction',
         title: title,
         goal: str(vis.goal),
+        goalLabel: '90天目标',
         actions: arr(vis.actions),
-        actionItems: fallbackItems,
+        actionItems: indexedItems,
         acceptance: str(vis.acceptance),
+        acceptLabel: '验证标准',
       })
     } else {
       // (b) legacy deterministic layout (R38 §6/§7 authority) — unchanged.

@@ -116,6 +116,21 @@ Page({
     wx.navigateBack({ delta: 1 })
   },
 
+  // R84-B §20 — home return path. Reuses EXISTING routes only (no new
+  // architecture); replaces the dead-end feeling after a completed report.
+  onGoHome() {
+    wx.switchTab({ url: '/pages/home/home' })
+  },
+  onGoWorldRules() {
+    wx.navigateTo({ url: '/pages/world-rules/world-rules' })
+  },
+  onGoDaily() {
+    wx.navigateTo({ url: '/pages/cognition-daily/cognition-daily' })
+  },
+  onGoAIChat() {
+    wx.switchTab({ url: '/pages/ai-chat/ai-chat' })
+  },
+
   onRetry() {
     this._render()
   },

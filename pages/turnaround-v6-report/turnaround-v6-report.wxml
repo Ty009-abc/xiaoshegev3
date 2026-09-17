@@ -39,67 +39,83 @@
   <block wx:else>
     <view class="report-head">
       <view class="report-title">你的翻身策略</view>
-      <view class="report-sub">根据你的回答生成</view>
+      <!-- R84-B §6 — opening kept extremely short: one orientation line. -->
+      <view class="report-sub">下面不是建议，是你当前最值得看清的一件事。</view>
     </view>
 
     <!-- 五张卡：顺序固定 01→05，每卡单一展示权威 -->
-    <view class="card" wx:for="{{cards}}" wx:key="key" wx:for-index="cardIndex">
+    <view class="card {{item.key === 'fatalInsight' ? 'card-hero' : ''}}" wx:for="{{cards}}" wx:key="key" wx:for-index="cardIndex">
       <view class="card-head">
         <view class="card-num">0{{cardIndex + 1}}</view>
         <view class="card-title">{{item.title}}</view>
       </view>
 
-      <!-- 01 致命一句话：一句到底 -->
+      <!-- 01 致命一句话：VERDICT / HERO，一句到底，独占视觉焦点 -->
       <view wx:if="{{item.oneLiner}}" class="card-body card-oneliner">{{item.oneLiner}}</view>
 
-      <!-- 02 核心问题：单段正文 -->
-      <view wx:if="{{item.body}}" class="card-body">{{item.body}}</view>
+      <!-- 02 核心问题：身份标签（第一句）与解释分离；拼接后与正文逐字一致 -->
+      <block wx:if="{{item.body}}">
+        <view wx:if="{{item.identity}}" class="card-identity">{{item.identity}}</view>
+        <view wx:if="{{item.explanation}}" class="card-body card-explanation">{{item.explanation}}</view>
+        <view wx:if="{{!item.identity && !item.explanation}}" class="card-body">{{item.body}}</view>
+      </block>
 
-      <!-- 03 系统困局：循环节点 + 一句洞察（无重复段落） -->
+      <!-- 03 系统困局：纵向可扫读的机制链（step ↓ step）+ 一句结论 -->
       <view wx:if="{{item.loopNodes && item.loopNodes.length}}" class="card-steps">
-        <view class="card-step" wx:for="{{item.loopNodes}}" wx:for-item="node" wx:key="*this">
-          <view class="card-step-dot"></view>
+        <view class="card-step" wx:for="{{item.loopNodes}}" wx:for-item="node" wx:for-index="ni" wx:key="*this">
+          <view class="card-step-idx">{{ni + 1}}</view>
           <view class="card-step-text">{{node}}</view>
         </view>
       </view>
-      <view wx:if="{{item.finalInsight}}" class="card-insight card-insight-line">{{item.finalInsight}}</view>
+      <view wx:if="{{item.finalInsight}}" class="card-conclusion">
+        <text class="card-conclusion-tag">结论</text>
+        <text class="card-conclusion-text">{{item.finalInsight}}</text>
+      </view>
 
-      <!-- 04 翻身路径：现在 → 接下来 + 一句世界规则（无重复 FROM/TO） -->
+      <!-- 04 翻身路径：FROM → TO 迁移一眼可见；TO 权威强于 FROM；世界规则次之 -->
       <view wx:if="{{item.from || item.to}}" class="path-block">
         <view class="path-row">
-          <view class="path-label">现在</view>
+          <view class="path-label">{{item.fromLabel || '现在'}}</view>
           <view class="path-text">{{item.from}}</view>
         </view>
-        <view class="path-arrow">↓</view>
+        <view class="path-arrow">{{item.arrow || '→'}}</view>
         <view class="path-row path-row-to">
-          <view class="path-label">接下来</view>
+          <view class="path-label path-label-to">{{item.toLabel || '接下来'}}</view>
           <view class="path-text">{{item.to}}</view>
         </view>
       </view>
-      <view wx:if="{{item.worldRule}}" class="card-rule">★ {{item.worldRule}}</view>
+      <view wx:if="{{item.worldRule}}" class="card-rule">
+        <text class="card-rule-tag">{{item.worldRuleLabel || '世界规则'}}</text>
+        <text class="card-rule-text">{{item.worldRule}}</text>
+      </view>
       <view wx:if="{{item.specificity}}" class="card-specificity">{{item.specificity}}</view>
 
-      <!-- 05 现在就做：R75 压缩层（90天目标 + 中文微标题行动 + 验收标准） -->
+      <!-- 05 现在就做：90天目标 + 中文微标题行动（行动1/2/3）+ 验证标准 -->
       <view wx:if="{{item.goal}}" class="action-block">
         <view class="action-goal">
-          <text class="action-goal-label">90天目标</text>
+          <text class="action-goal-label">{{item.goalLabel || '90天目标'}}</text>
           <text class="action-goal-text">{{item.goal}}</text>
         </view>
         <!-- R84-A — 中文微标题（定产品/找买家/跑复购）；无微标题时回退到中性序号 -->
         <view wx:if="{{item.actionItems && item.actionItems.length}}" class="action-steps">
           <view class="action-step" wx:for="{{item.actionItems}}" wx:for-item="act" wx:for-index="ai" wx:key="ai">
-            <text class="action-step-num">{{act.title || '行动'}}</text>
+            <view class="action-step-head">
+              <text class="action-step-idx">{{act.label || ('行动' + (ai + 1))}}</text>
+              <text wx:if="{{act.title}}" class="action-step-title">{{act.title}}</text>
+            </view>
             <text class="action-step-text">{{act.text}}</text>
           </view>
         </view>
         <view wx:elif="{{item.actions && item.actions.length}}" class="action-steps">
           <view class="action-step" wx:for="{{item.actions}}" wx:for-item="act" wx:for-index="ai" wx:key="*this">
-            <text class="action-step-num">行动 {{ai + 1}}</text>
+            <view class="action-step-head">
+              <text class="action-step-idx">行动 {{ai + 1}}</text>
+            </view>
             <text class="action-step-text">{{act}}</text>
           </view>
         </view>
         <view wx:if="{{item.acceptance}}" class="action-accept">
-          <text class="action-accept-label">验收标准</text>
+          <text class="action-accept-label">{{item.acceptLabel || '验证标准'}}</text>
           <text class="action-accept-text">{{item.acceptance}}</text>
         </view>
       </view>
@@ -117,9 +133,26 @@
       </view>
     </view>
 
+    <!-- R84-B §18/§19 — closing: reality experiment -> return to Cognitive OS.
+         后续个性化内容基于 R77–R79（Cognitive Profile + 个性化推荐）已有能力，不做超出其的承诺。 -->
+    <view class="report-closing">
+      <view class="report-closing-line report-closing-strong">完成这场现实实验，再回到认知系统。</view>
+      <view class="report-closing-line">之后的认知内容会根据这次诊断继续推荐。</view>
+    </view>
+
+    <!-- R84-B §20 — 归宿路径（消除断头路，不新增架构，只复用已有路由） -->
+    <view class="report-home">
+      <view class="report-home-title">接下来去哪儿</view>
+      <view class="report-home-grid">
+        <view class="home-chip" bindtap="onGoWorldRules">世界规则</view>
+        <view class="home-chip" bindtap="onGoDaily">每日认知</view>
+        <view class="home-chip" bindtap="onGoAIChat">直接问小事哥</view>
+      </view>
+    </view>
+
     <view class="report-actions">
-      <button class="btn-primary" bindtap="onRetake">重新测评</button>
-      <button class="btn-ghost" bindtap="onBack">返回</button>
+      <button class="btn-primary" bindtap="onGoHome">返回首页</button>
+      <button class="btn-ghost" bindtap="onRetake">重新测评</button>
     </view>
   </block>
 

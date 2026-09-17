@@ -58,6 +58,14 @@
   padding: 32rpx;
   margin-top: 28rpx;
   box-shadow: 0 2rpx 12rpx rgba(20, 20, 40, 0.04);
+  overflow: hidden;
+}
+
+/* R84-B §7 — CARD01 is a VERDICT / HERO: more presence, one dominant line. */
+.card-hero {
+  padding: 44rpx 32rpx 40rpx;
+  border-left: 8rpx solid #7f56d9;
+  box-shadow: 0 8rpx 28rpx rgba(127, 86, 217, 0.14);
 }
 
 .card-head {
@@ -87,27 +95,83 @@
   word-break: break-word;
 }
 
-/* 01 致命一句话：一句到底 */
+/* 01 致命一句话：VERDICT / HERO — 一句到底，独占焦点 */
 .card-oneliner {
-  font-size: 32rpx;
+  font-size: 40rpx;
   color: #1a1a2e;
-  font-weight: 600;
-  line-height: 1.7;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.5rpx;
 }
 
+/* 02 核心问题：身份标签显著高于解释 */
+.card-identity {
+  font-size: 36rpx;
+  color: #7f56d9;
+  font-weight: 700;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.card-explanation {
+  margin-top: 18rpx;
+  font-size: 30rpx;
+  color: #2b2f42;
+  font-weight: 400;
+}
+
+/* ── 03 系统困局：纵向机制链 step ↓ step ── */
 .card-steps {
   margin-top: 8rpx;
   display: flex;
   flex-direction: column;
-  gap: 16rpx;
+  gap: 0;
 }
 
 .card-step {
   display: flex;
-  gap: 16rpx;
+  gap: 18rpx;
   align-items: flex-start;
+  padding: 14rpx 0;
+  position: relative;
 }
 
+/* vertical causal connector between steps (not after the last) */
+.card-step::after {
+  content: '';
+  position: absolute;
+  left: 22rpx;
+  top: 52rpx;
+  bottom: -14rpx;
+  width: 2rpx;
+  background: #e6e2f3;
+}
+.card-step:last-child::after { display: none; }
+
+.card-step-idx {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: #f0eafb;
+  color: #7f56d9;
+  font-size: 24rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.card-step-text {
+  font-size: 30rpx;
+  color: #2b2f42;
+  line-height: 1.7;
+  word-break: break-word;
+  flex: 1;
+}
+
+/* legacy dot retained for compatibility (no longer rendered) */
 .card-step-dot {
   width: 12rpx;
   height: 12rpx;
@@ -117,18 +181,8 @@
   flex-shrink: 0;
 }
 
-.card-step-text {
-  font-size: 30rpx;
-  color: #2b2f42;
-  line-height: 1.7;
-  word-break: break-word;
-}
-
-/* 03 系统困局：一句洞察 */
-.card-insight {
-  margin-top: 8rpx;
-}
-
+/* 03 系统困局：拔高结论 — 视觉独立但简短；紫色仅用于此结论 */
+.card-insight { margin-top: 8rpx; }
 .card-insight-line {
   margin-top: 16rpx;
   font-size: 30rpx;
@@ -137,27 +191,37 @@
   line-height: 1.7;
   word-break: break-word;
 }
-
-/* 04 翻身路径：一句世界规则 */
-.card-rule {
-  margin-top: 16rpx;
+.card-conclusion {
+  margin-top: 24rpx;
+  padding: 18rpx 24rpx;
+  border-left: 6rpx solid #7f56d9;
+  background: #faf8ff;
+  border-radius: 0 12rpx 12rpx 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.card-conclusion-tag {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #7f56d9;
+  letter-spacing: 2rpx;
+}
+.card-conclusion-text {
   font-size: 30rpx;
-  color: #1a1a2e;
-  font-weight: 600;
+  color: #4a3b7a;
+  font-weight: 700;
   line-height: 1.7;
   word-break: break-word;
 }
 
-.path-block {
-  margin-top: 8rpx;
-}
-
+/* ── 04 翻身路径：FROM → TO，TO 权威 > FROM；世界规则次之 ── */
+.path-block { margin-top: 8rpx; }
 .path-row {
   display: flex;
   gap: 16rpx;
   align-items: flex-start;
 }
-
 .path-label {
   font-size: 24rpx;
   color: #8a90a3;
@@ -165,23 +229,47 @@
   padding-top: 4rpx;
   width: 90rpx;
 }
-
 .path-text {
   font-size: 30rpx;
-  color: #2b2f42;
+  color: #5a6078;
   line-height: 1.7;
   word-break: break-word;
+  flex: 1;
 }
-
 .path-arrow {
-  color: #b5b9c5;
-  font-size: 28rpx;
-  margin: 12rpx 0 12rpx 106rpx;
+  color: #7f56d9;
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 8rpx 0 8rpx 106rpx;
 }
-
+/* TO 权重强于 FROM：紫色 + 加粗 + 略大 */
+.path-row-to .path-label-to { color: #7f56d9; font-weight: 700; }
 .path-row-to .path-text {
   color: #7f56d9;
+  font-weight: 700;
+  font-size: 32rpx;
+}
+
+/* 04 世界规则：次要（非紫），带小标签；不用紫色长段 */
+.card-rule {
+  margin-top: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.card-rule-tag {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #8a90a3;
+  letter-spacing: 2rpx;
+}
+.card-rule-text {
+  font-size: 29rpx;
+  color: #2b2f42;
   font-weight: 600;
+  line-height: 1.7;
+  word-break: break-word;
 }
 
 .action-block {
@@ -217,15 +305,40 @@
   margin-top: 20rpx;
   display: flex;
   flex-direction: column;
-  gap: 18rpx;
+  gap: 20rpx;
 }
 
+/* R84-B §11 — each action is a distinct execution unit */
 .action-step {
   display: flex;
-  gap: 14rpx;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 8rpx;
+  padding: 18rpx 20rpx;
+  background: #f7f7fb;
+  border-radius: 14rpx;
 }
 
+.action-step-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.action-step-idx {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #7f56d9;
+  letter-spacing: 1rpx;
+  flex-shrink: 0;
+}
+
+.action-step-title {
+  font-size: 27rpx;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+/* legacy numeric label retained for compatibility (no longer primary) */
 .action-step-num {
   font-size: 22rpx;
   font-weight: 700;
@@ -304,6 +417,56 @@
   display: flex;
   flex-direction: column;
   gap: 24rpx;
+}
+
+/* R84-B §18/§19 — report closing */
+.report-closing {
+  margin-top: 48rpx;
+  padding: 28rpx 32rpx;
+  background: #f6f2fd;
+  border-radius: 20rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.report-closing-line {
+  font-size: 28rpx;
+  color: #5a6078;
+  line-height: 1.7;
+}
+.report-closing-strong {
+  font-size: 30rpx;
+  color: #4a3b7a;
+  font-weight: 700;
+}
+
+/* R84-B §20 — home return path (reuses existing routes) */
+.report-home {
+  margin-top: 32rpx;
+}
+.report-home-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #8a90a3;
+  letter-spacing: 2rpx;
+}
+.report-home-grid {
+  margin-top: 20rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20rpx;
+}
+.home-chip {
+  flex: 1 1 auto;
+  min-width: 180rpx;
+  text-align: center;
+  padding: 22rpx 16rpx;
+  background: #fff;
+  border: 2rpx solid #eceef3;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #2b2f42;
+  font-weight: 600;
 }
 
 .btn-primary {
