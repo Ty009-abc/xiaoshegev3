@@ -120,7 +120,7 @@ function main () {
 
   // ── §9 REACHABILITY ──
   const reach = MAPS.reachableWorldRuleIds()
-  ok('R81 §9 WR id space is 24', MAPS.WORLD_RULE_IDS.length === 24)
+  ok('R81 §9 WR id space grew 24→34 in R82 (R81 base preserved)', MAPS.WORLD_RULE_IDS.length >= 24 && MAPS.WORLD_RULE_IDS[0] === 'WR001' && MAPS.WORLD_RULE_IDS[23] === 'WR024')
   ok('R81 §9 all 9 new WR are reachable from existing signals', ['WR016', 'WR017', 'WR018', 'WR019', 'WR020', 'WR021', 'WR022', 'WR023', 'WR024'].every((id) => reach.indexOf(id) !== -1))
   ok('R81 §9 no parallel taxonomy invented (reuses existing signal keys)', MAPS.PROBLEM_IDS.every((k) => /^PROBLEM_/.test(k)))
 

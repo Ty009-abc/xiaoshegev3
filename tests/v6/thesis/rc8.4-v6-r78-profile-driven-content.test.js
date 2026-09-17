@@ -98,7 +98,7 @@ function main () {
   ok('R78 §4 no recommendationCategoryV3 invented', !/recommendationCategoryV3/.test(mapsSrc))
   ok('R78 §4 reuses R77 crosswalk', /getCrosswalkForLens/.test(mapsSrc))
   ok('R78 §4 reuses existing lens candidate table', /CANDIDATES_BY_BOTTLENECK/.test(mapsSrc))
-  ok('R78 §4 WR id space is exactly WR001–WR024 (R81)', MAPS.WORLD_RULE_IDS.length === 24 && MAPS.WORLD_RULE_IDS[0] === 'WR001' && MAPS.WORLD_RULE_IDS[23] === 'WR024')
+  ok('R78 §4 WR id space is WR001–WR034 (R81/R82)', MAPS.WORLD_RULE_IDS.length === 34 && MAPS.WORLD_RULE_IDS[0] === 'WR001' && MAPS.WORLD_RULE_IDS[33] === 'WR034')
 
   // ── §7 DIRECT / PARTIAL / NONE mapping behavior ──
   const dir = CROSS.getCrosswalkForLens('PROBABILITY_OVER_CERTAINTY')

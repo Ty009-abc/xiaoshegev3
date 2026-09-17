@@ -87,7 +87,18 @@ const WORLD_RULE_INDEX = Object.freeze({
   WR021: { category: 'longterm', tags: ['长期主义', '反馈循环', '系统思维'] },
   WR022: { category: 'system', tags: ['可重复性', '产品化', '系统思维'] },
   WR023: { category: 'system', tags: ['产品化', '交付', '系统思维'] },
-  WR024: { category: 'system', tags: ['系统化', '可重复性', '杠杆'] }
+  WR024: { category: 'system', tags: ['系统化', '可重复性', '杠杆'] },
+  // ── R82 additions (WR025–WR034), faithful copies of initDatabase/data/world_rules.js ──
+  WR025: { category: 'system', tags: ['系统思维', '习惯', '稳定'] },
+  WR026: { category: 'system', tags: ['系统思维', '环境设计', '习惯'] },
+  WR027: { category: 'system', tags: ['系统思维', '反馈循环', '习惯'] },
+  WR028: { category: 'system', tags: ['系统思维', '连续性', '稳定'] },
+  WR029: { category: 'wealth', tags: ['期望值', '概率思维', '风险认知'] },
+  WR030: { category: 'wealth', tags: ['基础概率', '概率思维', '决策质量'] },
+  WR031: { category: 'wealth', tags: ['非对称', '风险认知', '决策质量'] },
+  WR032: { category: 'wealth', tags: ['可逆性', '决策质量', '风险认知'] },
+  WR033: { category: 'longterm', tags: ['学习曲线', '复利思维', '连续性'] },
+  WR034: { category: 'wealth', tags: ['杠杆思维', '资产组合', '产出效率'] }
 })
 
 const WORLD_RULE_IDS = Object.freeze(Object.keys(WORLD_RULE_INDEX))
@@ -134,7 +145,8 @@ const TOPIC_WR_MAP = Object.freeze({
     { wr: 'WR001', status: 'DIRECT', note: '收入上不去 = 稀缺性/杠杆问题' },
     { wr: 'WR006', status: 'PARTIAL', note: '收入结构' },
     { wr: 'WR023', status: 'PARTIAL', note: '技能产品化 → 可重复的价值' },
-    { wr: 'WR024', status: 'PARTIAL', note: '系统化产出（不靠个人硬扛）' }
+    { wr: 'WR024', status: 'PARTIAL', note: '系统化产出（不靠个人硬扛）' },
+    { wr: 'WR034', status: 'PARTIAL', note: 'R82：复用杠杆 → 同样的时间被卖多次' }
   ],
   PROBLEM_OTHER: []
 })
@@ -175,7 +187,33 @@ const BLINDSPOT_KEYWORD_MAP = Object.freeze([
   { kw: '长期主义', wr: 'WR021', status: 'PARTIAL' },
   { kw: '可重复', wr: 'WR022', status: 'DIRECT' },
   { kw: '产品化', wr: 'WR023', status: 'DIRECT' },
-  { kw: '系统化', wr: 'WR024', status: 'PARTIAL' }
+  { kw: '系统化', wr: 'WR024', status: 'PARTIAL' },
+  // ── R82 additions — specific phrases only (no over-broad keys). Each maps a
+  //    DIAGNOSIS blind-spot word to the NEW seed rule that carries the SAME
+  //    mechanism. Multiple rows per kw are intentional (one phrase can legitimately
+  //    point at two related rules); a miss still yields no score (never forced). ──
+  // SYSTEM / motivation (D — SYSTEM_OVER_MOTIVATION)
+  { kw: '动力', wr: 'WR025', status: 'DIRECT' },
+  { kw: '动机', wr: 'WR025', status: 'DIRECT' },
+  { kw: '稳定', wr: 'WR028', status: 'DIRECT' },
+  { kw: '半途而废', wr: 'WR028', status: 'DIRECT' },
+  { kw: '系统', wr: 'WR027', status: 'PARTIAL' },
+  { kw: '环境', wr: 'WR026', status: 'DIRECT' },
+  { kw: '系统', wr: 'WR024', status: 'PARTIAL' },
+  { kw: '反复', wr: 'WR022', status: 'PARTIAL' },
+  // PROBABILITY / risk (B — PROBABILITY_OVER_CERTAINTY)
+  { kw: '确定性', wr: 'WR032', status: 'PARTIAL' },
+  { kw: '概率', wr: 'WR030', status: 'DIRECT' },
+  { kw: '基础概率', wr: 'WR030', status: 'DIRECT' },
+  { kw: '风险', wr: 'WR031', status: 'DIRECT' },
+  { kw: '期望值', wr: 'WR029', status: 'DIRECT' },
+  // COMPOUNDING (E — COMPOUNDING_OVER_RESTARTING)
+  { kw: '复利', wr: 'WR033', status: 'DIRECT' },
+  { kw: '学习曲线', wr: 'WR033', status: 'DIRECT' },
+  { kw: '频繁重启', wr: 'WR022', status: 'PARTIAL' },
+  // LEVERAGE / reuse (C — LEVERAGE_OVER_TIME_FOR_MONEY)
+  { kw: '杠杆', wr: 'WR034', status: 'PARTIAL' },
+  { kw: '复用', wr: 'WR034', status: 'DIRECT' }
 ])
 
 // ── §3.5 legacy 9-dimension → WR (developmental GAP mapping). Only used for a
