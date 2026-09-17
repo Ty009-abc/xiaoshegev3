@@ -809,6 +809,46 @@ async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible 
   // the correct explicit state envelope for a broken submission.
   if (report.reportState === 'INVALID_INPUT') return buildTurnaroundV6HybridReport(report)
 
+  // ── RC8.4 V6 R70 — V4-RESTORED report engine (env-gated, default OFF) ──
+  // When RC84_V6_R70_REPORT_ENGINE=V4_RESTORED, the ONE-PROFILE → ONE-THESIS →
+  // ONE-CALL V4-restored runtime REPLACES the R57 guarded thesis runtime. The
+  // R68 product-grade envelope fallback + legacy R53 disaster fallback are
+  // PRESERVED inside that runtime. Any other value (default) → the current R57
+  // path below is byte-identical. MODEL_CALLS_PER_REPORT_MAX = 1 either way.
+  var useV4Restored = (process.env.RC84_V6_R70_REPORT_ENGINE === 'V4_RESTORED')
+  if (useV4Restored) {
+    var v4rOut = null
+    try {
+      var runV4Restored = require('./lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js').runV4RestoredReportRuntimeV6
+      v4rOut = await runV4Restored({
+        diagnosis: out.diagnosis,
+        hybridProfile: out.hybridProfile,
+        hybridContext: out.hybridContext,
+        fallbackReport: report,
+        crossAxisScope: report.crossAxisScope,
+      })
+    } catch (e) {
+      console.error('[V6V4R] runtime exception:', (e && e.message) || e)
+      v4rOut = null
+    }
+    var v4rSource = (v4rOut && v4rOut.renderSource) || 'deterministic_fallback'
+    var v4rFinal = ((v4rSource === 'v4_restored' || v4rSource === 'thesis_envelope_fallback') && isShippableV6Report(v4rOut.report))
+      ? v4rOut.report
+      : report
+    // SAFE internal observability ONLY — no openid / answers / prompt / text.
+    console.log('[V6V4R] meta ' + JSON.stringify({
+      engine: 'V4_RESTORED',
+      renderSource: v4rSource,
+      resultCategory: (v4rOut && v4rOut.meta && v4rOut.meta.resultCategory) || null,
+      modelCalls: (v4rOut && v4rOut.meta && v4rOut.meta.modelCalls) || 0,
+      hardBanReasonCodes: (v4rOut && v4rOut.meta && v4rOut.meta.hardBanReasonCodes) || [],
+      telemetryReasonCodes: (v4rOut && v4rOut.meta && v4rOut.meta.telemetryReasonCodes) || [],
+      fallbackLayer: (v4rOut && v4rOut.meta && v4rOut.meta.fallbackLayer) || null,
+    }))
+    if (isShippableV6Report(v4rFinal)) return buildTurnaroundV6HybridReport(v4rFinal)
+    return buildTurnaroundV6BaselineResponse()
+  }
+
   // ── R57 — SHARED STRATEGIC THESIS (ONE bounded AI call) ──
   // The deterministic R53 report is ALWAYS built first and is the fail-closed
   // response. The thesis runtime may REPLACE it ONLY when one bounded AI call
