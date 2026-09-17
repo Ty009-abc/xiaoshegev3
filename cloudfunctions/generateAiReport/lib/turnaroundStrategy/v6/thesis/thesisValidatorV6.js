@@ -24,6 +24,7 @@
 
 const { FORBIDDEN_TOKENS } = require('./thesisPromptV6.js')
 const { normalizeThesisOutput, visibleTextOf } = require('./thesisAdapterV6.js')
+const { validateEnvelopeAlignment, classifyMigrationSemantics } = require('./thesisSemanticAlignmentV6.js')
 
 // ── §18 card word budgets (Chinese chars) ──
 // R59: sized from a real-provider 30-call study (all finish=stop, 0 truncation).
@@ -89,8 +90,14 @@ const BLOCKING_REASON_CODES = [
   'CROSS_OBJECT_CONTRADICTION_CLAIM',
   'CARD01_OVER_BUDGET', 'CARD02_OVER_BUDGET', 'CARD03_OVER_BUDGET', 'CARD03_OVER_BULLETS',
   'CARD04_OVER_BUDGET', 'CARD05_OVER_BUDGET',
-  'CARD05_MISSING_EXPERIMENT_FIELDS', 'CARD05_TEST_UNRELATED_TO_CARD04'
+  'CARD04_MIGRATION_ID_MISMATCH', 'CARD05_EXPERIMENT_CLASS_MISMATCH',
+  'COMMERCIAL_HYPOTHESIS_OUTSIDE_ENVELOPE',
+  'CARD05_MISSING_EXPERIMENT_FIELDS'
 ]
+// R68 §6 — LEXICAL_LINK_TEST_AUTHORITY = REMOVED. CARD05_TEST_UNRELATED_TO_CARD04 is
+// retained ONLY as a non-blocking diagnostic hint; structured semantic alignment
+// (thesisSemanticAlignmentV6) is the sole strategic-alignment authority.
+const DIAGNOSTIC_HINT_CODES = ['CARD05_TEST_UNRELATED_TO_CARD04']
 // REPAIRABLE: may be deterministically repaired locally, then re-validated.
 const REPAIRABLE_REASON_CODES = ['UNSUPPORTED_ABSOLUTE_CLAIM']
 
@@ -217,12 +224,11 @@ function validateThesisV6 (output, envelope) {
   const allowedRules = env.allowedWorldRules || []
   if (st.worldRule.id && allowedRules.indexOf(st.worldRule.id) === -1) hard.push('WORLD_RULE_OUTSIDE_ENVELOPE')
 
-  // ── §11 MIGRATION — must be within allowed positions ──
+  // ── §11 MIGRATION — must be within allowed positions (structured authority) ──
   const allowedMig = (env.allowedTargetPositions || []).map((m) => m.id)
   const migBlob = (st.strategicMigration.logic + ' ' + c.card04.logic + ' ' + c.card04.to)
-  if (env.diagnosisState === 'NO_PRIMARY' && env.crossAxisScope === 'UNPROVEN') {
-    if (/(扩大|放大|复制|系统化|标准化|规模化|多接|接更多|做成方法|照搬|重复做)/.test(migBlob)) hard.push('UNPROVEN_PATH_OVERREACH')
-  }
+  const align = validateEnvelopeAlignment(o, env)
+  for (const code of align.violations) hard.push(code)
   // §7/§8 R65 — an UNPAID-PROOF envelope must not let copy claim paid validation
   // or jump to stable/repeat/systematized income.
   if (env.marketProof && env.marketProof.validated === false && env.currentValuePosition !== 'VALUE_REPEATABLE_PAID') {
@@ -290,12 +296,11 @@ function validateThesisV6 (output, envelope) {
   const drift = detectThesisDrift(o, env)
   if (drift) hard.push('CROSS_CARD_THESIS_DRIFT:' + drift)
 
-  // ── §19 CARD05 experiment alignment ──
-  const c05 = (c.card05.primary + ' ' + c.card05.supporting.join(' ') + ' ' + c.card05.successSignal)
+  // ── §19 CARD05 experiment alignment — STRUCTURED, not lexical (§6) ──
+  // R68: a semantically-valid LINK_TEST is NOT rejected for lacking literal
+  // trigger words. The structured chain (envelope scope -> migrationId ->
+  // actionThesis.experimentClass) already validated in validateEnvelopeAlignment.
   if (!c.card05.target || !c.card05.timebox || !c.card05.successSignal) hard.push('CARD05_MISSING_EXPERIMENT_FIELDS')
-  if (env.crossAxisScope === 'UNPROVEN' && env.diagnosisState === 'NO_PRIMARY') {
-    if (!/(连接|连不连|用得上|用不上|同一个问题|目标方向|这条路)/.test(c05)) hard.push('CARD05_TEST_UNRELATED_TO_CARD04')
-  }
 
   const sev = classifySeverity(hard)
   return {
@@ -357,5 +362,6 @@ module.exports = {
   FABRICATED_HISTORY_PAT,
   FABRICATED_INCOME_PAT,
   BLOCKING_REASON_CODES,
-  REPAIRABLE_REASON_CODES
+  REPAIRABLE_REASON_CODES,
+  DIAGNOSTIC_HINT_CODES
 }

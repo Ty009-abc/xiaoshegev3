@@ -231,7 +231,9 @@ console.log('\n   §10 R59 PATH')
       fallbackReport: fb, crossAxisScope: fb.crossAxisScope, callAI: stub
     })
     assert.ok(calls <= 1, 'at most one model call')
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    // R68 §8 — a VALID envelope with a failed/rejected AI output must ship the
+    // product-grade THESIS_ENVELOPE_DETERMINISTIC_FALLBACK (NOT legacy R53).
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.report && r.report.cards, 'fallback report still complete')
   })
 

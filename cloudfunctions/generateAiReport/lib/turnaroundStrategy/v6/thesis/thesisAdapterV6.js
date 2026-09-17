@@ -68,8 +68,12 @@ function normalizeThesisOutput (value) {
   const st = v.strategicThesis && typeof v.strategicThesis === 'object' ? v.strategicThesis : {}
   const cards = v.cards && typeof v.cards === 'object' ? v.cards : {}
   const str = (x) => (typeof x === 'string' ? x.trim() : '')
+  const obj = (x) => (x && typeof x === 'object' && !Array.isArray(x)) ? x : {}
   const wr = st.worldRule && typeof st.worldRule === 'object' ? st.worldRule : {}
   const mig = st.strategicMigration && typeof st.strategicMigration === 'object' ? st.strategicMigration : {}
+  // R68 §3 — structured semantic fields (machine-readable) + prose compatibility.
+  const ch = obj(st.commercialHypothesis)
+  const at = obj(st.actionThesis)
   const c4 = cards.card04 && typeof cards.card04 === 'object' ? cards.card04 : {}
   const c5 = cards.card05 && typeof cards.card05 === 'object' ? cards.card05 : {}
   return {
@@ -78,9 +82,21 @@ function normalizeThesisOutput (value) {
       coreContradiction: str(st.coreContradiction),
       structuralMechanism: str(st.structuralMechanism),
       worldRule: { id: str(wr.id), expression: str(wr.expression) },
-      strategicMigration: { from: str(mig.from) || str(c4.from), to: str(mig.to) || str(c4.to), logic: str(mig.logic) || str(c4.logic) },
-      commercialHypothesis: str(st.commercialHypothesis),
-      actionThesis: str(st.actionThesis)
+      // R68 §3 — id + from/to/logic (id is the structured migration authority).
+      strategicMigration: { id: str(mig.id), from: str(mig.from) || str(c4.from), to: str(mig.to) || str(c4.to), logic: str(mig.logic) || str(c4.logic) },
+      // R68 §3 — { class, intent } + prose text.
+      commercialHypothesis: {
+        class: str(ch.class),
+        intent: str(ch.intent),
+        text: str(ch.text) || str(st.commercialHypothesis)
+      },
+      // R68 §3 — { experimentClass, testTarget, successSignal } + prose text.
+      actionThesis: {
+        experimentClass: str(at.experimentClass),
+        testTarget: str(at.testTarget),
+        successSignal: str(at.successSignal),
+        text: str(at.text) || str(st.actionThesis)
+      }
     },
     cards: {
       card01: str(cards.card01),
@@ -107,7 +123,9 @@ function visibleTextOf (out) {
   const st = o.strategicThesis
   return [
     st.identityInterpretation, st.coreContradiction, st.structuralMechanism,
-    st.worldRule.expression, st.strategicMigration.logic, st.commercialHypothesis, st.actionThesis,
+    st.worldRule.expression, st.worldRule.id, st.strategicMigration.logic, st.strategicMigration.from, st.strategicMigration.to,
+    st.commercialHypothesis.text, st.commercialHypothesis.class,
+    st.actionThesis.text, st.actionThesis.experimentClass,
     c.card01, c.card02, c.card03.join(' '), c.card04.from, c.card04.to, c.card04.logic,
     c.card05.primary, c.card05.supporting.join(' '), c.card05.target, c.card05.timebox, c.card05.successSignal
   ].filter(Boolean).join('\n')

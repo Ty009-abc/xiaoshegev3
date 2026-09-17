@@ -185,12 +185,13 @@ async function main () {
     const rep = repairThesisOutput(d)
     assert.strictEqual([...rep.output.cards.card03[0]].length, [...d.cards.card03[0]].length)
   })
-  await ta('§15 blocking failure still => R53 fallback (no repair rescue)', async () => {
+  await ta('§15 blocking failure still => envelope fallback (no repair rescue; R53 last resort preserved)', async () => {
     const c = envFor(OWNER)
     const d = ownerDraft(c.env); d.cards.card01 = '你40岁以后一定会被淘汰。'
     const r = await run(c, stubAI(d))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorBlockingReasonCodes.length > 0)
+    assert.ok(c.fb && c.fb.cards, 'R53 last resort preserved')
   })
 
   // ═══ §7/§8/§9 MIGRATION TRUTHFULNESS ═══
@@ -273,18 +274,18 @@ async function main () {
   t('§13 ALL_BLOCKING_MUTATIONS_CAUGHT = YES (6/6)', () => assert.strictEqual(caught, 6))
 
   // ═══ §15 TRUE FAILURE FALLBACK ═══
-  console.log('\n── §15 R53 FALLBACK PRESERVED ──')
-  await ta('§15 provider failure => R53 fallback, complete five cards', async () => {
+  console.log('\n── §15 FALLBACK HIERARCHY (R68) ──')
+  await ta('§15 provider failure => envelope fallback, complete five cards (R53 preserved)', async () => {
     const c = envFor(OWNER)
     const r = await run(c, async () => ({ success: false, error: 'HTTP 503' }))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
-    assert.strictEqual(r.report, c.fb)
-    assert.ok(r.report.cards.fatalInsight && r.report.cards.firstAction)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
+    assert.ok(r.report.cards.fatalInsight && r.report.cards.firstAction, 'complete five cards')
+    assert.ok(c.fb && c.fb.cards, 'R53 last resort preserved')
   })
-  await ta('§15 invalid JSON => R53 fallback', async () => {
+  await ta('§15 invalid JSON => envelope fallback', async () => {
     const c = envFor(OWNER)
     const r = await run(c, async () => ({ success: true, content: 'not json {{{' }))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.strictEqual(r.meta.resultCategory, STATUS.INVALID_JSON)
   })
 

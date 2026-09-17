@@ -21,13 +21,23 @@
 const { buildReportV6 } = require('../report/reportBuilderV6.js')
 const { buildNoPrimaryReportV6 } = require('../report/noPrimaryReportV6.js')
 const { buildThesisEnvelopeV6 } = require('./thesisEnvelopeV6.js')
+const { buildEnvelopeFallbackReport } = require('./thesisEnvelopeFallbackV6.js')
 const { runThesisAdapter } = require('./thesisAdapterV6.js')
 const { validateThesisV6 } = require('./thesisValidatorV6.js')
 // R65 §4 — deterministic LOCAL repair for repairable copy issues only (no AI).
 const { repairThesisOutput } = require('./thesisRepairV6.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
-const RENDER_SOURCE = Object.freeze({ AI: 'thesis_ai', FALLBACK: 'deterministic_fallback' })
+const RENDER_SOURCE = Object.freeze({
+  AI: 'thesis_ai',
+  // R68 §8/§19 — product-grade deterministic envelope fallback. Used when the AI
+  // thesis is rejected/failed BUT the ThesisEnvelope itself is valid. It is NOT
+  // the legacy R53 disaster fallback.
+  ENVELOPE_FALLBACK: 'thesis_envelope_fallback',
+  // Legacy R53 deterministic report — LAST resort, only when the envelope/report
+  // construction itself is invalid.
+  FALLBACK: 'deterministic_fallback'
+})
 // §20 — bounded creativity. Per-call; requires NO shared/global config mutation.
 const THESIS_TEMPERATURE = 0.6
 // R59 — final tested output budget. small enough to stay within a 60s function
@@ -44,22 +54,45 @@ const STATUS = Object.freeze({
   VALIDATION_FAIL: 'VALIDATION_FAIL'
 })
 
-function fallbackResult (detReport, reason, extraMeta) {
-  return {
-    renderSource: RENDER_SOURCE.FALLBACK,
-    report: detReport,
-    meta: Object.assign({
-      renderSource: RENDER_SOURCE.FALLBACK,
-      resultCategory: reason,
-      modelCalls: 0,
-      validatorReasonCodes: [],
-      // R65 §6 — privacy-safe observability (reason CODES only, never raw text).
-      validatorBlockingReasonCodes: [],
-      validatorRepairableReasonCodes: [],
-      localRepairApplied: false,
-      localRepairTypes: []
-    }, extraMeta || {})
+function fallbackResult (detReport, reason, extraMeta, envelope) {
+  const baseMeta = {
+    renderSource: null,
+    resultCategory: reason,
+    modelCalls: 0,
+    validatorReasonCodes: [],
+    // R65 §6 — privacy-safe observability (reason CODES only, never raw text).
+    validatorBlockingReasonCodes: [],
+    validatorRepairableReasonCodes: [],
+    localRepairApplied: false,
+    localRepairTypes: []
   }
+  const meta = Object.assign(baseMeta, extraMeta || {})
+  // R68 §8 — FALLBACK HIERARCHY: valid thesis_ai > THESIS_ENVELOPE_DETERMINISTIC_FALLBACK
+  // (valid envelope) > legacy R53 (only when the envelope/report is invalid).
+  // EVIDENCE_CONFLICT (env null by design) and a genuinely absent envelope MUST
+  // still use R53 — that is the correct explicit state, not a product report.
+  if (envelope && !(extraMeta && extraMeta.evidenceConflict)) {
+    const built = buildEnvelopeFallbackReport(envelope, detReport)
+    if (isShippableEnvelopeFallback(built)) {
+      meta.renderSource = RENDER_SOURCE.ENVELOPE_FALLBACK
+      meta.fallbackLayer = 'THESIS_ENVELOPE_DETERMINISTIC_FALLBACK'
+      return { renderSource: RENDER_SOURCE.ENVELOPE_FALLBACK, report: built, meta: meta }
+    }
+  }
+  meta.renderSource = RENDER_SOURCE.FALLBACK
+  meta.fallbackLayer = 'R53_DISASTER_FALLBACK'
+  return { renderSource: RENDER_SOURCE.FALLBACK, report: detReport, meta: meta }
+}
+
+/** A product-grade envelope fallback must be a complete five-card report. */
+function isShippableEnvelopeFallback (report) {
+  const c = report && report.cards
+  if (!c) return false
+  return !!(c.fatalInsight && c.fatalInsight.text) &&
+    !!(c.coreProblem && c.coreProblem.text) &&
+    !!(c.systemLoop && Array.isArray(c.systemLoop.steps) && c.systemLoop.steps.length) &&
+    !!(c.turnaroundPath && c.turnaroundPath.from && c.turnaroundPath.to) &&
+    !!(c.firstAction && c.firstAction.action && c.firstAction.target && c.firstAction.timebox && c.firstAction.done)
 }
 
 /** Map a VALID thesis output onto the deterministic report shape (card keys frozen). */
@@ -150,7 +183,7 @@ async function runThesisReportRuntimeV6 (args) {
   })
   if (!envelope) return fallbackResult(fb, STATUS.NO_ENVELOPE)
 
-  if (a.noNetwork === true) return fallbackResult(fb, STATUS.NO_CALL_AI, { envelopeBuilt: true })
+  if (a.noNetwork === true) return fallbackResult(fb, STATUS.NO_CALL_AI, { envelopeBuilt: true }, envelope)
 
   const model = a.forceModel || getV6WorldviewModelFromEnvV6()
   let res
@@ -162,12 +195,12 @@ async function runThesisReportRuntimeV6 (args) {
       maxTokens: a.maxTokens != null ? a.maxTokens : THESIS_MAX_TOKENS
     })
   } catch (e) {
-    return fallbackResult(fb, STATUS.MODEL_ERROR, { envelopeBuilt: true, errorCode: (e && e.message) || 'THROW' })
+    return fallbackResult(fb, STATUS.MODEL_ERROR, { envelopeBuilt: true, errorCode: (e && e.message) || 'THROW' }, envelope)
   }
 
   if (!res || !res.ok) {
     const cat = res && /JSON/.test(res.error || '') ? STATUS.INVALID_JSON : STATUS.MODEL_ERROR
-    return fallbackResult(fb, cat, { envelopeBuilt: true, errorCode: (res && res.error) || 'AI_FAILED', modelCalls: 1 })
+    return fallbackResult(fb, cat, { envelopeBuilt: true, errorCode: (res && res.error) || 'AI_FAILED', modelCalls: 1 }, envelope)
   }
 
   let verdict = validateThesisV6(res.output, envelope)
@@ -206,7 +239,7 @@ async function runThesisReportRuntimeV6 (args) {
       validatorRepairableReasonCodes: repairable,
       localRepairApplied: false,
       localRepairTypes: localRepairTypes
-    })
+    }, envelope)
   }
 
   return {

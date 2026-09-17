@@ -178,64 +178,70 @@ async function main () {
     assert.strictEqual(r.report.cards.systemLoop.steps.length, 4)
     assert.ok(r.report.cards.firstAction.action && r.report.cards.firstAction.target && r.report.cards.firstAction.timebox && r.report.cards.firstAction.done)
   })
-  await ta('B. invalid JSON -> R53 fallback (same object), 100%', async () => {
+  await ta('B. invalid JSON -> envelope fallback (valid envelope), R53 preserved as last resort', async () => {
     const c = ctx(R54)
     const r = await run(c, stubText('not json at all {{{'))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
-    assert.strictEqual(r.report, c.fallback)
+    // R68 §8 — a valid envelope => product-grade envelope fallback, NOT R53.
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
+    assert.strictEqual(r.meta.resultCategory, STATUS.INVALID_JSON)
+    assert.ok(r.report.cards.fatalInsight.text && r.report.cards.firstAction.action, 'complete five cards')
+    // R53 deterministic report is still constructible (DETERMINISTIC_FALLBACK_PRESERVED).
+    assert.ok(c.fallback && c.fallback.cards, 'R53 last resort preserved')
   })
-  await ta('C. absolute+fate claim -> fallback', async () => {
+  await ta('C. absolute+fate claim -> envelope fallback (blocking captured)', async () => {
     const c = ctx(R54); const o = validOutput(); o.cards.card01 = '技术卖成工时，永远只有一份收入，你一定会被淘汰。'
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.join(',').match(/UNSUPPORTED_ABSOLUTE|UNSUPPORTED_AGE/))
   })
-  await ta('D. UNPROVEN path overreach (scale/systematize) -> fallback', async () => {
+  await ta('D. UNPROVEN path overreach (scale/systematize) -> envelope fallback', async () => {
     const c = ctx(R54); const o = validOutput(); o.cards.card04 = { from: 'x', to: '扩大这项能力并系统化', logic: '把这项能力规模化，多接更多单。' }
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.includes('UNPROVEN_PATH_OVERREACH'))
   })
-  await ta('E. invented occupation/bio fact -> fallback', async () => {
+  await ta('E. invented occupation/bio fact -> envelope fallback', async () => {
     const c = ctx(R54); const o = validOutput(); o.cards.card02 = '你一直是代码执行者，长期给老板打工。'
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.includes('UNSUPPORTED_IDENTITY_FACT'))
   })
-  await ta('F. invented numeric price -> fallback', async () => {
+  await ta('F. invented numeric price -> envelope fallback', async () => {
     const c = ctx(R54); const o = validOutput(); o.cards.card05.primary = '把服务定价299元测试第二次付费。'
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.join(',').match(/INVENTED_PRICE/))
   })
-  await ta('G. NO_PRIMARY bottleneck claim -> fallback', async () => {
+  await ta('G. NO_PRIMARY bottleneck claim -> envelope fallback', async () => {
     const c = ctx(R54); const o = validOutput(); o.cards.card02 = '你真正的瓶颈就是不敢开始。'
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.includes('NO_PRIMARY_BOTTLENECK_CLAIM'))
   })
-  await ta('H. world rule outside envelope -> fallback', async () => {
+  await ta('H. world rule outside envelope -> envelope fallback', async () => {
     const c = ctx(R54); const o = validOutput('LEVERAGE_OVER_TIME_FOR_MONEY')
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.includes('WORLD_RULE_OUTSIDE_ENVELOPE'))
   })
-  await ta('I. provider error -> fallback', async () => {
+  await ta('I. provider error -> envelope fallback (valid envelope)', async () => {
     const c = ctx(R54)
     const r = await run(c, async () => ({ success: false, error: 'HTTP 503' }))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
   })
-  await ta('J. card word budget breach -> fallback', async () => {
+  await ta('J. card word budget breach -> envelope fallback', async () => {
     const c = ctx(R54); const o = validOutput(); o.cards.card01 = '这是一句被刻意拉长到明显超过五十个中文字符上限的致命一句话文案用来触发字数预算校验失败的情况啊啊啊啊啊啊'
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
     assert.ok(r.meta.validatorReasonCodes.includes('CARD01_OVER_BUDGET'))
   })
-  await ta('K. never returns partial AI on failure', async () => {
+  await ta('K. never returns partial AI on failure (envelope fallback is complete)', async () => {
     const c = ctx(R54); const o = validOutput(); delete o.cards.card03
     const r = await run(c, stubAI(o))
-    assert.strictEqual(r.renderSource, RENDER_SOURCE.FALLBACK)
-    assert.strictEqual(r.report, c.fallback)
+    // R68 §20 — VALID_ENVELOPE_TO_R53_FALLBACK_COUNT=0: valid envelope => envelope fallback.
+    assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
+    assert.ok(r.report.cards.systemLoop.steps.length > 0, 'no partial AI leaked; complete report')
+    assert.notStrictEqual(r.report, c.fallback, 'not the raw R53 report')
   })
 
   // ═══ §17 THESIS DRIFT ═══
@@ -284,13 +290,15 @@ async function main () {
   })
 
   // ═══ §27 FALLBACK AVAILABLE FOR EVERY FIXTURE ═══
-  console.log('\n── §27 fallback available for every fixture ──')
+  console.log('\n── §27 fallback hierarchy for every fixture ──')
   for (const [name, raw] of [['R54', R54], ['B_PROGRAMMER', B_PROGRAMMER], ['C_NO_ASSET', C_NO_ASSET]]) {
-    await ta('fallback available + R53 preserved: ' + name, async () => {
+    await ta('valid envelope => envelope fallback (R53 preserved as last resort): ' + name, async () => {
       const c = ctx(raw)
       const r = await run(c, async () => ({ success: false, error: 'x' }))
       assert.ok(r.report && r.report.cards, 'no fallback report')
-      assert.strictEqual(r.report, c.fallback)
+      assert.strictEqual(r.renderSource, RENDER_SOURCE.ENVELOPE_FALLBACK)
+      assert.notStrictEqual(r.report, c.fallback, 'must not silently ship the R53 report for a valid envelope')
+      assert.ok(c.fallback && c.fallback.cards, 'R53 last resort preserved')
     })
   }
 
