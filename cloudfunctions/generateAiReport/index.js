@@ -845,7 +845,32 @@ async function runTurnaroundV6Hybrid ({ event, openid, ts, answers, userVisible 
       telemetryReasonCodes: (v4rOut && v4rOut.meta && v4rOut.meta.telemetryReasonCodes) || [],
       fallbackLayer: (v4rOut && v4rOut.meta && v4rOut.meta.fallbackLayer) || null,
     }))
-    if (isShippableV6Report(v4rFinal)) return buildTurnaroundV6HybridReport(v4rFinal)
+    if (isShippableV6Report(v4rFinal)) {
+      // ── RC8.4 V6 R77 — DIAGNOSIS → COGNITIVE PROFILE writeback ──
+      // After a SUCCESSFUL R75/V4-restored diagnosis, deterministically merge a
+      // Cognitive Profile V1 patch into the EXISTING user_profiles doc. This is
+      // FAILURE-ISOLATED: a profile-write failure must NEVER fail the report
+      // (REPORT_SUCCESS_PROFILE_WRITE_FAIL → report still returned). Privacy:
+      // logs carry presence + reason codes only, never openid / raw answers.
+      try {
+        var wbRun = require('./lib/cognitiveProfile/cognitiveProfileWritebackV6.js').runCognitiveProfileWritebackV6
+        var wb = await wbRun(db, openid, {
+          diagnosis: out.diagnosis,
+          hybridProfile: out.hybridProfile,
+          hybridContext: out.hybridContext,
+          report: v4rFinal,
+          ts: ts
+        })
+        console.log('[V6Profile] writeback ' + JSON.stringify({
+          ok: !!(wb && wb.ok), wrote: !!(wb && wb.wrote), reason: (wb && wb.reason) || 'UNKNOWN',
+          idempotent: !!(wb && wb.idempotent)
+        }))
+      } catch (e) {
+        // Double-guard: writeback must not break the report under any condition.
+        console.error('[V6Profile] writeback isolated exception:', (e && e.message) || e)
+      }
+      return buildTurnaroundV6HybridReport(v4rFinal)
+    }
     return buildTurnaroundV6BaselineResponse()
   }
 
