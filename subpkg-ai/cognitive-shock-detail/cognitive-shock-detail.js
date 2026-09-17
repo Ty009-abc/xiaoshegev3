@@ -8,7 +8,7 @@
  *   - 不再允许无二维码自动生成海报
  */
 
-const { getTodayStrike } = require('../../utils/cognitionStrike.js')
+const { getTodayStrike, getStrikeById } = require('../../utils/cognitionStrike.js')
 const StrikeRenderer = require('../../share/CognitiveStrikePosterRenderer.js')
 const PService = require('../../share/PosterService.js')
 
@@ -29,7 +29,11 @@ Page({
 
   onLoad(opt) {
     this._initNavBar()
-    const strike = getTodayStrike()
+    // R78.2 §7 — a personalized strike arrives as a canonical pool id (`sid`),
+    // resolved LOCALLY against the same 50-entry pool (no 2nd network call).
+    // Legacy / non-personalized entry keeps the exact date-anchored behavior.
+    const custom = opt && opt.sid ? getStrikeById(opt.sid) : null
+    const strike = custom || getTodayStrike()
     if (!strike || !strike.core_strike) {
       this.setData({ loading: false })
       return

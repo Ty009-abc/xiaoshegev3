@@ -335,6 +335,19 @@ view, text, button { box-sizing: border-box; }
   font-size: 32rpx;
   color: #7F56D9;
 }
+/* R78.2 — personalized strike preview + recommendation label */
+.home-card.ai-card .strike-preview {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #101828;
+  margin-bottom: 8rpx;
+  line-height: 1.35;
+}
+.home-card.ai-card .strike-label {
+  font-size: 22rpx;
+  color: #7F56D9;
+  margin-bottom: 6rpx;
+}
 
 /* ── 行动入口区 ── */
 .action-section {

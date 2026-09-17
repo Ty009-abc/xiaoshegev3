@@ -491,7 +491,23 @@ function getTodayStrike() {
   return { ...entry, id: dateStr };
 }
 
+/**
+ * R78.2 — resolve a cognition-strike entry by its canonical pool id (STRIKE_0xx).
+ * Used by the detail page so a personalized strike (chosen server-side by index
+ * over the SAME pool) renders byte-identically without an extra network call.
+ * @param {string} id e.g. 'STRIKE_007'
+ * @returns {Object|null}
+ */
+function getStrikeById(id) {
+  const m = /^STRIKE_(\d+)$/.exec(String(id || ''))
+  if (!m) return null
+  const entry = STRIKE_POOL[parseInt(m[1], 10)]
+  if (!entry) return null
+  return { ...entry, id: id }
+}
+
 module.exports = {
   STRIKE_POOL,
-  getTodayStrike
+  getTodayStrike,
+  getStrikeById
 };

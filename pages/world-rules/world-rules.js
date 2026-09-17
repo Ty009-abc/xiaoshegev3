@@ -8,6 +8,7 @@
  */
 
 const worldRuleService = require('../../services/worldRuleService.js')
+const personalizedContent = require('../../services/personalizedContentService.js')
 
 // ═══════════════════════════════════════
 // 8 核心模型归并（纯前端，不改数据库）
@@ -110,6 +111,8 @@ Page({
     coreModelProgress: [],
     // 收藏模式
     favoriteMode: false,
+    // R78.2 — personalized pinned recommendation (null = none → legacy list only)
+    pinnedRule: null,
   },
 
   _readIds: [],
@@ -152,7 +155,35 @@ Page({
   async _init() {
     this.setData({ loading: true })
     await this._loadFullIndex()
+    // List + pin hydrate in PARALLEL — the pin never blocks primary list render.
     this._loadRules(true)
+    await this._loadPinned()
+  },
+
+  // R78.2 §11/§12 — pin ONE personalized recommendation at the TOP of the
+  // existing list. The full list, categories, sort order and behavior are
+  // untouched. When there is no personalized rule, nothing is added (legacy).
+  async _loadPinned() {
+    try {
+      const feed = await personalizedContent.getFeed()
+      const picked = personalizedContent.pickWorldRule(feed)
+      if (!picked || !picked.ruleId) return
+      const known = this._fullIndex.find(r => r.ruleId === picked.ruleId)
+      if (!known) return // only pin ids that exist in the live index
+      const c = picked.content || {}
+      this.setData({
+        pinnedRule: {
+          ruleId: picked.ruleId,
+          title: c.title || '',
+          category: c.category || known.category,
+          displayId: (picked.ruleId || '').replace(/^WR/i, ''),
+          displayCategory: getCategoryDisplay(c.category || known.category),
+          displayTags: (c.tags || []).slice(0, 3),
+          isRead: this._readSet ? this._readSet.has(picked.ruleId) : false,
+          label: picked.label || '根据你最近的认知诊断推荐',
+        },
+      })
+    } catch (_) { /* failure-isolated: no pin, legacy list unchanged */ }
   },
 
   async _loadFullIndex() {

@@ -299,6 +299,16 @@ page {
   border-radius: 0 4rpx 4rpx 0;
 }
 
+/* R78.2 — 个性化推荐置顶卡 */
+.rule-card--pinned {
+  border-color: #E0D7FE;
+  box-shadow: 0 8rpx 28rpx rgba(127, 86, 217, 0.10);
+}
+.rule-card--pinned .pinned-label {
+  font-size: 22rpx;
+  color: #7F56D9;
+  margin: 4rpx 0 8rpx;
+}
 /* ═══ 分类色标 ═══ */
 .category-wealth::after        { background: #F2B84B; }
 .category-mindset::after       { background: #8B5CF6; }

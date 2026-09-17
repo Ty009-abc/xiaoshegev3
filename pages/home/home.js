@@ -4,7 +4,14 @@
 const analytics = require('../../utils/analytics.js')
 const { getTodayStrike } = require('../../utils/cognitionStrike.js')
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
+const personalizedContent = require('../../services/personalizedContentService.js')
 const app = getApp()
+
+// R78.2 — concise strike preview (visible product text only; never ids/codes).
+function shortStrike(text) {
+  const s = String(text || '')
+  return s.length > 28 ? s.substring(0, 28) + '…' : s
+}
 
 Page({
   data: {
@@ -12,6 +19,8 @@ Page({
     cvPercent: 0, streak: 0, streakLost: false, adminTapCount: 0, adminTimer: null,
     daysSinceLastVisit: 0, showReturnNudge: false,
     showFreeValue: false,
+    // R78.2 personalized strike (empty when not personalized → legacy look).
+    strikePreview: '', strikeLabel: '', _strikeId: '',
   },
   onShow() {
     this.loadAll()
@@ -24,20 +33,36 @@ Page({
       const db = wx.cloud.database()
       const openid = app.globalData.openid
       if (!openid) return
-      const [userRes, insightRes] = await Promise.all([
+      // R78.2 §4 — the previous `insights` read was NEVER consumed by home.wxml,
+      // so it is replaced (not duplicated) by ONE personalization feed call.
+      // Home stays at 2 network sources: users + feed.
+      const [userRes, feed] = await Promise.all([
         db.collection('users').where({ openid }).limit(1).get(),
-        db.collection('insights').where({ status: 'published' }).orderBy('createdAt', 'desc').limit(1).get(),
+        personalizedContent.getFeed(),
       ])
       const user = userRes.data[0] || {}
-      const insight = insightRes.data[0] || null
       const cv = user.cv || 0
+      // R78.2 §5/§6 — personalized strike when the feed is genuinely
+      // profile-driven, otherwise keep the EXACT legacy look (no preview/label).
+      let strikePreview = ''
+      let strikeLabel = ''
+      let strikeId = ''
+      const picked = personalizedContent.pickStrike(feed)
+      if (picked) {
+        strikePreview = shortStrike(picked.strike.core_strike)
+        strikeLabel = picked.label || ''
+        strikeId = picked.id || ''
+      }
       this.setData({
         user,
-        insight,
+        insight: null,
         cvPercent: Math.min(100, Math.round(cv % 100)),
         streak: user.streak || 0,
         loading: false,
         showFreeValue: !(user.membershipLevel && user.membershipLevel !== 'free'),
+        strikePreview: strikePreview,
+        strikeLabel: strikeLabel,
+        _strikeId: strikeId,
       })
     } catch (_) {
       this.setData({ loading: false })
@@ -84,11 +109,19 @@ Page({
 
   onStrikeTap() {
     analytics.track('strike_tap')
+    const personalizedId = this.data._strikeId || ''
     const strike = getTodayStrike()
-    const id = strike.id || ''
-    wx.navigateTo({
-      url: `/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail?id=${id}`
-    })
+    const dateId = strike.id || ''
+    // R78.2 §5 — when personalized, carry the canonical pool id so the detail
+    // page renders the SAME recommended strike (resolved locally, no 2nd call).
+    const url = personalizedId
+      ? `/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail?sid=${personalizedId}`
+      : `/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail?id=${dateId}`
+    wx.navigateTo({ url })
+    // R78.2 §7/§14 — SEEN = explicit open. Fire-and-forget; NEVER blocks nav.
+    if (personalizedId) {
+      try { personalizedContent.markSeen('strike', personalizedId) } catch (_) {}
+    }
   },
 
   // ═══ 其他 ═══

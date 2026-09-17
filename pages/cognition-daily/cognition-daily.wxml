@@ -7,6 +7,7 @@
 
   <!-- 内容区 -->
   <block wx:elif="{{insight}}">
+    <text class="insight-label" wx:if="{{insightLabel}}">✦ {{insightLabel}}</text>
     <insight-card insight="{{insight}}" showAction="{{true}}" expanded="{{expanded}}" bind:expand="onExpand" />
 
     <!-- 展开/收起 -->

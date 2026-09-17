@@ -84,6 +84,33 @@
 
     <!-- ═══ 规则卡片 ═══ -->
     <view class="rule-list">
+      <!-- R78.2 — 个性化推荐置顶卡（仅当存在个性化规则时显示） -->
+      <view
+        class="rule-card rule-card--pinned category-{{pinnedRule.category}}"
+        wx:if="{{pinnedRule}}"
+        data-id="{{pinnedRule.ruleId}}"
+        bindtap="goDetail"
+      >
+        <view class="card-header">
+          <text class="card-num">{{pinnedRule.displayId}}</text>
+          <text class="card-cat-tag cat-tag-{{pinnedRule.category}}">{{pinnedRule.displayCategory}}</text>
+          <view class="card-status" wx:if="{{pinnedRule.isRead}}">
+            <text>✓ 已读</text>
+          </view>
+        </view>
+        <view class="pinned-label">✦ {{pinnedRule.label}}</view>
+        <view class="card-title">{{pinnedRule.title}}</view>
+        <view class="card-tags" wx:if="{{pinnedRule.displayTags && pinnedRule.displayTags.length}}">
+          <block wx:for="{{pinnedRule.displayTags}}" wx:key="*this" wx:for-item="t">
+            <text class="rule-tag">{{t}}</text>
+            <text class="tag-dot" wx:if="{{index < pinnedRule.displayTags.length - 1}}">·</text>
+          </block>
+          <text class="tag-arrow">›</text>
+        </view>
+        <view class="card-tags card-tags-empty" wx:else>
+          <text class="tag-arrow">›</text>
+        </view>
+      </view>
       <view
         class="rule-card category-{{item.category}}"
         wx:for="{{rules}}"

@@ -17,6 +17,12 @@
 }
 
 /* ── 展开/收起按钮 ── */
+.insight-label {
+  display: block;
+  font-size: 22rpx;
+  color: #7F56D9;
+  margin-bottom: 16rpx;
+}
 .toggle-row {
   text-align: center;
   margin-top: 32rpx;

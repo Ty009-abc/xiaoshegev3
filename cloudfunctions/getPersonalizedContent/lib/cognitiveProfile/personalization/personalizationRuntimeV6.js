@@ -41,7 +41,7 @@ function normalizeStrikeRows (rows) {
 }
 function normalizeWorldRuleRows (rows) {
   const ids = {}
-  for (const r of asArray(rows)) { const id = r.ruleId || r.id; if (id) ids[id] = r }
+  for (const r of asArray(rows)) { const id = r.ruleId || r.id; if (id) ids[id] = { _raw: r, ruleId: id } }
   return ids
 }
 

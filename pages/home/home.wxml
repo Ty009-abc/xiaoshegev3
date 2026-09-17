@@ -90,7 +90,9 @@
           <text class="home-card-badge-icon">⚡</text>
           <text class="home-card-badge-text">今日认知暴击</text>
         </view>
-        <text class="home-card-title">一句话，击穿一个认知盲区</text>
+        <text class="strike-preview" wx:if="{{strikePreview}}">「{{strikePreview}}」</text>
+        <text class="home-card-title" wx:else>一句话，击穿一个认知盲区</text>
+        <text class="strike-label" wx:if="{{strikeLabel}}">✦ {{strikeLabel}}</text>
         <text class="home-card-sub">每日更新 · 4层递进展开 · 认知拆解</text>
         <text class="home-card-arrow">›</text>
       </view>

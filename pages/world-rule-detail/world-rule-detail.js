@@ -9,6 +9,7 @@
  */
 
 const worldRuleService = require('../../services/worldRuleService.js')
+const personalizedContent = require('../../services/personalizedContentService.js')
 const analytics = require('../../utils/analytics.js')
 const PService = require('../../share/PosterService.js')
 const RuleRenderer = require('../../share/WorldRulePosterRenderer.js')
@@ -139,6 +140,10 @@ Page({
         console.log('[WorldRuleDebug] normalized keys:', Object.keys(n).join(', '))
         console.log('[WorldRuleDebug] hasRule:', n.hasRule, 'hasReverse:', n.hasReverse, 'hasExample:', n.hasExample, 'hasAction:', n.hasAction)
         this.safeSetData({ rule: n, loading: false, isKnown: isKnown(this._ruleId), isFavorited: isFav(this._ruleId, this._favs) })
+        // R78.2 §13 — SEEN = the detail was actually opened. Cloud profile seen
+        // tracking is INDEPENDENT of the local known-state (preserved below).
+        // Fire-and-forget, failure-isolated (§14): never blocks rendering.
+        try { personalizedContent.markSeen('rule', this._ruleId) } catch (_) {}
       } else { this.safeSetData({ loading: false }) }
     } catch (e) { console.error('[WorldRuleDebug] _loadDetail error:', e); this.safeSetData({ loading: false }) }
   },
