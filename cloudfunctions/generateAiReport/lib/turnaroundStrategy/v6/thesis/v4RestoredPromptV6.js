@@ -16,7 +16,9 @@
  *   - CONSUMER LAYER ONLY. No I/O of its own.
  */
 
-const PROMPT_VERSION = 'turnaround_strategy_v6_v4_restored_prompt_v1'
+const PROMPT_VERSION = 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a'
+
+const { buildPersonalityBlock } = require('./v4RestoredPersonalityV6.js')
 
 function buildSystemPrompt () {
   return [
@@ -51,11 +53,13 @@ function buildSystemPrompt () {
     '- 不要出现"诊断状态 / 瓶颈 / 信封 / 字段 / NO_PRIMARY"这类内部词。',
     '',
     '================== 五、五张卡的职责 ==================',
-    'card01 致命一句话：制造认知碰撞，一句话击中，不要只是总结现状（建议 <=45 字）。',
-    'card02 核心问题：解读他的身份/价值位置；事实为判断服务，而不是事实罗列（建议 <=150 字）。',
-    'card03 系统困局：讲清一条机制 / 反馈回路 / 世界规则（3–5 条，整体建议 <=240 字）。',
-    'card04 翻身路径：给出真实的 FROM → TO 迁移，可含 2–3 步（建议 <=170 字）。',
-    'card05 行动建议：一个主商业目标 + 3–5 个协调动作，含 TARGET / TIMEBOX / SUCCESS SIGNAL（建议 <=280 字）。',
+    'card01 致命一句话：制造认知碰撞，一句话击中，不要只是总结现状（建议 <=40 字）。',
+    'card02 核心问题：解读他的身份/价值位置，先给一个记得住的身份标签；事实为判断服务，而不是事实罗列（建议 <=140 字）。',
+    'card03 系统困局：讲清一条机制 / 反馈回路 / 世界规则（最多 3 步 + 1 句拔高结论，整体建议 <=220 字）。',
+    'card04 翻身路径：给出真实的 FROM → TO 迁移，可含 2–3 步（建议 <=160 字）。',
+    'card05 行动建议：一个 90 天主目标 + 3 个带中文微标题的具体动作 + 验证标准（建议 <=240 字）。',
+    '',
+    buildPersonalityBlock(),
     '',
     '================== 六、输出契约（严格 JSON，只输出一个对象）==================',
     '只输出一个严格 JSON，不要任何多余文字、不要 ``` 代码块、不要第二个对象：',
@@ -71,8 +75,10 @@ function buildSystemPrompt () {
     '"card02":"...",',
     '"card03":["...","...","..."],',
     '"card04":{"from":"...","to":"...","steps":["...","..."]},',
-    '"card05":{"objective":"...","actions":["...","...","..."],"target":"...","timebox":"...","successSignal":"..."}}}',
-    '注意：card01–card05 面向用户，用自然语言，不要出现任何英文枚举 / 内部字段名。'
+    '"card05":{"objective":"...","actions":[{"title":"中文微标题","text":"具体动作"},"..."],"target":"...","timebox":"90天","successSignal":"..."}}}',
+    '注意：card01–card05 面向用户，用自然语言，不要出现任何英文枚举 / 内部字段名。',
+    '注意：card05.timebox 必须是 90 天（或与之等价），禁止写 12 个月或其它冲突的时间跨度。',
+    '注意：card05 的每个 action 用中文微标题（如：定产品 / 找买家 / 跑复购），不要用 ACTION 1/2/3。'
   ].join('\n')
 }
 

@@ -68,6 +68,22 @@ function normalizeV4RestoredOutput (value) {
   const ct = obj(st.commercialThesis)
   const c4 = cards.card04 && typeof cards.card04 === 'object' ? cards.card04 : {}
   const c5 = cards.card05 && typeof cards.card05 === 'object' ? cards.card05 : {}
+  // R84-A §14 — actions may arrive as plain strings (legacy) OR as objects
+  // carrying a Chinese MICRO-HEADING (title) + text. We expose BOTH shapes so
+  // every existing consumer (string arrays) stays byte-compatible while the
+  // visible layer can render the thesis-specific micro-heading.
+  const rawActions = Array.isArray(c5.actions) && c5.actions.length ? c5.actions : c5.supporting
+  const actionItems = (Array.isArray(rawActions) ? rawActions : []).map((x) => {
+    if (typeof x === 'string') { const t = x.trim(); return t ? { title: '', text: t } : null }
+    if (x && typeof x === 'object' && !Array.isArray(x)) {
+      const title = str(x.title) || str(x.heading) || str(x.name) || str(x.label) || str(x.microTitle) || ''
+      const text = str(x.text) || str(x.action) || str(x.detail) || str(x.body) || str(x.content) || str(x.desc) || ''
+      if (!title && !text) return null
+      return { title: title, text: text || title }
+    }
+    return null
+  }).filter(Boolean)
+  const actionsText = actionItems.map((a) => (a.title && a.text && a.title !== a.text) ? (a.title + '：' + a.text) : (a.text || a.title)).filter(Boolean)
   return {
     strategicThesis: {
       identityInterpretation: str(st.identityInterpretation),
@@ -101,9 +117,12 @@ function normalizeV4RestoredOutput (value) {
       },
       card05: {
         objective: str(c5.objective) || str(c5.primary),
-        actions: arr(c5.actions).length ? arr(c5.actions) : arr(c5.supporting),
+        // legacy STRING array (all existing consumers stay byte-compatible)
+        actions: actionsText.length ? actionsText : arr(c5.actions).concat(arr(c5.supporting)),
+        // R84-A §14 — structured micro-heading + text
+        actionItems: actionItems,
         primary: str(c5.primary) || str(c5.objective),
-        supporting: arr(c5.supporting).length ? arr(c5.supporting) : arr(c5.actions),
+        supporting: arr(c5.supporting).length ? arr(c5.supporting) : actionsText,
         target: str(c5.target),
         timebox: str(c5.timebox),
         successSignal: str(c5.successSignal)

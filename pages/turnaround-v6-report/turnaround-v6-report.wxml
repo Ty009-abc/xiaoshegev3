@@ -79,15 +79,22 @@
       <view wx:if="{{item.worldRule}}" class="card-rule">★ {{item.worldRule}}</view>
       <view wx:if="{{item.specificity}}" class="card-specificity">{{item.specificity}}</view>
 
-      <!-- 05 现在就做：R75 压缩层（90天目标 + ACTION 1/2/3 + 验收标准） -->
+      <!-- 05 现在就做：R75 压缩层（90天目标 + 中文微标题行动 + 验收标准） -->
       <view wx:if="{{item.goal}}" class="action-block">
         <view class="action-goal">
           <text class="action-goal-label">90天目标</text>
           <text class="action-goal-text">{{item.goal}}</text>
         </view>
-        <view wx:if="{{item.actions && item.actions.length}}" class="action-steps">
+        <!-- R84-A — 中文微标题（定产品/找买家/跑复购）；无微标题时回退到中性序号 -->
+        <view wx:if="{{item.actionItems && item.actionItems.length}}" class="action-steps">
+          <view class="action-step" wx:for="{{item.actionItems}}" wx:for-item="act" wx:for-index="ai" wx:key="ai">
+            <text class="action-step-num">{{act.title || '行动'}}</text>
+            <text class="action-step-text">{{act.text}}</text>
+          </view>
+        </view>
+        <view wx:elif="{{item.actions && item.actions.length}}" class="action-steps">
           <view class="action-step" wx:for="{{item.actions}}" wx:for-item="act" wx:for-index="ai" wx:key="*this">
-            <text class="action-step-num">ACTION {{ai + 1}}</text>
+            <text class="action-step-num">行动 {{ai + 1}}</text>
             <text class="action-step-text">{{act}}</text>
           </view>
         </view>

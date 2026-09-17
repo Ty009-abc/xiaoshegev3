@@ -31,6 +31,7 @@ const { buildV4RestoredPayload } = require('./v4RestoredContextV6.js')
 const { runV4RestoredAdapter } = require('./v4RestoredAdapterV6.js')
 const { validateV4Restored } = require('./v4RestoredValidatorV6.js')
 const { compressVisibleCards } = require('./v4RestoredCompressV6.js')
+const { guardVisibleCards } = require('./v4RestoredCopyGuardV6.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
 const RENDER_SOURCE = Object.freeze({
@@ -85,6 +86,23 @@ function isShippableEnvelopeFallback (report) {
 }
 
 /**
+ * R84-A §14 — derive a Chinese MICRO-HEADING for each card05 action from the
+ * final (post-guard) action string. "定产品：把能力…" -> {title:'定产品', text:'把能力…'}.
+ * A string WITHOUT a short leading heading yields {title:'', text:<whole>} so the
+ * client can fall back to a neutral label. Deterministic; no invention.
+ */
+function parseActionItems (actions) {
+  const list = Array.isArray(actions) ? actions : []
+  return list.map((raw) => {
+    const s = String(raw == null ? '' : raw).trim()
+    if (!s) return { title: '', text: '' }
+    const m = s.match(/^([^：:]{1,8})[：:]\s*(.+)$/)
+    if (m) return { title: m[1].trim(), text: m[2].trim() }
+    return { title: '', text: s }
+  })
+}
+
+/**
  * Map a VALID V4-restored output onto the frozen deterministic report shape.
  *
  * R75 — the USER-VISIBLE card values are compressed (deterministic, post-thesis,
@@ -102,9 +120,15 @@ function mapV4RestoredToReport (fb, output) {
   const c4steps = oc.card04.steps || []
 
   // R75 — deterministic user-visible compression (AFTER thesis formation).
-  const cmp = compressVisibleCards(o)
+  // R84-A — deterministic DEFECT-ONLY copy guard (horizon / exact price /
+  // FROM-TO / validation standard / duplicate conclusion). SAFE REPAIR only;
+  // no new claims, no second model call.
+  const cmpRaw = compressVisibleCards(o)
+  const guard = guardVisibleCards(cmpRaw, st)
+  const cmp = guard.cmp
   const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
   const insight = cmp.card03.rule || st.systemTrap || (c.systemLoop && c.systemLoop.insight) || ''
+  const card05ActionItems = parseActionItems(cmp.card05.actions)
 
   const cards = {
     fatalInsight: { title: '致命一句话', text: cmp.card01 || oc.card01, provenance: c.fatalInsight.provenance },
@@ -147,9 +171,12 @@ function mapV4RestoredToReport (fb, output) {
       eventPrimary: (c.firstAction && c.firstAction.eventPrimary) || true,
       objective: cmp.card05.goal || oc.card05.objective || oc.card05.primary,
       actions: cmp.card05.actions,
+      actionItems: card05ActionItems,
       successSignal: cmp.card05.acceptance || oc.card05.successSignal,
       // R75 — structured visible layer (client renders goal + ACTION 1/2/3 + 验收标准).
-      visible: { goal: cmp.card05.goal, actions: cmp.card05.actions, acceptance: cmp.card05.acceptance },
+      // R84-A — actions carry Chinese micro-headings (actionItems); the numeric
+      // "ACTION n" label is a FALLBACK only, never the primary presentation.
+      visible: { goal: cmp.card05.goal, actions: cmp.card05.actions, actionItems: card05ActionItems, acceptance: cmp.card05.acceptance },
       commercialThesis: ct,
       text: [cmp.card05.goal, cmp.card05.actions.join(' / '), cmp.card05.acceptance].filter(Boolean).join('\n'),
       provenance: c.firstAction.provenance
@@ -166,9 +193,9 @@ function mapV4RestoredToReport (fb, output) {
       card02: cmp.card02,
       card03: { steps: cmp.card03.steps, rule: cmp.card03.rule },
       card04: cmp.card04,
-      card05: cmp.card05
+      card05: Object.assign({}, cmp.card05, { actionItems: card05ActionItems })
     },
-    visibleStats: cmp.stats,
+    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired }),
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance
@@ -258,6 +285,7 @@ function getV6WorldviewModelFromEnvV6 () {
 module.exports = {
   runV4RestoredReportRuntimeV6,
   mapV4RestoredToReport,
+  parseActionItems,
   RENDER_SOURCE,
   STATUS,
   V4R_TEMPERATURE,

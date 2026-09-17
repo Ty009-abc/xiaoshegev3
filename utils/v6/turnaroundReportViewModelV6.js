@@ -115,12 +115,24 @@ function buildCardListV6 (cards) {
     const vis = cards.firstAction.visible && typeof cards.firstAction.visible === 'object' ? cards.firstAction.visible : null
     const title = str(cards.firstAction.title) || CARD_TITLE_FALLBACK.firstAction
     if (vis && (str(vis.goal) || arr(vis.actions).length || str(vis.acceptance))) {
-      // (a) R75 compressed five-card layer (v4_restored path).
+      // (a) R75/R84-A compressed five-card layer (v4_restored path).
+      // R84-A — actions expose a Chinese MICRO-HEADING; `actionItems` is the
+      // structure the client renders. The legacy string `actions` is kept for
+      // backward compatibility (and is the source of `actionItems` titles).
+      const rawItems = arr(vis.actionItems).length ? arr(vis.actionItems) : []
+      const actionItems = rawItems.map((it, i) => {
+        const o = (it && typeof it === 'object') ? it : {}
+        const t = str(o.title)
+        const x = str(o.text) || str(o.action) || str(vis.actions[i]) || ''
+        return { title: t, text: x }
+      }).filter((it) => it.title || it.text)
+      const fallbackItems = actionItems.length ? actionItems : arr(vis.actions).map((s) => ({ title: '', text: str(s) })).filter((it) => it.text)
       out.push({
         key: 'firstAction',
         title: title,
         goal: str(vis.goal),
         actions: arr(vis.actions),
+        actionItems: fallbackItems,
         acceptance: str(vis.acceptance),
       })
     } else {
