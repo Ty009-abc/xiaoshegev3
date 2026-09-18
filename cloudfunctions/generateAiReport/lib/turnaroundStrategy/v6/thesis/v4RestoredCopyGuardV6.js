@@ -414,6 +414,25 @@ function guardVisibleCards (cmp, thesis, personalityCtx) {
       const tail = tailc.length ? tailc[tailc.length - 1] : ''
       if (charLen(tail) >= 6 && !isDuplicateConclusion(tail, steps)) newRule = tail
     }
+    // R84-C hardening: when systemTrap is itself a bare arrow chain (no elevated
+    // principle) AND card04 has already claimed worldRule, the fallbacks above can
+    // all miss — leaving a truncated arrow chain shipped. Fall back to the thesis's
+    // own coreContradiction sentence (model-authored, still text-preserving).
+    if (!newRule || isBadConclusion(newRule, steps)) {
+      const cc = String((st || {}).coreContradiction || '')
+      const ccSents = cc.split(/(?<=[。！？!?])/).map((s) => s.trim()).filter(Boolean)
+      for (const s of ccSents) {
+        const cand = fitTextTo(s, 64)
+        if (charLen(cand) >= 6 && (cand.match(/[→>]/g) || []).length === 0 && !isDuplicateConclusion(cand, steps)) { newRule = cand; break }
+      }
+    }
+    // Final text-preserving fallback: the systemTrap's own non-arrow TAIL phrase
+    // (the loop's consequence, a principle without an arrow chain).
+    if (!newRule || isBadConclusion(newRule, steps)) {
+      const trapPh = phrases(String((st || {}).systemTrap || '')).filter((p) => (p.match(/[→>]/g) || []).length === 0)
+      const tp = trapPh.length ? trapPh[trapPh.length - 1] : ''
+      if (charLen(tp) >= 6 && !isDuplicateConclusion(tp, steps)) newRule = tp
+    }
     newRule = fitTextTo(newRule, 64)
     if (charLen(newRule) >= 6) {
       rule = newRule

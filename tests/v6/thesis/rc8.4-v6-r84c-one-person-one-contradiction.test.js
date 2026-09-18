@@ -160,10 +160,27 @@ async function main () {
   ok('R84C §5 card03 contains a self-story/escape mechanism', /还没准备好|还没真正尝试|再准备一下|告诉自己|解释|麻醉剂/.test(c3), c3)
 
   // ── §7/§8 CARD01 ↔ CARD05 LOOP CLOSURE ──
-  // card01's contradiction ("第二次验证/第二次...答案/还没准备好") must be resolved
   // by card05 (creating that second verification).
   const c5 = v.card05.goal + v.card05.actions.join('') + v.card05.acceptance
   ok('R84C §8 card05 resolves card01 (second verification created)', /第二次|第三次|独立付费|不是运气/.test(c5), c5)
+  // §8/§20 hardening — a bare arrow-chain card03 rule must never ship, even when
+  // systemTrap is itself an arrow chain (no elevated principle) AND card04.rule
+  // has already claimed worldRule. It falls back to the thesis coreContradiction.
+  const arrowThesis = {
+    systemTrap: '工资兜底 → 不做也不会真疼 → 可以继续告诉自己"还没准备好" → 没有第二次证据。',
+    worldRule: '市场只奖励敢标价的人。',
+    coreContradiction: '现实已经给过一次答案，他却还在用"还没准备好"解释自己的停滞。'
+  }
+  const arrowCmp = {
+    card01: v.card01, card02: v.card02,
+    card03: { steps: ['a '.repeat(2).trim(), 'b'.repeat(5), 'c'.repeat(5)], rule: '工资兜底 → 继续告诉自己"还没准备好" → 不报价。' },
+    card04: { from: v.card04.from, to: v.card04.to, rule: arrowThesis.worldRule },
+    card05: { goal: v.card05.goal, actions: v.card05.actions, acceptance: v.card05.acceptance }
+  }
+  const arrowOut = GUARD.guardVisibleCards(arrowCmp, arrowThesis)
+  ok('R84C §8 arrow-chain card03 rule never ships (falls back to coreContradiction)',
+    (String(arrowOut.cmp.card03.rule).match(/[→>]/g) || []).length === 0 && arrowOut.counts.CARD03_DUPLICATE_CONCLUSION_COUNT === 0,
+    JSON.stringify(arrowOut.cmp.card03.rule))
   const LOOP_CLOSED = /第二次|第三次|独立付费|不是运气/.test(c5) && /第一次|一次答案|准备好|第二次/.test(v.card01)
   ok('R84C §8 CARD01_CARD05_LOOP_CLOSED = YES', LOOP_CLOSED === true)
 
