@@ -17,7 +17,10 @@
  * fabricated salary-customer history / guarantees / dense walls / fortune tone).
  */
 
-const PERSONALITY_VERSION = 'r84a_personality_v1'
+const PERSONALITY_VERSION = 'r84c_personality_v1'
+// R84-C version marker: PROMPT_VERSION tracks the JSON OUTPUT CONTRACT (unchanged
+// by R84-C); PERSONALITY_VERSION tracks this tone/personality spec (bumped to r84c).
+const R84C_VERSION = 'r84c_personality_v1'
 
 // 珠澳小事哥 tone: sharp, reality-based, anti-self-deception, anti-fake-effort,
 // anti-fantasy — but NEVER humiliating, abusive, faking certainty, inventing
@@ -46,6 +49,50 @@ const ONE_THESIS_BLOCK = [
   '任何一张卡都不得变成独立的小诊断、独立的小建议。'
 ].join('\n')
 
+// R84-C §1/§2 — ONE PERSON + ONE CENTRAL CONTRADICTION + FIVE ANGLES.
+// This upgrades the report from "one thesis + five business sections" to
+// "this system is talking specifically about ME".
+const ONE_CONTRADICTION_BLOCK = [
+  '================== 一个人 = 一个核心矛盾 = 五个角度（R84-C）==================',
+  '这份报告不是"一个重要论点 + 五个商业模块"，而是【一个人的一个核心矛盾，被五个角度照亮】。',
+  '第一步（在心里完成，不要输出过程）：找到这个人的 centralContradiction（核心矛盾）。',
+  '核心矛盾 = 【现实已经证明的事实】 × 【他仍用来解释自己的旧自我叙事】。',
+  '- REALITY（现实已经证明的事）：从画像里找一条他已经发生、却不肯认的事（例如"已经有人为他付过一次钱"）。',
+  '- SELF-STORY（他还在讲的老故事）：他嘴上/心里仍在用的解释（例如"我还没准备好""这只是运气"）。',
+  '- CONTRADICTION（矛盾）：现实已经给了信号，他仍用旧故事解释自己。',
+  '五张卡从五个角度表达同一个矛盾，不允许各写各的：',
+  '  card01 = 矛盾的锋刃（一句话把它戳破）',
+  '  card02 = 矛盾的"我是谁"（给这种矛盾状态命名）',
+  '  card03 = 矛盾如何自我维持（他如何对自己解释，从而不必改变）',
+  '  card04 = 矛盾的解法方向（从旧的自我叙事迁移到新的自我叙事）',
+  '  card05 = 用现实行动去检验这个矛盾（做一件能让现实再次说话的事）'
+].join('\n')
+
+// R84-C §9 — human language first (reduce consulting nouns).
+const HUMAN_LANGUAGE_BLOCK = [
+  '================== 人话优先（R84-C）==================',
+  '少用顾问名词：市场验证 / 价值结构 / 商业闭环 / 可重复交付 / 经营系统——除非确实更清楚。',
+  '优先用具体的人话：第二次有人付钱 / 陌生人愿不愿意买 / 为什么他愿意掏钱 / 你敢不敢真的报价 / 第一次是不是运气 / 别人为什么再来一次。'
+].join('\n')
+
+// R84-C §10/§15 — anti-generic / irreplaceability test.
+const ANTI_GENERIC_BLOCK = [
+  '================== 不可替换性测试（R84-C）==================',
+  '对每一张卡的每一句话都问一次："这句话原封不动发给 5 个随机用户，也一样成立吗？"',
+  '如果成立 → 它就是 GENERIC，必须改成只属于这个人的话。',
+  '每张卡（在画像允许时）至少包含一条"不可能同样适用于 80% 用户"的具体信号：',
+  '  被付过一次钱 / 靠工资兜底 / 做内容 / 写代码 / 产品试过但没卖出去 / 只被免费认可过 / 存款撑不久。',
+  '不要把问卷事实机械地堆一遍；事实要为一个判断服务。'
+].join('\n')
+
+// R84-C §11 — no fake personality (no invented emotional history).
+const NO_FAKE_PERSONALITY_BLOCK = [
+  '================== 禁止伪造人格（R84-C）==================',
+  '不要编造情绪史或心理疾病。除非直接被画像证据支撑，禁止出现：',
+  '  "你害怕失败" / "你从小…" / "你内心自卑" / "你一直被家庭影响" / "你性格有问题" / "你天生…" / "你骨子里…"。',
+  '人格必须来自：行为矛盾 / 决策模式 / 证据 / 他讲给自己的故事——不是心理虚构。'
+].join('\n')
+
 // §3 / §11 — CARD01 collision structure + vivid identity language.
 const CARD01_BLOCK = [
   '================== card01 写法（致命一句话）==================',
@@ -53,7 +100,11 @@ const CARD01_BLOCK = [
   '- 必须：一句话；<=40 个汉字（最好 <=36）；有再定义或内在矛盾；值得截图。',
   '- 禁止：复述问卷；顾问腔；泛泛的励志；只描述现状的总结。',
   '方向示例（不要照抄）：『你不是没行动，你是在用"再准备一下"回避被市场拒绝。』',
-  '反例（禁止）：『你的核心问题是缺乏市场验证。』'
+  '反例（禁止）：『你的核心问题是缺乏市场验证。』',
+  '- R84-C：card01 必须是【核心矛盾】最锋利的形式，且优先使用画像里的具体信号（已被付费 / 免费被认可 / 有手艺没资产 / 靠工资兜底），',
+  '  而不是通用句式"你在用准备逃避拒绝"。能用上具体证据就必须用。',
+  '- R84-C 方向示例（不要照抄）：『市场已经给过你一次答案，你却还在等自己准备好。』',
+  '- R84-C：若画像里没有可靠具体信号，才退回更通用的矛盾表达。'
 ].join('\n')
 
 const CARD02_BLOCK = [
@@ -62,7 +113,13 @@ const CARD02_BLOCK = [
   '- 必须：一个记得住的身份标签 + 2–3 句解释。',
   '- 身份标签要具体、有人味（例如"有手艺、但没有资产"的结构方向，不要照抄）。',
   '- 禁止：把年龄/工资/存款/每周小时/试错预算堆在一起做事实罗列。事实为判断服务。',
-  '- 可见上限：<=140 个汉字。'
+  '- 可见上限：<=140 个汉字。',
+  '- R84-C：card02 命名的是【他此刻的心理/价值身份】，不是商业阶段标签。',
+  '  禁止听起来像分类学的标签：技能持有者 / 产品经营者 / 验证阶段用户。',
+  '  要有人味的身份张力（方向，不要照抄）："证明过自己一次，却还把自己当没开始的人"；"有人愿意为你付钱，但你还不敢把这件事当成生意的人"。',
+  '  R84-C：必须带上【他具体的能力词或职业处境】（内容/创作/技术/编程/账号/小店/设计…），让不同的人得到不同的身份名。',
+  '  禁止只写一个能套在任何人身上的通用身份句。',
+  '  身份必须由证据支撑。'
 ].join('\n')
 
 const CARD03_BLOCK = [
@@ -75,7 +132,10 @@ const CARD03_BLOCK = [
   '- card03 数组只放机制步骤（2–3 句），不要把"结论/拔高句"塞进数组，也不要以"结论："开头。',
   '- 用词偏：反馈 / 系统 / 激励 / 市场规则 / 概率 / 取舍 / 约束。',
   '- 避免：命运安排 / 天生如此 / 你注定 / 人格缺陷。',
-  '- 可见上限：<=220 个汉字。'
+  '- 可见上限：<=220 个汉字。',
+  '- R84-C：card03 不仅讲"发生了什么"，还要讲【他是怎么对自己解释这件事的】——至少包含一个自我叙事/心理逃避机制（若论点支持）。',
+  '  方向（不要照抄）：工资兜底 → 副业失败也不会真疼 → 可以继续告诉自己"还没准备好" → 没有真实报价 → 没有第二次市场证据 → 更相信自己还没准备好。',
+  '  这是人性心理学 + 系统回路，不是纯商业流程。'
 ].join('\n')
 
 const CARD04_BLOCK = [
@@ -84,7 +144,10 @@ const CARD04_BLOCK = [
   '- 身份标签要鲜活、有人味。避免"技能持有者""可重复交付者"这类工程名词。',
   '- 优先方向（按证据改写）："靠手艺接活的人" → "拥有一个能重复卖的产品的人"。',
   '- 让他明白："不是多努力一点，而是换一种价值结构。"',
-  '- 可见上限：<=160 个汉字。'
+  '- 可见上限：<=160 个汉字。',
+  '- R84-C：card04 的迁移必须是【人的身份转变】，不只是商业结构转变。',
+  '  方向（不要照抄）：FROM"等别人偶尔发现你价值的人" → TO"主动把价值摆上市场、让陌生人用钱投票的人"。',
+  '  用这个人真实的处境改写，不要工程名词（技能持有者/产品经营者）。'
 ].join('\n')
 
 const CARD05_BLOCK = [
@@ -98,11 +161,24 @@ const CARD05_BLOCK = [
   '- 价格安全：不要凭空发明精确价格区间（如 500–2000 / 1999 / 9999）。',
   '  改用"给出一个真实价格""做一次付费测试""明确报价"。',
   '- 验证标准：一个可观察的结果（例如：有人为一个明确交付真实付了钱）。',
-  '- 可见上限：<=240 个汉字。'
+  '- 可见上限：<=240 个汉字。',
+  '- R84-C：card05 必须直接打【同一个核心矛盾】——它要能回答 card01 提出的问题。',
+  '  例如 card01 若说"你在逃避第二次验证"，card05 就必须制造一次"第二次验证"。',
+  '  owner 类（已被付过一次钱）：不要停留在"定产品/找买家/跑复购"，而是围绕"证明第一次付费不是运气"：',
+  '    重建上次他为什么付钱 → 对真实潜在买家重复同样的价值主张并给出真实报价 → 交付后问清他为什么付、会不会介绍别人。',
+  '  验证标准：第二次/第三次独立的付费信号。具体实现必须由画像决定。'
 ].join('\n')
 
 function buildPersonalityBlock () {
-  return [TONE_BLOCK, ONE_THESIS_BLOCK, CARD01_BLOCK, CARD02_BLOCK, CARD03_BLOCK, CARD04_BLOCK, CARD05_BLOCK].join('\n\n')
+  return [
+    TONE_BLOCK,
+    ONE_THESIS_BLOCK,
+    ONE_CONTRADICTION_BLOCK,
+    CARD01_BLOCK, CARD02_BLOCK, CARD03_BLOCK, CARD04_BLOCK, CARD05_BLOCK,
+    HUMAN_LANGUAGE_BLOCK,
+    ANTI_GENERIC_BLOCK,
+    NO_FAKE_PERSONALITY_BLOCK
+  ].join('\n\n')
 }
 
 // §21 — deterministic, defect-only validation targets (no broad lexical policing).
@@ -111,18 +187,27 @@ const DETERMINISTIC_TARGETS = Object.freeze({
   UNSUPPORTED_EXACT_PRICE_COUNT: 0,
   CARD04_FROM_TO_MISSING_COUNT: 0,
   CARD05_VALIDATION_STANDARD_MISSING_COUNT: 0,
-  CARD03_DUPLICATE_CONCLUSION_COUNT: 0
+  CARD03_DUPLICATE_CONCLUSION_COUNT: 0,
+  // R84-C §14/§15/§11 — additive deterministic targets (all defect-only).
+  PAID_PROOF_HALLUCINATION_COUNT: 0,
+  FAKE_PERSONALITY_COUNT: 0,
+  GENERIC_CARD_COUNT: 0
 })
 
 module.exports = {
   PERSONALITY_VERSION,
+  R84C_VERSION,
   TONE_BLOCK,
   ONE_THESIS_BLOCK,
+  ONE_CONTRADICTION_BLOCK,
   CARD01_BLOCK,
   CARD02_BLOCK,
   CARD03_BLOCK,
   CARD04_BLOCK,
   CARD05_BLOCK,
+  HUMAN_LANGUAGE_BLOCK,
+  ANTI_GENERIC_BLOCK,
+  NO_FAKE_PERSONALITY_BLOCK,
   DETERMINISTIC_TARGETS,
   buildPersonalityBlock
 }

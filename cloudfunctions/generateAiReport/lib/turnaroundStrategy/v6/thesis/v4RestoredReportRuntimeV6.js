@@ -103,6 +103,30 @@ function parseActionItems (actions) {
 }
 
 /**
+ * R84-C §14/§15/§11 — build the deterministic personality screen context from the
+ * HybridProfile + hybridContext. Uses ONLY the user's own evidence (proof level,
+ * income structure, skill type, occupation, primary problem, self-belief). No
+ * inference, no invention, no I/O.
+ */
+function buildPersonalityCtx (hybridProfile, hybridContext) {
+  const hp = hybridProfile || {}
+  const hc = hybridContext || {}
+  const reality = hp.reality || {}
+  const asset = hp.asset || {}
+  const desired = hp.desiredChange || {}
+  const belief = hp.belief || {}
+  return {
+    hasPaidProof: hc.marketValidated === true,
+    proofLevel: hc.assetState || null,
+    incomeStructure: reality.incomeStructure || null,
+    skillType: asset.type || null,
+    occupationDetail: reality.occupation || null,
+    primaryProblem: desired.primaryProblem || null,
+    selfBelief: belief.perceivedRootCause || null
+  }
+}
+
+/**
  * Map a VALID V4-restored output onto the frozen deterministic report shape.
  *
  * R75 — the USER-VISIBLE card values are compressed (deterministic, post-thesis,
@@ -111,7 +135,7 @@ function parseActionItems (actions) {
  * contract are unchanged. The structured compressed layer is also exposed as
  * `report.visibleCards` and `cards.<x>.visible`.
  */
-function mapV4RestoredToReport (fb, output) {
+function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
   const c = fb.cards
   const o = output
   const st = o.strategicThesis
@@ -123,8 +147,15 @@ function mapV4RestoredToReport (fb, output) {
   // R84-A — deterministic DEFECT-ONLY copy guard (horizon / exact price /
   // FROM-TO / validation standard / duplicate conclusion). SAFE REPAIR only;
   // no new claims, no second model call.
+  // R84-C — the SAME guard screen also enforces the one-person-one-contradiction
+  // personality invariants (paid-proof hallucination / fake personality /
+  // generic card) when a profile context is supplied.
   const cmpRaw = compressVisibleCards(o)
-  const guard = guardVisibleCards(cmpRaw, st)
+  // R84-C — only screen when a REAL profile context is available. A legacy
+  // 2-arg call (no profile) stays byte-identical: an empty context would treat
+  // "unknown" as "unpaid" and mis-flag paid claims.
+  const personalityCtx = (hybridProfile || hybridContext) ? buildPersonalityCtx(hybridProfile, hybridContext) : null
+  const guard = guardVisibleCards(cmpRaw, st, personalityCtx)
   const cmp = guard.cmp
   const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
   const insight = cmp.card03.rule || st.systemTrap || (c.systemLoop && c.systemLoop.insight) || ''
@@ -195,7 +226,7 @@ function mapV4RestoredToReport (fb, output) {
       card04: cmp.card04,
       card05: Object.assign({}, cmp.card05, { actionItems: card05ActionItems })
     },
-    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired }),
+    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [] }),
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance
@@ -261,7 +292,7 @@ async function runV4RestoredReportRuntimeV6 (args) {
 
   return {
     renderSource: RENDER_SOURCE.AI,
-    report: mapV4RestoredToReport(fb, res.output),
+    report: mapV4RestoredToReport(fb, res.output, a.hybridProfile || null, a.hybridContext || null),
     meta: {
       renderSource: RENDER_SOURCE.AI,
       resultCategory: STATUS.PASS,
@@ -286,6 +317,7 @@ module.exports = {
   runV4RestoredReportRuntimeV6,
   mapV4RestoredToReport,
   parseActionItems,
+  buildPersonalityCtx,
   RENDER_SOURCE,
   STATUS,
   V4R_TEMPERATURE,
