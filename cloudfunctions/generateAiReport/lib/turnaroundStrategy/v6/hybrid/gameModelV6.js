@@ -154,6 +154,20 @@ const RULE_OWNER_BY_INCOME_MODEL = Object.freeze({
   IRREGULAR: 'UNKNOWN'
 })
 
+// ── §4/§7 AUTHORITY SEPARATION (frozen) ──
+//   PRICING_AUTHORITY  does NOT imply CUSTOMER_OWNERSHIP.
+//   CUSTOMER_PROXIMITY does NOT imply CUSTOMER_OWNERSHIP.
+//   OCCUPATION         does NOT imply CUSTOMER_OWNERSHIP.
+// The questionnaire collects NO direct customer-ownership signal, so
+// customerOwnership is ALWAYS UNKNOWN and is NEVER modelled into a claim.
+const CUSTOMER_OWNERSHIP = Object.freeze(['USER_OWNS', 'COMPANY_OWNS', 'PLATFORM_OWNS', 'SHARED', 'UNKNOWN'])
+// SWITCH axes guaranteed to describe a POSITION/mechanism change only — never
+// customer ownership (CLIENT_OWNERSHIP is deliberately EXCLUDED).
+const SWITCH_AXES = Object.freeze([
+  'PRICING_AUTHORITY', 'CUSTOMER_PROXIMITY', 'INDEPENDENT_PRICING',
+  'SECOND_PAYER', 'PORTABLE_SALES_PROOF', 'PORTABLE_VALUE', 'REPEATABILITY'
+])
+
 // ── valueExchange from asset type, with an INFERRED category prior (context
 //    only — never authority). ──
 const VALUE_BY_ASSET = Object.freeze({
@@ -361,6 +375,10 @@ function computeGameModelV6 (economy, profile) {
     pricingAuthority: { value: pricingAuthority, sourceEvidence: paEv, provenance: prov(hasDirect ? 'pricingAuthority' : 'gameType', hasDirect ? null : 'incomeStructure') },
     ruleOwner: { value: ruleOwner, sourceEvidence: ruleOwnerEv, provenance: prov(hasDirect ? 'pricingAuthority' : null, hasDirect ? null : 'incomeStructure') },
     customerDistance: { value: customerDistance, sourceEvidence: dimEvidence('CLIENT_PROXIMITY', m), provenance: prov('incomeStructure', 'skillValidation', category ? 'occupationCategory' : null) },
+    // §4/§7 — customerOwnership has NO direct signal → ALWAYS UNKNOWN. It is
+    // deliberately NOT derived from pricingAuthority / customerDistance /
+    // occupation, and NEVER modelled into a claim.
+    customerOwnership: { value: 'UNKNOWN', sourceEvidence: [ev('noDirectSignal=customerOwnership', EVIDENCE.UNKNOWN, '问卷未采集客户归属，不得由定价方/距离/职业推出')], provenance: [], modelled: false },
     dependencyStructure: { value: dependencyStructure, sourceEvidence: dimsFor(['PLATFORM_DEPENDENCE', 'EMPLOYER_DEPENDENCE']), provenance: prov('incomeStructure', category ? 'occupationCategory' : null) },
     marketProofState: { value: marketProofState, sourceEvidence: [ev('skillValidation=' + (proof || 'UNKNOWN'), EVIDENCE.OBSERVED, '市场验证等级')], provenance: prov('skillValidation') },
     repeatabilityState: { value: repeatabilityState, sourceEvidence: dimEvidence('REPEATABILITY', m), provenance: prov('incomeStructure', 'skillValidation', category ? 'occupationCategory' : null) },
@@ -433,16 +451,16 @@ function trapFor (gameType, valueExchange, ctx) {
   const key = gameType + '|' + valueExchange
   const BY_KEY = {
     'EMPLOYER_PRICED|TECHNICAL_SKILL': ['技术越熟练', '在岗位内越值钱', '内部兑现越依赖雇主体系', '外部定价的证据仍然是空的'],
-    'EMPLOYER_PRICED|SERVICE': ['手艺在岗位上越熟练', '在店家体系里越受用', '顾客关系和收款路径主要经过店家/雇主体系', '手艺还没脱离岗位被单独定价'],
+    'EMPLOYER_PRICED|SERVICE': ['手艺在岗位上越熟练', '在店家体系里越受用', '当前顾客交易与收款主要经过店家/雇主体系', '这门手艺还没脱离岗位被单独定价'],
     'EMPLOYER_PRICED|TIME': ['时间投入越多', '岗位越稳、越离不开', '收入越绑定在雇主身上', '离开这个岗位你自己能值多少，没有证据'],
     'EMPLOYER_PRICED|SALES_RESULT': ['成交能力越强', '在公司体系里越被依赖', '收入结算仍依赖公司体系', '离开后你还没有独立成交的证据'],
-    'PLATFORM_PRICED|PHYSICAL_LABOR': ['跑得越多、在线越久', '收入越贴近平台能分配的量', '派单和计价规则都在平台手里', '停手就停收，也没沉淀出能带走的资产'],
-    'PLATFORM_PRICED|CONTENT': ['内容越用力', '越依赖平台的流量分配', '变现方式由平台规则决定', '收入难重复，账号价值也带不走'],
-    'PLATFORM_PRICED|TIME': ['投入的时间越多', '越依赖平台分配的机会', '计价与派单规则都在平台', '停手即断收，能力没有变成可带走的资产'],
+    'PLATFORM_PRICED|PHYSICAL_LABOR': ['跑得越多、在线越久', '收入越贴近平台能分配的量', '派单和计价规则都在平台手里', '这份平台收入机制本身不会自动形成可脱离平台继续兑现的收入来源'],
+    'PLATFORM_PRICED|CONTENT': ['内容越用力', '越依赖平台的流量分配', '变现方式由平台规则决定', '这套内容变现依赖平台分发，机制本身不会自动沉淀出可脱离平台兑现的收入'],
+    'PLATFORM_PRICED|TIME': ['投入的时间越多', '越依赖平台分配的机会', '计价与派单规则都在平台', '这份平台分配机制本身不会自动形成可脱离平台继续兑现的收入来源'],
     'COMMISSION_PRICED|SALES_RESULT': ['成交能力越强', '给公司带来的单越多', '收入结算仍依赖公司体系', '还没验证这项能力离开公司是否成立'],
     'CLIENT_PRICED|SERVICE': ['客户越多越忙', '越靠你一个人交付', '一停手收入就断', '没有把单次服务沉淀成可重复的产品'],
     'CLIENT_PRICED|TECHNICAL_SKILL': ['接的项目越多', '越靠你亲自交付', '收入被你的时间封顶', '没有沉淀成能重复出售的产品'],
-    'SELF_PRICED|CONTENT': ['内容做得越多', '越靠平台流量变现', '收入随平台规则起伏', '很难变成一个可重复、能带走的客户资产'],
+    'SELF_PRICED|CONTENT': ['内容做得越多', '越靠平台流量变现', '收入随平台规则起伏', '这套内容的变现依赖平台分发，不容易沉淀出可直接重复出售的产品'],
     'SELF_PRICED|SERVICE': ['接单越多、越熟练', '越靠你自己在场才能交付', '收入被你的时间封顶', '生意离开你也就不转了'],
     'MIXED|TIME': ['哪一头都在投入', '哪一头都没有形成稳定兑现', '精力被切碎、没有一口井打出水', '收入结构一直没有变清楚']
   }
@@ -451,8 +469,8 @@ function trapFor (gameType, valueExchange, ctx) {
   src.push(ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物'))
   if (!steps) {
     if (gameType === 'EMPLOYER_PRICED') { steps = ['时间投入越多', '岗位越稳、越离不开', '收入越绑定在雇主身上', '离开这个岗位你自己能值多少，没有证据'] }
-    else if (gameType === 'PLATFORM_PRICED') { steps = ['投入越多', '越依赖平台的分配', '规则由平台掌握', '停下来就没有沉淀'] }
-    else if (gameType === 'CLIENT_PRICED') { steps = ['客户越多越忙', '越靠你一个人交付', '一停手收入就断', '没有沉淀出可重复的产品'] }
+    else if (gameType === 'PLATFORM_PRICED') { steps = ['投入越多', '越依赖平台的分配', '规则由平台掌握', '这份收入机制不会自动形成可脱离平台继续兑现的来源'] }
+    else if (gameType === 'CLIENT_PRICED') { steps = ['客户越多越忙', '越靠你一个人交付', '一停手收入就断', '这类交付还没有沉淀成可重复出售的产品'] }
     else if (gameType === 'COMMISSION_PRICED') { steps = ['成交越强', '收入结算越依赖公司体系', '能力还没在外部单独定价', '离开后还无法自证'] }
     else if (gameType === 'UNKNOWN') { steps = ['投入在增加', '回报却没有稳定的来源', '还没看清谁在定价', '努力没有落到一个清晰的局上'] }
     else { steps = ['投入不断增加', '回报却依赖单一定价方', '定价权不在你手里', '努力加固的是别人的位置'] }
@@ -471,11 +489,11 @@ function switchFor (gameType, valueExchange, ctx) {
     'EMPLOYER_PRICED|TECHNICAL_SKILL': { axis: 'PRICING_AUTHORITY', value: '从「只能由雇主定价的技术执行者」，换成「能被外部客户直接定价的问题解决者」。' },
     'EMPLOYER_PRICED|SERVICE': { axis: 'CUSTOMER_PROXIMITY', value: '从「只通过店家被定价的手艺」，换成「顾客直接为你的手艺付费」。' },
     'EMPLOYER_PRICED|TIME': { axis: 'PRICING_AUTHORITY', value: '从「只由雇主定价的岗位」，换成「有一份能被外部直接买单的价值」。' },
-    'EMPLOYER_PRICED|SALES_RESULT': { axis: 'CLIENT_OWNERSHIP', value: '从「公司结算的成交能力」，换成「自己掌握客户与定价的获客能力」。' },
+    'EMPLOYER_PRICED|SALES_RESULT': { axis: 'INDEPENDENT_PRICING', value: '从「由公司体系结算的成交能力」，换成「一项能被外部直接定价的成交能力」。【此处只谈成交能力的定价方式，不断言客户归属】' },
     'PLATFORM_PRICED|PHYSICAL_LABOR': { axis: 'PORTABLE_VALUE', value: '从「平台派单的时间换钱」，换成「一项离开平台也能被客户直接付费的能力」。' },
     'PLATFORM_PRICED|CONTENT': { axis: 'PORTABLE_VALUE', value: '从「平台分发的流量变现」，换成「直接向客户交付、能带走的内容产品」。' },
     'PLATFORM_PRICED|TIME': { axis: 'PORTABLE_VALUE', value: '从「平台分配的时间换钱」，换成「一项离开平台也能被直接付费的能力」。' },
-    'COMMISSION_PRICED|SALES_RESULT': { axis: 'CLIENT_OWNERSHIP', value: '从「公司结算的成交能力」，换成「自己掌握客户与定价的获客能力」。' },
+    'COMMISSION_PRICED|SALES_RESULT': { axis: 'INDEPENDENT_PRICING', value: '从「由公司体系结算的成交能力」，换成「一项能被外部直接定价的成交能力」。【此处只谈成交能力的定价方式，不断言客户归属】' },
     'CLIENT_PRICED|SERVICE': { axis: 'REPEATABILITY', value: '从「一单一结的服务」，换成「可重复出售的交付或产品」。' },
     'CLIENT_PRICED|TECHNICAL_SKILL': { axis: 'REPEATABILITY', value: '从「一个项目一结的交付」，换成「能被重复购买的产品或服务」。' },
     'SELF_PRICED|CONTENT': { axis: 'REPEATABILITY', value: '从「平台分发的流量变现」，换成「直接向客户交付、可重复出售的内容产品」。' },
@@ -488,8 +506,8 @@ function switchFor (gameType, valueExchange, ctx) {
     EMPLOYER_PRICED: { axis: 'PRICING_AUTHORITY', value: '从「只能由雇主定价的岗位」，换成「能被外部直接买单的价值」。' },
     PLATFORM_PRICED: { axis: 'PORTABLE_VALUE', value: '从「靠平台分配的收入」，换成「离开平台也能被直接付费的价值」。' },
     CLIENT_PRICED: { axis: 'REPEATABILITY', value: '从「一单一结的服务」，换成「可重复出售的产品」。' },
-    COMMISSION_PRICED: { axis: 'CLIENT_OWNERSHIP', value: '从「公司结算的成交」，换成「自己掌握客户与定价」。' },
-    SELF_PRICED: { axis: 'REPEATABILITY', value: '从「靠自己撑着的生意」，换成「能重复、能带走的客户资产」。' },
+    COMMISSION_PRICED: { axis: 'INDEPENDENT_PRICING', value: '从「由公司体系结算的成交」，换成「一项能被外部直接定价的成交能力」。【只谈定价方式，不断言客户归属】' },
+    SELF_PRICED: { axis: 'REPEATABILITY', value: '从「靠自己撑着的生意」，换成「一个能重复出售、能带来回头客的交付」。' },
     MIXED: { axis: 'PRICING_AUTHORITY', value: '从「谁都不给你定价」，换成「先有一份能被直接买单的价值」。' },
     UNKNOWN: { axis: 'PRICING_AUTHORITY', value: '先从「说不清谁在定价」，换成「能明确说出一份被谁直接买单的价值」。' }
   }
@@ -504,11 +522,11 @@ function smallBetFor (gameType, valueExchange, ctx) {
     'EMPLOYER_PRICED|TECHNICAL_SKILL': 'FIRST_EXTERNAL_QUOTE',
     'EMPLOYER_PRICED|SERVICE': 'FIRST_DIRECT_PAID_SAMPLE',
     'EMPLOYER_PRICED|TIME': 'FIRST_EXTERNAL_QUOTE',
-    'EMPLOYER_PRICED|SALES_RESULT': 'FIRST_SELF_OWNED_CUSTOMER',
+    'EMPLOYER_PRICED|SALES_RESULT': 'FIRST_EXTERNAL_PRICING_SIGNAL',
     'PLATFORM_PRICED|PHYSICAL_LABOR': 'FIRST_PORTABLE_SKILL_VALIDATION',
     'PLATFORM_PRICED|CONTENT': 'FIRST_PACKAGED_PAID_DELIVERABLE',
     'PLATFORM_PRICED|TIME': 'FIRST_PORTABLE_SKILL_VALIDATION',
-    'COMMISSION_PRICED|SALES_RESULT': 'FIRST_SELF_OWNED_CUSTOMER',
+    'COMMISSION_PRICED|SALES_RESULT': 'FIRST_EXTERNAL_PRICING_SIGNAL',
     'CLIENT_PRICED|SERVICE': 'FIRST_REPEAT_PURCHASE',
     'CLIENT_PRICED|TECHNICAL_SKILL': 'FIRST_PACKAGED_PAID_DELIVERABLE',
     'SELF_PRICED|CONTENT': 'FIRST_PACKAGED_PAID_DELIVERABLE',
@@ -519,7 +537,7 @@ function smallBetFor (gameType, valueExchange, ctx) {
     EMPLOYER_PRICED: 'FIRST_EXTERNAL_QUOTE',
     PLATFORM_PRICED: 'FIRST_PORTABLE_SKILL_VALIDATION',
     CLIENT_PRICED: 'FIRST_DIRECT_CUSTOMER_CONVERSATION',
-    COMMISSION_PRICED: 'FIRST_SELF_OWNED_CUSTOMER',
+    COMMISSION_PRICED: 'FIRST_EXTERNAL_PRICING_SIGNAL',
     SELF_PRICED: 'FIRST_PACKAGED_PAID_DELIVERABLE',
     MIXED: 'FIRST_DIRECT_CUSTOMER_CONVERSATION',
     UNKNOWN: 'FIRST_DIRECT_CUSTOMER_CONVERSATION'
@@ -530,6 +548,36 @@ function smallBetFor (gameType, valueExchange, ctx) {
   if (c.stage) src.push(ev('pastAttemptStage=' + c.stage, EVIDENCE.OBSERVED, '过去的尝试阶段'))
   if (c.goal) src.push(ev('primaryGoal=' + c.goal, EVIDENCE.OBSERVED, '目标'))
   return { value: betType, sourceEvidence: src, confidence: 'HIGH', provenance: prov('gameType', 'valueExchange') }
+}
+
+// ── §6 SCOPE DISCIPLINE ──
+// Every deterministic claim must be scoped to THIS income mechanism / THIS job
+// position / THIS current game — NEVER to the WHOLE PERSON / entire career / all
+// assets. A clause that asserts a person-level absence (no asset / no skill / no
+// other income / no customers / no brand) OVERREACHES the evidence.
+const SCOPE_KEYWORDS = /(没有|没|无|不带|带不走|不能|不会|不具备|缺乏|从不|永远不)/
+const PERSON_LEVEL_SCOPE = /(你|本人|你自己|个人|一辈子|整个职业|所有资产|全部|任何|完全|根本)/
+const MECHANISM_SCOPE = /(这份|这套|这个|该|此项|本|当前|机制|收入机制|变现机制|渠道|模式|结构|岗位|局|当前游戏|这份收入|这套内容)/
+function checkClaimScope (text) {
+  const t = String(text || '')
+  if (!t.trim()) return { scope: 'NONE', overreach: false }
+  if (/带不走的资产|能带走的资产|可带走的资产|带走的资产|没有资产|没有其他技能|没有任何技能|没有其他收入|没有个人品牌|没有自己的客户|没有个人客户|客户不属于你|客户属于公司|整个人一无所有|这辈子就这样/.test(t)) {
+    return { scope: 'PERSON_LEVEL_ABSENCE', overreach: true, reason: '断言了个人层面的缺失' }
+  }
+  const hasAbsence = SCOPE_KEYWORDS.test(t)
+  if (hasAbsence && PERSON_LEVEL_SCOPE.test(t) && !MECHANISM_SCOPE.test(t)) {
+    return { scope: 'PERSON_LEVEL_ABSENCE', overreach: true, reason: '个人层面缺失断言（未限定到收入机制）' }
+  }
+  return { scope: MECHANISM_SCOPE.test(t) ? 'MECHANISM' : (hasAbsence ? 'POSITION' : 'NEUTRAL'), overreach: false }
+}
+/** Count deterministic game-model clauses that overreach person-level scope (must be 0). */
+function countScopeOverreach (gm) {
+  if (!gm) return 0
+  const texts = []
+  if (gm.gameRule && gm.gameRule.value) texts.push(gm.gameRule.value)
+  if (gm.trapMechanism && Array.isArray(gm.trapMechanism.value)) texts.push(gm.trapMechanism.value.join(''))
+  if (gm.switchDirection && gm.switchDirection.value) texts.push(gm.switchDirection.value)
+  return texts.filter((t) => checkClaimScope(t).overreach).length
 }
 
 /** Compact structural signature (distinctness checks — no copy involved). */
@@ -574,6 +622,7 @@ function renderGameLines (gm) {
   L.push('- 谁掌握定价权（pricingAuthority）：' + f(gm.pricingAuthority) + '（证据：' + cls(gm.pricingAuthority) + '）')
   L.push('- 谁定规则（ruleOwner）：' + f(gm.ruleOwner) + '（证据：' + cls(gm.ruleOwner) + '）')
   L.push('- 客户距离（customerDistance）：' + f(gm.customerDistance) + '（证据：' + cls(gm.customerDistance) + '）')
+  L.push('- 客户归属（customerOwnership）：' + f(gm.customerOwnership) + '（无直接信号，不得由定价方/距离/职业推出）')
   L.push('- 依赖结构（dependencyStructure）：' + f(gm.dependencyStructure) + '（证据：' + cls(gm.dependencyStructure) + '）')
   L.push('- 市场验证（marketProofState）：' + f(gm.marketProofState) + '（证据：' + cls(gm.marketProofState) + '）')
   L.push('- 可重复性（repeatabilityState）：' + f(gm.repeatabilityState) + '（证据：' + cls(gm.repeatabilityState) + '）')
@@ -591,7 +640,8 @@ function gameModelInputsCovered () {
     gameTypes: GAME_TYPES.slice(),
     valueExchange: VALUE_EXCHANGE.slice(),
     pricingAuthority: PRICING_AUTHORITY.slice(),
-    ruleOwner: RULE_OWNER.slice()
+    ruleOwner: RULE_OWNER.slice(),
+    switchAxes: SWITCH_AXES.slice()
   }
 }
 
@@ -604,6 +654,8 @@ module.exports = {
   RULE_OWNER,
   CUSTOMER_DISTANCE,
   DEPENDENCY_STRUCTURE,
+  CUSTOMER_OWNERSHIP,
+  SWITCH_AXES,
   MARKET_PROOF_STATE,
   REPEATABILITY_STATE,
   LEVERAGE_STATE,
@@ -615,6 +667,8 @@ module.exports = {
   allowedConfidence,
   capConfidence,
   authorityGateViolations,
+  checkClaimScope,
+  countScopeOverreach,
   resolveGameType,
   computeGameModelV6,
   gameSignature,

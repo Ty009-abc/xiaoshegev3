@@ -64,7 +64,7 @@ const BASE = {
 const CONTROLS = [
   { name: 'PROGRAMMER', occ: '后端程序员', cat: 'OCC_TECH', inc: 'INC_SALARY', price: 'PRICE_EMPLOYER', skill: 'ASSET_TECHNICAL', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', rule: 'EMPLOYER', bet: 'FIRST_EXTERNAL_QUOTE' },
   { name: 'CHEF', occ: '厨师', cat: 'OCC_SERVICE', inc: 'INC_SALARY', price: 'PRICE_EMPLOYER', skill: 'ASSET_CRAFT', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', rule: 'EMPLOYER', bet: 'FIRST_DIRECT_PAID_SAMPLE' },
-  { name: 'SALES', occ: '房产销售', cat: 'OCC_SALES', inc: 'INC_COMMISSION', price: 'PRICE_MIXED', skill: 'ASSET_NETWORK', game: 'COMMISSION_PRICED', pricing: 'MIXED', rule: 'MIXED', bet: 'FIRST_SELF_OWNED_CUSTOMER' },
+  { name: 'SALES', occ: '房产销售', cat: 'OCC_SALES', inc: 'INC_COMMISSION', price: 'PRICE_MIXED', skill: 'ASSET_NETWORK', game: 'COMMISSION_PRICED', pricing: 'MIXED', rule: 'MIXED', bet: 'FIRST_EXTERNAL_PRICING_SIGNAL' },
   { name: 'DELIVERY RIDER', occ: '外卖骑手', cat: 'OCC_PLATFORM_LABOR', inc: 'INC_UNSTABLE', price: 'PRICE_PLATFORM', skill: 'ASSET_UNCLEAR', game: 'PLATFORM_PRICED', pricing: 'PLATFORM', rule: 'PLATFORM', bet: 'FIRST_PORTABLE_SKILL_VALIDATION' },
   { name: 'CONTENT CREATOR', occ: '短视频运营', cat: 'OCC_CONTENT_CREATIVE', inc: 'INC_CONTENT', price: 'PRICE_SELF', skill: 'ASSET_CONTENT', game: 'SELF_PRICED', pricing: 'USER', rule: 'USER', bet: 'FIRST_PACKAGED_PAID_DELIVERABLE' }
 ]
@@ -166,7 +166,7 @@ async function main () {
   ok('R85C §9 no switch direction forces entrepreneurship', !CONTROLS.some((c) => /创业|开公司|当老板/.test(gv(gameFor(c), 'switchDirection'))))
 
   // ── §10 SMALL REALITY BET ──
-  const BET_TYPES = ['FIRST_EXTERNAL_QUOTE', 'FIRST_DIRECT_CUSTOMER_CONVERSATION', 'FIRST_PAID_SAMPLE', 'FIRST_DIRECT_PAID_SAMPLE', 'FIRST_REPEAT_PURCHASE', 'FIRST_PORTABLE_SKILL_VALIDATION', 'FIRST_PACKAGED_PAID_DELIVERABLE', 'FIRST_SELF_OWNED_CUSTOMER']
+  const BET_TYPES = ['FIRST_EXTERNAL_QUOTE', 'FIRST_DIRECT_CUSTOMER_CONVERSATION', 'FIRST_PAID_SAMPLE', 'FIRST_DIRECT_PAID_SAMPLE', 'FIRST_REPEAT_PURCHASE', 'FIRST_PORTABLE_SKILL_VALIDATION', 'FIRST_PACKAGED_PAID_DELIVERABLE', 'FIRST_EXTERNAL_PRICING_SIGNAL']
   ok('R85C §10 every control bet is a bounded first-experiment type', CONTROLS.every((c) => BET_TYPES.indexOf(gv(gameFor(c), 'smallBetType')) !== -1))
   for (const c of CONTROLS) ok('R85C §10 ' + c.name + ': small bet = ' + c.bet, gv(gameFor(c), 'smallBetType') === c.bet)
   ok('R85C §10 no literalism gambling language in bet type', !CONTROLS.some((c) => /赌|押注|梭哈/.test(gv(gameFor(c), 'smallBetType'))))
@@ -399,6 +399,56 @@ async function main () {
   // ── §18 R84-D NORTH STAR GROUNDING PRESERVED ──
   ok('R85C1 §18 R84-D grounding version + evidence classes still frozen', G.GROUNDING_VERSION === 'r84d_grounding_v1' && G.EVIDENCE_CLASSES.join(',') === 'OBSERVED,DERIVED,INFERRED,HYPOTHESIS')
   ok('R85C1 §18 occupation → market-outlook claim still blocked', !!G.classifyClause('程序员未来会被AI淘汰。', gCtx))
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // R85C2 — GAME AUTHORITY FINAL TIGHTEN (scope + ownership separation)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── §3 CHEF RECOGNITION — CUSTOMER_RECOGNITION_INFERENCE_COUNT = 0 ──
+  ok('R85C2 §3 chef trap does NOT claim the customer does not recognise the person',
+    !/不认|不认你|只认(店|餐|门|平台)/.test(GM.trapSignature(gameFor(CONTROLS[1]))))
+  ok('R85C2 §3 chef trap scopes to the CURRENT transaction/settlement channel',
+    /当前|经过|店家\/雇主体系/.test(GM.trapSignature(gameFor(CONTROLS[1]))))
+
+  // ── §4 SALES CUSTOMER OWNERSHIP — UNSUPPORTED_CLIENT_OWNERSHIP_COUNT = 0 ──
+  ok('R85C2 §4 no control switch uses CLIENT_OWNERSHIP', CONTROLS.every((c) => gameFor(c).switchDirection.axis !== 'CLIENT_OWNERSHIP'))
+  ok('R85C2 §4 no control switch claims owning/掌握客户', !CONTROLS.some((c) => /掌握客户|拥有客户|自己的客户|客户属于/.test(gv(gameFor(c), 'switchDirection'))))
+  ok('R85C2 §4 sales switch is INDEPENDENT_PRICING (pricing only, not ownership)', gameFor(CONTROLS[2]).switchDirection.axis === 'INDEPENDENT_PRICING')
+  ok('R85C2 §4 no bet asserts owning a customer', !CONTROLS.some((c) => /OWNED_CUSTOMER|属于自己的客户/.test(gv(gameFor(c), 'smallBetType'))))
+  ok('R85C2 §4 SWITCH_AXES excludes CLIENT_OWNERSHIP', GM.SWITCH_AXES.indexOf('CLIENT_OWNERSHIP') === -1)
+
+  // ── §5 PLATFORM PERSON-LEVEL ASSET — PERSON_LEVEL_NO_ASSET_CLAIM_COUNT = 0 ──
+  ok('R85C2 §5 rider trap no longer claims "no carry-away asset"', !/带不走的资产|能带走的资产|可带走的资产/.test(GM.trapSignature(gameFor(CONTROLS[3]))))
+  ok('R85C2 §5 rider trap scopes to the income MECHANISM', /机制/.test(GM.trapSignature(gameFor(CONTROLS[3]))))
+
+  // ── §6 SCOPE DISCIPLINE — SCOPE_OVERREACH_COUNT = 0 ──
+  let scopeOver = 0
+  for (const c of CONTROLS) scopeOver += GM.countScopeOverreach(gameFor(c))
+  ok('R85C2 §6 SCOPE_OVERREACH_COUNT = 0 across all controls', scopeOver === 0, 'v=' + scopeOver)
+  ok('R85C2 §6 scope detector flags a person-level absence claim', GM.checkClaimScope('你没有自己的客户').overreach === true)
+  ok('R85C2 §6 scope detector passes a mechanism-scoped claim', GM.checkClaimScope('这份平台收入机制本身不会自动形成可脱离平台兑现的收入来源').overreach === false)
+
+  // ── §7 PRICING AUTHORITY ≠ CUSTOMER OWNERSHIP ──
+  ok('R85C2 §7 customerOwnership is ALWAYS UNKNOWN (no direct signal, never modelled)',
+    CONTROLS.every((c) => gv(gameFor(c), 'customerOwnership') === 'UNKNOWN'))
+  ok('R85C2 §7 customerOwnership is marked not-modelled', CONTROLS.every((c) => gameFor(c).customerOwnership.modelled === false))
+  const authNoOwn = runHybridDiagnosisV6(Object.assign({}, BASE, { occupationDetail: '房产销售', occupationCategory: 'OCC_SALES', incomeStructure: 'INC_COMMISSION', pricingAuthority: 'PRICE_CLIENT', monetizableSkill: 'ASSET_NETWORK' })).hybridProfile
+  ok('R85C2 §7 a DIRECT PRICE_CLIENT answer still leaves customerOwnership UNKNOWN',
+    GM.computeGameModelV6(authNoOwn.realEconomyModel, authNoOwn).customerOwnership.value === 'UNKNOWN')
+
+  // ── §9 FIVE-CONTROL READBACK: zero unsupported claims ──
+  let unsupportedGame = 0, unsupportedOwn = 0, recognition = 0, personAsset = 0
+  for (const c of CONTROLS) {
+    const g = gameFor(c)
+    if (g.switchDirection.axis === 'CLIENT_OWNERSHIP' || /客户属于|掌握客户/.test(g.switchDirection.value)) unsupportedOwn++
+    if (/不认|只认(店|餐厅)/.test(GM.trapSignature(g))) recognition++
+    if (/带不走的资产|没有资产|没有任何技能/.test(GM.trapSignature(g))) personAsset++
+    if (GM.authorityGateViolations(g).length) unsupportedGame++
+  }
+  ok('R85C2 §9 UNSUPPORTED_CLIENT_OWNERSHIP_COUNT = 0', unsupportedOwn === 0)
+  ok('R85C2 §9 CUSTOMER_RECOGNITION_INFERENCE_COUNT = 0', recognition === 0)
+  ok('R85C2 §9 PERSON_LEVEL_NO_ASSET_CLAIM_COUNT = 0', personAsset === 0)
+  ok('R85C2 §9 UNSUPPORTED_GAME_CLAIM_COUNT = 0 (authority gate clean)', unsupportedGame === 0)
 
   console.log(results.join('\n'))
   console.log('\nR85-C TESTS: ' + pass + ' passed, ' + fail + ' failed')

@@ -1,12 +1,10 @@
 {
-  "taskId": "RC8.4_V6_R85C1_GAME_MODEL_AUTHORITY_RECOVERY",
-  "baseCommit": "cc5ba894e3b6badba82df6b0725978cd5802a6d4",
+  "taskId": "RC8.4_V6_R85C2_GAME_AUTHORITY_AND_PROVIDER_READINESS_GATE",
+  "baseCommit": "6009c06d0c6599030635fc614dfe9e61024ba7be",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "The R85-C deterministic GameModel made UNSUPPORTED AUTHORITY JUMPS: occupation / incomeStructure were used to infer pricing authority, customer ownership and customer recognition more strongly than the evidence permits (e.g. CONTENT_CREATOR forced to SELF_PRICED, CHEF claimed '顾客只认餐厅不认你', SALES claimed '客户归属在公司'). R85C1 keeps the R85-C architecture but repairs the authority boundary: the DIRECT pricingAuthority answer outranks every inference; UNKNOWN is valid and never fabricated; occupation NEVER defines pricing authority; every field carries value + sourceEvidence[] + confidence capped by its strongest evidence; gameType derives from the answer (not a stereotype); and unsupported customer-relationship claims are blocked. NO deploy.",
+  "problem": "R85C1 repaired most authority jumps, but the deterministic GameModel still contained three claims stronger than evidence: (1) CHEF trap '顾客认的是店、不是你的个人品牌' (unsupported customer-recognition inference); (2) SALES switch axis CLIENT_OWNERSHIP + bet FIRST_SELF_OWNED_CUSTOMER (pricing authority does NOT prove customer ownership); (3) PLATFORM-labor trap '没沉淀出能带走的资产' (person-level absence claim). R85C2 tightens the authority one final time: SWITCH axes exclude CLIENT_OWNERSHIP, customerOwnership is ALWAYS UNKNOWN and never modelled (no direct signal), person-level absence claims are blocked, and every claim is scope-disciplined to THIS income mechanism / job position / game. Also verifies provider readiness (the earlier 401 is now resolved: DeepSeek credential returns HTTP 200).",
   "allowedFiles": [
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js",
     "tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
     ".changes/current-change.json"
   ],
@@ -17,5 +15,5 @@
     "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js"
   ],
-  "rollbackPlan": "git checkout cc5ba894e3b6badba82df6b0725978cd5802a6d4 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
+  "rollbackPlan": "git checkout 6009c06d0c6599030635fc614dfe9e61024ba7be -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
 }
