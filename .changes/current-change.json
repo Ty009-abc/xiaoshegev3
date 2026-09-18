@@ -1,22 +1,12 @@
 {
-  "taskId": "RC8.4_V6_R85C_GAME_MODEL_AND_IP_NORTH_STAR_RESTORE",
-  "baseCommit": "52ce12a978c433260527a3e0e00bd8f58b510834",
+  "taskId": "RC8.4_V6_R85C1_GAME_MODEL_AUTHORITY_RECOVERY",
+  "baseCommit": "cc5ba894e3b6badba82df6b0725978cd5802a6d4",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "珠澳小事哥 (规则拆解者/现实拆局者) IP drift: R85N proved occupation was cosmetic noun substitution and the report could not reliably identify the user's GAME/RULE. R85-C adds a thin deterministic GAME MODEL above RealEconomyModelV6 (REALITY→ECONOMY→GAME→RULE→TRAP→SWITCH→BET→FIVE CARDS) and ONE required pricing-authority sub-question on the existing S2 screen (still 10 screens). This revision aligns the prior R85-C base with the authoritative spec: pricingAuthority is a REQUIRED field with direct GAME/RULE authority, gameModel gains ruleOwner + provenance + UNKNOWN/MIXED vocabulary + DISTINCT_RULE, and the §36 seven-question gate is enforced.",
+  "problem": "The R85-C deterministic GameModel made UNSUPPORTED AUTHORITY JUMPS: occupation / incomeStructure were used to infer pricing authority, customer ownership and customer recognition more strongly than the evidence permits (e.g. CONTENT_CREATOR forced to SELF_PRICED, CHEF claimed '顾客只认餐厅不认你', SALES claimed '客户归属在公司'). R85C1 keeps the R85-C architecture but repairs the authority boundary: the DIRECT pricingAuthority answer outranks every inference; UNKNOWN is valid and never fabricated; occupation NEVER defines pricing authority; every field carries value + sourceEvidence[] + confidence capped by its strongest evidence; gameType derives from the answer (not a stereotype); and unsupported customer-relationship claims are blocked. NO deploy.",
   "allowedFiles": [
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridReportContextV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
-    "pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire.js",
-    "pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire.wxml",
-    "utils/v6/turnaroundQuestionnaireHybridV10.js",
-    "tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
     "tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
     ".changes/current-change.json"
   ],
@@ -27,5 +17,5 @@
     "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js"
   ],
-  "rollbackPlan": "git checkout 52ce12a978c433260527a3e0e00bd8f58b510834 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/ cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/ pages/turnaround-v6-hybrid-questionnaire/ utils/v6/ tests/v6/"
+  "rollbackPlan": "git checkout cc5ba894e3b6badba82df6b0725978cd5802a6d4 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
 }

@@ -64,7 +64,7 @@ const BASE = {
 const CONTROLS = [
   { name: 'PROGRAMMER', occ: '后端程序员', cat: 'OCC_TECH', inc: 'INC_SALARY', price: 'PRICE_EMPLOYER', skill: 'ASSET_TECHNICAL', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', rule: 'EMPLOYER', bet: 'FIRST_EXTERNAL_QUOTE' },
   { name: 'CHEF', occ: '厨师', cat: 'OCC_SERVICE', inc: 'INC_SALARY', price: 'PRICE_EMPLOYER', skill: 'ASSET_CRAFT', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', rule: 'EMPLOYER', bet: 'FIRST_DIRECT_PAID_SAMPLE' },
-  { name: 'SALES', occ: '房产销售', cat: 'OCC_SALES', inc: 'INC_COMMISSION', price: 'PRICE_MIXED', skill: 'ASSET_NETWORK', game: 'COMMISSION_PRICED', pricing: 'MIXED', rule: 'EMPLOYER', bet: 'FIRST_SELF_OWNED_CUSTOMER' },
+  { name: 'SALES', occ: '房产销售', cat: 'OCC_SALES', inc: 'INC_COMMISSION', price: 'PRICE_MIXED', skill: 'ASSET_NETWORK', game: 'COMMISSION_PRICED', pricing: 'MIXED', rule: 'MIXED', bet: 'FIRST_SELF_OWNED_CUSTOMER' },
   { name: 'DELIVERY RIDER', occ: '外卖骑手', cat: 'OCC_PLATFORM_LABOR', inc: 'INC_UNSTABLE', price: 'PRICE_PLATFORM', skill: 'ASSET_UNCLEAR', game: 'PLATFORM_PRICED', pricing: 'PLATFORM', rule: 'PLATFORM', bet: 'FIRST_PORTABLE_SKILL_VALIDATION' },
   { name: 'CONTENT CREATOR', occ: '短视频运营', cat: 'OCC_CONTENT_CREATIVE', inc: 'INC_CONTENT', price: 'PRICE_SELF', skill: 'ASSET_CONTENT', game: 'SELF_PRICED', pricing: 'USER', rule: 'USER', bet: 'FIRST_PACKAGED_PAID_DELIVERABLE' }
 ]
@@ -113,7 +113,7 @@ function neutralOutput (occ, gm) {
 
 async function main () {
   // ── §3/§4 GAME MODEL (deterministic; small taxonomy) ──
-  ok('R85C §3 gameModelV6 version marker present', GM.GAME_VERSION === 'r85c_game_model_v1')
+  ok('R85C §3 gameModelV6 version marker present', GM.GAME_VERSION === 'r85c1_game_model_v1')
   ok('R85C §4 game taxonomy small (≤7 types incl UNKNOWN)', GM.GAME_TYPES.length === 7 && GM.GAME_TYPES.join(',') === 'EMPLOYER_PRICED,PLATFORM_PRICED,CLIENT_PRICED,COMMISSION_PRICED,SELF_PRICED,MIXED,UNKNOWN')
   const gP = gameFor(CONTROLS[0])
   const gP2 = gameFor(CONTROLS[0])
@@ -142,7 +142,11 @@ async function main () {
   // ── §9 RULE OWNER (who controls the critical rule / pricing position) ──
   ok('R85C §9 rule-owner vocabulary present (6)', GM.RULE_OWNER.join(',') === 'EMPLOYER,PLATFORM,CLIENT,USER,MIXED,UNKNOWN')
   for (const c of CONTROLS) ok('R85C §9 ' + c.name + ': ruleOwner = ' + c.rule, gv(gameFor(c), 'ruleOwner') === c.rule)
-  ok('R85C §9 commission splits pricing (MIXED) but the settlement RULE stays with the employer', gv(gameFor(CONTROLS[2]), 'pricingAuthority') === 'MIXED' && gv(gameFor(CONTROLS[2]), 'ruleOwner') === 'EMPLOYER')
+  // R85C1 §9/§11 — a MIXED direct answer is NOT resolved to the employer: the
+  // rule owner is never inferred to be stronger than the evidence. The employer
+  // only retains the SETTLEMENT channel (dependency), not the pricing authority.
+  ok('R85C1 §9/§11 commission (PRICE_MIXED) → ruleOwner stays MIXED (never over-inferred to EMPLOYER)',
+    gv(gameFor(CONTROLS[2]), 'pricingAuthority') === 'MIXED' && gv(gameFor(CONTROLS[2]), 'ruleOwner') === 'MIXED')
 
   // ── §7 GAME RULE ──
   ok('R85C §7 programmer rule names the employer as rule-holder', /雇主|公司/.test(gv(gP, 'gameRule')))
@@ -152,8 +156,8 @@ async function main () {
   // ── §8 TRAP MECHANISM (rule → behavior → outcome → lock-in) ──
   const trap = gameFor(CONTROLS[0]).trapMechanism.value
   ok('R85C §8 trap is a 4-step lock loop (rule→behavior→outcome→lock-in)', Array.isArray(trap) && trap.length === 4)
-  ok('R85C §8 programmer trap: more skill → employer-internal value → external pricing empty',
-    /技术越熟练/.test(trap[0]) && /岗位内越值钱/.test(trap[1]) && /内部兑现/.test(trap[2]) && /外部/.test(trap[3]))
+  ok('R85C §8 programmer trap: more skill → employer-internal value → employer-dependent settlement → external pricing still empty',
+    /技术越熟练/.test(trap[0]) && /岗位内越值钱/.test(trap[1]) && /雇主/.test(trap[2]) && /外部/.test(trap[3]))
   ok('R85C §8 trap does not assert a market fact (no salary/ceiling/AI)', !/薪资|天花板|淘汰|失业/.test(GM.trapSignature(gameFor(CONTROLS[0]))))
 
   // ── §9 SWITCH DIRECTION (position, not forced entrepreneurship) ──
@@ -197,7 +201,7 @@ async function main () {
   ok('R85C §11 one-thesis constraint still stated in the game block', /一次报告只能有一个中心论点/.test(sm))
   ok('R85C §11 prompt forbids occupation→market-number inference (R85-B preserved)', /不得由职业\/收入推出薪资数额/.test(um))
   ok('R85C §11 PROMPT_VERSION frozen (output contract unchanged)', PROMPT_VERSION === 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a', PROMPT_VERSION)
-  ok('R85C §11 personality version unchanged; R85C marker added', P.PERSONALITY_VERSION === 'r84d_personality_v1' && P.R85C_VERSION === 'r85c_game_model_v1')
+  ok('R85C §11 personality version unchanged; R85C marker added', P.PERSONALITY_VERSION === 'r84d_personality_v1' && P.R85C_VERSION === 'r85c1_game_model_v1')
 
   // ── §12–§16 IP-NATIVE CARD ROLES in the spec ──
   ok('R85C §12 card01 spec carries THE REAL LOSS / WRONG GAME role', /拆局链/.test(P.GAME_MODEL_BLOCK) && /他在哪个局里/.test(P.IP_NATIVE_LANGUAGE_BLOCK))
@@ -331,6 +335,70 @@ async function main () {
   }
   ok('R85C §36 SEVEN_QUESTION_GATE_PASS: every control answers 局/规则/换钱/定价权/锁死/换位置/实验', gateOk)
   ok('R85C §36 the gate covers 7 distinct questions', GATE_FIELDS.length === 7)
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // R85C1 — GAME MODEL AUTHORITY RECOVERY (no unsupported authority jumps)
+  // ═══════════════════════════════════════════════════════════════════════
+  const mkGame = (over, price) => {
+    const p = runHybridDiagnosisV6(Object.assign({}, BASE, over, price == null ? {} : { pricingAuthority: price })).hybridProfile
+    return GM.computeGameModelV6(p.realEconomyModel, p)
+  }
+  const CONTENT = { occupationDetail: '短视频运营', occupationCategory: 'OCC_CONTENT_CREATIVE', incomeStructure: 'INC_CONTENT', monetizableSkill: 'ASSET_CONTENT' }
+
+  // ── §4 DIRECT ANSWER OUTRANKS INFERENCE ──
+  ok('R85C1 §4 direct PRICE_PLATFORM overrides content-income default → PLATFORM_PRICED',
+    gv(mkGame(CONTENT, 'PRICE_PLATFORM'), 'gameType') === 'PLATFORM_PRICED' && gv(mkGame(CONTENT, 'PRICE_PLATFORM'), 'pricingAuthority') === 'PLATFORM')
+  ok('R85C1 §4/§11 a DIRECT pricing answer is classified OBSERVED',
+    mkGame(CONTENT, 'PRICE_PLATFORM').pricingAuthority.sourceEvidence.some((e) => e.class === 'OBSERVED'))
+
+  // ── §5 UNKNOWN IS VALID; never fabricated ──
+  ok('R85C1 §5 PRICE_UNKNOWN → gameType UNKNOWN (not fabricated to SELF/PLATFORM)',
+    gv(mkGame(CONTENT, 'PRICE_UNKNOWN'), 'gameType') === 'UNKNOWN' && gv(mkGame(CONTENT, 'PRICE_UNKNOWN'), 'ruleOwner') === 'UNKNOWN')
+  ok('R85C1 §5 CONTENT income without a direct answer → UNKNOWN (content cannot decide pricing)',
+    gv(mkGame(CONTENT), 'gameType') === 'UNKNOWN')
+
+  // ── §6 OCCUPATION NEVER DEFINES PRICING AUTHORITY ──
+  ok('R85C1 §6 pricing authority is a function of the ANSWER, not the occupation',
+    gv(mkGame({ occupationDetail: '程序员', occupationCategory: 'OCC_TECH', incomeStructure: 'INC_SALARY', monetizableSkill: 'ASSET_UNCLEAR' }, 'PRICE_EMPLOYER'), 'pricingAuthority') ===
+    gv(mkGame({ occupationDetail: '外卖骑手', occupationCategory: 'OCC_PLATFORM_LABOR', incomeStructure: 'INC_SALARY', monetizableSkill: 'ASSET_UNCLEAR' }, 'PRICE_EMPLOYER'), 'pricingAuthority'))
+
+  // ── §7 CONTENT_CREATOR must NOT be forced to SELF_PRICED ──
+  ok('R85C1 §7 content creator + PRICE_PLATFORM → PLATFORM_PRICED (not SELF_PRICED)', gv(mkGame(CONTENT, 'PRICE_PLATFORM'), 'gameType') === 'PLATFORM_PRICED')
+  ok('R85C1 §7 content creator + PRICE_CLIENT → CLIENT_PRICED', gv(mkGame(CONTENT, 'PRICE_CLIENT'), 'gameType') === 'CLIENT_PRICED')
+  ok('R85C1 §7 content creator + PRICE_SELF → SELF_PRICED', gv(mkGame(CONTENT, 'PRICE_SELF'), 'gameType') === 'SELF_PRICED')
+
+  // ── §8 CHEF "顾客认店不认你" unsupported recognition claim is blocked ──
+  ok('R85C1 §8 unsupported recognition claim is blocked', !!G.detectCustomerRecognitionClaim('顾客只认餐厅不认你。'))
+  ok('R85C1 §8 supported recognition wording is allowed', G.detectCustomerRecognitionClaim('顾客认可你的手艺。') === null)
+
+  // ── §9 SALES "客户归属在公司" unsupported ownership claim is blocked ──
+  ok('R85C1 §9 unsupported customer-ownership claim is blocked', !!G.detectCustomerOwnershipClaim('客户归属在公司，你只是个执行者。'))
+  ok('R85C1 §9 directional customer-ownership wording is allowed', G.detectCustomerOwnershipClaim('你可以试着把客户变成自己掌握的。') === null)
+
+  // ── §15 SAME OCCUPATION, DIFFERENT GAME (CONTENT_CREATOR_DISTINCT_GAME_COUNT >= 3) ──
+  const contentGames = ['PRICE_PLATFORM', 'PRICE_CLIENT', 'PRICE_SELF', 'PRICE_UNKNOWN'].map((pr) => gv(mkGame(CONTENT, pr), 'gameType'))
+  const dContent = new Set(contentGames).size
+  ok('R85C1 §15 CONTENT_CREATOR_DISTINCT_GAME_COUNT >= 3', dContent >= 3, 'd=' + dContent + ' ' + contentGames.join(','))
+
+  // ── §16 DIRECT-SIGNAL OVERRIDE (only the answer varies) ──
+  const SALESBASE = { occupationDetail: '房产销售', occupationCategory: 'OCC_SALES', incomeStructure: 'INC_COMMISSION', monetizableSkill: 'ASSET_NETWORK' }
+  ok('R85C1 §16 PRICE_CLIENT overrides the commission default → CLIENT_PRICED', gv(mkGame(SALESBASE, 'PRICE_CLIENT'), 'gameType') === 'CLIENT_PRICED')
+  ok('R85C1 §16 PRICE_SELF overrides the commission default → SELF_PRICED', gv(mkGame(SALESBASE, 'PRICE_SELF'), 'gameType') === 'SELF_PRICED')
+
+  // ── §17 AUTHORITY GATE — no claim stronger than its strongest evidence ──
+  let authViol = 0
+  for (const c of CONTROLS) authViol += GM.authorityGateViolations(gameFor(c)).length
+  ok('R85C1 §17 AUTHORITY_GATE_VIOLATION_COUNT = 0 across all controls', authViol === 0, 'v=' + authViol)
+  ok('R85C1 §17 authority gate is deterministic (INFERRED caps at MEDIUM)', GM.allowedConfidence([{ class: 'INFERRED' }]) === 'MEDIUM' && GM.allowedConfidence([{ class: 'OBSERVED' }]) === 'HIGH')
+
+  // ── §14 FIVE-CONTROL MATRIX (value + sourceEvidence[] + confidence on every field) ──
+  const MX = ['gameType', 'ruleOwner', 'valueExchange', 'pricingAuthority', 'trapMechanism', 'switchDirection', 'smallBetType']
+  ok('R85C1 §14 five-control matrix: every field carries value + sourceEvidence[] + confidence',
+    CONTROLS.every((c) => { const g = gameFor(c); return MX.every((f) => g[f] && g[f].value != null && Array.isArray(g[f].sourceEvidence) && !!g[f].confidence) }))
+
+  // ── §18 R84-D NORTH STAR GROUNDING PRESERVED ──
+  ok('R85C1 §18 R84-D grounding version + evidence classes still frozen', G.GROUNDING_VERSION === 'r84d_grounding_v1' && G.EVIDENCE_CLASSES.join(',') === 'OBSERVED,DERIVED,INFERRED,HYPOTHESIS')
+  ok('R85C1 §18 occupation → market-outlook claim still blocked', !!G.classifyClause('程序员未来会被AI淘汰。', gCtx))
 
   console.log(results.join('\n'))
   console.log('\nR85-C TESTS: ' + pass + ' passed, ' + fail + ' failed')

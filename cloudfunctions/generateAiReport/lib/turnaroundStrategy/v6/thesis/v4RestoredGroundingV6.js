@@ -78,7 +78,15 @@ const GAME_PLATFORM_PRC = /(平台)[^。，,；！？]{0,6}(定价|派单|分配
 const GAME_CLIENT_PRC = /(客户|买家|顾客|甲方)[^。，,；！？]{0,6}(定价|给钱|付钱|报价|买单|说了算|定这个价)/
 // A HYPOTHETICAL / aspirational clause describes a DIRECTION to move toward
 // (the SWITCH), not a claim about who prices the user NOW — never a conflict.
-const GAME_HYPOTHETICAL = /(能不能|能否|可以|能够|应该|如果|若|假设|取决于|方向|目标|想|希望|打算|计划|试着|下一步|变成|成为|验证|会不会|值不值得)/
+const GAME_HYPOTHETICAL = /(能不能|能否|可以|能够|应该|如果|若|假设|取决于|方向|目标|想|希望|打算|计划|试着|下一步|变成|成为|验证|会不会|值不值得|换成|掌握|掌握在)/
+
+// ── R85C1 §8/§9 — UNSUPPORTED CUSTOMER-RELATIONSHIP CLAIMS ──
+// A card may NOT assert, as present fact, that customers belong to the company /
+// platform, nor that customers "recognise the store, not you". The system never
+// asks who owns the customer → customer ownership stays UNKNOWN, and customer
+// recognition is never observed. Aspirational/directional phrasing is exempt.
+const CUSTOMER_OWNERSHIP_CLAIM_PAT = /(客户|顾客|买家|甲方)[^。，,；！？]{0,6}(归属|属于|都归|全归|归)[^。，,；！？]{0,4}(公司|平台|雇主|老板|店家|企业|单位)/
+const CUSTOMER_RECOGNITION_CLAIM_PAT = /(顾客|客户|买家)[^。，,；！？]{0,8}(只认|不认|认的?是|只记住|只记住的是)[^。，,；！？]{0,6}(店|餐厅|门店|平台|公司|品牌|店家|招牌)/
 
 /** Detect a game/pricing claim that contradicts the computed game model. */
 function detectGameConflict (text, ctx) {
@@ -97,6 +105,22 @@ function detectGameConflict (text, ctx) {
   // correct one alongside).
   const wrong = claims.filter((c) => c !== auth)
   if (wrong.length && claims.length === wrong.length) return wrong.join('/')
+  return null
+}
+
+/** R85C1 §8 — is this an UNSUPPORTED customer-recognition claim (present fact)? */
+function detectCustomerRecognitionClaim (text) {
+  const t = String(text || '')
+  if (!t.trim()) return null
+  if (CUSTOMER_RECOGNITION_CLAIM_PAT.test(t) && !GAME_HYPOTHETICAL.test(t)) return 'CUSTOMER_RECOGNITION'
+  return null
+}
+
+/** R85C1 §9 — is this an UNSUPPORTED customer-ownership claim (present fact)? */
+function detectCustomerOwnershipClaim (text) {
+  const t = String(text || '')
+  if (!t.trim()) return null
+  if (CUSTOMER_OWNERSHIP_CLAIM_PAT.test(t) && !GAME_HYPOTHETICAL.test(t)) return 'CUSTOMER_OWNERSHIP'
   return null
 }
 
@@ -184,6 +208,9 @@ function classifyClause (cl, ctx) {
   if (EXACT_INCOME_FORECAST_PAT.test(c)) return { type: 'EXACT_INCOME', evidenceClass: 'HYPOTHESIS' }
   // 8) R85-C §20 — a pricing/game claim contradicting the computed game model
   if (detectGameConflict(c, ctx)) return { type: 'GAME_CONFLICT', evidenceClass: 'HYPOTHESIS' }
+  // 9) R85C1 §8/§9 — unsupported customer-recognition / ownership claims
+  if (detectCustomerRecognitionClaim(c)) return { type: 'CUSTOMER_RECOGNITION', evidenceClass: 'HYPOTHESIS' }
+  if (detectCustomerOwnershipClaim(c)) return { type: 'CUSTOMER_OWNERSHIP', evidenceClass: 'HYPOTHESIS' }
   return null
 }
 
@@ -217,7 +244,9 @@ const ZERO_COUNTS = () => ({
   // R85-B §20/§10 — occupation-market + exact-income-forecast (both must be 0)
   UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT: 0, EXACT_INCOME_FORECAST_COUNT: 0,
   // R85-C §20 — game claim contradicting the computed game model (must be 0)
-  UNSUPPORTED_GAME_CLAIM_COUNT: 0
+  UNSUPPORTED_GAME_CLAIM_COUNT: 0,
+  // R85C1 §8/§9 — unsupported customer-recognition / ownership claims (must be 0)
+  UNSUPPORTED_CUSTOMER_RECOGNITION_CLAIM_COUNT: 0, UNSUPPORTED_CUSTOMER_OWNERSHIP_CLAIM_COUNT: 0
 })
 
 /** Count defects on a FINAL (already-repaired) text — expected 0. */
@@ -235,6 +264,8 @@ function countGroundingDefects (text, ctx, slot) {
     else if (v.type === 'OCCUPATION_MARKET') counts.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT++
     else if (v.type === 'EXACT_INCOME') counts.EXACT_INCOME_FORECAST_COUNT++
     else if (v.type === 'GAME_CONFLICT') counts.UNSUPPORTED_GAME_CLAIM_COUNT++
+    else if (v.type === 'CUSTOMER_RECOGNITION') counts.UNSUPPORTED_CUSTOMER_RECOGNITION_CLAIM_COUNT++
+    else if (v.type === 'CUSTOMER_OWNERSHIP') counts.UNSUPPORTED_CUSTOMER_OWNERSHIP_CLAIM_COUNT++
   }
   counts.UNSUPPORTED_CAUSAL_CLAIM_COUNT += counts.MORTGAGE_AS_SAFETY_NET_COUNT + counts.DEBT_AS_BUFFER_COUNT + counts.COMPLACENCY_CAUSALITY_COUNT + counts.CARD01_UNSUPPORTED_MINDREAD_COUNT
   counts.ARBITRARY_NUMBER_COUNT = countArbitraryNumbers(text)
@@ -311,6 +342,8 @@ function fixField (text, slot, ctx, fallbackText, audit, repaired) {
     else if (v.type === 'OCCUPATION_MARKET') repaired.occupationMarket++
     else if (v.type === 'EXACT_INCOME') repaired.exactIncome++
     else if (v.type === 'GAME_CONFLICT') repaired.gameConflict++
+    else if (v.type === 'CUSTOMER_RECOGNITION') repaired.customerRecognition++
+    else if (v.type === 'CUSTOMER_OWNERSHIP') repaired.customerOwnership++
     else repaired.financial++
   }
   let out = kept.join('').trim()
@@ -334,7 +367,7 @@ function screenGrounding (cmp, thesis, ctx, fb) {
   const c = Object.assign({}, cmp || {})
   const g = ctx || {}
   const f = fb || {}
-  const repaired = { financial: 0, complacency: 0, mindread: 0, absoluteMarket: 0, certainty: 0, occupationMarket: 0, exactIncome: 0, gameConflict: 0 }
+  const repaired = { financial: 0, complacency: 0, mindread: 0, absoluteMarket: 0, certainty: 0, occupationMarket: 0, exactIncome: 0, gameConflict: 0, customerRecognition: 0, customerOwnership: 0 }
   const audit = []
 
   c.card01 = fixField(c.card01, 'card01', g, f.card01, audit, repaired)
@@ -378,6 +411,8 @@ function screenGrounding (cmp, thesis, ctx, fb) {
     counts.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT += cc.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT
     counts.EXACT_INCOME_FORECAST_COUNT += cc.EXACT_INCOME_FORECAST_COUNT
     counts.UNSUPPORTED_GAME_CLAIM_COUNT += cc.UNSUPPORTED_GAME_CLAIM_COUNT
+    counts.UNSUPPORTED_CUSTOMER_RECOGNITION_CLAIM_COUNT += cc.UNSUPPORTED_CUSTOMER_RECOGNITION_CLAIM_COUNT
+    counts.UNSUPPORTED_CUSTOMER_OWNERSHIP_CLAIM_COUNT += cc.UNSUPPORTED_CUSTOMER_OWNERSHIP_CLAIM_COUNT
   }
   counts.OWNER_MORTGAGE_CAUSAL_BUG_COUNT = (g.debtPressure === 'DEBT_MORTGAGE') ? counts.MORTGAGE_AS_SAFETY_NET_COUNT : 0
 
@@ -420,7 +455,11 @@ module.exports = {
   GAME_PLATFORM_PRC,
   GAME_CLIENT_PRC,
   GAME_HYPOTHETICAL,
+  CUSTOMER_OWNERSHIP_CLAIM_PAT,
+  CUSTOMER_RECOGNITION_CLAIM_PAT,
   detectGameConflict,
+  detectCustomerRecognitionClaim,
+  detectCustomerOwnershipClaim,
   classifyClause,
   downshift,
   cleanupConnectors,

@@ -2,7 +2,7 @@
 /**
  * turnaroundStrategy/v6/hybrid/gameModelV6.js
  *
- * RC8.4 V6 R85-C — DETERMINISTIC GAME MODEL (珠澳小事哥 IP restore).
+ * RC8.4 V6 R85C1 — DETERMINISTIC GAME MODEL (珠澳小事哥 IP restore) + AUTHORITY REPAIR.
  *
  * The R85-B RealEconomyModel answers "靠什么换钱 / 谁在定价 / 什么能迁移" and is
  * kept as an EVIDENCE / REALITY layer. THIS layer answers the ORIGINAL IP
@@ -11,30 +11,36 @@
  *   你现在玩的是什么局？谁定规则？谁掌握定价权？为什么越努力越容易被锁住？
  *   要换的是努力还是位置？下一步最小现实下注是什么？
  *
- * It is a SMALL, EXPLAINABLE, DETERMINISTIC derivation on top of the economy
- * model. It adds NO new taxonomy of people, NO salary/market data, NO career
- * destiny. Every field carries { value, sourceEvidence[], confidence,
- * provenance } and each evidence contribution is classified OBSERVED / DERIVED
- * / INFERRED / UNKNOWN — never a fake number, never a single-signal stereotype.
+ * ── AUTHORITY REPAIR (R85C1) ────────────────────────────────────────────────
+ * The first R85-C cut let occupation / incomeStructure infer pricing authority,
+ * customer ownership and customer recognition more strongly than evidence
+ * permits. Repaired rules:
+ *   §4  DIRECT user answer (pricingAuthority) ALWAYS outranks inference from
+ *       occupation / incomeStructure. Income only performs a COMPATIBILITY check.
+ *   §5  PRICE_UNKNOWN (or an unresolvable signal conflict) → the model outputs
+ *       UNKNOWN — it NEVER fabricates EMPLOYER / PLATFORM / CLIENT / USER.
+ *   §6  Occupation / occupationCategory NEVER defines pricing authority.
+ *   §10 gameType derives from pricingAuthority (+ incomeStructure compatibility),
+ *       NOT from an occupation stereotype. A genuine conflict → MIXED / UNKNOWN.
+ *   §11 every deterministic field exposes value + sourceEvidence[] + confidence +
+ *       provenance; a claim is never stronger than its strongest evidence.
+ *   §12 no "程序员通常… / 厨师一般… / 骑手一定…" career common-sense as fact.
  *
- * R85-C §4/§5: pricingAuthority is a REQUIRED questionnaire field with DIRECT
- * GAME/RULE authority. When present it DRIVES the game type (salary +
- * PRICE_EMPLOYER → employer-priced, etc.). Occupation/income are used only to
- * break ties (commission) or when the field is UNKNOWN — occupation alone never
- * determines the game.
+ * It adds NO new taxonomy of people, NO salary/market data, NO career destiny.
+ * Each evidence contribution is classified OBSERVED / DERIVED / INFERRED /
+ * UNKNOWN — never a fake number, never a single-signal stereotype.
  *
  * AUTHORITY (frozen):
  *   - ZERO bottleneck authority. NEVER read by any B1 file.
- *   - EVIDENCE_LAYER only. It is grounded causal INPUT for the thesis prompt;
- *     it is NOT copy authority and NOT a final diagnosis.
- *   - NO external market data. Occupation alone never emits salary amount /
- *     job security / outlook / AI-displacement.
+ *   - EVIDENCE_LAYER only. Grounded causal INPUT for the thesis prompt; NOT copy
+ *     authority and NOT a final diagnosis.
+ *   - NO external market data.
  *   - RUNTIME ONLY (not persisted as a permanent profile fact).
  *
  * CONSUMER LAYER ONLY. Deterministic. No AI. No I/O. No network.
  */
 
-const GAME_VERSION = 'r85c_game_model_v1'
+const GAME_VERSION = 'r85c1_game_model_v1'
 
 const EVIDENCE = Object.freeze({
   OBSERVED: 'OBSERVED',
@@ -43,7 +49,7 @@ const EVIDENCE = Object.freeze({
   UNKNOWN: 'UNKNOWN'
 })
 
-// §7 — deliberately SMALL structural game types (no dozens of archetypes).
+// §7 — deliberately SMALL structural game types.
 const GAME_TYPES = Object.freeze([
   'EMPLOYER_PRICED', 'PLATFORM_PRICED', 'CLIENT_PRICED',
   'COMMISSION_PRICED', 'SELF_PRICED', 'MIXED', 'UNKNOWN'
@@ -73,8 +79,8 @@ const REPEATABILITY_STATE = Object.freeze([
 ])
 const LEVERAGE_STATE = Object.freeze(['TIME_BOUND', 'MIXED', 'LEVERAGED', 'UNKNOWN'])
 
-// ── §4 pricingAuthority FIELD (who decides the final income) ──
-// This field has DIRECT GAME/RULE authority (R85-C §5).
+// ── §3/§4 pricingAuthority FIELD — who decides the FINAL income ──
+// DIRECT authority: the user answered it. It outranks every inference.
 const PRICE_TO_PRICING_AUTHORITY = Object.freeze({
   PRICE_EMPLOYER: 'EMPLOYER',
   PRICE_PLATFORM: 'PLATFORM',
@@ -92,19 +98,22 @@ const PRICE_TO_GAME_TYPE = Object.freeze({
   PRICE_UNKNOWN: 'UNKNOWN'
 })
 
-// ── gameType from the normalized income model (fallback when the pricing field
-//    is absent / UNKNOWN — occupation/income NEVER overrides a stated authority) ──
+// ── gameType from income structure — FALLBACK ONLY, used when the direct
+//    pricing answer is ABSENT / UNKNOWN. Occupation never participates. ──
+//    CONTENT_MONETIZATION is deliberately UNKNOWN: content can be platform-,
+//    client- or self-priced, so it MUST come from the direct answer.
 const GAME_TYPE_BY_INCOME_MODEL = Object.freeze({
   SALARIED_LABOR: 'EMPLOYER_PRICED',
   SERVICE_FEE: 'CLIENT_PRICED',
   COMMISSION: 'COMMISSION_PRICED',
   OWNED_BUSINESS: 'SELF_PRICED',
-  CONTENT_MONETIZATION: 'SELF_PRICED',
+  CONTENT_MONETIZATION: 'UNKNOWN',
   ASSET_INCOME: 'SELF_PRICED',
   IRREGULAR: 'MIXED'
 })
 
-// ── pricingAuthority by gameType (§6, used only when the field is absent) ──
+// ── §5 pricingAuthority derived from gameType — FALLBACK ONLY, used when the
+//    direct answer is ABSENT. UNKNOWN → UNKNOWN (never fabricated). ──
 const PRICING_BY_GAME_TYPE = Object.freeze({
   EMPLOYER_PRICED: 'EMPLOYER',
   PLATFORM_PRICED: 'PLATFORM',
@@ -115,20 +124,38 @@ const PRICING_BY_GAME_TYPE = Object.freeze({
   UNKNOWN: 'UNKNOWN'
 })
 
-// ── §9 ruleOwner: the party that controls the income RULE. Commission is the one
-//    case where pricing is genuinely split (client decides the sale, employer
-//    sets the settlement rule) → the rule owner is the EMPLOYER. ──
+// ── §4/§10 compatibility: the only CLEARLY contradictory (income → game) pairs.
+//    A direct answer is preferred, but a genuine contradiction is surfaced as
+//    MIXED rather than silently accepted. Anything not listed is compatible. ──
+const INCOMPATIBLE_INCOME = Object.freeze({
+  SELF_PRICED: ['SALARIED_LABOR'], // "I price myself" but income is a fixed salary
+  EMPLOYER_PRICED: ['OWNED_BUSINESS'], // "employer prices me" but income is my own business
+  PLATFORM_PRICED: ['OWNED_BUSINESS']
+})
+
+// ── §9 ruleOwner. DIRECT answer: the party that controls the income RULE. When
+//    the direct answer is MIXED / UNKNOWN (or absent), the rule owner is NOT
+//    invented from income — it stays MIXED / UNKNOWN. ──
+const RULE_OWNER_BY_PRICE = Object.freeze({
+  PRICE_EMPLOYER: 'EMPLOYER',
+  PRICE_PLATFORM: 'PLATFORM',
+  PRICE_CLIENT: 'CLIENT',
+  PRICE_SELF: 'USER',
+  PRICE_MIXED: 'MIXED',
+  PRICE_UNKNOWN: 'UNKNOWN'
+})
 const RULE_OWNER_BY_INCOME_MODEL = Object.freeze({
   SALARIED_LABOR: 'EMPLOYER',
   SERVICE_FEE: 'CLIENT',
-  COMMISSION: 'EMPLOYER',
+  COMMISSION: 'UNKNOWN',
   OWNED_BUSINESS: 'USER',
-  CONTENT_MONETIZATION: 'PLATFORM',
+  CONTENT_MONETIZATION: 'UNKNOWN',
   ASSET_INCOME: 'USER',
   IRREGULAR: 'UNKNOWN'
 })
 
-// ── valueExchange from asset type, with a category override for labor ──
+// ── valueExchange from asset type, with an INFERRED category prior (context
+//    only — never authority). ──
 const VALUE_BY_ASSET = Object.freeze({
   ASSET_TECHNICAL: 'TECHNICAL_SKILL',
   ASSET_SALES: 'SALES_RESULT',
@@ -157,7 +184,21 @@ const PROOF_STATE = Object.freeze({
   PROOF_STABLE: 'REPEATABLE'
 })
 
-const LEVEL = { LOW: 0, MEDIUM: 1, HIGH: 2 }
+// ── §27 authority gate: a claim is never stronger than its strongest evidence ──
+// OBSERVED and DERIVED (a deterministic transform of an observed answer) can
+// support HIGH; an occupancy/category-only INFERRED signal caps at MEDIUM; an
+// all-UNKNOWN evidence set caps at UNKNOWN.
+const CLASS_RANK = Object.freeze({ OBSERVED: 3, DERIVED: 2, INFERRED: 1, UNKNOWN: 0 })
+const CONF_ORDER = Object.freeze(['UNKNOWN', 'LOW', 'MEDIUM', 'HIGH'])
+function allowedConfidence (evidence) {
+  let r = 0
+  for (const e of (evidence || [])) r = Math.max(r, CLASS_RANK[e && e.class] != null ? CLASS_RANK[e.class] : 0)
+  return r >= 2 ? 'HIGH' : r === 1 ? 'MEDIUM' : 'UNKNOWN'
+}
+function capConfidence (declared, evidence) {
+  const allowed = allowedConfidence(evidence)
+  return CONF_ORDER[Math.min(CONF_ORDER.indexOf(declared), CONF_ORDER.indexOf(allowed))] || 'UNKNOWN'
+}
 
 function value (dim, model) {
   const d = (model && model.dimensions && model.dimensions[dim]) || null
@@ -172,27 +213,36 @@ function dimConf (dim, model) {
   return d ? (d.confidence || 'UNKNOWN') : 'UNKNOWN'
 }
 function ev (source, cls, note) { return { source: source, class: cls, note: note } }
+function prov (...f) { const o = []; for (const x of f) if (x) o.push(x); return o }
 
 /**
- * §4/§5/§6/§7 — resolve the game type from the pricing field first, then income.
- * @returns {{gameType:string, via:string, note:string}}
+ * §4/§5/§6/§10 — resolve the game type.
+ * The DIRECT pricing answer outranks income inference. A genuine contradiction
+ * between the direct answer and the income structure surfaces as MIXED.
+ * @returns {{gameType:string, via:string, note:string, conflict:boolean}}
  */
 function resolveGameType (incomeModel, priceRaw) {
   const fromPrice = priceRaw && PRICE_TO_GAME_TYPE[priceRaw]
-  if (fromPrice && fromPrice !== 'UNKNOWN') {
-    // Commission is structurally its own game even when pricing is "mixed"
-    // (the client decides the sale; the employer settles it).
-    if (fromPrice === 'MIXED' && incomeModel === 'COMMISSION') {
-      return { gameType: 'COMMISSION_PRICED', via: 'pricingAuthority+income', note: 'PRICE_MIXED + 提成结构 = 提成定价局' }
+  if (fromPrice) {
+    if (fromPrice === 'UNKNOWN') {
+      return { gameType: 'UNKNOWN', via: 'pricingAuthority', note: '用户自答说不清定价方', conflict: false }
     }
-    return { gameType: fromPrice, via: 'pricingAuthority', note: '定价权字段直接决定' }
+    // Commission is structurally its own game even when pricing is "mixed"
+    // (the client decides the sale; the settlement is only partly owned).
+    if (fromPrice === 'MIXED' && incomeModel === 'COMMISSION') {
+      return { gameType: 'COMMISSION_PRICED', via: 'pricingAuthority+income', note: 'PRICE_MIXED + 提成结构 = 提成定价局', conflict: false }
+    }
+    const incompat = INCOMPATIBLE_INCOME[fromPrice]
+    if (incomeModel && incompat && incompat.indexOf(incomeModel) !== -1) {
+      return { gameType: 'MIXED', via: 'conflict', note: '直接答案与收入结构冲突，降级为 MIXED', conflict: true }
+    }
+    return { gameType: fromPrice, via: 'pricingAuthority', note: '定价权字段直接决定', conflict: false }
   }
-  // Field absent / UNKNOWN → fall back to income structure.
+  // Direct answer ABSENT → income fallback (inferred; never occupation).
   if (incomeModel && GAME_TYPE_BY_INCOME_MODEL[incomeModel]) {
-    if (incomeModel === 'IRREGULAR') return { gameType: 'MIXED', via: 'incomeModel', note: '收入不稳定，局不清晰' }
-    return { gameType: GAME_TYPE_BY_INCOME_MODEL[incomeModel], via: 'incomeModel', note: '收入结构推导' }
+    return { gameType: GAME_TYPE_BY_INCOME_MODEL[incomeModel], via: 'incomeModel', note: '无直接答案，仅由收入结构推导', conflict: false }
   }
-  return { gameType: 'UNKNOWN', via: 'none', note: '证据不足' }
+  return { gameType: 'UNKNOWN', via: 'none', note: '证据不足', conflict: false }
 }
 
 /**
@@ -208,7 +258,6 @@ function computeGameModelV6 (economy, profile) {
   const asset = p.asset || {}
   const stage = p.stage || {}
   const desired = p.desiredChange || {}
-  const belief = p.belief || {}
 
   const incomeModel = (m && m.incomeModel) || null
   const category = (m && m.occupationCategory) || r.occupationCategory || null
@@ -216,56 +265,53 @@ function computeGameModelV6 (economy, profile) {
   const proof = asset.marketProof || (m && m.marketProof) || null
   const priceRaw = r.pricingAuthority || null
   const priceVal = r.pricingAuthorityValue || (priceRaw ? PRICE_TO_PRICING_AUTHORITY[priceRaw] : null) || null
+  const hasDirect = !!priceRaw
 
-  // ── gameType (§4/§5/§7) ──
-  const gameTypeEv = []
+  // ── gameType (§4/§5/§10) ──
   const rt = resolveGameType(incomeModel, priceRaw)
-  let gameType = rt.gameType
-  if (priceRaw) gameTypeEv.push(ev('pricingAuthority=' + priceRaw, EVIDENCE.OBSERVED, '用户自答：谁决定最终收入'))
-  if (incomeModel) gameTypeEv.push(ev('incomeModel=' + incomeModel, EVIDENCE.DERIVED, '收入结构'))
+  const gameType = rt.gameType
+  const gameTypeEv = []
+  if (hasDirect) gameTypeEv.push(ev('pricingAuthority=' + priceRaw, EVIDENCE.OBSERVED, '用户自答：谁决定最终收入'))
+  if (rt.conflict && incomeModel) gameTypeEv.push(ev('incomeStructure=' + incomeModel, EVIDENCE.OBSERVED, '与直接答案冲突'))
+  else if (incomeModel) gameTypeEv.push(ev('incomeStructure=' + incomeModel, EVIDENCE.DERIVED, hasDirect ? '兼容性校验' : '收入结构推导'))
   if (!gameTypeEv.length) gameTypeEv.push(ev('incomeStructure=' + (incomeStructure || 'UNKNOWN'), EVIDENCE.UNKNOWN, '证据不足'))
 
-  // ── valueExchange (§8) ──
+  // ── valueExchange (§8) — asset answer first, category prior is context only ──
   const veEv = []
   const catVal = category && VALUE_BY_CATEGORY[category] ? VALUE_BY_CATEGORY[category] : null
   const assetVal = asset.type && VALUE_BY_ASSET[asset.type] ? VALUE_BY_ASSET[asset.type] : null
   let valueExchange = catVal || assetVal || 'UNKNOWN'
   if (catVal && assetVal && catVal !== assetVal) valueExchange = 'MIXED'
-  if (catVal) veEv.push(ev('occupationCategory=' + category, EVIDENCE.INFERRED, '职业类别对应的交换物'))
+  if (catVal) veEv.push(ev('occupationCategory=' + category, EVIDENCE.INFERRED, '职业类别先验（仅语境）'))
   if (assetVal) veEv.push(ev('monetizableSkill=' + asset.type, EVIDENCE.OBSERVED, '用户自选的可变现能力'))
   if (!veEv.length) veEv.push(ev('incomeStructure=' + (incomeStructure || 'UNKNOWN'), EVIDENCE.UNKNOWN, '证据不足'))
 
-  // ── pricingAuthority (§6): the field wins; else derived from the game ──
-  let pricingAuthority
+  // ── pricingAuthority (§3/§4/§5/§6): DIRECT answer wins; else inferred ──
   const paEv = []
+  let pricingAuthority
   let paConf
-  if (priceVal) {
-    pricingAuthority = priceVal
+  if (hasDirect) {
+    pricingAuthority = PRICE_TO_PRICING_AUTHORITY[priceRaw] || 'UNKNOWN'
     paEv.push(ev('pricingAuthority=' + priceRaw, EVIDENCE.OBSERVED, '用户自答的定价方'))
     paConf = 'HIGH'
   } else {
     pricingAuthority = PRICING_BY_GAME_TYPE[gameType] || 'UNKNOWN'
-    paEv.push(ev('gameType=' + gameType, EVIDENCE.DERIVED, '局推导出定价方'))
-    paConf = 'MEDIUM'
+    paEv.push(ev('gameType=' + gameType, EVIDENCE.DERIVED, '无直接答案，由局推导定价方'))
+    paConf = gameType === 'UNKNOWN' ? 'UNKNOWN' : 'MEDIUM'
   }
-  if (gameType === 'COMMISSION_PRICED') paEv.push(ev('incomeModel=COMMISSION', EVIDENCE.OBSERVED, '成交定价 + 企业结算权同时存在'))
 
-  // ── ruleOwner (§9) ──
+  // ── ruleOwner (§9): DIRECT answer wins; MIXED/UNKNOWN never invented ──
   const ruleOwnerEv = []
   let ruleOwner
-  if (gameType === 'COMMISSION_PRICED') {
-    ruleOwner = 'EMPLOYER'
-    ruleOwnerEv.push(ev('incomeModel=COMMISSION', EVIDENCE.DERIVED, '企业设定提成与结算规则'))
-    ruleOwnerEv.push(ev('pricingAuthority=' + (priceRaw || priceVal), EVIDENCE.OBSERVED, '成交定价与结算分离'))
-  } else if (priceVal && priceVal !== 'MIXED' && priceVal !== 'UNKNOWN' && priceVal !== 'MARKET') {
-    ruleOwner = priceVal
-    ruleOwnerEv.push(ev('pricingAuthority=' + priceRaw, EVIDENCE.OBSERVED, '定价方即规则方'))
+  if (hasDirect) {
+    ruleOwner = RULE_OWNER_BY_PRICE[priceRaw] || 'UNKNOWN'
+    ruleOwnerEv.push(ev('pricingAuthority=' + priceRaw, EVIDENCE.OBSERVED, '定价方即规则方（直接自答）'))
   } else {
     ruleOwner = RULE_OWNER_BY_INCOME_MODEL[incomeModel] || 'UNKNOWN'
-    ruleOwnerEv.push(ev('incomeModel=' + (incomeModel || 'UNKNOWN'), EVIDENCE.DERIVED, '收入结构决定规则方'))
+    ruleOwnerEv.push(ev('incomeStructure=' + (incomeModel || 'UNKNOWN'), EVIDENCE.DERIVED, '无直接答案，由收入结构推导'))
   }
 
-  // ── customerDistance ──
+  // ── customerDistance (context; occupation prior is INFERRED) ──
   const cp = value('CLIENT_PROXIMITY', m)
   const customerDistance = cp === 'HIGH' ? 'DIRECT' : cp === 'MEDIUM' ? 'INTERMEDIATED' : cp === 'LOW' ? 'FAR' : 'UNKNOWN'
 
@@ -293,11 +339,12 @@ function computeGameModelV6 (economy, profile) {
   else if (port === 'HIGH' && (t4m === 'LOW' || t4m === 'MEDIUM')) leverageState = 'LEVERAGED'
   else if (t4m !== 'UNKNOWN' || port !== 'UNKNOWN') leverageState = 'MIXED'
 
-  // ── gameRule / trapMechanism / switchDirection / smallBetType ──
-  const rule = gameRuleFor(gameType, valueExchange, { ed: ed, pd: pd, cp: cp })
-  const trap = trapFor(gameType, valueExchange, { ed: ed, pd: pd, proof: marketProofState })
-  const sw = switchFor(gameType, valueExchange)
-  const bet = smallBetFor(gameType, valueExchange, { goal: desired.primaryGoal, stage: stage.pastAttemptStage })
+  // ── §10/§11 rule / trap / switch / bet — evidence-safe, no occupation destiny ──
+  const rctx = { hasDirect: hasDirect, priceRaw: priceRaw, priceVal: priceVal, incomeModel: incomeModel, ed: ed, pd: pd, cp: cp, proof: marketProofState, conflict: rt.conflict }
+  const rule = gameRuleFor(gameType, valueExchange, rctx)
+  const trap = trapFor(gameType, valueExchange, rctx)
+  const sw = switchFor(gameType, valueExchange, rctx)
+  const bet = smallBetFor(gameType, valueExchange, { goal: desired.primaryGoal, stage: stage.pastAttemptStage, hasDirect: hasDirect, priceRaw: priceRaw })
 
   const dimsFor = (list) => { const o = []; for (const d of list) for (const e of dimEvidence(d, m)) o.push(e); return o }
   const confOf = (list) => {
@@ -306,24 +353,39 @@ function computeGameModelV6 (economy, profile) {
     if (cs.some((c) => c === 'MEDIUM')) return 'MEDIUM'
     return 'UNKNOWN'
   }
-  const prov = (...f) => f.filter(Boolean)
 
   const out = {
     version: GAME_VERSION,
-    gameType: { value: gameType, sourceEvidence: gameTypeEv, confidence: gameTypeEv.some((e) => e.class === EVIDENCE.DERIVED || e.class === EVIDENCE.OBSERVED) ? 'HIGH' : 'MEDIUM', provenance: prov(priceRaw ? 'pricingAuthority' : null, incomeModel ? 'incomeStructure' : null) },
-    valueExchange: { value: valueExchange, sourceEvidence: veEv, confidence: veEv.some((e) => e.class === EVIDENCE.OBSERVED || e.class === EVIDENCE.DERIVED) ? 'HIGH' : 'MEDIUM', provenance: prov(category ? 'occupationCategory' : null, asset.type ? 'monetizableSkill' : null) },
-    pricingAuthority: { value: pricingAuthority, sourceEvidence: paEv, confidence: paConf, provenance: prov(priceRaw ? 'pricingAuthority' : 'gameType', 'incomeStructure') },
-    ruleOwner: { value: ruleOwner, sourceEvidence: ruleOwnerEv, confidence: 'HIGH', provenance: prov('pricingAuthority', 'incomeStructure') },
-    customerDistance: { value: customerDistance, sourceEvidence: dimEvidence('CLIENT_PROXIMITY', m), confidence: dimConf('CLIENT_PROXIMITY', m), provenance: prov('occupationCategory', 'incomeStructure', 'skillValidation') },
-    dependencyStructure: { value: dependencyStructure, sourceEvidence: dimsFor(['PLATFORM_DEPENDENCE', 'EMPLOYER_DEPENDENCE']), confidence: confOf(['PLATFORM_DEPENDENCE', 'EMPLOYER_DEPENDENCE']), provenance: prov('occupationCategory', 'incomeStructure') },
-    marketProofState: { value: marketProofState, sourceEvidence: [ev('skillValidation=' + (proof || 'UNKNOWN'), EVIDENCE.OBSERVED, '市场验证等级')], confidence: proof ? 'HIGH' : 'UNKNOWN', provenance: prov('skillValidation') },
-    repeatabilityState: { value: repeatabilityState, sourceEvidence: dimEvidence('REPEATABILITY', m), confidence: dimConf('REPEATABILITY', m), provenance: prov('occupationCategory', 'incomeStructure', 'skillValidation') },
-    leverageState: { value: leverageState, sourceEvidence: dimsFor(['PORTABILITY', 'TIME_FOR_MONEY']), confidence: confOf(['PORTABILITY', 'TIME_FOR_MONEY']), provenance: prov('occupationCategory', 'incomeStructure') },
+    gameType: { value: gameType, sourceEvidence: gameTypeEv, provenance: prov(hasDirect ? 'pricingAuthority' : null, incomeModel ? 'incomeStructure' : null) },
+    valueExchange: { value: valueExchange, sourceEvidence: veEv, provenance: prov(asset.type ? 'monetizableSkill' : null, category ? 'occupationCategory' : null) },
+    pricingAuthority: { value: pricingAuthority, sourceEvidence: paEv, provenance: prov(hasDirect ? 'pricingAuthority' : 'gameType', hasDirect ? null : 'incomeStructure') },
+    ruleOwner: { value: ruleOwner, sourceEvidence: ruleOwnerEv, provenance: prov(hasDirect ? 'pricingAuthority' : null, hasDirect ? null : 'incomeStructure') },
+    customerDistance: { value: customerDistance, sourceEvidence: dimEvidence('CLIENT_PROXIMITY', m), provenance: prov('incomeStructure', 'skillValidation', category ? 'occupationCategory' : null) },
+    dependencyStructure: { value: dependencyStructure, sourceEvidence: dimsFor(['PLATFORM_DEPENDENCE', 'EMPLOYER_DEPENDENCE']), provenance: prov('incomeStructure', category ? 'occupationCategory' : null) },
+    marketProofState: { value: marketProofState, sourceEvidence: [ev('skillValidation=' + (proof || 'UNKNOWN'), EVIDENCE.OBSERVED, '市场验证等级')], provenance: prov('skillValidation') },
+    repeatabilityState: { value: repeatabilityState, sourceEvidence: dimEvidence('REPEATABILITY', m), provenance: prov('incomeStructure', 'skillValidation', category ? 'occupationCategory' : null) },
+    leverageState: { value: leverageState, sourceEvidence: dimsFor(['PORTABILITY', 'TIME_FOR_MONEY']), provenance: prov('incomeStructure', category ? 'occupationCategory' : null) },
     gameRule: rule,
     trapMechanism: trap,
     switchDirection: sw,
     smallBetType: bet
   }
+
+  // §11/§27 — apply the authority gate: a claim is never stronger than its
+  // strongest supporting evidence.
+  for (const k of Object.keys(out)) {
+    const f = out[k]
+    if (!f || f.value == null) continue
+    if (!Array.isArray(f.sourceEvidence)) f.sourceEvidence = []
+    const declared = f.confidence || 'HIGH'
+    f.confidence = capConfidence(declared, f.sourceEvidence)
+  }
+  // customerDistance / dependency / repeatability / leverage carry no explicit
+  // declared confidence (they come from the economy layer) → derive it.
+  out.customerDistance.confidence = capConfidence(confOf(['CLIENT_PROXIMITY']), out.customerDistance.sourceEvidence)
+  out.dependencyStructure.confidence = capConfidence(confOf(['PLATFORM_DEPENDENCE', 'EMPLOYER_DEPENDENCE']), out.dependencyStructure.sourceEvidence)
+  out.repeatabilityState.confidence = capConfidence(confOf(['REPEATABILITY']), out.repeatabilityState.sourceEvidence)
+  out.leverageState.confidence = capConfidence(confOf(['PORTABILITY', 'TIME_FOR_MONEY']), out.leverageState.sourceEvidence)
   return out
 }
 
@@ -334,11 +396,11 @@ function gameRuleFor (gameType, valueExchange, ctx) {
     EMPLOYER_PRICED: valueExchange === 'TECHNICAL_SKILL'
       ? '雇主购买你的岗位价值，并替你面对最终市场。'
       : valueExchange === 'SERVICE'
-        ? '这一行按岗位/店家定价，你的手艺先通过雇主变现，由店家面对顾客。'
+        ? '这一行按岗位/店家定价，你的收入经由雇主或店家体系结算。'
         : '雇主购买你的时间与岗位价值，最终市场由公司替你面对。',
     PLATFORM_PRICED: '平台掌握流量与订单分配，你靠在线时长/接单量换收入。',
     CLIENT_PRICED: '你直接面对买家，价格由你和客户当场谈成。',
-    COMMISSION_PRICED: '你靠成交产生收入，但客户归属和结算权未必属于你。',
+    COMMISSION_PRICED: '你靠成交产生收入，收入结算仍依赖公司体系。',
     SELF_PRICED: valueExchange === 'CONTENT'
       ? '你拥有内容和账号，但分发和变现规则由平台决定。'
       : '你拥有这门生意，价格和客户由你自己设定。',
@@ -346,28 +408,38 @@ function gameRuleFor (gameType, valueExchange, ctx) {
     UNKNOWN: '目前的收入规则还不清晰，你还没看清自己在哪个局里。'
   }
   const text = byGame[gameType] || byGame.MIXED
-  const src = [ev('gameType=' + gameType, EVIDENCE.DERIVED, '结构规则'), ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物')]
+  const src = gameEvidence(c, 'gameType=' + gameType, '局的结构')
+  src.push(ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物'))
   if (gameType === 'EMPLOYER_PRICED' && c.ed === 'HIGH') src.push(ev('EMPLOYER_DEPENDENCE=HIGH', EVIDENCE.DERIVED, '依赖雇主的兑现'))
   if (gameType === 'PLATFORM_PRICED' && c.pd === 'HIGH') src.push(ev('PLATFORM_DEPENDENCE=HIGH', EVIDENCE.DERIVED, '依赖平台分配'))
   return { value: text, sourceEvidence: src, confidence: 'HIGH', provenance: prov('gameType', 'valueExchange') }
 }
-function prov (...f) { const o = []; for (const x of f) if (x) o.push(x); return o }
 
-// ── §11 TRAP MECHANISM — why effort inside the game locks the position ──
-// Only emitted when the supporting evidence exists; falls back to a neutral
-// structural loop otherwise (never an invented causal story).
+// Built-in evidence for a derived field: a DIRECT pricing answer is OBSERVED and
+// carries the strongest support; otherwise the game type is a DERIVED derivation.
+function gameEvidence (c, gameTypeTag, note) {
+  const out = []
+  if (c && c.hasDirect) out.push(ev('pricingAuthority=' + c.priceRaw, EVIDENCE.OBSERVED, '用户自答的定价方'))
+  if (c && c.conflict) out.push(ev('signalConflict=YES', EVIDENCE.DERIVED, '直接答案与收入结构冲突'))
+  else out.push(ev(gameTypeTag, EVIDENCE.DERIVED, note))
+  return out
+}
+
+// ── §11 TRAP MECHANISM — why effort inside the game locks the position.
+//    Evidence-safe wording: never claims customer ownership or customer
+//    recognition. Only emitted when the supporting evidence exists. ──
 function trapFor (gameType, valueExchange, ctx) {
   const c = ctx || {}
   const key = gameType + '|' + valueExchange
   const BY_KEY = {
-    'EMPLOYER_PRICED|TECHNICAL_SKILL': ['技术越熟练', '在岗位内越值钱', '越依赖公司内部兑现', '外部定价的证据仍然是空的'],
-    'EMPLOYER_PRICED|SERVICE': ['手艺在岗位上越熟练', '在店家体系里越受用', '顾客认的是店、不是你的个人品牌', '你的手艺始终没有脱离岗位被单独定价'],
+    'EMPLOYER_PRICED|TECHNICAL_SKILL': ['技术越熟练', '在岗位内越值钱', '内部兑现越依赖雇主体系', '外部定价的证据仍然是空的'],
+    'EMPLOYER_PRICED|SERVICE': ['手艺在岗位上越熟练', '在店家体系里越受用', '顾客关系和收款路径主要经过店家/雇主体系', '手艺还没脱离岗位被单独定价'],
     'EMPLOYER_PRICED|TIME': ['时间投入越多', '岗位越稳、越离不开', '收入越绑定在雇主身上', '离开这个岗位你自己能值多少，没有证据'],
-    'EMPLOYER_PRICED|SALES_RESULT': ['成交能力越强', '在公司体系里越被依赖', '客户与结算都留在公司手里', '离开后你无法自证还能成交'],
-    'PLATFORM_PRICED|PHYSICAL_LABOR': ['跑得越多、在线越久', '收入越接近平台给的上限', '派单和规则都握在平台手里', '停手就停收，也没沉淀出能带走的资产'],
+    'EMPLOYER_PRICED|SALES_RESULT': ['成交能力越强', '在公司体系里越被依赖', '收入结算仍依赖公司体系', '离开后你还没有独立成交的证据'],
+    'PLATFORM_PRICED|PHYSICAL_LABOR': ['跑得越多、在线越久', '收入越贴近平台能分配的量', '派单和计价规则都在平台手里', '停手就停收，也没沉淀出能带走的资产'],
     'PLATFORM_PRICED|CONTENT': ['内容越用力', '越依赖平台的流量分配', '变现方式由平台规则决定', '收入难重复，账号价值也带不走'],
     'PLATFORM_PRICED|TIME': ['投入的时间越多', '越依赖平台分配的机会', '计价与派单规则都在平台', '停手即断收，能力没有变成可带走的资产'],
-    'COMMISSION_PRICED|SALES_RESULT': ['成交能力越强', '给公司带来的单越多', '客户归属和结算权仍在公司手里', '你没法证明这项能力离开公司还成立'],
+    'COMMISSION_PRICED|SALES_RESULT': ['成交能力越强', '给公司带来的单越多', '收入结算仍依赖公司体系', '还没验证这项能力离开公司是否成立'],
     'CLIENT_PRICED|SERVICE': ['客户越多越忙', '越靠你一个人交付', '一停手收入就断', '没有把单次服务沉淀成可重复的产品'],
     'CLIENT_PRICED|TECHNICAL_SKILL': ['接的项目越多', '越靠你亲自交付', '收入被你的时间封顶', '没有沉淀成能重复出售的产品'],
     'SELF_PRICED|CONTENT': ['内容做得越多', '越靠平台流量变现', '收入随平台规则起伏', '很难变成一个可重复、能带走的客户资产'],
@@ -375,12 +447,13 @@ function trapFor (gameType, valueExchange, ctx) {
     'MIXED|TIME': ['哪一头都在投入', '哪一头都没有形成稳定兑现', '精力被切碎、没有一口井打出水', '收入结构一直没有变清楚']
   }
   let steps = BY_KEY[key] || null
-  const src = [ev('gameType=' + gameType, EVIDENCE.DERIVED, '局的结构'), ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物')]
+  const src = gameEvidence(c, 'gameType=' + gameType, '局的结构')
+  src.push(ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物'))
   if (!steps) {
     if (gameType === 'EMPLOYER_PRICED') { steps = ['时间投入越多', '岗位越稳、越离不开', '收入越绑定在雇主身上', '离开这个岗位你自己能值多少，没有证据'] }
     else if (gameType === 'PLATFORM_PRICED') { steps = ['投入越多', '越依赖平台的分配', '规则由平台掌握', '停下来就没有沉淀'] }
     else if (gameType === 'CLIENT_PRICED') { steps = ['客户越多越忙', '越靠你一个人交付', '一停手收入就断', '没有沉淀出可重复的产品'] }
-    else if (gameType === 'COMMISSION_PRICED') { steps = ['成交越强', '越依赖公司的客户与结算', '能力与客户都不属于你', '离开平台无法自证'] }
+    else if (gameType === 'COMMISSION_PRICED') { steps = ['成交越强', '收入结算越依赖公司体系', '能力还没在外部单独定价', '离开后还无法自证'] }
     else if (gameType === 'UNKNOWN') { steps = ['投入在增加', '回报却没有稳定的来源', '还没看清谁在定价', '努力没有落到一个清晰的局上'] }
     else { steps = ['投入不断增加', '回报却依赖单一定价方', '定价权不在你手里', '努力加固的是别人的位置'] }
   }
@@ -390,8 +463,10 @@ function trapFor (gameType, valueExchange, ctx) {
   return { value: steps, sourceEvidence: src, confidence: 'HIGH', form: 'LOCK_LOOP', provenance: prov('gameType', 'valueExchange') }
 }
 
-// ── §12 SWITCH DIRECTION — a POSITION/incentive change, never forced entrepreneurship ──
-function switchFor (gameType, valueExchange) {
+// ── §12 SWITCH DIRECTION — a POSITION/incentive change, never forced
+//    entrepreneurship, never an occupation stereotype. ──
+function switchFor (gameType, valueExchange, ctx) {
+  const c = ctx || {}
   const BY_KEY = {
     'EMPLOYER_PRICED|TECHNICAL_SKILL': { axis: 'PRICING_AUTHORITY', value: '从「只能由雇主定价的技术执行者」，换成「能被外部客户直接定价的问题解决者」。' },
     'EMPLOYER_PRICED|SERVICE': { axis: 'CUSTOMER_PROXIMITY', value: '从「只通过店家被定价的手艺」，换成「顾客直接为你的手艺付费」。' },
@@ -408,7 +483,7 @@ function switchFor (gameType, valueExchange) {
     'MIXED|TIME': { axis: 'PRICING_AUTHORITY', value: '从「哪一头都靠别人定价」，换成「先有一个自己能被直接买单的价值」。' }
   }
   const hit = BY_KEY[gameType + '|' + valueExchange]
-  if (hit) return { axis: hit.axis, value: hit.value, sourceEvidence: [ev('gameType=' + gameType, EVIDENCE.DERIVED, '局的方向'), ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物')], confidence: 'HIGH', provenance: prov('gameType', 'valueExchange') }
+  if (hit) return { axis: hit.axis, value: hit.value, sourceEvidence: gameEvidence(c, 'gameType=' + gameType, '局的方向').concat([ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物')]), confidence: 'HIGH', provenance: prov('gameType', 'valueExchange') }
   const byGame = {
     EMPLOYER_PRICED: { axis: 'PRICING_AUTHORITY', value: '从「只能由雇主定价的岗位」，换成「能被外部直接买单的价值」。' },
     PLATFORM_PRICED: { axis: 'PORTABLE_VALUE', value: '从「靠平台分配的收入」，换成「离开平台也能被直接付费的价值」。' },
@@ -419,11 +494,10 @@ function switchFor (gameType, valueExchange) {
     UNKNOWN: { axis: 'PRICING_AUTHORITY', value: '先从「说不清谁在定价」，换成「能明确说出一份被谁直接买单的价值」。' }
   }
   const g = byGame[gameType] || byGame.MIXED
-  return { axis: g.axis, value: g.value, sourceEvidence: [ev('gameType=' + gameType, EVIDENCE.DERIVED, '局的方向')], confidence: 'MEDIUM', provenance: prov('gameType') }
+  return { axis: g.axis, value: g.value, sourceEvidence: gameEvidence(c, 'gameType=' + gameType, '局的方向'), confidence: 'MEDIUM', provenance: prov('gameType') }
 }
 
-// ── §13 SMALL BET — a bounded real-world experiment testing the thesis ──
-// small cost · clear result · reversible downside · market feedback.
+// ── §13 SMALL BET — a bounded real-world experiment testing the thesis. ──
 function smallBetFor (gameType, valueExchange, ctx) {
   const c = ctx || {}
   const BY_KEY = {
@@ -451,7 +525,8 @@ function smallBetFor (gameType, valueExchange, ctx) {
     UNKNOWN: 'FIRST_DIRECT_CUSTOMER_CONVERSATION'
   }
   const betType = BY_KEY[gameType + '|' + valueExchange] || BY_GAME[gameType] || 'FIRST_DIRECT_CUSTOMER_CONVERSATION'
-  const src = [ev('gameType=' + gameType, EVIDENCE.DERIVED, '下注要验证的局'), ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物')]
+  const src = gameEvidence(c, 'gameType=' + gameType, '下注要验证的局')
+  src.push(ev('valueExchange=' + valueExchange, EVIDENCE.DERIVED, '交换物'))
   if (c.stage) src.push(ev('pastAttemptStage=' + c.stage, EVIDENCE.OBSERVED, '过去的尝试阶段'))
   if (c.goal) src.push(ev('primaryGoal=' + c.goal, EVIDENCE.OBSERVED, '目标'))
   return { value: betType, sourceEvidence: src, confidence: 'HIGH', provenance: prov('gameType', 'valueExchange') }
@@ -465,6 +540,23 @@ function gameSignature (gm) {
 function trapSignature (gm) {
   if (!gm || !gm.trapMechanism || !Array.isArray(gm.trapMechanism.value)) return ''
   return gm.trapMechanism.value.join('→')
+}
+
+/**
+ * §27 FINAL AUTHORITY GATE — assert no deterministic claim is stronger than its
+ * strongest supporting evidence. Returns the fields that would violate the gate
+ * (expected empty), so a caller/test can prove the invariant holds.
+ */
+function authorityGateViolations (gm) {
+  const bad = []
+  if (!gm) return bad
+  for (const k of Object.keys(gm)) {
+    const f = gm[k]
+    if (!f || typeof f !== 'object' || f.value == null || !('confidence' in f)) continue
+    const allowed = allowedConfidence(f.sourceEvidence)
+    if (CONF_ORDER.indexOf(f.confidence) > CONF_ORDER.indexOf(allowed)) bad.push(k + ':' + f.confidence + '>' + allowed)
+  }
+  return bad
 }
 
 /** Human+model readable lines for the prompt (structured causal input). */
@@ -481,15 +573,15 @@ function renderGameLines (gm) {
   L.push('- 交换物（valueExchange）：' + f(gm.valueExchange) + '（证据：' + cls(gm.valueExchange) + '）')
   L.push('- 谁掌握定价权（pricingAuthority）：' + f(gm.pricingAuthority) + '（证据：' + cls(gm.pricingAuthority) + '）')
   L.push('- 谁定规则（ruleOwner）：' + f(gm.ruleOwner) + '（证据：' + cls(gm.ruleOwner) + '）')
-  L.push('- 客户距离（customerDistance）：' + f(gm.customerDistance))
-  L.push('- 依赖结构（dependencyStructure）：' + f(gm.dependencyStructure))
-  L.push('- 市场验证（marketProofState）：' + f(gm.marketProofState))
-  L.push('- 可重复性（repeatabilityState）：' + f(gm.repeatabilityState))
-  L.push('- 杠杆（leverageState）：' + f(gm.leverageState))
-  L.push('- 游戏规则（RULE）：' + f(gm.gameRule))
-  if (gm.trapMechanism && Array.isArray(gm.trapMechanism.value)) L.push('- 陷阱回路（TRAP）：' + gm.trapMechanism.value.join(' → '))
-  L.push('- 换位方向（SWITCH）：' + f(gm.switchDirection))
-  L.push('- 最小现实下注（BET）：' + f(gm.smallBetType))
+  L.push('- 客户距离（customerDistance）：' + f(gm.customerDistance) + '（证据：' + cls(gm.customerDistance) + '）')
+  L.push('- 依赖结构（dependencyStructure）：' + f(gm.dependencyStructure) + '（证据：' + cls(gm.dependencyStructure) + '）')
+  L.push('- 市场验证（marketProofState）：' + f(gm.marketProofState) + '（证据：' + cls(gm.marketProofState) + '）')
+  L.push('- 可重复性（repeatabilityState）：' + f(gm.repeatabilityState) + '（证据：' + cls(gm.repeatabilityState) + '）')
+  L.push('- 杠杆（leverageState）：' + f(gm.leverageState) + '（证据：' + cls(gm.leverageState) + '）')
+  L.push('- 游戏规则（RULE）：' + f(gm.gameRule) + '（证据：' + cls(gm.gameRule) + '）')
+  if (gm.trapMechanism && Array.isArray(gm.trapMechanism.value)) L.push('- 陷阱回路（TRAP）：' + gm.trapMechanism.value.join(' → ') + '（证据：' + cls(gm.trapMechanism) + '）')
+  L.push('- 换位方向（SWITCH）：' + f(gm.switchDirection) + '（证据：' + cls(gm.switchDirection) + '）')
+  L.push('- 最小现实下注（BET）：' + f(gm.smallBetType) + '（证据：' + cls(gm.smallBetType) + '）')
   return L
 }
 
@@ -517,7 +609,12 @@ module.exports = {
   LEVERAGE_STATE,
   PRICE_TO_PRICING_AUTHORITY,
   PRICE_TO_GAME_TYPE,
+  INCOMPATIBLE_INCOME,
+  RULE_OWNER_BY_PRICE,
   RULE_OWNER_BY_INCOME_MODEL,
+  allowedConfidence,
+  capConfidence,
+  authorityGateViolations,
   resolveGameType,
   computeGameModelV6,
   gameSignature,

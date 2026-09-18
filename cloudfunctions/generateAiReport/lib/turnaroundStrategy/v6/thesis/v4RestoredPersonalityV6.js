@@ -25,7 +25,7 @@ const R84D_VERSION = 'r84d_personality_v1'
 // R85-C §1/§3 — the GAME-MODEL / IP-restore marker. PROMPT_VERSION (the JSON
 // OUTPUT CONTRACT) and PERSONALITY_VERSION (tone) stay frozen; R85-C adds the
 // game-deconstruction reasoning chain ABOVE the R84 personality spec.
-const R85C_VERSION = 'r85c_game_model_v1'
+const R85C_VERSION = 'r85c1_game_model_v1'
 
 // 珠澳小事哥 tone: sharp, reality-based, anti-self-deception, anti-fake-effort,
 // anti-fantasy — but NEVER humiliating, abusive, faking certainty, inventing
