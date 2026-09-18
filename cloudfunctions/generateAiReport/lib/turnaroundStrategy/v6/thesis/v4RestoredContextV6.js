@@ -135,6 +135,8 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
     diagnosticContext,
     // R85-B §13 — structured real economy model (causal input, not a noun swap).
     realEconomyModel: (hybrid && hybrid.realEconomyModel) || (hybridContext && hybridContext.realEconomyModel) || null,
+    // R85-C §11 — structured GAME MODEL (REALITY→GAME→RULE→TRAP→SWITCH→BET causal input).
+    gameModel: (hybrid && hybrid.gameModel) || (hybridContext && hybridContext.gameModel) || null,
     hasUserOccupation: !!userContext.occupationDetail,
     answeredFieldCount
   }

@@ -145,7 +145,10 @@ function buildGroundingCtx (hybridProfile, hybridContext) {
     monthlySurplus: reality.monthlySurplus || null,
     selfBelief: belief.perceivedRootCause || null,
     hasPaidProof: hc.marketValidated === true,
-    proofLevel: hc.assetState || null
+    proofLevel: hc.assetState || null,
+    // R85-C §20 — the computed game model (so a pricing claim can be checked
+    // against it). Runtime evidence only; ZERO B1 authority.
+    gameModel: hp.gameModel || hc.gameModel || null
   }
 }
 

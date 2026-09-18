@@ -69,6 +69,37 @@ const OCCUPATION_JOB_SECURITY_PAT = /(一定|必然|迟早|早晚|终究)(会|�
 // ── R85-B §10/§21 — EXACT INCOME FORECAST (system has NO authority for a number) ──
 const EXACT_INCOME_FORECAST_PAT = /(月入|年入|收入|工资|薪水|赚|挣)[^。，,；！？]{0,6}[0-9]+\s*[万千]?\s*[元块]|(月入|年入|收入|赚)[^。，,；！？]{0,4}[0-9]+\s*万|(月入|年入|收入|工资|赚)[^。，,；！？]{0,4}[一两三四五六七八九十]+万|(月入|年入|收入)[^。，,；！？]{0,3}(过万|上万|破万)/
 
+// ── R85-C §20 — UNSUPPORTED GAME CLAIM (assert a pricing party the evidence contradicts) ──
+// A card may NAME a pricing authority (雇主/平台/客户) — the IP needs it. It is a
+// DEFECT only when it asserts a pricing/settlement party that CONTRADICTS the
+// computed game model. USER / MARKET / MIXED / UNKNOWN → no conflict is possible.
+const GAME_EMPLOYER_PRC = /(雇主|公司|老板|单位|企业)[^。，,；！？]{0,6}(定价|发工资|发薪|结算|给工资|给薪水|给钱|发钱)/
+const GAME_PLATFORM_PRC = /(平台)[^。，,；！？]{0,6}(定价|派单|分配|抽成|结算|分单|定你的价|给你派)/
+const GAME_CLIENT_PRC = /(客户|买家|顾客|甲方)[^。，,；！？]{0,6}(定价|给钱|付钱|报价|买单|说了算|定这个价)/
+// A HYPOTHETICAL / aspirational clause describes a DIRECTION to move toward
+// (the SWITCH), not a claim about who prices the user NOW — never a conflict.
+const GAME_HYPOTHETICAL = /(能不能|能否|可以|能够|应该|如果|若|假设|取决于|方向|目标|想|希望|打算|计划|试着|下一步|变成|成为|验证|会不会|值不值得)/
+
+/** Detect a game/pricing claim that contradicts the computed game model. */
+function detectGameConflict (text, ctx) {
+  const g = (ctx && ctx.gameModel) || null
+  const auth = g && g.pricingAuthority && g.pricingAuthority.value
+  if (!auth || auth === 'USER' || auth === 'MARKET' || auth === 'MIXED' || auth === 'UNKNOWN') return null
+  const t = String(text || '')
+  if (GAME_HYPOTHETICAL.test(t)) return null
+  const claims = []
+  if (GAME_EMPLOYER_PRC.test(t)) claims.push('EMPLOYER')
+  if (GAME_PLATFORM_PRC.test(t)) claims.push('PLATFORM')
+  if (GAME_CLIENT_PRC.test(t)) claims.push('CLIENT')
+  if (!claims.length) return null
+  // A conflict exists only when the text asserts a DIFFERENT pricing party than
+  // the one the model computed (and never flags a claim that merely mentions the
+  // correct one alongside).
+  const wrong = claims.filter((c) => c !== auth)
+  if (wrong.length && claims.length === wrong.length) return wrong.join('/')
+  return null
+}
+
 // ── deterministic DOWNSHIFTS (introduce NO new fact, only hedge) ──
 function downshift (text) {
   let t = String(text || '')
@@ -151,6 +182,8 @@ function classifyClause (cl, ctx) {
       OCCUPATION_DESTINY_PAT.test(c) || OCCUPATION_JOB_SECURITY_PAT.test(c)) return { type: 'OCCUPATION_MARKET', evidenceClass: 'HYPOTHESIS' }
   // 7) R85-B §10/§21 — exact income forecast (no authority for a number)
   if (EXACT_INCOME_FORECAST_PAT.test(c)) return { type: 'EXACT_INCOME', evidenceClass: 'HYPOTHESIS' }
+  // 8) R85-C §20 — a pricing/game claim contradicting the computed game model
+  if (detectGameConflict(c, ctx)) return { type: 'GAME_CONFLICT', evidenceClass: 'HYPOTHESIS' }
   return null
 }
 
@@ -182,7 +215,9 @@ const ZERO_COUNTS = () => ({
   ABSOLUTE_MARKET_CLAIM_COUNT: 0, CERTAINTY_OVERSTATEMENT_COUNT: 0, ARBITRARY_NUMBER_COUNT: 0,
   OWNER_MORTGAGE_CAUSAL_BUG_COUNT: 0,
   // R85-B §20/§10 — occupation-market + exact-income-forecast (both must be 0)
-  UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT: 0, EXACT_INCOME_FORECAST_COUNT: 0
+  UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT: 0, EXACT_INCOME_FORECAST_COUNT: 0,
+  // R85-C §20 — game claim contradicting the computed game model (must be 0)
+  UNSUPPORTED_GAME_CLAIM_COUNT: 0
 })
 
 /** Count defects on a FINAL (already-repaired) text — expected 0. */
@@ -199,6 +234,7 @@ function countGroundingDefects (text, ctx, slot) {
     else if (v.type === 'CERTAINTY') counts.CERTAINTY_OVERSTATEMENT_COUNT++
     else if (v.type === 'OCCUPATION_MARKET') counts.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT++
     else if (v.type === 'EXACT_INCOME') counts.EXACT_INCOME_FORECAST_COUNT++
+    else if (v.type === 'GAME_CONFLICT') counts.UNSUPPORTED_GAME_CLAIM_COUNT++
   }
   counts.UNSUPPORTED_CAUSAL_CLAIM_COUNT += counts.MORTGAGE_AS_SAFETY_NET_COUNT + counts.DEBT_AS_BUFFER_COUNT + counts.COMPLACENCY_CAUSALITY_COUNT + counts.CARD01_UNSUPPORTED_MINDREAD_COUNT
   counts.ARBITRARY_NUMBER_COUNT = countArbitraryNumbers(text)
@@ -274,6 +310,7 @@ function fixField (text, slot, ctx, fallbackText, audit, repaired) {
     else if (v.type === 'COMPLACENCY') repaired.complacency++
     else if (v.type === 'OCCUPATION_MARKET') repaired.occupationMarket++
     else if (v.type === 'EXACT_INCOME') repaired.exactIncome++
+    else if (v.type === 'GAME_CONFLICT') repaired.gameConflict++
     else repaired.financial++
   }
   let out = kept.join('').trim()
@@ -297,7 +334,7 @@ function screenGrounding (cmp, thesis, ctx, fb) {
   const c = Object.assign({}, cmp || {})
   const g = ctx || {}
   const f = fb || {}
-  const repaired = { financial: 0, complacency: 0, mindread: 0, absoluteMarket: 0, certainty: 0, occupationMarket: 0, exactIncome: 0 }
+  const repaired = { financial: 0, complacency: 0, mindread: 0, absoluteMarket: 0, certainty: 0, occupationMarket: 0, exactIncome: 0, gameConflict: 0 }
   const audit = []
 
   c.card01 = fixField(c.card01, 'card01', g, f.card01, audit, repaired)
@@ -340,6 +377,7 @@ function screenGrounding (cmp, thesis, ctx, fb) {
     counts.ARBITRARY_NUMBER_COUNT += cc.ARBITRARY_NUMBER_COUNT
     counts.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT += cc.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT
     counts.EXACT_INCOME_FORECAST_COUNT += cc.EXACT_INCOME_FORECAST_COUNT
+    counts.UNSUPPORTED_GAME_CLAIM_COUNT += cc.UNSUPPORTED_GAME_CLAIM_COUNT
   }
   counts.OWNER_MORTGAGE_CAUSAL_BUG_COUNT = (g.debtPressure === 'DEBT_MORTGAGE') ? counts.MORTGAGE_AS_SAFETY_NET_COUNT : 0
 
@@ -378,6 +416,11 @@ module.exports = {
   OCCUPATION_DESTINY_PAT,
   OCCUPATION_JOB_SECURITY_PAT,
   EXACT_INCOME_FORECAST_PAT,
+  GAME_EMPLOYER_PRC,
+  GAME_PLATFORM_PRC,
+  GAME_CLIENT_PRC,
+  GAME_HYPOTHETICAL,
+  detectGameConflict,
   classifyClause,
   downshift,
   cleanupConnectors,

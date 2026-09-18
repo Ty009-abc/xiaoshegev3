@@ -26,6 +26,7 @@
 
 const C = require('./hybridContractV6.js')
 const { computeRealEconomyModelV6 } = require('./realEconomyModelV6.js')
+const { computeGameModelV6 } = require('./gameModelV6.js')
 
 /**
  * @param {Object} raw validated hybrid answers
@@ -83,6 +84,10 @@ function buildHybridProfileV6 (raw) {
   // R85-B §11 — attach the deterministic real economy model as RUNTIME context.
   // ZERO B1 authority (never read by any B1 file); not a second profile store.
   profile.realEconomyModel = computeRealEconomyModelV6(profile)
+  // R85-C §3 — attach the deterministic GAME MODEL (derived ABOVE the economy
+  // model) as RUNTIME context. EVIDENCE_LAYER only: ZERO B1 authority, never
+  // read by any B1 file, and NEVER persisted as a permanent profile fact.
+  profile.gameModel = computeGameModelV6(profile.realEconomyModel, profile)
   return profile
 }
 

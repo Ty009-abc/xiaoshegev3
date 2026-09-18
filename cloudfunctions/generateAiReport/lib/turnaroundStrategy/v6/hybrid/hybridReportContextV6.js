@@ -236,6 +236,8 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
     crossObjectEvidencePattern,
     // R85-B §11/§13 — deterministic real economy model (runtime context only).
     realEconomyModel: hybrid.realEconomyModel || null,
+    // R85-C §3/§11 — deterministic GAME MODEL (runtime context only; EVIDENCE_LAYER).
+    gameModel: hybrid.gameModel || null,
     // proof-aware overrides (null/absent => card uses frozen base copy)
     // R46 §8: CARD04 "现在"(FROM) is a pure market-position FACT and is
     // proof-aware for ALL states (the stage-keyed base copy can contradict the
@@ -256,7 +258,7 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
     // R62: neutral link-framed stage lead for divergence (prevents a B1 stage lead
     // from asserting the opposite market fact as if it were the SAME object).
     crossStageLead: crossLink ? crossLink.stageLead : null,
-    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal', 'proofConsistency', 'compatibility', 'crossObjectEvidencePattern', 'realEconomyModel']
+    sources: ['reality', 'asset', 'capacity', 'desiredChange.primaryGoal', 'proofConsistency', 'compatibility', 'crossObjectEvidencePattern', 'realEconomyModel', 'gameModel']
   }
 }
 

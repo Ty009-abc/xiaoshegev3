@@ -22,6 +22,10 @@ const PERSONALITY_VERSION = 'r84d_personality_v1'
 // by R84-C/R84-D); PERSONALITY_VERSION tracks this tone/personality spec.
 const R84C_VERSION = 'r84c_personality_v1'
 const R84D_VERSION = 'r84d_personality_v1'
+// R85-C §1/§3 — the GAME-MODEL / IP-restore marker. PROMPT_VERSION (the JSON
+// OUTPUT CONTRACT) and PERSONALITY_VERSION (tone) stay frozen; R85-C adds the
+// game-deconstruction reasoning chain ABOVE the R84 personality spec.
+const R85C_VERSION = 'r85c_game_model_v1'
 
 // 珠澳小事哥 tone: sharp, reality-based, anti-self-deception, anti-fake-effort,
 // anti-fantasy — but NEVER humiliating, abusive, faking certainty, inventing
@@ -172,6 +176,35 @@ const CARD05_BLOCK = [
   '  验证标准：第二次/第三次独立的付费信号（用"验证/是否可重复"，不要写"证明不是运气"）。具体实现必须由画像决定。'
 ].join('\n')
 
+// R85-C §1/§3/§11 — THE GAME-DECONSTRUCTION CHAIN (the ORIGINAL IP spine).
+// The report must reason REALITY → GAME → RULE → TRAP → SWITCH → BET, then
+// paint it on the five cards. This is the layer ABOVE the economy model: the
+// economy model says 靠什么换钱/谁定价; the GAME model says 你在玩什么局.
+const GAME_MODEL_BLOCK = [
+  '================== 拆局链（R85-C，珠澳小事哥的原始内核）==================',
+  '别人看现象，我拆规则。别人谈努力，我先看你玩的是什么局。别人谈方向，我先看谁给你定价。别人给建议，我先让现实下注给答案。',
+  '内部推理链（必须在心里按顺序走完，再写卡片）：',
+  '  REALITY（现实）：他真实回答的处境、收入结构、职业、已被验证的能力。',
+  '  GAME（局）：他正在玩的是什么局？（雇主定价 / 平台定价 / 客户定价 / 提成定价 / 自己定价 / 混合）',
+  '  RULE（规则）：这个局里，谁定规则？谁掌握定价权？他到底在交换什么（时间 / 体力 / 技术 / 成交 / 内容 / 服务 / 资本 / 系统）？',
+  '  TRAP（陷阱）：为什么他越努力，越加固现在的位置，而不是长出一个新的价值位置？（规则→行为/激励→结果→锁死）',
+  '  SWITCH（换位）：要换的不是努力强度，是游戏位置——更多定价权 / 更接近客户 / 第二个付款人 / 可迁移的价值 / 更依赖自己 / 可重复 / 更有杠杆。',
+  '  BET（下注）：一个最小、可承受、可逆、能拿到真实市场反馈的现实实验。',
+  '硬约束：',
+  '  - 一次报告只能有一个中心论点；五张卡从五个角度照亮同一个局，不能各写各的。',
+  '  - 不得由职业/收入推断薪资数额、岗位稳定性、行业前景、AI 替代概率——本系统没有市场数据库。',
+  '  - 不得编造他没有提供的局；证据不足时，明确说“还不清楚”，不要硬套。',
+  '  - 不要强迫创业：换位可以是更接近客户、第二个付款人、可迁移价值，不一定是自己开公司。'
+].join('\n')
+
+// R85-C §19 — IP-NATIVE LANGUAGE (reduce consultant nouns).
+const IP_NATIVE_LANGUAGE_BLOCK = [
+  '================== IP 原生语言（R85-C）==================',
+  '优先用“局”的语言：谁定价 / 谁拿客户 / 你卖的到底是什么 / 你在哪个局里 / 有没有第二个付款人 / 停手是否停收 / 价值能不能离开公司或平台。',
+  '少用顾问名词：价值结构 / 商业闭环 / 经营系统 / 可重复交付——除非确实更清楚。',
+  '一个判断是不是“珠澳小事哥”的，就看它有没有回答：他在哪个局里、谁在给他定价、为什么越努力越被锁住。'
+].join('\n')
+
 // R84-D §1–§17 — CAUSAL GROUNDING + EVIDENCE DISCIPLINE.
 // SHARP ≠ SPECULATIVE. Every strong sentence must answer 「我凭什么这么判断？」
 const GROUNDING_EVIDENCE_BLOCK = [
@@ -220,12 +253,14 @@ function buildPersonalityBlock () {
   return [
     TONE_BLOCK,
     ONE_THESIS_BLOCK,
+    GAME_MODEL_BLOCK,
     ONE_CONTRADICTION_BLOCK,
     GROUNDING_EVIDENCE_BLOCK,
     FINANCIAL_SEMANTICS_BLOCK,
     PSYCHOLOGICAL_DISCIPLINE_BLOCK,
     PROBABILITY_DISCIPLINE_BLOCK,
     CARD01_BLOCK, CARD02_BLOCK, CARD03_BLOCK, CARD04_BLOCK, CARD05_BLOCK,
+    IP_NATIVE_LANGUAGE_BLOCK,
     HUMAN_LANGUAGE_BLOCK,
     ANTI_GENERIC_BLOCK,
     NO_FAKE_PERSONALITY_BLOCK
@@ -258,8 +293,11 @@ module.exports = {
   PERSONALITY_VERSION,
   R84C_VERSION,
   R84D_VERSION,
+  R85C_VERSION,
   TONE_BLOCK,
   ONE_THESIS_BLOCK,
+  GAME_MODEL_BLOCK,
+  IP_NATIVE_LANGUAGE_BLOCK,
   ONE_CONTRADICTION_BLOCK,
   GROUNDING_EVIDENCE_BLOCK,
   FINANCIAL_SEMANTICS_BLOCK,

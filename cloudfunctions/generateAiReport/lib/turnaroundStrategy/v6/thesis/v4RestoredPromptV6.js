@@ -20,6 +20,7 @@ const PROMPT_VERSION = 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a'
 
 const { buildPersonalityBlock } = require('./v4RestoredPersonalityV6.js')
 const { renderEconomyLines } = require('../hybrid/realEconomyModelV6.js')
+const { renderGameLines } = require('../hybrid/gameModelV6.js')
 
 function buildSystemPrompt () {
   return [
@@ -111,6 +112,13 @@ function buildUserMessage (payload) {
     for (const ln of renderEconomyLines(p.realEconomyModel)) lines.push(ln)
     lines.push('用法：用这套机制解释他“靠什么赚钱、谁在给他定价、什么能迁移、什么只留在岗位里”，不要只把职业名词写进卡片。')
     lines.push('硬约束：不得由职业/收入推出薪资数额、岗位稳定性、行业前景、AI 替代概率（本系统没有市场数据库）。')
+    lines.push('')
+  }
+  // R85-C §11 — structured GAME MODEL (REALITY→GAME→RULE→TRAP→SWITCH→BET).
+  if (p.gameModel) {
+    lines.push('================== 拆局模型（确定性推导；他正在玩的是什么局）==================')
+    for (const ln of renderGameLines(p.gameModel)) lines.push(ln)
+    lines.push('用法：先看“他在哪个局、谁定规则、谁掌握定价权”，再用“为什么越努力越被锁住”解释陷阱，最后给出“换的是位置而不是努力”的方向、和一个最小现实下注。五张卡必须从这同一个局出发，不要各写各的。')
     lines.push('')
   }
   lines.push('================== 系统诊断（证据/上下文，不是文案模板）==================')
