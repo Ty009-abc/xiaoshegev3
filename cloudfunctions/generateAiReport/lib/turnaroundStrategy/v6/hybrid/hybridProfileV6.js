@@ -28,6 +28,17 @@ const C = require('./hybridContractV6.js')
 const { computeRealEconomyModelV6 } = require('./realEconomyModelV6.js')
 const { computeGameModelV6 } = require('./gameModelV6.js')
 
+// R85-C §4 — pricing authority is normalized to its own value vocabulary (who
+// decides the final income). ZERO B1 authority (B1 inputs unchanged).
+const PRICING_AUTHORITY_VALUE = Object.freeze({
+  PRICE_EMPLOYER: 'EMPLOYER',
+  PRICE_PLATFORM: 'PLATFORM',
+  PRICE_CLIENT: 'CLIENT',
+  PRICE_SELF: 'USER',
+  PRICE_MIXED: 'MIXED',
+  PRICE_UNKNOWN: 'UNKNOWN'
+})
+
 /**
  * @param {Object} raw validated hybrid answers
  * @returns {Object|null} HybridProfile or null when the contract is invalid
@@ -48,6 +59,10 @@ function buildHybridProfileV6 (raw) {
       incomeModeCanonical: C.canonicalFor('incomeStructure', raw.incomeStructure),
       occupation: txt('occupationDetail'), // R85-B: REQUIRED free text — never invented
       occupationCategory: raw.occupationCategory || null, // R85-B: required quick-select
+      // R85-C §4 — pricing authority (REQUIRED on S2; direct GAME/RULE authority,
+      // ZERO B1 authority). Stored raw + normalized; never invented.
+      pricingAuthority: raw.pricingAuthority || null,
+      pricingAuthorityValue: PRICING_AUTHORITY_VALUE[raw.pricingAuthority] || null,
       monthlySurplus: raw.monthlySurplus,
       surplusCanonical: C.canonicalFor('monthlySurplus', raw.monthlySurplus),
       safetyMonths: raw.safetyMonths,

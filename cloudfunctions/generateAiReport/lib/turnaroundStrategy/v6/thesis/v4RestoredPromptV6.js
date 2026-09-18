@@ -92,6 +92,7 @@ function buildUserMessage (payload) {
   lines.push('================== 用户完整画像（Hybrid 10 题的真实回答，已翻译成人类语言）==================')
   const FIELD_LABEL = {
     lifeStage: '人生阶段', occupationDetail: '具体职业（用户自填）', incomeStructure: '主要收入结构',
+    pricingAuthority: '主要收入由谁定价',
     monthlySurplus: '每月结余', safetyMonths: '存款可支撑时长', debtPressure: '负债情况',
     monetizableSkill: '可能变现的能力', skillValidation: '能力被市场验证的程度', weeklyTime: '每周可自由支配时间',
     executionStability: '执行力稳定性', maxTrialCost: '可承受的试错成本', primaryProblem: '最想先解决的问题',

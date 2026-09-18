@@ -6,8 +6,10 @@
  *
  * Single source of truth for the client. Mirrors the FROZEN backend contract
  * `cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js`
- * EXACTLY: 10 visible screens, 18 raw fields, canonical B1 option ids for the
+ * EXACTLY: 10 visible screens, 20 raw fields, canonical B1 option ids for the
  * three B1-critical selectors (selfBelief / timeBehavior / primaryProblem).
+ * R85-C adds ONE controlled sub-question (pricingAuthority) on the existing S2
+ * screen — the visible screen count stays 10.
  *
  * Client is PRESENTATION + INPUT only: it never diagnoses, scores or rewrites.
  * It submits the explicit hybrid contract version and renders the returned
@@ -80,6 +82,16 @@ const HYBRID_SCREENS = [
     },
     // R85-B §3/§5 — occupation is REQUIRED real-world input (same screen).
     secondaryText: { key: 'occupationDetail', required: true, maxlength: 30, placeholder: '写具体一点，比如：前端开发、厨师、房产销售、外卖骑手' },
+    // R85-C §4 — pricing authority (ONE new controlled sub-question; SAME screen).
+    secondary2: {
+      key: 'pricingAuthority', required: true,
+      prompt: '你现在这份主要收入，谁决定你最后能拿多少钱？',
+      options: opt([
+        ['PRICE_EMPLOYER', '公司 / 老板'], ['PRICE_PLATFORM', '平台规则'],
+        ['PRICE_CLIENT', '客户 / 甲方'], ['PRICE_SELF', '我自己定价'],
+        ['PRICE_MIXED', '多方共同决定'], ['PRICE_UNKNOWN', '说不清'],
+      ]),
+    },
   },
   {
     sid: 'S3', key: 'monthlySurplus', prompt: '你每个月扣除所有支出后，还剩多少？',
@@ -201,6 +213,7 @@ function allFieldKeys () {
     keys.push(s.key)
     if (s.secondaryText) keys.push(s.secondaryText.key)
     if (s.secondary) keys.push(s.secondary.key)
+    if (s.secondary2) keys.push(s.secondary2.key)
   }
   return keys
 }
@@ -224,6 +237,14 @@ function getScreensHybridV10 () {
           options: s.secondary.options.map((o) => ({ optionId: o.optionId, text: o.text })),
         }
       : null,
+    secondary2: s.secondary2
+      ? {
+          key: s.secondary2.key,
+          prompt: s.secondary2.prompt,
+          required: s.secondary2.required !== false,
+          options: s.secondary2.options.map((o) => ({ optionId: o.optionId, text: o.text })),
+        }
+      : null,
   }))
 }
 
@@ -232,6 +253,8 @@ function isScreenComplete (screen, answers) {
   const a = answers || {}
   if (!a[screen.key]) return false
   if (screen.secondary && screen.secondary.required !== false && !a[screen.secondary.key]) return false
+  // R85-C §4 — pricing authority is a REQUIRED sub-question on this screen.
+  if (screen.secondary2 && screen.secondary2.required !== false && !a[screen.secondary2.key]) return false
   // R85-B §3/§5 — a required free-text field must be meaningfully non-empty.
   if (screen.secondaryText && screen.secondaryText.required === true) {
     const t = a[screen.secondaryText.key]
@@ -255,6 +278,16 @@ function validateAnswersHybridV10 (answers) {
       }
       if (sec && !s.secondary.options.some((o) => o.optionId === sec)) {
         errors.push('UNKNOWN_OPTION:' + s.secondary.key + ':' + sec)
+      }
+    }
+    // R85-C §4 — required pricing authority (same screen).
+    if (s.secondary2) {
+      const sec2 = a[s.secondary2.key]
+      if (s.secondary2.required !== false) {
+        if (!sec2) errors.push('MISSING:' + s.secondary2.key)
+      }
+      if (sec2 && !s.secondary2.options.some((o) => o.optionId === sec2)) {
+        errors.push('UNKNOWN_OPTION:' + s.secondary2.key + ':' + sec2)
       }
     }
     // R85-B §3/§5 — required free text must be non-blank (trim).

@@ -72,6 +72,22 @@
       <view class="occupation-hint">写具体一点，比如：前端开发、厨师、房产销售、外卖骑手。</view>
     </view>
 
+    <!-- R85-C §4 — 定价权必答（同一屏，不新增第 11 屏） -->
+    <view class="secondary" wx:if="{{screens[currentIndex].secondary2}}">
+      <view class="secondary-label">{{screens[currentIndex].secondary2.prompt}}</view>
+      <view class="options">
+        <view
+          wx:for="{{screens[currentIndex].secondary2.options}}"
+          wx:key="optionId"
+          class="option {{selectedSecondary2Id === item.optionId ? 'option-selected' : ''}}"
+          data-option-id="{{item.optionId}}"
+          bindtap="selectSecondary2"
+        >
+          <view class="option-text">{{item.text}}</view>
+        </view>
+      </view>
+    </view>
+
     <view class="nav">
       <button class="btn-ghost" bindtap="goBack" disabled="{{currentIndex === 0}}">上一题</button>
       <button class="btn-primary" bindtap="goNext" wx:if="{{currentIndex < totalCount - 1}}">下一题</button>

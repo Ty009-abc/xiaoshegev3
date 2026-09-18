@@ -41,6 +41,7 @@ Page({
     occupation: '',
     selectedMainId: '',
     selectedSecondaryId: '',
+    selectedSecondary2Id: '',
     progressPercent: 0,
     submitting: false,
     submitted: false,
@@ -90,6 +91,7 @@ Page({
       occupation: (app1.globalData && app1.globalData.turnaroundV6HybridOccupation) || this.data.occupation,
       selectedMainId: (s && saved[s.key]) || '',
       selectedSecondaryId: (s && s.secondary && saved[s.secondary.key]) || '',
+      selectedSecondary2Id: (s && s.secondary2 && saved[s.secondary2.key]) || '',
       progressPercent: this._pct(idx + 1),
       submitting: false,
       submitted: false,
@@ -118,6 +120,7 @@ Page({
       occupation: '',
       selectedMainId: '',
       selectedSecondaryId: '',
+      selectedSecondary2Id: '',
       progressPercent: this._pct(1),
       submitting: false,
       submitted: false,
@@ -138,6 +141,7 @@ Page({
     this.setData({
       selectedMainId: (s && a[s.key]) || '',
       selectedSecondaryId: (s && s.secondary && a[s.secondary.key]) || '',
+      selectedSecondary2Id: (s && s.secondary2 && a[s.secondary2.key]) || '',
     })
   },
 
@@ -167,6 +171,17 @@ Page({
     this.setData({ occupation: (e && e.detail && e.detail.value) || '' })
   },
 
+  selectSecondary2(e) {
+    if (this.data.submitting || this.data.submitted) return
+    const optionId = e.currentTarget.dataset.optionId
+    const s = this.data.screens[this.data.currentIndex]
+    if (!s || !s.secondary2) return
+    if (!s.secondary2.options.some((o) => o.optionId === optionId)) return
+    const answers = Object.assign({}, this.data.answers)
+    answers[s.secondary2.key] = optionId
+    this.setData({ answers: answers, selectedSecondary2Id: optionId, error: '' })
+  },
+
   goNext() {
     if (this.data.submitting || this.data.submitted) return
     const s = this.data.screens[this.data.currentIndex]
@@ -193,6 +208,8 @@ Page({
     const a = this.data.answers
     if (!a[s.key]) return false
     if (s.secondary && s.secondary.required !== false && !a[s.secondary.key]) return false
+    // R85-C §4 — pricing authority is required on this screen.
+    if (s.secondary2 && s.secondary2.required !== false && !a[s.secondary2.key]) return false
     // R85-B §3/§5 — required occupation text must be meaningfully non-empty.
     if (s.secondaryText && s.secondaryText.required === true) {
       const t = this.data.occupation
@@ -217,7 +234,8 @@ Page({
     const { valid, errors } = validateAnswersHybridV10(payload)
     if (!valid) {
       const occMissing = errors.some((e) => /occupationDetail|occupationCategory/.test(e))
-      this.setData({ error: occMissing ? '请把你的具体职业写具体一点（比如：前端开发、厨师、房产销售）。' : '还有题目没有完成，请检查后再提交。' })
+      const priceMissing = errors.some((e) => /pricingAuthority/.test(e))
+      this.setData({ error: priceMissing ? '请选择这份主要收入最后由谁决定你能拿多少钱。' : occMissing ? '请把你的具体职业写具体一点（比如：前端开发、厨师、房产销售）。' : '还有题目没有完成，请检查后再提交。' })
       console.error('[TurnaroundV6Hybrid] answer validation failed:', errors)
       return
     }

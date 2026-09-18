@@ -4,9 +4,9 @@
  *
  * RC8.4 V6 R44 — HYBRID 10-SCREEN QUESTIONNAIRE CONTRACT (backend authority).
  *
- * 10 visible screens · 18 raw fields (17 required + 1 optional free text).
+ * 10 visible screens · 20 raw fields (R85-C adds occupationCategory + pricingAuthority).
  *      S1  lifeStage
- *      S2  incomeStructure + occupationDetail (optional free text)
+ *      S2  incomeStructure + occupationCategory (optional) + occupationDetail (required) + pricingAuthority (required)
  *      S3  monthlySurplus
  *      S4  safetyMonths + debtPressure
  *      S5  skillValidation + monetizableSkill
@@ -118,6 +118,23 @@ const SCREENS = [
     },
     // R85-B §5 — meaningful non-empty input required (trim, blank rejection).
     secondaryText: { key: 'occupationDetail', required: true, maxlength: 30, placeholder: '写具体一点，比如：前端开发、厨师、房产销售、外卖骑手' },
+    // R85-C §4/§5 — PRICING AUTHORITY (the ONE new controlled sub-question).
+    // This field has DIRECT GAME/RULE authority: it identifies who prices the
+    // user's income, which the game model uses to resolve GAME / RULE / TRAP.
+    // One sub-question on the EXISTING S2 screen — the visible screen count
+    // stays 10 (no 11th screen). It has ZERO B1 authority (B1 inputs unchanged).
+    secondary2: {
+      key: 'pricingAuthority', required: true,
+      prompt: '你现在这份主要收入，谁决定你最后能拿多少钱？',
+      options: [
+        ['PRICE_EMPLOYER', '公司 / 老板'],
+        ['PRICE_PLATFORM', '平台规则'],
+        ['PRICE_CLIENT', '客户 / 甲方'],
+        ['PRICE_SELF', '我自己定价'],
+        ['PRICE_MIXED', '多方共同决定'],
+        ['PRICE_UNKNOWN', '说不清']
+      ]
+    },
     options: [
       ['INC_SALARY', '工资/固定薪资', 'INCOME_SALARY'],
       ['INC_SKILL_SERVICE', '技能服务（按次/项目收费）', 'INCOME_FREELANCE'],
@@ -306,6 +323,12 @@ for (const s of SCREENS) {
       group: s.group, canonical: !!s.secondary.canonical, reportOnly: !!s.secondary.reportOnly
     })
   }
+  if (s.secondary2) {
+    FIELDS.push({
+      key: s.secondary2.key, screen: s.screen, required: s.secondary2.required !== false,
+      group: s.group, canonical: !!s.secondary2.canonical
+    })
+  }
 }
 
 // Fast lookups.
@@ -324,6 +347,7 @@ for (const s of SCREENS) {
   }
   collect(s)
   collect(s.secondary)
+  collect(s.secondary2)
   // secondaryText has no option list (free text)
   if (s.secondaryText) OPTIONS_BY_FIELD[s.secondaryText.key] = []
 }
@@ -337,6 +361,8 @@ const HYBRID_RAW_FIELD_COUNT = FIELDS.length
 
 // R85-B §4 — occupation category ids (kept in sync with realEconomyModelV6).
 const OCCUPATION_CATEGORY_IDS = ['OCC_TECH', 'OCC_SALES', 'OCC_SERVICE', 'OCC_PLATFORM_LABOR', 'OCC_SELF_EMPLOYED', 'OCC_CONTENT_CREATIVE', 'OCC_OPERATIONS_ADMIN', 'OCC_OTHER']
+// R85-C §4 — pricing-authority ids (who decides the final income).
+const PRICING_AUTHORITY_IDS = ['PRICE_EMPLOYER', 'PRICE_PLATFORM', 'PRICE_CLIENT', 'PRICE_SELF', 'PRICE_MIXED', 'PRICE_UNKNOWN']
 
 function isFreeText (key) { return FREE_TEXT_FIELD_KEYS.indexOf(key) !== -1 }
 function isRequiredField (key) { return REQUIRED_FIELD_KEYS.indexOf(key) !== -1 }
@@ -373,6 +399,10 @@ function validateHybridRaw (raw) {
     if (isFreeText(key)) continue // occupationDetail: required by the QUESTIONNAIRE,
     // but R85-B §12 gives occupation ZERO B1 authority → the B1 input builder
     // stays occupation-tolerant (occupation is cosmetic/report context only).
+    if (key === 'pricingAuthority') continue // R85-C §5: pricingAuthority has DIRECT
+    // GAME/RULE authority but ZERO B1 authority (B1 inputs unchanged) → the B1
+    // input builder stays tolerant; the requirement is enforced at the
+    // questionnaire/client layer (same pattern as occupation).
     const v = raw[key]
     if (v === undefined || v === null || v === '') { errors.push('MISSING:' + key); continue }
     if (!resolveOptionId(key, v)) errors.push('UNKNOWN_OPTION:' + key + ':' + v)
@@ -381,6 +411,12 @@ function validateHybridRaw (raw) {
   for (const key of FREE_TEXT_FIELD_KEYS) {
     const v = raw[key]
     if (v !== undefined && v !== null && typeof v !== 'string') errors.push('MALFORMED_TEXT:' + key)
+  }
+  // R85-C §4 — pricingAuthority is B1-tolerant when absent, but fail-closed on an
+  // UNKNOWN option when present (never a silent default).
+  const pa = raw.pricingAuthority
+  if (pa !== undefined && pa !== null && pa !== '' && !resolveOptionId('pricingAuthority', pa)) {
+    errors.push('UNKNOWN_OPTION:pricingAuthority:' + pa)
   }
   return { valid: errors.length === 0, errors, malformed: false }
 }
@@ -402,6 +438,7 @@ module.exports = {
   HYBRID_SCREEN_COUNT,
   HYBRID_RAW_FIELD_COUNT,
   OCCUPATION_CATEGORY_IDS,
+  PRICING_AUTHORITY_IDS,
   isFreeText,
   isRequiredField,
   optionsFor,

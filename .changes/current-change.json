@@ -1,28 +1,31 @@
 {
-  "taskId": "RC8.4_V6_R62_CROSS_OBJECT_FALSE_CONFLICT_FIX",
-  "baseCommit": "31a0e7f9c6cf72b7eb0fc32be20e301bea6c6e16",
+  "taskId": "RC8.4_V6_R85C_GAME_MODEL_AND_IP_NORTH_STAR_RESTORE",
+  "baseCommit": "52ce12a978c433260527a3e0e00bd8f58b510834",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "P0: the R48 pre-report evidence compatibility gate produced a FALSE hard EVIDENCE_CONFLICT. Q5 skillValidation (CAPABILITY / ASSET MARKET PROOF) and Q7 pastAttemptStage (PAST-YEAR ATTEMPT / EXECUTION HISTORY) are collected as two INDEPENDENT answers describing DIFFERENT SEMANTIC OBJECTS (R61: 3/3 reachable conflicts were dual-true). The gate compared them directly and blocked the report before thesis generation (owner real-device test hit it in R60).",
+  "problem": "珠澳小事哥 (规则拆解者/现实拆局者) IP drift: R85N proved occupation was cosmetic noun substitution and the report could not reliably identify the user's GAME/RULE. R85-C adds a thin deterministic GAME MODEL above RealEconomyModelV6 (REALITY→ECONOMY→GAME→RULE→TRAP→SWITCH→BET→FIVE CARDS) and ONE required pricing-authority sub-question on the existing S2 screen (still 10 screens). This revision aligns the prior R85-C base with the authoritative spec: pricingAuthority is a REQUIRED field with direct GAME/RULE authority, gameModel gains ruleOwner + provenance + UNKNOWN/MIXED vocabulary + DISTINCT_RULE, and the §36 seven-question gate is enforced.",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridCompatibilityV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridReportContextV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/report/firstActionCopyV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisEnvelopeV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisPromptV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/thesisValidatorV6.js",
-    "tests/v6/hybrid/rc8.4-v6-r48-evidence-compatibility-gate.test.js",
-    "tests/v6/hybrid/rc8.4-v6-r46-authority-and-fact-consistency.test.js",
-    "tests/v6/hybrid/rc8.4-v6-r62-cross-object-false-conflict.test.js",
-    "tests/v6/thesis/rc8.4-v6-r57-shared-strategic-thesis.test.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
+    "pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire.js",
+    "pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire.wxml",
+    "utils/v6/turnaroundQuestionnaireHybridV10.js",
+    "tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
+    "tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [],
   "contractsAffected": [],
   "requiredTests": [
-    "node tests/v6/hybrid/rc8.4-v6-r62-cross-object-false-conflict.test.js",
-    "node tests/v6/hybrid/rc8.4-v6-r48-evidence-compatibility-gate.test.js",
-    "node tests/v6/hybrid/rc8.4-v6-r46-authority-and-fact-consistency.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r57-shared-strategic-thesis.test.js"
+    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js"
   ],
-  "rollbackPlan": "git checkout 31a0e7f9c6cf72b7eb0fc32be20e301bea6c6e16 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridCompatibilityV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridReportContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/report/firstActionCopyV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/ tests/v6/"
+  "rollbackPlan": "git checkout 52ce12a978c433260527a3e0e00bd8f58b510834 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/ cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/ pages/turnaround-v6-hybrid-questionnaire/ utils/v6/ tests/v6/"
 }

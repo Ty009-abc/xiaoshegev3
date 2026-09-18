@@ -103,13 +103,14 @@ t('§2 screen order + field ownership (S1..S10)', () => {
   assert.deepStrictEqual(CONTRACT.SCREENS.map((s) => s.key), expected)
 })
 
-// ── §4 19 raw fields (R85-B §3/§4 adds occupationCategory) ───────────────
-t('§4 HYBRID_RAW_FIELD_COUNT = 19 (R85-B adds occupationCategory)', () => {
-  assert.strictEqual(CONTRACT.HYBRID_RAW_FIELD_COUNT, 19)
-  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.length, 19)
-  assert.strictEqual(CONTRACT.REQUIRED_FIELD_KEYS.length, 18)
+// ── §4 20 raw fields (R85-B adds occupationCategory; R85-C adds pricingAuthority) ──
+t('§4 HYBRID_RAW_FIELD_COUNT = 20 (R85-B + R85-C)', () => {
+  assert.strictEqual(CONTRACT.HYBRID_RAW_FIELD_COUNT, 20)
+  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.length, 20)
+  assert.strictEqual(CONTRACT.REQUIRED_FIELD_KEYS.length, 19)
   assert.deepStrictEqual(CONTRACT.FREE_TEXT_FIELD_KEYS, ['occupationDetail'])
   assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf('occupationCategory') !== -1)
+  assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf('pricingAuthority') !== -1, 'R85-C §4 pricing authority field')
   assert.ok(CONTRACT.REQUIRED_FIELD_KEYS.indexOf('occupationDetail') !== -1, 'R85-B §3 occupation required')
   assert.deepStrictEqual(CLIENT.allFieldKeys(), CONTRACT.ALL_FIELD_KEYS)
 })
@@ -287,9 +288,26 @@ t('§13b OCCUPATION_DETAIL_REQUIRED = YES (client blocks blank occupation)', () 
   const scr = screens.find((s) => s.key === 'incomeStructure')
   assert.strictEqual(CLIENT.isScreenComplete(scr, { incomeStructure: 'INC_SALARY' }), false, 'blank occupation must not be complete')
   assert.strictEqual(CLIENT.isScreenComplete(scr, { incomeStructure: 'INC_SALARY', occupationDetail: '   ' }), false)
-  assert.strictEqual(CLIENT.isScreenComplete(scr, { incomeStructure: 'INC_SALARY', occupationDetail: '程序员' }), true)
+  assert.strictEqual(CLIENT.isScreenComplete(scr, { incomeStructure: 'INC_SALARY', occupationDetail: '程序员', pricingAuthority: 'PRICE_EMPLOYER' }), true)
   const v = CLIENT.validateAnswersHybridV10({ incomeStructure: 'INC_SALARY', occupationDetail: '' })
   assert.ok(v.errors.some((e) => /occupationDetail/.test(e)), 'client validator rejects blank occupation')
+})
+
+t('§13c R85-C PRICING_AUTHORITY_REQUIRED = YES (client blocks missing pricing authority)', () => {
+  const screens = CLIENT.getScreensHybridV10()
+  const s2 = screens.find((s) => s.key === 'incomeStructure')
+  assert.ok(s2.secondary2 && s2.secondary2.key === 'pricingAuthority', 'S2 carries the pricingAuthority sub-question')
+  assert.strictEqual(s2.secondary2.required, true)
+  const ids = s2.secondary2.options.map((o) => o.optionId)
+  assert.deepStrictEqual(ids, CONTRACT.PRICING_AUTHORITY_IDS)
+  assert.strictEqual(ids.length, 6)
+  // Same screen: visible screen count stays 10.
+  assert.strictEqual(screens.length, 10)
+  const occ = { incomeStructure: 'INC_SALARY', occupationDetail: '程序员' }
+  assert.strictEqual(CLIENT.isScreenComplete(s2, occ), false, 'missing pricing authority must not be complete')
+  assert.strictEqual(CLIENT.isScreenComplete(s2, Object.assign({}, occ, { pricingAuthority: 'PRICE_EMPLOYER' })), true)
+  const v = CLIENT.validateAnswersHybridV10(occ)
+  assert.ok(v.errors.some((e) => /pricingAuthority/.test(e)), 'client validator rejects missing pricing authority')
 })
 
 t('§13b occupation category quick-select present + valid ids (R85-B §4)', () => {

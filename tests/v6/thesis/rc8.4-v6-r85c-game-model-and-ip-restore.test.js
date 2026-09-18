@@ -62,14 +62,14 @@ const BASE = {
   primaryGoal: 'GOAL_SKILL_MONETIZE', maxTrialCost: 'COST_5K_20K', failureResponse: 'FAIL_RECHECK'
 }
 const CONTROLS = [
-  { name: 'PROGRAMMER', occ: '后端程序员', cat: 'OCC_TECH', inc: 'INC_SALARY', skill: 'ASSET_TECHNICAL', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', bet: 'FIRST_EXTERNAL_QUOTE' },
-  { name: 'CHEF', occ: '厨师', cat: 'OCC_SERVICE', inc: 'INC_SALARY', skill: 'ASSET_CRAFT', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', bet: 'FIRST_DIRECT_PAID_SAMPLE' },
-  { name: 'SALES', occ: '房产销售', cat: 'OCC_SALES', inc: 'INC_COMMISSION', skill: 'ASSET_NETWORK', game: 'COMMISSION_PRICED', pricing: 'MIXED', bet: 'FIRST_SELF_OWNED_CUSTOMER' },
-  { name: 'DELIVERY RIDER', occ: '外卖骑手', cat: 'OCC_PLATFORM_LABOR', inc: 'INC_UNSTABLE', skill: 'ASSET_UNCLEAR', game: 'PLATFORM_PRICED', pricing: 'PLATFORM', bet: 'FIRST_PORTABLE_SKILL_VALIDATION' },
-  { name: 'CONTENT CREATOR', occ: '短视频运营', cat: 'OCC_CONTENT_CREATIVE', inc: 'INC_CONTENT', skill: 'ASSET_CONTENT', game: 'SELF_PRICED', pricing: 'USER', bet: 'FIRST_PACKAGED_PAID_DELIVERABLE' }
+  { name: 'PROGRAMMER', occ: '后端程序员', cat: 'OCC_TECH', inc: 'INC_SALARY', price: 'PRICE_EMPLOYER', skill: 'ASSET_TECHNICAL', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', rule: 'EMPLOYER', bet: 'FIRST_EXTERNAL_QUOTE' },
+  { name: 'CHEF', occ: '厨师', cat: 'OCC_SERVICE', inc: 'INC_SALARY', price: 'PRICE_EMPLOYER', skill: 'ASSET_CRAFT', game: 'EMPLOYER_PRICED', pricing: 'EMPLOYER', rule: 'EMPLOYER', bet: 'FIRST_DIRECT_PAID_SAMPLE' },
+  { name: 'SALES', occ: '房产销售', cat: 'OCC_SALES', inc: 'INC_COMMISSION', price: 'PRICE_MIXED', skill: 'ASSET_NETWORK', game: 'COMMISSION_PRICED', pricing: 'MIXED', rule: 'EMPLOYER', bet: 'FIRST_SELF_OWNED_CUSTOMER' },
+  { name: 'DELIVERY RIDER', occ: '外卖骑手', cat: 'OCC_PLATFORM_LABOR', inc: 'INC_UNSTABLE', price: 'PRICE_PLATFORM', skill: 'ASSET_UNCLEAR', game: 'PLATFORM_PRICED', pricing: 'PLATFORM', rule: 'PLATFORM', bet: 'FIRST_PORTABLE_SKILL_VALIDATION' },
+  { name: 'CONTENT CREATOR', occ: '短视频运营', cat: 'OCC_CONTENT_CREATIVE', inc: 'INC_CONTENT', price: 'PRICE_SELF', skill: 'ASSET_CONTENT', game: 'SELF_PRICED', pricing: 'USER', rule: 'USER', bet: 'FIRST_PACKAGED_PAID_DELIVERABLE' }
 ]
 function rawFor (c) {
-  return Object.assign({}, BASE, { occupationDetail: c.occ, occupationCategory: c.cat, incomeStructure: c.inc, monetizableSkill: c.skill })
+  return Object.assign({}, BASE, { occupationDetail: c.occ, occupationCategory: c.cat, incomeStructure: c.inc, pricingAuthority: c.price, monetizableSkill: c.skill })
 }
 function profileFor (c) { return runHybridDiagnosisV6(rawFor(c)).hybridProfile }
 function gameFor (c) { const p = profileFor(c); return GM.computeGameModelV6(p.realEconomyModel, p) }
@@ -114,14 +114,14 @@ function neutralOutput (occ, gm) {
 async function main () {
   // ── §3/§4 GAME MODEL (deterministic; small taxonomy) ──
   ok('R85C §3 gameModelV6 version marker present', GM.GAME_VERSION === 'r85c_game_model_v1')
-  ok('R85C §4 game taxonomy small (≤6 types)', GM.GAME_TYPES.length <= 6 && GM.GAME_TYPES.join(',') === 'EMPLOYER_PRICED,PLATFORM_PRICED,CLIENT_PRICED,COMMISSION_PRICED,SELF_PRICED,MIXED')
+  ok('R85C §4 game taxonomy small (≤7 types incl UNKNOWN)', GM.GAME_TYPES.length === 7 && GM.GAME_TYPES.join(',') === 'EMPLOYER_PRICED,PLATFORM_PRICED,CLIENT_PRICED,COMMISSION_PRICED,SELF_PRICED,MIXED,UNKNOWN')
   const gP = gameFor(CONTROLS[0])
   const gP2 = gameFor(CONTROLS[0])
   ok('R85C §3 game model is deterministic (identical on repeat)', GM.gameSignature(gP) === GM.gameSignature(gP2))
   ok('R85C §3 no model/LLM dependency in the game layer (pure fn of answers)', typeof GM.computeGameModelV6 === 'function' && !/openai|axios|http/.test(fs.readFileSync(path.join(HY, 'gameModelV6.js'), 'utf8')))
 
   // ── §3 field shape: value + sourceEvidence[] + confidence ──
-  const FIELDS = ['gameType', 'valueExchange', 'pricingAuthority', 'customerDistance', 'dependencyStructure', 'marketProofState', 'repeatabilityState', 'leverageState', 'gameRule', 'trapMechanism', 'switchDirection', 'smallBetType']
+  const FIELDS = ['gameType', 'valueExchange', 'pricingAuthority', 'ruleOwner', 'customerDistance', 'dependencyStructure', 'marketProofState', 'repeatabilityState', 'leverageState', 'gameRule', 'trapMechanism', 'switchDirection', 'smallBetType']
   const shapeOk = FIELDS.every((k) => {
     const x = gP[k]
     return x && x.value != null && Array.isArray(x.sourceEvidence) && typeof x.confidence === 'string'
@@ -130,7 +130,7 @@ async function main () {
   ok('R85C §3 evidence classifications are among OBSERVED/DERIVED/INFERRED/UNKNOWN', GM.EVIDENCE.OBSERVED === 'OBSERVED' && GM.EVIDENCE.DERIVED === 'DERIVED' && GM.EVIDENCE.INFERRED === 'INFERRED' && GM.EVIDENCE.UNKNOWN === 'UNKNOWN')
 
   // ── §5 VALUE EXCHANGE ──
-  ok('R85C §5 value exchange vocabulary present (8)', GM.VALUE_EXCHANGE.join(',') === 'TIME,PHYSICAL_LABOR,TECHNICAL_SKILL,SALES_RESULT,CONTENT,SERVICE,CAPITAL,SYSTEM')
+  ok('R85C §5 value exchange vocabulary present (10 incl MIXED/UNKNOWN)', GM.VALUE_EXCHANGE.join(',') === 'TIME,PHYSICAL_LABOR,TECHNICAL_SKILL,SALES_RESULT,CONTENT,SERVICE,CAPITAL,SYSTEM,MIXED,UNKNOWN')
   ok('R85C §5 programmer exchanges TECHNICAL_SKILL', gv(gP, 'valueExchange') === 'TECHNICAL_SKILL')
   ok('R85C §5 rider exchanges PHYSICAL_LABOR', gv(gameFor(CONTROLS[3]), 'valueExchange') === 'PHYSICAL_LABOR')
   ok('R85C §5 sales exchanges SALES_RESULT', gv(gameFor(CONTROLS[2]), 'valueExchange') === 'SALES_RESULT')
@@ -138,6 +138,11 @@ async function main () {
   // ── §6 PRICING AUTHORITY ──
   ok('R85C §6 pricing-authority vocabulary present (7)', GM.PRICING_AUTHORITY.join(',') === 'EMPLOYER,PLATFORM,CLIENT,USER,MARKET,MIXED,UNKNOWN')
   for (const c of CONTROLS) ok('R85C §6 ' + c.name + ': pricingAuthority = ' + c.pricing, gv(gameFor(c), 'pricingAuthority') === c.pricing)
+
+  // ── §9 RULE OWNER (who controls the critical rule / pricing position) ──
+  ok('R85C §9 rule-owner vocabulary present (6)', GM.RULE_OWNER.join(',') === 'EMPLOYER,PLATFORM,CLIENT,USER,MIXED,UNKNOWN')
+  for (const c of CONTROLS) ok('R85C §9 ' + c.name + ': ruleOwner = ' + c.rule, gv(gameFor(c), 'ruleOwner') === c.rule)
+  ok('R85C §9 commission splits pricing (MIXED) but the settlement RULE stays with the employer', gv(gameFor(CONTROLS[2]), 'pricingAuthority') === 'MIXED' && gv(gameFor(CONTROLS[2]), 'ruleOwner') === 'EMPLOYER')
 
   // ── §7 GAME RULE ──
   ok('R85C §7 programmer rule names the employer as rule-holder', /雇主|公司/.test(gv(gP, 'gameRule')))
@@ -167,16 +172,18 @@ async function main () {
 
   // ── §18 DISTINCTNESS (same other answers; only occupation varies) ──
   const games = CONTROLS.map((c) => gv(gameFor(c), 'gameType'))
+  const rules = CONTROLS.map((c) => gv(gameFor(c), 'gameRule'))
   const traps = CONTROLS.map((c) => GM.trapSignature(gameFor(c)))
   const switches = CONTROLS.map((c) => gv(gameFor(c), 'switchDirection'))
   const bets = CONTROLS.map((c) => gv(gameFor(c), 'smallBetType'))
-  const dGame = new Set(games).size, dTrap = new Set(traps).size, dSwitch = new Set(switches).size, dBet = new Set(bets).size
-  ok('R85C §18 DISTINCT_GAME_COUNT >= 4', dGame >= 4, 'd=' + dGame + ' ' + games.join(','))
-  ok('R85C §18 DISTINCT_TRAP_COUNT >= 4', dTrap >= 4, 'd=' + dTrap)
-  ok('R85C §18 DISTINCT_SWITCH_COUNT >= 4', dSwitch >= 4, 'd=' + dSwitch)
-  ok('R85C §18 DISTINCT_BET_COUNT >= 4', dBet >= 4, 'd=' + dBet)
-  ok('R85C §18 game signature is structural (not noun substitution)', new Set(CONTROLS.map((c) => GM.gameSignature(gameFor(c)))).size >= 4)
-  ok('R85C §18 trap is NOT the same skeleton reworded (>=4 distinct mechanisms)', dTrap >= 4)
+  const dGame = new Set(games).size, dRule = new Set(rules).size, dTrap = new Set(traps).size, dSwitch = new Set(switches).size, dBet = new Set(bets).size
+  ok('R85C §27 DISTINCT_GAME_COUNT >= 4', dGame >= 4, 'd=' + dGame + ' ' + games.join(','))
+  ok('R85C §27 DISTINCT_RULE_COUNT >= 4', dRule >= 4, 'd=' + dRule)
+  ok('R85C §27 DISTINCT_TRAP_COUNT >= 4', dTrap >= 4, 'd=' + dTrap)
+  ok('R85C §27 DISTINCT_SWITCH_COUNT >= 4', dSwitch >= 4, 'd=' + dSwitch)
+  ok('R85C §27 DISTINCT_BET_COUNT >= 4', dBet >= 4, 'd=' + dBet)
+  ok('R85C §27 game signature is structural (not noun substitution)', new Set(CONTROLS.map((c) => GM.gameSignature(gameFor(c)))).size >= 4)
+  ok('R85C §27 trap is NOT the same skeleton reworded (>=4 distinct mechanisms)', dTrap >= 4)
 
   // ── §11 STRUCTURED THESIS INJECTION ──
   const oP = runHybridDiagnosisV6(rawFor(CONTROLS[0]))
@@ -238,9 +245,11 @@ async function main () {
   })
   ok('R85C §23 B1_AUTHORITY_DIFF_COUNT = 0 (occupation/game never changes B1)', new Set(diags).size === 1, diags.join(' || '))
 
-  // ── §22 QUESTIONNAIRE (no new screen / field) ──
-  ok('R85C §22 questionnaire raw field count unchanged (pricing authority derivable)', C.HYBRID_RAW_FIELD_COUNT === 19 && C.HYBRID_SCREEN_COUNT === 10)
-  ok('R85C §22 no new pricing-authority field added', C.REQUIRED_FIELD_KEYS.indexOf('pricingAuthority') === -1 && !CLIENT.getScreensHybridV10().some((s) => /pricing|authority/i.test(JSON.stringify(s))))
+  // ── §4/§22 QUESTIONNAIRE (pricing authority is the ONE new controlled field) ──
+  ok('R85C §4/§22 questionnaire adds ONE pricing-authority field (visible screens stay 10)', C.HYBRID_RAW_FIELD_COUNT === 20 && C.HYBRID_SCREEN_COUNT === 10 && C.ALL_FIELD_KEYS.indexOf('pricingAuthority') !== -1)
+  ok('R85C §4 pricingAuthority is REQUIRED and lives on the existing S2 screen', C.REQUIRED_FIELD_KEYS.indexOf('pricingAuthority') !== -1 && C.SCREENS.find((s) => s.key === 'incomeStructure').secondary2.key === 'pricingAuthority')
+  ok('R85C §4 pricing-authority ids present (6)', C.PRICING_AUTHORITY_IDS.length === 6 && CLIENT.getScreensHybridV10().find((s) => s.key === 'incomeStructure').secondary2.options.map((o) => o.optionId).join(',') === C.PRICING_AUTHORITY_IDS.join(','))
+  ok('R85C §4 no 11th screen was added', CLIENT.getScreensHybridV10().length === 10 && C.SCREENS.length === 10)
 
   // ── §24 REPORT UI DIFF COUNT = 0 ──
   const uiFiles = [
@@ -293,10 +302,10 @@ async function main () {
   const feed = buildPersonalizationFeed({ profile: canonProfile, worldRules: [{ ruleId: 'WR016', tags: [] }], insights: [{ insightId: 'DI001', tags: ['付费'], difficulty: 1 }], strikes: [{ id: 'STRIKE_000', dimensions: [] }], dayIndex: 20712 })
   ok('R85C §23 PERSONALIZATION_RUNTIME_DIFF_COUNT = 0 (feed shape unchanged)', feed && feed.worldRule && feed.dailyInsight && feed.strike && ('personalized' in feed))
 
-  // ── §21 OWNER CASE (from actual answers only; no fabrication) ──
+  // ── §28 OWNER CASE (from actual answers only; no fabrication) ──
   const ownerRaw = {
     lifeStage: 'LIFE_31_40', occupationDetail: '自由内容创作者', occupationCategory: 'OCC_CONTENT_CREATIVE',
-    incomeStructure: 'INC_SALARY', monthlySurplus: 'SURPLUS_1K_5K', safetyMonths: 'SAFETY_3_6', debtPressure: 'DEBT_MORTGAGE',
+    incomeStructure: 'INC_SALARY', pricingAuthority: 'PRICE_EMPLOYER', monthlySurplus: 'SURPLUS_1K_5K', safetyMonths: 'SAFETY_3_6', debtPressure: 'DEBT_MORTGAGE',
     monetizableSkill: 'ASSET_CONTENT', skillValidation: 'PROOF_PAID_ONCE', weeklyTime: 'TIME_20_PLUS',
     executionStability: 'EXEC_VOLATILE', maxTrialCost: 'COST_5K_20K', primaryProblem: 'PROBLEM_MONETIZE',
     primaryGoal: 'GOAL_SKILL_MONETIZE', pastAttemptStage: 'ATTEMPT_FEW_SALES', decisionStyle: 'DECISION_SMALL_TEST',
@@ -304,14 +313,28 @@ async function main () {
   }
   const op = runHybridDiagnosisV6(ownerRaw).hybridProfile
   const ownerGame = GM.computeGameModelV6(op.realEconomyModel, op)
-  ok('R85C §21 owner: game = EMPLOYER_PRICED (salary income is the pricing authority)', gv(ownerGame, 'gameType') === 'EMPLOYER_PRICED' && gv(ownerGame, 'pricingAuthority') === 'EMPLOYER')
-  ok('R85C §21 owner: mortgage surfaces only as a fixed-cost constraint (no safety-net claim)', !/安全网|麻醉|兜底/.test(GM.trapSignature(ownerGame)))
+  ok('R85C §28 owner: game = EMPLOYER_PRICED (stated salary pricing authority)', gv(ownerGame, 'gameType') === 'EMPLOYER_PRICED' && gv(ownerGame, 'pricingAuthority') === 'EMPLOYER')
+  ok('R85C §28 owner: mortgage surfaces only as a fixed-cost constraint (no safety-net claim)', !/安全网|麻醉|兜底/.test(GM.trapSignature(ownerGame)))
+  ok('R85C §28 owner: missing pricing authority falls back to income (never fabricated)', gv(GM.computeGameModelV6(op.realEconomyModel, runHybridDiagnosisV6(Object.assign({}, ownerRaw, { pricingAuthority: '' })).hybridProfile), 'pricingAuthority') === 'EMPLOYER')
   const ownerBlank = runHybridDiagnosisV6(Object.assign({}, ownerRaw, { occupationDetail: '' }))
-  ok('R85C §21 owner: missing occupation is ABSENT, never fabricated', ownerBlank.hybridProfile.reality.occupation === null)
+  ok('R85C §28 owner: missing occupation is ABSENT, never fabricated', ownerBlank.hybridProfile.reality.occupation === null)
+
+  // ── §36 SEVEN-QUESTION REPORT GATE (structural answerability of the game layer) ──
+  const GATE_FIELDS = ['gameType', 'ruleOwner', 'valueExchange', 'pricingAuthority', 'trapMechanism', 'switchDirection', 'smallBetType']
+  let gateOk = true
+  for (const c of CONTROLS) {
+    const g = gameFor(c)
+    for (const f of GATE_FIELDS) {
+      const x = g[f]
+      if (!x || x.value == null || x.value === '' || (Array.isArray(x.value) && x.value.length === 0)) gateOk = false
+    }
+  }
+  ok('R85C §36 SEVEN_QUESTION_GATE_PASS: every control answers 局/规则/换钱/定价权/锁死/换位置/实验', gateOk)
+  ok('R85C §36 the gate covers 7 distinct questions', GATE_FIELDS.length === 7)
 
   console.log(results.join('\n'))
   console.log('\nR85-C TESTS: ' + pass + ' passed, ' + fail + ' failed')
-  console.log('DISTINCT_GAME_COUNT=' + dGame + ' DISTINCT_TRAP_COUNT=' + dTrap + ' DISTINCT_SWITCH_COUNT=' + dSwitch + ' DISTINCT_BET_COUNT=' + dBet)
+  console.log('DISTINCT_GAME_COUNT=' + dGame + ' DISTINCT_RULE_COUNT=' + dRule + ' DISTINCT_TRAP_COUNT=' + dTrap + ' DISTINCT_SWITCH_COUNT=' + dSwitch + ' DISTINCT_BET_COUNT=' + dBet)
   if (fail > 0) process.exit(1)
 }
 

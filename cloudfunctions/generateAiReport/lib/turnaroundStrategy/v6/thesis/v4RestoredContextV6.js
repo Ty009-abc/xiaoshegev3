@@ -28,6 +28,10 @@ const L = {
   SAFETY_UNDER_1: '存款撑不到 1 个月', SAFETY_1_3: '存款能撑 1–3 个月', SAFETY_3_6: '存款能撑 3–6 个月',
   SAFETY_6_12: '存款能撑 6–12 个月', SAFETY_12_24: '存款能撑 12–24 个月', SAFETY_24_PLUS: '存款能撑两年以上',
   DEBT_NONE: '目前没有负债', DEBT_MORTGAGE: '主要是房贷', DEBT_CONSUMER: '消费贷/信用卡压力偏大', DEBT_HIGH: '债务压力已经比较高',
+  // R85-C §4 — pricing authority (human language)
+  PRICE_EMPLOYER: '主要收入由公司/老板定价', PRICE_PLATFORM: '主要收入由平台规则定价',
+  PRICE_CLIENT: '主要收入由客户/甲方定价', PRICE_SELF: '主要收入由我自己定价',
+  PRICE_MIXED: '主要收入由多方共同决定', PRICE_UNKNOWN: '说不清自己收入由谁定价',
   // asset
   ASSET_TECHNICAL: '技术类能力', ASSET_SALES: '销售/谈单能力', ASSET_OPS: '运营/统筹能力',
   ASSET_CONTENT: '内容创作能力', ASSET_NETWORK: '人脉/资源对接能力', ASSET_CRAFT: '手艺型能力', ASSET_UNCLEAR: '还没想清是哪一项能力',
@@ -82,6 +86,7 @@ function buildUserContext (hybrid) {
     lifeStage: lbl(r.lifeStage),
     occupationDetail: r.occupation || null,
     incomeStructure: lbl(r.incomeStructure),
+    pricingAuthority: lbl(r.pricingAuthority),
     monthlySurplus: lbl(r.monthlySurplus),
     safetyMonths: lbl(r.safetyMonths),
     debtPressure: lbl(r.debtPressure),

@@ -203,6 +203,9 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
   return {
     occupation,
     occupationCategory: (hybrid.reality && hybrid.reality.occupationCategory) || null,
+    // R85-C §4 — pricing authority (who decides the final income). Context only;
+    // the game model already folds it into gameType / ruleOwner. ZERO B1 authority.
+    pricingAuthority: (hybrid.reality && hybrid.reality.pricingAuthorityValue) || null,
     assetState: asset.state,
     assetIndex: asset.index,
     marketValidated: asset.marketValidated,
@@ -228,6 +231,8 @@ function buildHybridReportContextV6 (hybrid, diagnosis) {
       // R53 — desired-change / asset-identity evidence for the NO_PRIMARY
       // cross-axis scope (fail-closed). Not bottleneck authority.
       primaryGoal: hybrid.desiredChange && hybrid.desiredChange.primaryGoal ? hybrid.desiredChange.primaryGoal : null,
+      // R85-C §4 — pricing authority evidence for the game layer.
+      pricingAuthority: hybrid.reality && hybrid.reality.pricingAuthority ? hybrid.reality.pricingAuthority : null,
       monetizableSkill: hybrid.asset && hybrid.asset.type ? hybrid.asset.type : null,
       assetNamed: !!(hybrid.asset && hybrid.asset.type && hybrid.asset.type !== 'ASSET_UNCLEAR')
     },
