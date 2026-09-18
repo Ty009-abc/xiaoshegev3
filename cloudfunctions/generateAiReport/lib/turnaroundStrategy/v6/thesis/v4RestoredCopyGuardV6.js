@@ -26,6 +26,7 @@
  */
 
 const { charLen, fitTextTo, BUDGET } = require('./v4RestoredCompressV6.js')
+const GROUNDING = require('./v4RestoredGroundingV6.js')
 
 // ── §13 — contradictory horizons for a 90-day card ──
 const HORIZON_CONFLICT_PAT = /(12\s*个?月|十二\s*个?月|一年\s*(内|之内|内完成)?|1\s*年|两年|2\s*年|三年|3\s*年|半年内?完成?|12\s*month)/g
@@ -360,9 +361,11 @@ function screenPersonality (cmp, thesis, personalityCtx) {
  *
  * @param {Object} cmp   output of compressVisibleCards()
  * @param {Object} thesis strategicThesis (for FROM/TO fallback only)
- * @returns {{cmp:Object, counts:Object, repaired:Object}}
+ * @param {Object} [personalityCtx]  R84-C profile context (optional)
+ * @param {Object} [groundingCtx]    R84-D causal-grounding context (optional)
+ * @returns {{cmp:Object, counts:Object, repaired:Object, r84c?, r84d?}}
  */
-function guardVisibleCards (cmp, thesis, personalityCtx) {
+function guardVisibleCards (cmp, thesis, personalityCtx, groundingCtx) {
   const c = cmp || {}
   const st = thesis || {}
   const mig = st.strategicMigration || {}
@@ -504,11 +507,35 @@ function guardVisibleCards (cmp, thesis, personalityCtx) {
     r84c = { counts: screen.counts, repaired: screen.repaired, signals: screen.signals }
   }
 
+  // ── R84-D §1/§27 — causal-grounding screen (only when a grounding context is
+  // supplied; the R84-A/R84-C path without it is byte-identical). Drops
+  // unsupported causal sentences, downshifts overclaims/absolutes, and counts
+  // the financial-semantics / mind-reading / certainty defects on the FINAL text.
+  // Text-preserving fallbacks come from the thesis (never invented). ──
+  let r84d = null
+  if (groundingCtx && typeof groundingCtx === 'object') {
+    const mig2 = st.strategicMigration || {}
+    const fb = {
+      card01: fitTextTo(String(st.coreContradiction || ''), BUDGET.CARD01),
+      card02: String(st.identityInterpretation || ''),
+      card03Rule: fitTextTo(String(st.worldRule || ''), 64),
+      card04From: String(mig2.from || ''),
+      card04To: String(mig2.to || ''),
+      card04Rule: fitTextTo(String(st.worldRule || ''), 72),
+      card05Goal: fitTextTo(String((st.commercialThesis || {}).objective || ''), 54),
+      card05Acceptance: ''
+    }
+    const gs = GROUNDING.screenGrounding(outCards, st, groundingCtx, fb)
+    outCards = gs.cards
+    r84d = { counts: gs.counts, repaired: gs.repaired, audit: gs.audit }
+  }
+
   return {
     cmp: outCards,
     counts: counts,
     repaired: repaired,
-    r84c: r84c
+    r84c: r84c,
+    r84d: r84d
   }
 }
 

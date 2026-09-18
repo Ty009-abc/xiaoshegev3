@@ -104,13 +104,14 @@ async function main () {
   // ── §4 card02 human identity (not taxonomy) ──
   ok('R84C §4 card02 forbids taxonomy labels', /技能持有者 \/ 产品经营者 \/ 验证阶段用户/.test(P.CARD02_BLOCK))
   ok('R84C §4 card02 requires a person-ish identity tension', /人味的身份张力/.test(P.CARD02_BLOCK))
-  // ── §5 card03 self-story / escape mechanism ──
-  ok('R84C §5 card03 requires a self-story / escape mechanism', /他是怎么对自己解释这件事的/.test(P.CARD03_BLOCK) && /心理逃避机制/.test(P.CARD03_BLOCK))
+  // ── §5 card03 self-story → R84-D grounded behaviour/decision-pattern mechanism ──
+  ok('R84C §5 card03 requires a grounded behaviour/decision-pattern mechanism', /行为\/决策模式/.test(P.CARD03_BLOCK) && /不是纯商业流程，也不是心理虚构/.test(P.CARD03_BLOCK))
+  ok('R84D §12 card03 must explain behaviour, not mind-read (我凭什么这么判断)', /我凭什么这么判断/.test(P.CARD03_BLOCK))
   // ── §6 card04 human migration ──
   ok('R84C §6 card04 migration is a human identity change', /人的身份转变/.test(P.CARD04_BLOCK))
   // ── §7/§8 card05 resolves card01 ──
   ok('R84C §7 card05 attacks the SAME contradiction', /直接打【同一个核心矛盾】/.test(P.CARD05_BLOCK) && /回答 card01 提出的问题/.test(P.CARD05_BLOCK))
-  ok('R84C §8 card05 owner-class proves the first payment was not luck', /证明第一次付费不是运气/.test(P.CARD05_BLOCK))
+  ok('R84C §8 card05 owner-class validates repeatability of the first payment (R84-D downshift)', /验证第一次付费是否可重复/.test(P.CARD05_BLOCK))
   // ── §9 human language ──
   ok('R84C §9 human-language block reduces consulting nouns', /人话优先/.test(P.HUMAN_LANGUAGE_BLOCK) && /陌生人愿不愿意买/.test(P.HUMAN_LANGUAGE_BLOCK))
   // ── §10 density + §15 anti-generic ──
@@ -126,7 +127,7 @@ async function main () {
 
   // ── §18 prompt version unchanged (R84-C does NOT touch the output contract) ──
   ok('R84C §18 PROMPT_VERSION unchanged from R84-A', PROMPT_VERSION === 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a', PROMPT_VERSION)
-  ok('R84C personality version bumped to r84c', P.PERSONALITY_VERSION === 'r84c_personality_v1' && P.R84C_VERSION === 'r84c_personality_v1')
+  ok('R84C personality version superseded by R84-D (r84d_personality_v1)', P.PERSONALITY_VERSION === 'r84d_personality_v1' && P.R84C_VERSION === 'r84c_personality_v1' && P.R84D_VERSION === 'r84d_personality_v1')
 
   // ── §18 ONE model call through the REAL runtime ──
   const o = runHybridDiagnosisV6(OWNER)

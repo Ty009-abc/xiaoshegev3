@@ -127,6 +127,29 @@ function buildPersonalityCtx (hybridProfile, hybridContext) {
 }
 
 /**
+ * R84-D §3–§6 — build the deterministic causal-GROUNDING context from the
+ * HybridProfile. Uses ONLY the user's own answered evidence (debt pressure, self
+ * belief, income structure, paid proof). No inference, no invention, no I/O.
+ * `debtPressure` is the AUTHORITATIVE financial instrument signal: a mortgage is
+ * only ever a fixed cash-flow constraint, never a safety net.
+ */
+function buildGroundingCtx (hybridProfile, hybridContext) {
+  const hp = hybridProfile || {}
+  const hc = hybridContext || {}
+  const reality = hp.reality || {}
+  const belief = hp.belief || {}
+  return {
+    debtPressure: reality.debtPressure || null,
+    incomeStructure: reality.incomeStructure || null,
+    safetyMonths: reality.safetyMonths || null,
+    monthlySurplus: reality.monthlySurplus || null,
+    selfBelief: belief.perceivedRootCause || null,
+    hasPaidProof: hc.marketValidated === true,
+    proofLevel: hc.assetState || null
+  }
+}
+
+/**
  * Map a VALID V4-restored output onto the frozen deterministic report shape.
  *
  * R75 — the USER-VISIBLE card values are compressed (deterministic, post-thesis,
@@ -155,7 +178,9 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
   // 2-arg call (no profile) stays byte-identical: an empty context would treat
   // "unknown" as "unpaid" and mis-flag paid claims.
   const personalityCtx = (hybridProfile || hybridContext) ? buildPersonalityCtx(hybridProfile, hybridContext) : null
-  const guard = guardVisibleCards(cmpRaw, st, personalityCtx)
+  // R84-D — the causal-grounding screen shares the same REAL-profile gate.
+  const groundingCtx = (hybridProfile || hybridContext) ? buildGroundingCtx(hybridProfile, hybridContext) : null
+  const guard = guardVisibleCards(cmpRaw, st, personalityCtx, groundingCtx)
   const cmp = guard.cmp
   const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
   const insight = cmp.card03.rule || st.systemTrap || (c.systemLoop && c.systemLoop.insight) || ''
@@ -226,7 +251,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       card04: cmp.card04,
       card05: Object.assign({}, cmp.card05, { actionItems: card05ActionItems })
     },
-    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [] }),
+    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [] }),
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance
@@ -318,6 +343,7 @@ module.exports = {
   mapV4RestoredToReport,
   parseActionItems,
   buildPersonalityCtx,
+  buildGroundingCtx,
   RENDER_SOURCE,
   STATUS,
   V4R_TEMPERATURE,
