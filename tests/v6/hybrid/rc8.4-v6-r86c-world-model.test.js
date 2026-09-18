@@ -332,6 +332,119 @@ t('§10 prompt carries the world-model + mismatch blocks for an R86-C profile', 
   assert.ok(/五张卡的职责（R86-C 世界模型版）/.test(prompt.systemPrompt))
 })
 
+// ═══════════════════════════════════════════════════════════════════════════
+// §11 R86-C2 — AUTHORITY ISOLATION + CONTRACT MIRROR + DECISION-UNIT TRUTH
+// ═══════════════════════════════════════════════════════════════════════════
+// A TRUE legacy fixture: decisionStyle + failureResponse are present (so the
+// report path is valid) but the three R86 world-model fields are ABSENT →
+// worldModel.isR86C must be false and NO R86 authority may surface.
+const LEGACY_RAW = {
+  lifeStage: 'LIFE_31_40', incomeStructure: 'INC_SALARY', occupationCategory: 'OCC_SERVICE',
+  occupationDetail: '', pricingAuthority: 'PRICE_EMPLOYER', monthlySurplus: 'SURPLUS_1K_5K',
+  safetyMonths: 'SAFETY_1_3', debtPressure: 'DEBT_NONE', skillValidation: 'PROOF_FREE_THANKED',
+  monetizableSkill: 'ASSET_TECHNICAL', weeklyTime: 'TIME_5_10', maxTrialCost: 'COST_1K_5K',
+  pastAttemptStage: 'ATTEMPT_NONE', selfBelief: 'BELIEF_KNOW_NO_ACTION', timeBehavior: 'TIME_BALANCE',
+  primaryProblem: 'PROBLEM_MONETIZE', decisionStyle: 'DECISION_ALL_IN', failureResponse: 'FAIL_GIVE_UP'
+}
+// The R86 authority surface: any of these strings appearing in a prompt means
+// R86 authority leaked. §3 = zero for a legacy submission.
+const R86_AUTHORITY_MARKERS = [
+  '世界模型（他习惯怎么理解问题·最高权威）',
+  '模型-现实错配',
+  '世界模型升级',
+  '世界模型现实检验',
+  'R86-C 世界模型版'
+]
+function promptFor (raw) {
+  const o = runHybridDiagnosisV6(raw)
+  const payload = buildV4RestoredPayload(o.hybridProfile, o.diagnosis, o.hybridContext)
+  return { payload: payload, prompt: buildV4RestoredPrompt(payload), out: o }
+}
+
+t('§11 LEGACY_R86_PROMPT_BLOCK_COUNT = 0 (legacy prompts contain NO R86 authority)', () => {
+  const { payload, prompt } = promptFor(LEGACY_RAW)
+  assert.strictEqual(payload.worldModel, null, 'legacy payload.worldModel must be null')
+  assert.strictEqual(payload.mismatch, null, 'legacy payload.mismatch must be null')
+  const all = prompt.systemPrompt + '\n' + prompt.userMessage
+  const hits = R86_AUTHORITY_MARKERS.filter((m) => all.indexOf(m) !== -1)
+  assert.strictEqual(hits.length, 0, 'LEGACY_R86_PROMPT_BLOCK_COUNT=' + hits.length + ' :: ' + hits.join(','))
+})
+t('§11 R86C fixture still has isR86C=false while LEGACY has no world-model fields', () => {
+  const legacy = buildHybridProfileV6(LEGACY_RAW)
+  assert.ok(legacy, 'legacy profile must build')
+  assert.strictEqual(legacy.worldModel.isR86C, false)
+  const r86 = buildHybridProfileV6(U1)
+  assert.strictEqual(r86.worldModel.isR86C, true)
+})
+t('§11 R86_PROMPT_BLOCK_PRESENT = YES (R86-C prompt carries the complete bundle)', () => {
+  const { prompt } = promptFor(U1)
+  const all = prompt.systemPrompt + '\n' + prompt.userMessage
+  for (const m of R86_AUTHORITY_MARKERS) assert.ok(all.indexOf(m) !== -1, 'missing block marker: ' + m)
+})
+t('§11 PARTIAL_R86_PROMPT_GATE_COUNT = 0 (worldModel + mismatch share ONE gate)', () => {
+  // The gate is atomic: whenever the world-model block is present the mismatch
+  // block is present too, and vice-versa. No half-injected authority bundle.
+  let partial = 0
+  for (const raw of [LEGACY_RAW, U1, U2, U3]) {
+    const { prompt } = promptFor(raw)
+    const all = prompt.systemPrompt + '\n' + prompt.userMessage
+    const hasWm = all.indexOf('世界模型（他习惯怎么理解问题·最高权威）') !== -1
+    const hasMm = all.indexOf('模型-现实错配') !== -1
+    if (hasWm !== hasMm) partial++
+  }
+  assert.strictEqual(partial, 0, 'PARTIAL_R86_PROMPT_GATE_COUNT=' + partial)
+})
+t('§11 BACKEND_S8_COPY_MISMATCH_COUNT = 0 (backend mirror == frozen client)', () => {
+  const b = CONTRACT.SCREENS.find((s) => s.screen === 8)
+  const c = CLIENT.getScreensHybridV10().find((x) => x.sid === 'S8')
+  assert.strictEqual(b.prompt, c.prompt, 'S8 prompt must match the frozen client contract')
+  const bt = b.options.map((o) => [o[0], o[1]])
+  const ct = c.options.map((o) => [o.optionId, o.text])
+  assert.deepStrictEqual(bt, ct, 'S8 option ids + order + visible text must match')
+})
+t('§11 BACKEND_S8_OPTION_ORDER_MISMATCH_COUNT = 0 (v6 map still tied to each id)', () => {
+  const b = CONTRACT.SCREENS.find((s) => s.screen === 8)
+  const map = {}
+  for (const o of b.options) map[o[0]] = o[2]
+  assert.strictEqual(map.DECISION_SMALL_TEST, 'UNCERT_SMALL_TEST')
+  assert.strictEqual(map.DECISION_LEARN_FIRST, 'UNCERT_ANALYZE')
+  assert.strictEqual(map.DECISION_WAIT_OTHERS, 'UNCERT_WAIT')
+  assert.strictEqual(map.DECISION_ALL_IN, null)
+  assert.strictEqual(map.DECISION_AVOID, null)
+  assert.deepStrictEqual(b.options.map((o) => o[0]), ['DECISION_SMALL_TEST', 'DECISION_LEARN_FIRST', 'DECISION_WAIT_OTHERS', 'DECISION_ALL_IN', 'DECISION_AVOID'])
+})
+t('§11 DECISION-UNIT TRUTH: 10 screens / 21 raw / 12 decision units', () => {
+  assert.strictEqual(CONTRACT.HYBRID_SCREEN_COUNT, 10)
+  assert.strictEqual(CONTRACT.HYBRID_RAW_FIELD_COUNT, 21)
+  // A decision unit = a meaningful answer requiring independent thought. Fact
+  // brackets are data entry (DU = 0). failureResponse ITSELF is the EVIDENCE
+  // primary scenario — there is NO separate evidenceModel decision unit.
+  const FACT_BRACKETS = ['lifeStage', 'incomeStructure', 'occupationDetail', 'occupationCategory',
+    'monthlySurplus', 'safetyMonths', 'debtPressure', 'weeklyTime', 'maxTrialCost']
+  const units = CONTRACT.ALL_FIELD_KEYS.filter((k) => FACT_BRACKETS.indexOf(k) === -1)
+  assert.strictEqual(units.length, 12, 'TOTAL_DECISION_UNITS=' + units.length + ' :: ' + units.join(','))
+  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.indexOf('evidenceModel'), -1, 'no separate evidenceModel field')
+})
+t('§11 legacy report path preserved (no R86 card override, isR86C=false)', () => {
+  const o = runHybridDiagnosisV6(LEGACY_RAW)
+  assert.ok(o.hybridProfile, 'legacy profile present')
+  assert.strictEqual(o.hybridProfile.worldModel.isR86C, false)
+  const cmp = { card01: 'x', card02: 'y', card03: { steps: ['s'], rule: 'r' }, card04: { from: 'a', to: 'b', rule: 'r' }, card05: { goal: 'g', actions: [], acceptance: 'a' } }
+  const out = WMS.screenWorldModelCards(cmp, o.hybridProfile.worldModel, o.hybridProfile.mismatch, null)
+  assert.deepStrictEqual(out.cards, cmp, 'legacy cards must be byte-identical (no override)')
+  assert.strictEqual(out.counts.MODEL_UPGRADE_SWITCH_TYPE_COLLAPSE, 'NO')
+  assert.strictEqual(out.counts.REALITY_TEST_GAME_BET_COLLAPSE, 'NO')
+})
+t('§11 R86-C report path preserved (screen active, isR86C=true)', () => {
+  const o = runHybridDiagnosisV6(U1)
+  assert.strictEqual(o.hybridProfile.worldModel.isR86C, true)
+  const cmp = { card01: 'x', card02: 'y', card03: { steps: ['s'], rule: 'r' }, card04: { from: 'a', to: 'b', rule: '换个局，加一条收入' }, card05: { goal: '下一注：拿到第一笔报价', actions: [], acceptance: 'a' } }
+  const out = WMS.screenWorldModelCards(cmp, o.hybridProfile.worldModel, o.hybridProfile.mismatch, null)
+  assert.ok(out.counts.CARD04_MODEL_UPGRADE_MISSING_COUNT >= 1 || out.counts.CARD05_REALITY_TEST_MISSING_COUNT >= 1, 'R86 screen must act')
+  assert.strictEqual(out.counts.MODEL_UPGRADE_SWITCH_TYPE_COLLAPSE, 'NO')
+  assert.strictEqual(out.counts.REALITY_TEST_GAME_BET_COLLAPSE, 'NO')
+})
+
 // ── summary ────────────────────────────────────────────────────────────────
 console.log('\n══════════════════════════════════════')
 console.log('R86-C WORLD MODEL: ' + pass + ' passed, ' + fail + ' failed')

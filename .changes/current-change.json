@@ -1,23 +1,13 @@
 {
-  "taskId": "RC8.4_V6_R86C_WORLD_MODEL_RUNTIME_IMPLEMENTATION",
-  "baseCommit": "5788d16158df346459da0bcf72054e8b32a69ce5",
+  "taskId": "RC8.4_V6_R86C2_AUTHORITY_ISOLATION_AND_CONTRACT_MIRROR_FIX",
+  "baseCommit": "8bdf59cdfcefbe09588ac7a7b3af329674e7a82d",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "The report treated reality facts (occupation / income / pricing authority) and game structure as the top authority, so the diagnosis could imply the user's COGNITION is wrong. RC8.4 V6 R86-C introduces a deterministic WORLD MODEL (how the user REASONS) as a cognitive layer ABOVE the game, separate from MODEL_UPGRADE (a better-adapted frame) and from REAL_WORLD_STRATEGY (what to do). Frozen laws: WORLD MODEL is measured ONLY by cognitive input — reality facts are supporting context, never direct axis authority (REALITY_TO_WORLD_MODEL_DIRECT_AUTHORITY_COUNT=0); a mismatch requires TWO-SIDED evidence (model side AND reality side) and outputs CODES + evidence, never a verdict; Card04 expresses a WORLD-MODEL UPGRADE as PRIMARY (switch-type is supporting consequence only — MODEL_UPGRADE_SWITCH_TYPE_COLLAPSE=NO); Card05 expresses a WORLD-MODEL REALITY TEST as PRIMARY (game bet is supporting only — REALITY_TEST_GAME_BET_COLLAPSE=NO). Questionnaire economy: 10 screens / 13 decision units / 21 raw fields — remove executionStability + primaryGoal; add laborModel (S6) + systemModel (S9) + ruleModel (S10); REUSE decisionStyle (PROBABILITY) + failureResponse (EVIDENCE) so B1 option ids/map stay intact (SEMANTIC_DOUBLE_WRITE_COUNT=0). Five cards remapped: Card01=MODEL-REALITY COLLISION, Card02=CURRENT WORLD MODEL, Card03=REALITY REWARD/PUNISH LOOP, Card04=WORLD MODEL UPGRADE, Card05=WORLD MODEL REALITY TEST. No IQ / 认知高低 / moral language. Money appears only as scenario medium (MONEY_ADVICE_DOMINANCE=NO).",
+  "problem": "R86-C1 build/package verification (PASS) surfaced two pre-deploy corrections. (1) AUTHORITY ISOLATION DEFECT: the R86 WorldModel prompt/context injection was NOT gated on isR86C, so legacy submissions (no laborModel/systemModel/ruleModel → worldModel.isR86C=false) still received the R86 WorldModel + MODEL↔REALITY mismatch blocks (and the R86 five-card responsibility copy naming 世界模型升级 / 世界模型现实测试) inside the prompt. This violated the frozen authority-isolation contract. Fix: the ENTIRE R86 authority bundle (worldModel + mismatch + model-upgrade/reality-test lines + the R86 card-responsibility copy) must share ONE gate — included ONLY when worldModel.isR86C === true. No partial gating. (2) CONTRACT-MIRROR DRIFT: the backend hybridContractV6.js S8 mirror still carried the pre-R86-C prompt/option order/text; it is now aligned VERBATIM to the frozen R86-B1 client contract (prompt / option ids / option order / visible text), with the `v6` mapping column still tied to each id (runtime semantics UNCHANGED). (3) DECISION-UNIT TRUTH frozen at 12: failureResponse ITSELF is the EVIDENCE primary scenario — there is NO separate evidenceModel decision unit, so TOTAL_DECISION_UNITS=12 (not 13). No product redesign, no questionnaire semantic change, no new axis, no mismatch expansion, no UI change, no env change, no deploy, no preview.",
   "allowedFiles": [
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridB1AdapterV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/modelRealityMismatchV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
-    "utils/v6/turnaroundQuestionnaireHybridV10.js",
-    "tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
     "tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
-    "tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js",
-    "tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [],
@@ -25,12 +15,10 @@
   "requiredTests": [
     "node tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
     "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js",
     "node tests/v6/thesis/rc8.4-v6-r84a-five-card-personality.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r84c-one-person-one-contradiction.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r84d-causal-grounding.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js"
+    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
   ],
-  "rollbackPlan": "git checkout 5788d16158df346459da0bcf72054e8b32a69ce5 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridB1AdapterV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js utils/v6/turnaroundQuestionnaireHybridV10.js tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/modelRealityMismatchV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV6.js tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js"
+  "rollbackPlan": "git checkout 8bdf59cdfcefbe09588ac7a7b3af329674e7a82d -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js"
 }

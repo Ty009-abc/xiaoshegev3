@@ -152,8 +152,12 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
   const pricingPower = (hybrid && hybrid.pricingPower) || (hybridContext && hybridContext.pricingPower) || null
   // R86-C §1 — WORLD MODEL + MODEL↔REALITY MISMATCH (PRIMARY visible-thesis
   // authority on top of the GameModel). Deterministic; EVIDENCE_LAYER only.
-  const worldModel = (hybrid && hybrid.worldModel) || (hybridContext && hybridContext.worldModel) || null
-  const mismatch = (hybrid && hybrid.mismatch) || (hybridContext && hybridContext.mismatch) || null
+  // R86-C2 AUTHORITY ISOLATION: the whole R86 bundle (worldModel + mismatch) is
+  // gated on `isR86C === true` so a legacy submission NEVER receives any R86
+  // authority object/block downstream (prompt inclusion is gated identically).
+  const hasR86C = !!(hybrid && hybrid.worldModel && hybrid.worldModel.isR86C === true)
+  const worldModel = hasR86C ? ((hybrid && hybrid.worldModel) || (hybridContext && hybridContext.worldModel) || null) : null
+  const mismatch = hasR86C ? ((hybrid && hybrid.mismatch) || (hybridContext && hybridContext.mismatch) || null) : null
   // R85C3 §5 — the DOMINANT visible-thesis object, built deterministically on top
   // of the GameModel. PRIMARY prompt authority; five cards must derive from it.
   const gameThesis = buildGameThesis(gameModel, hybrid || null, hybridContext || null)
@@ -172,7 +176,8 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
     pricingPower: pricingPower,
     // R86-C §1 — WORLD MODEL (5 cognitive axes; how the user REASONS) + the
     // deterministic MODEL↔REALITY MISMATCH codes. These are the PRIMARY
-    // visible-thesis authority (above GAME); five cards bind to them.
+    // visible-thesis authority (above GAME); five cards bind to them — ONLY when
+    // the submission carried the R86-C world-model fields (isR86C === true).
     worldModel: worldModel,
     mismatch: mismatch,
     hasUserOccupation: !!userContext.occupationDetail,

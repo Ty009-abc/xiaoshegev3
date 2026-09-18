@@ -253,13 +253,18 @@ const SCREENS = [
   },
   {
     screen: 8, key: 'decisionStyle', required: true, group: 'BEHAVIOR',
-    prompt: '当一个机会看起来不错但不确定时，你一般怎么做？',
+    // R86-C2 §7 — backend mirror aligned VERBATIM to the frozen R86-B1 client
+    // contract (prompt / option ids / option order / visible text). The `v6`
+    // mapping column stays tied to each id (runtime semantics UNCHANGED):
+    // DECISION_SMALL_TEST→UNCERT_SMALL_TEST · DECISION_LEARN_FIRST→UNCERT_ANALYZE
+    // · DECISION_WAIT_OTHERS→UNCERT_WAIT · ALL_IN/AVOID→null.
+    prompt: '一个朋友靠做某件事赚到了钱，劝你也做。你接下来最可能先做的是？',
     options: [
-      ['DECISION_ALL_IN', '直接辞职/全职All-in', null],
-      ['DECISION_SMALL_TEST', '边上班边小规模测试', 'UNCERT_SMALL_TEST'],
-      ['DECISION_LEARN_FIRST', '先学一阵子再判断', 'UNCERT_ANALYZE'],
-      ['DECISION_WAIT_OTHERS', '等别人先做了我再跟上', 'UNCERT_WAIT'],
-      ['DECISION_AVOID', '能不动就不动', null]
+      ['DECISION_SMALL_TEST', '先小范围试一下看效果', 'UNCERT_SMALL_TEST'],
+      ['DECISION_LEARN_FIRST', '先打听这事成的比例', 'UNCERT_ANALYZE'],
+      ['DECISION_WAIT_OTHERS', '等别人做稳了我再动', 'UNCERT_WAIT'],
+      ['DECISION_ALL_IN', '他都行，我先干起来', null],
+      ['DECISION_AVOID', '先算占用我多少、值不值', null]
     ],
     secondary: {
       key: 'timeBehavior', required: true,
