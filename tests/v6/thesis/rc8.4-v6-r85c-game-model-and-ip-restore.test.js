@@ -41,6 +41,8 @@ const { BUDGET } = require(path.join(TH, 'v4RestoredCompressV6.js'))
 const G = require(path.join(TH, 'v4RestoredGroundingV6.js'))
 const P = require(path.join(TH, 'v4RestoredPersonalityV6.js'))
 const GM = require(path.join(HY, 'gameModelV6.js'))
+const GT = require(path.join(TH, 'gameThesisV6.js'))
+const PP = require(path.join(TH, 'pricingPowerV6.js'))
 const E = require(path.join(HY, 'realEconomyModelV6.js'))
 const C = require(path.join(HY, 'hybridContractV6.js'))
 const CLIENT = require(path.join(ROOT, 'utils/v6/turnaroundQuestionnaireHybridV10.js'))
@@ -81,8 +83,20 @@ function stubOnce (obj) {
   fn.calls = () => n
   return fn
 }
+function betSentence (betType) {
+  return ({
+    FIRST_EXTERNAL_QUOTE: '拿到一个来自雇主体制之外的、外部买家给出的真实报价，并完成一次交付。',
+    FIRST_EXTERNAL_PRICING_SIGNAL: '让一个外部买家为这份成交能力直接付费，独立于公司体系。',
+    FIRST_DIRECT_PAID_SAMPLE: '让一个顾客绕过中间环节，直接为你的手艺付费。',
+    FIRST_REPEAT_PURCHASE: '让同一个买家出现第二次真实付费。',
+    FIRST_PORTABLE_SKILL_VALIDATION: '让这份能力离开平台后，仍被客户直接付费。',
+    FIRST_PACKAGED_PAID_DELIVERABLE: '做出一个能被直接购买、不靠平台分发的交付。',
+    FIRST_DIRECT_CUSTOMER_CONVERSATION: '直接和真实买家谈一次并拿到明确答复。'
+  })[betType] || '拿到一次真实的、外部的市场反馈。'
+}
 function neutralOutput (occ, gm) {
   const auth = gm && gm.pricingAuthority ? gm.pricingAuthority.value : 'UNKNOWN'
+  const betType = gm && gm.smallBetType ? gm.smallBetType.value : null
   const payer = auth === 'EMPLOYER' ? '公司/雇主' : auth === 'PLATFORM' ? '平台' : auth === 'CLIENT' ? '客户' : auth === 'USER' ? '你自己' : '一个定价方'
   return {
     strategicThesis: {
@@ -102,10 +116,10 @@ function neutralOutput (occ, gm) {
       card05: {
         objective: '验证这项能力能不能被独立定价一次。',
         actions: [
-          { title: '找客户', text: '找一个可能需要的真实的人，给出一个明确报价。' },
+          { title: '找买家', text: '找一个真实的外部买家，给出一个明确报价。' },
           { title: '拿反馈', text: '记录对方愿不愿意付、以及为什么。' }
         ],
-        target: '1个真实客户', timebox: '7天', successSignal: '出现一个与你没有雇佣关系的人愿意付费的明确信号。'
+        target: '1个真实买家', timebox: '7天', successSignal: betSentence(betType)
       }
     }
   }
@@ -449,6 +463,219 @@ async function main () {
   ok('R85C2 §9 CUSTOMER_RECOGNITION_INFERENCE_COUNT = 0', recognition === 0)
   ok('R85C2 §9 PERSON_LEVEL_NO_ASSET_CLAIM_COUNT = 0', personAsset === 0)
   ok('R85C2 §9 UNSUPPORTED_GAME_CLAIM_COUNT = 0 (authority gate clean)', unsupportedGame === 0)
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // R85C3 — GAME_THESIS AUTHORITY AND FIVE-CARD BINDING
+  // ═══════════════════════════════════════════════════════════════════════
+  ok('R85C3 §3 GAME_THESIS version marker present', GT.GAME_THESIS_VERSION === 'r85c3_game_thesis_v1')
+  ok('R85C3 §3 frozen authority order GAME>RULE>TRAP>REALITY>SWITCH>BET>B1',
+    GT.AUTHORITY_ORDER.join('>') === 'GAME>RULE_PRICING_AUTHORITY>TRAP>REALITY_EVIDENCE>SWITCH>BET>B1_PERSONALITY')
+  ok('R85C3 §3 game-thesis layer is pure (no LLM/http/network)',
+    typeof GT.buildGameThesis === 'function' && !/openai|axios|http|fetch/.test(fs.readFileSync(path.join(TH, 'gameThesisV6.js'), 'utf8')))
+
+  // ── §4 the ONE central contradiction is CURRENT game vs DESIRED position ──
+  const gtP = GT.buildGameThesis(gameFor(CONTROLS[0]), profileFor(CONTROLS[0]), runHybridDiagnosisV6(rawFor(CONTROLS[0])).hybridContext)
+  ok('R85C3 §4 game thesis exposes ONE contradiction (reality vs current position)',
+    gtP && gtP.contradiction && /现实|定价权/.test(gtP.contradiction.text))
+  ok('R85C3 §4 contradiction names the current game + pricing position',
+    /雇主定价|局/.test(gtP.contradiction.position) && /定价权不在你手里|由|只有/.test(gtP.contradiction.position))
+  ok('R85C3 §4 game thesis carries whoSetsPrice / whatUserSells / trap / switch / bet',
+    !!(gtP.whoSetsPrice && gtP.whatUserSells && gtP.trap && gtP.switch && gtP.bet))
+
+  // ── §6/§7 Card01 must carry a game signal; a behavioral Card01 is repaired ──
+  ok('R85C3 §6 a pure-behavioral Card01 has NO game signal', GT.card01GameSignalPresent('市场已经给过你一次答案，你却还在等自己准备好。') === false)
+  ok('R85C3 §6 a game-native Card01 HAS a game signal', GT.card01GameSignalPresent('你不是技术不够，是你的技术现在只有公司一个定价者。') === true)
+  const behavioralOut = neutralOutput(CONTROLS[0].occ, gameFor(CONTROLS[0]))
+  behavioralOut.cards.card01 = '市场已经给过你一次答案，你却还在等自己准备好。'
+  {
+    const o = runHybridDiagnosisV6(rawFor(CONTROLS[0]))
+    const fb = buildReportV6(o.diagnosis, o.hybridContext)
+    const call = stubOnce(behavioralOut)
+    const r = await runV4RestoredReportRuntimeV6({ diagnosis: o.diagnosis, hybridProfile: o.hybridProfile, hybridContext: o.hybridContext, fallbackReport: fb, callAI: call })
+    const v = r.report.visibleCards
+    const g3 = r.report.visibleStats.r85c3Guard
+    ok('R85C3 §6 a behavioral Card01 is repaired to a game-native sentence',
+      g3.CARD01_GAME_SIGNAL_MISSING_COUNT === 1 && GT.card01GameSignalPresent(v.card01) === true, v.card01)
+    ok('R85C3 §6 repaired Card01 is <=40 chars and names a real pricing party',
+      v.card01.length <= 40 && /雇主|公司|定价者/.test(v.card01), v.card01)
+  }
+
+  // ── §7 the deterministic fallback is game-native + authority-faithful ──
+  ok('R85C3 §7 EMPLOYER_PRICED fallback names the employer (never the market)',
+    /你的雇主|公司/.test(GT.card01For('EMPLOYER', 'TECHNICAL_SKILL', 'ASSET_TECHNICAL', true)))
+  ok('R85C3 §7 MIXED authority is NEVER over-inferred to a single employer',
+    !/雇主|公司|老板/.test(GT.card01For('MIXED', 'SALES_RESULT', 'ASSET_NETWORK', true)))
+  ok('R85C3 §7 USER authority fallback does NOT name an external payer',
+    !/雇主|公司|平台|客户|甲方/.test(GT.card01For('USER', 'CONTENT', 'ASSET_CONTENT', true)))
+  ok('R85C3 §7 every fallback frame is <=40 chars',
+    [['EMPLOYER', 'TECHNICAL_SKILL', 'ASSET_TECHNICAL', true], ['PLATFORM', 'PHYSICAL_LABOR', 'ASSET_UNCLEAR', true], ['CLIENT', 'CONTENT', 'ASSET_CONTENT', true], ['MIXED', 'SALES_RESULT', 'ASSET_NETWORK', true], ['USER', 'CONTENT', 'ASSET_CONTENT', true], ['UNKNOWN', 'UNKNOWN', 'ASSET_UNCLEAR', false]]
+      .every((a) => GT.card01For.apply(null, a).length <= 40))
+
+  // ── §12/§13/§16 five-control readback through the runtime ──
+  let legacyOverrides = 0, card01Missing = 0, loopFails = 0, c3Calls = 0
+  for (const c of CONTROLS) {
+    const o = runHybridDiagnosisV6(rawFor(c))
+    const fb = buildReportV6(o.diagnosis, o.hybridContext)
+    const call = stubOnce(neutralOutput(c.occ, gameFor(c)))
+    const r = await runV4RestoredReportRuntimeV6({ diagnosis: o.diagnosis, hybridProfile: o.hybridProfile, hybridContext: o.hybridContext, fallbackReport: fb, callAI: call })
+    const v = r.report.visibleCards
+    const g3 = r.report.visibleStats.r85c3Guard
+    c3Calls += call.calls()
+    card01Missing += g3.CARD01_GAME_SIGNAL_MISSING_COUNT
+    legacyOverrides += g3.LEGACY_THEME_OVERRIDES_GAME_COUNT
+    loopFails += g3.CARD01_CARD05_GAME_LOOP_FAIL_COUNT
+    ok('R85C3 §16 ' + c.name + ': Card01–05 all derive from the game (loop PASS)',
+      GT.card05TestsGame(v.card01, v.card05, GT.buildGameThesis(gameFor(c), profileFor(c), o.hybridContext)) === true, c.name)
+  }
+  ok('R85C3 §13 LEGACY_THEME_OVERRIDES_GAME_COUNT = 0 across controls', legacyOverrides === 0, 'v=' + legacyOverrides)
+  ok('R85C3 §6 CARD01_GAME_SIGNAL_MISSING_COUNT = 0 across controls', card01Missing === 0, 'v=' + card01Missing)
+  ok('R85C3 §12/§16 CARD01_CARD05_GAME_LOOP_FAIL_COUNT = 0 across controls', loopFails === 0, 'v=' + loopFails)
+  ok('R85C3 §12 a generic Card05 (no pricing/bet axis) IS flagged for the loop',
+    GT.card05TestsGame('你不是技术不够，是你的技术现在只有公司一个定价者。',
+      { goal: '完善你的产品，坚持做好内容。', actions: [], acceptance: '自己觉得满意。' },
+      GT.buildGameThesis(gameFor(CONTROLS[0]), profileFor(CONTROLS[0]), runHybridDiagnosisV6(rawFor(CONTROLS[0])).hybridContext)) === false)
+  ok('R85C3 §27 MODEL_CALL_COUNT_MAX = 1 across controls', c3Calls === CONTROLS.length, 'calls=' + c3Calls)
+
+  // ── §19 legacy-theme override detector ──
+  ok('R85C3 §13 legacy-theme override detector flags a legacy-only card',
+    GT.legacyThemeOverride('你还没把第二次验证做出来。', gtP) === true)
+  ok('R85C3 §13 legacy-theme override detector passes a game-native card',
+    GT.legacyThemeOverride('你的收入主要由公司定价，定价权不在你手里。', gtP) === false)
+
+  // ── §3 DETERMINISTIC_TARGETS carries the R85C3 zero targets ──
+  ok('R85C3 §3 personality DETERMINISTIC_TARGETS include the three game-thesis zero counts',
+    P.DETERMINISTIC_TARGETS.CARD01_GAME_SIGNAL_MISSING_COUNT === 0 &&
+    P.DETERMINISTIC_TARGETS.LEGACY_THEME_OVERRIDES_GAME_COUNT === 0 &&
+    P.DETERMINISTIC_TARGETS.CARD01_CARD05_GAME_LOOP_FAIL_COUNT === 0)
+  ok('R85C3 §3 personality exposes the R85C3 version + authority block',
+    P.R85C3_VERSION === 'r85c3_game_thesis_v1' && /GAME_THESIS/.test(P.buildPersonalityBlock()))
+  ok('R85C3 §3 frozen prompt + personality versions unchanged',
+    PROMPT_VERSION === 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a' && P.PERSONALITY_VERSION === 'r84d_personality_v1')
+
+  // ── §26 R84-D grounding freeze preserved (incl. widened recognition detector) ──
+  ok('R85C3 §26 R84-D grounding version still frozen', G.GROUNDING_VERSION === 'r84d_grounding_v1')
+  ok('R85C3 §26 recognition detector now catches the「记住的是店，不是你」variant',
+    !!G.detectCustomerRecognitionClaim('顾客记住的是店，不是你。'))
+  ok('R85C3 §26 recognition detector still allows legitimate recognition',
+    G.detectCustomerRecognitionClaim('顾客认可你的手艺。') === null)
+  ok('R85C3 §15 card04 grounding fallback is direction-correct (from ≠ to)',
+    G.NEUTRAL_FALLBACK.card04from !== G.NEUTRAL_FALLBACK.card04to &&
+    /还在被单一体系定价/.test(G.NEUTRAL_FALLBACK.card04from))
+  ok('R85C3 §15 card04 target fallback does NOT force disintermediation',
+    !/绕过|脱离|摆脱平台|脱离平台/.test(G.NEUTRAL_FALLBACK.card04to))
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // R85C3 — PRICING POWER (pricingAuthority ≠ pricingPower) + SWITCH_TYPE
+  // ═══════════════════════════════════════════════════════════════════════
+  ok('R85C3 §3 pricing-power version marker present', PP.PRICING_POWER_VERSION === 'r85c3_pricing_power_v1')
+  ok('R85C3 §3 SWITCH_TYPE taxonomy is exactly the 3 rational moves + UNKNOWN',
+    PP.SWITCH_TYPES.join(',') === 'STAY_AND_UPGRADE,ADD_PRICING_SOURCE,SWITCH_GAME,UNKNOWN')
+  ok('R85C3 §3 cardinal rule = 让用户拥有更多被重新定价的选择', /更多被重新定价的选择/.test(PP.CARDINAL_RULE))
+  ok('R85C3 §3 pricing-power layer is pure (no LLM/http/network)',
+    typeof PP.computePricingPowerV6 === 'function' && !/openai|axios|http|fetch/.test(fs.readFileSync(path.join(TH, 'pricingPowerV6.js'), 'utf8')))
+
+  // ── §3/§4 pricingAuthority and pricingPower are SEPARATE objects ──
+  const ppP = PP.computePricingPowerV6(gameFor(CONTROLS[0]), profileFor(CONTROLS[0]))
+  ok('R85C3 §3 pricingPower exposes authority AND power as separate fields',
+    !!(ppP.authority && ppP.concentration && ppP.alternativeRoutes && ppP.level && ppP.switchType))
+  ok('R85C3 §3 authority mirrors pricingAuthority; power is a DIFFERENT structure',
+    ppP.authority.value === gv(gameFor(CONTROLS[0]), 'pricingAuthority') &&
+    typeof ppP.alternativeRoutes.value === 'number' && ppP.level.value !== ppP.authority.value)
+
+  // ── §4 every control yields a valid SWITCH_TYPE (never forced to SELF) ──
+  for (const c of CONTROLS) {
+    const pp = PP.computePricingPowerV6(gameFor(c), profileFor(c))
+    ok('R85C3 §4 ' + c.name + ': valid SWITCH_TYPE (' + pp.switchType.value + ')',
+      PP.SWITCH_TYPES.indexOf(pp.switchType.value) !== -1)
+  }
+
+  // ── §5 ACCEPTANCE: EMPLOYER_PRICED reaches all three moves ──
+  const empBase = { occupationDetail: '后端程序员', occupationCategory: 'OCC_TECH', incomeStructure: 'INC_SALARY', pricingAuthority: 'PRICE_EMPLOYER', monetizableSkill: 'ASSET_TECHNICAL' }
+  const mkEmp = (over) => runHybridDiagnosisV6(Object.assign({}, BASE, empBase, over))
+  const ppAdd = PP.computePricingPowerV6(GM.computeGameModelV6(mkEmp({}).hybridProfile.realEconomyModel, mkEmp({}).hybridProfile), mkEmp({}).hybridProfile)
+  const ppStay = PP.computePricingPowerV6(GM.computeGameModelV6(mkEmp({ weeklyTime: 'TIME_2_5', monthlySurplus: 'SURPLUS_ZERO' }).hybridProfile.realEconomyModel, mkEmp({ weeklyTime: 'TIME_2_5', monthlySurplus: 'SURPLUS_ZERO' }).hybridProfile), mkEmp({ weeklyTime: 'TIME_2_5', monthlySurplus: 'SURPLUS_ZERO' }).hybridProfile)
+  const mkEmpSvc = (over) => runHybridDiagnosisV6(Object.assign({}, BASE, { occupationDetail: '仓库分拣工', occupationCategory: 'OCC_PLATFORM_LABOR', incomeStructure: 'INC_SALARY', pricingAuthority: 'PRICE_EMPLOYER', monetizableSkill: 'ASSET_UNCLEAR' }, over))
+  const ppSwitch = PP.computePricingPowerV6(GM.computeGameModelV6(mkEmpSvc({}).hybridProfile.realEconomyModel, mkEmpSvc({}).hybridProfile), mkEmpSvc({}).hybridProfile)
+  const empMoves = new Set([ppAdd.switchType.value, ppStay.switchType.value, ppSwitch.switchType.value])
+  ok('R85C3 §5 EMPLOYER_PRICED_EMPLOYER_GAME_SWITCH_TYPE_COUNT >= 3', empMoves.size >= 3, '[' + [...empMoves].join(',') + ']')
+  ok('R85C3 §5 EMPLOYER_PRICED can reach STAY_AND_UPGRADE', empMoves.has('STAY_AND_UPGRADE'))
+  ok('R85C3 §5 EMPLOYER_PRICED can reach ADD_PRICING_SOURCE', empMoves.has('ADD_PRICING_SOURCE'))
+  ok('R85C3 §5 EMPLOYER_PRICED can reach SWITCH_GAME', empMoves.has('SWITCH_GAME'))
+
+  // ── §6/§7 SELF_PRICED is NOT privileged: presence of a second route ≠ self-pricing ──
+  const ppSelf = PP.computePricingPowerV6(gameFor(CONTROLS[4]), profileFor(CONTROLS[4]))
+  ok('R85C3 §6 SELF_PRICED still gets a switch (never assumed optimal)', ppSelf.switchType.value !== 'UNKNOWN' && PP.SWITCH_TYPES.indexOf(ppSelf.switchType.value) !== -1)
+  ok('R85C3 §6 SELF_PRICED does NOT automatically become STAY_AND_UPGRADE', ppSelf.switchType.value !== 'STAY_AND_UPGRADE' || ppSelf.alternativeRoutes.value === 0)
+
+  // ── §5 STRICT-BAN detectors ──
+  ok('R85C3 §5 no switch copy forces disintermediation', !CONTROLS.some((c) => { const pp = PP.computePricingPowerV6(gameFor(c), profileFor(c)); return PP.guardNoDisintermediation(pp.switchType.reason) || PP.guardNoDisintermediation((PP.SWITCH_TYPE_META[pp.switchType.value] || {}).move) }))
+  ok('R85C3 §5 no switch copy forces entrepreneurship', !CONTROLS.some((c) => { const pp = PP.computePricingPowerV6(gameFor(c), profileFor(c)); return PP.guardNoEntrepreneurship(pp.switchType.reason || '') }))
+  ok('R85C3 §5 disintermediation detector flags a universal leave-only claim', PP.guardNoDisintermediation('只有绕过公司自己干才能算翻身') === true)
+  ok('R85C3 §5 disintermediation detector passes a neutral switch', PP.guardNoDisintermediation('在现有局之外增加一个独立付款人') === false)
+  ok('R85C3 §5 entrepreneurship detector flags「你该去创业」', PP.guardNoEntrepreneurship('你该去创业') === true)
+  ok('R85C3 §5 psychology-as-trap detector flags「你却认为是自己能力不够」', PP.guardMechanismNotPsychology('你却认为是自己能力不够') === true)
+  ok('R85C3 §5 psychology-as-trap detector passes a mechanism sentence', PP.guardMechanismNotPsychology('技术越熟练→在岗位内越值钱→内部兑现越依赖雇主') === false)
+
+  // ── §6 the prompt carries the pricing-power block + the three moves ──
+  const ppPayload = buildV4RestoredPayload(runHybridDiagnosisV6(rawFor(CONTROLS[0])).hybridProfile, runHybridDiagnosisV6(rawFor(CONTROLS[0])).diagnosis, runHybridDiagnosisV6(rawFor(CONTROLS[0])).hybridContext)
+  const ppPrompt = buildV4RestoredPrompt(ppPayload).userMessage
+  ok('R85C3 §3 payload carries the pricingPower object', !!(ppPayload.pricingPower && ppPayload.pricingPower.switchType))
+  ok('R85C3 §3 prompt renders the pricingAuthority ≠ pricingPower distinction', /定价力模型（pricingAuthority ≠ pricingPower）/.test(ppPrompt))
+  ok('R85C3 §6 prompt lists all THREE switch moves', /STAY_AND_UPGRADE/.test(ppPrompt) && /ADD_PRICING_SOURCE/.test(ppPrompt) && /SWITCH_GAME/.test(ppPrompt))
+  ok('R85C3 §6 prompt forbids the self-pricing default', /自己定价/.test(ppPrompt) && /SELF-PRICED 并不天然高于/.test(ppPrompt))
+
+  // ── §10 card04 selects + card05 tests the SAME switch type (with a compliant model output) ──
+  {
+    const o = runHybridDiagnosisV6(rawFor(CONTROLS[0]))
+    const fb = buildReportV6(o.diagnosis, o.hybridContext)
+    const pp = PP.computePricingPowerV6(GM.computeGameModelV6(o.hybridProfile.realEconomyModel, o.hybridProfile), o.hybridProfile)
+    const meta = PP.SWITCH_TYPE_META[pp.switchType.value]
+    const out = neutralOutput(CONTROLS[0].occ, GM.computeGameModelV6(o.hybridProfile.realEconomyModel, o.hybridProfile))
+    out.cards.card04 = { from: '被单一' + '公司/雇主' + '定价的人', to: meta.card04to, steps: ['留在现有体系', '拿到更高一档定价'] }
+    out.cards.card05 = { objective: '检验换法', actions: [{ title: '拿信号', text: meta.card05test }], target: '1次', timebox: '7天', successSignal: meta.card05test }
+    const call = stubOnce(out)
+    const r = await runV4RestoredReportRuntimeV6({ diagnosis: o.diagnosis, hybridProfile: o.hybridProfile, hybridContext: o.hybridContext, fallbackReport: fb, callAI: call })
+    const pw = r.report.visibleStats.r85c3PowerGuard
+    ok('R85C3 §10 switch-type-compliant cards → SWITCH_TYPE_MISSING_COUNT = 0', pw.SWITCH_TYPE_MISSING_COUNT === 0, JSON.stringify(pw))
+    ok('R85C3 §10 runtime exposes the selected switch type', r.report.visibleStats.r85c3SwitchType === pp.switchType.value)
+    ok('R85C3 §10 zero universal-bias defects on a clean report',
+      pw.FORCED_DISINTERMEDIATION_COUNT === 0 && pw.ENTREPRENEURSHIP_BIAS_COUNT === 0 && pw.PSYCHOLOGY_AS_TRAP_COUNT === 0 && pw.FABRICATED_TRANSACTION_COUNT === 0)
+  }
+
+  // ── §10 a card04 that ignores the switch type IS flagged ──
+  {
+    const o = runHybridDiagnosisV6(rawFor(CONTROLS[0]))
+    const fb = buildReportV6(o.diagnosis, o.hybridContext)
+    const bad = neutralOutput(CONTROLS[0].occ, GM.computeGameModelV6(o.hybridProfile.realEconomyModel, o.hybridProfile))
+    bad.cards.card04 = { from: 'X', to: '一个更努力的人', steps: ['更努力'] }
+    bad.cards.card05 = { objective: '更努力', actions: [{ title: 'A', text: '继续加油。' }], target: '1', timebox: '7天', successSignal: '自己满意。' }
+    const call = stubOnce(bad)
+    const r = await runV4RestoredReportRuntimeV6({ diagnosis: o.diagnosis, hybridProfile: o.hybridProfile, hybridContext: o.hybridContext, fallbackReport: fb, callAI: call })
+    ok('R85C3 §10 switch-agnostic card04/card05 → SWITCH_TYPE_MISSING_COUNT >= 1', r.report.visibleStats.r85c3PowerGuard.SWITCH_TYPE_MISSING_COUNT >= 1)
+  }
+
+  // ── §5 FABRICATED_TRANSACTION depends on paid proof ──
+  ok('R85C3 §5 fabricated transaction IS flagged without paid proof',
+    PP.countFabricatedTransactions({ card01: '市场已经为你付过钱。' }, { marketProofState: { value: 'NO_PROOF' } }) === 1)
+  ok('R85C3 §5 paid claim is allowed when proof exists',
+    PP.countFabricatedTransactions({ card01: '市场已经为你付过钱。' }, { marketProofState: { value: 'PAID_ONCE' } }) === 0)
+
+  // ── §6 personality carries the pricing-power authority block + targets ──
+  ok('R85C3 §6 personality exposes the PRICING_POWER authority block',
+    /PRICING_POWER_AUTHORITY_BLOCK/.test(Object.keys(P).join(',')) && /定价权 ≠ 定价力/.test(P.buildPersonalityBlock()))
+  ok('R85C3 §6 personality DETERMINISTIC_TARGETS include the six pricing-power zero counts',
+    P.DETERMINISTIC_TARGETS.PRICING_AUTHORITY_PRICING_POWER_COLLAPSE_COUNT === 0 &&
+    P.DETERMINISTIC_TARGETS.SWITCH_TYPE_MISSING_COUNT === 0 &&
+    P.DETERMINISTIC_TARGETS.FORCED_DISINTERMEDIATION_COUNT === 0 &&
+    P.DETERMINISTIC_TARGETS.ENTREPRENEURSHIP_BIAS_COUNT === 0 &&
+    P.DETERMINISTIC_TARGETS.PSYCHOLOGY_AS_TRAP_COUNT === 0 &&
+    P.DETERMINISTIC_TARGETS.FABRICATED_TRANSACTION_COUNT === 0)
+  ok('R85C3 §5 personality forbids the forced-disintermediation default', /强制去中介化/.test(P.buildPersonalityBlock()))
+
+  // ── §27 infra freezes ──
+  ok('R85C3 §27 frozen prompt + personality versions unchanged',
+    PROMPT_VERSION === 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a' && P.PERSONALITY_VERSION === 'r84d_personality_v1' && GM.GAME_VERSION === 'r85c1_game_model_v1')
+  ok('R85C3 §27 pricing power is RUNTIME ONLY (not in the cognitive profile patch)', !/pricingPower|pricing_power/.test(JSON.stringify(BRIDGE.buildCognitiveProfilePatch({ diagnosis: runHybridDiagnosisV6(rawFor(CONTROLS[0])).diagnosis, hybridProfile: runHybridDiagnosisV6(rawFor(CONTROLS[0])).hybridProfile, hybridContext: runHybridDiagnosisV6(rawFor(CONTROLS[0])).hybridContext, report: { visibleCards: {} }, reportId: 'ARV6_pp', ts: 1 }))))
 
   console.log(results.join('\n'))
   console.log('\nR85-C TESTS: ' + pass + ' passed, ' + fail + ' failed')

@@ -21,6 +21,8 @@ const PROMPT_VERSION = 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a'
 const { buildPersonalityBlock } = require('./v4RestoredPersonalityV6.js')
 const { renderEconomyLines } = require('../hybrid/realEconomyModelV6.js')
 const { renderGameLines } = require('../hybrid/gameModelV6.js')
+const { renderGameThesisLines } = require('./gameThesisV6.js')
+const { renderPricingPowerLines } = require('./pricingPowerV6.js')
 
 function buildSystemPrompt () {
   return [
@@ -120,6 +122,19 @@ function buildUserMessage (payload) {
     lines.push('================== 拆局模型（确定性推导；他正在玩的是什么局）==================')
     for (const ln of renderGameLines(p.gameModel)) lines.push(ln)
     lines.push('用法：先看“他在哪个局、谁定规则、谁掌握定价权”，再用“为什么越努力越被锁住”解释陷阱，最后给出“换的是位置而不是努力”的方向、和一个最小现实下注。五张卡必须从这同一个局出发，不要各写各的。')
+    lines.push('')
+  }
+  // R85C3 §3/§5 — GAME_THESIS 是本报告的 PRIMARY 论点（比 legacy R84 主题优先）。
+  if (p.gameThesis) {
+    lines.push('================== GAME_THESIS（本报告的中心论点·最高权威）==================')
+    for (const ln of renderGameThesisLines(p.gameThesis)) lines.push(ln)
+    lines.push('')
+  }
+  // R85C3 §3/§7 — PRICING POWER: pricingAuthority ≠ pricingPower + SWITCH_TYPE。
+  // 这一块专门防止把“谁在定价”误当成“应该自己定价 / 直接卖给陌生人”。
+  if (p.pricingPower) {
+    lines.push('================== 定价力模型（pricingAuthority ≠ pricingPower）==================')
+    for (const ln of renderPricingPowerLines(p.pricingPower)) lines.push(ln)
     lines.push('')
   }
   lines.push('================== 系统诊断（证据/上下文，不是文案模板）==================')

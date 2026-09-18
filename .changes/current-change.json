@@ -1,10 +1,18 @@
 {
-  "taskId": "RC8.4_V6_R85C2_GAME_AUTHORITY_AND_PROVIDER_READINESS_GATE",
-  "baseCommit": "6009c06d0c6599030635fc614dfe9e61024ba7be",
+  "taskId": "RC8.4_V6_R85C3_PRICING_POWER_AND_GAME_THESIS_CORRECTION",
+  "baseCommit": "44c11f8a40847d7b9047e33124a87d221afbb920",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "R85C1 repaired most authority jumps, but the deterministic GameModel still contained three claims stronger than evidence: (1) CHEF trap '顾客认的是店、不是你的个人品牌' (unsupported customer-recognition inference); (2) SALES switch axis CLIENT_OWNERSHIP + bet FIRST_SELF_OWNED_CUSTOMER (pricing authority does NOT prove customer ownership); (3) PLATFORM-labor trap '没沉淀出能带走的资产' (person-level absence claim). R85C2 tightens the authority one final time: SWITCH axes exclude CLIENT_OWNERSHIP, customerOwnership is ALWAYS UNKNOWN and never modelled (no direct signal), person-level absence claims are blocked, and every claim is scope-disciplined to THIS income mechanism / job position / game. Also verifies provider readiness (the earlier 401 is now resolved: DeepSeek credential returns HTTP 200).",
+  "problem": "The five-card report collapsed PRICING AUTHORITY into SELF-PRICING / DIRECT-CUSTOMER PAYMENT. Card04 was hard-wired to 'from employer-priced person -> to someone strangers pay directly', Card05 to 'find strangers/quote yourself/outside the employer system', and the world rule to 'your craft only becomes yours the moment a stranger pays'. That is a universal disintermediation ideology, NOT a diagnosis. It forces everyone toward freelance/direct sales and implies SELF-PRICED is superior to EMPLOYER-PRICED. R85C3 separates pricingAuthority (WHO sets the price now) from pricingPower (HOW MANY credible alternative ways the value can be RE-PRICED), adds a deterministic SWITCH_TYPE (STAY_AND_UPGRADE | ADD_PRICING_SOURCE | SWITCH_GAME | UNKNOWN), makes card04 explicitly select one and card05 test that same one, and removes the entrepreneurship / direct-customer bias with defect-only detectors. Core principle: 让用户拥有更多被重新定价的选择，而不是让所有人自己定价。",
   "allowedFiles": [
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js",
     "tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
     ".changes/current-change.json"
   ],
@@ -12,8 +20,11 @@
   "contractsAffected": [],
   "requiredTests": [
     "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
-    "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js"
+    "node tests/v6/thesis/rc8.4-v6-r84a-five-card-personality.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r84c-one-person-one-contradiction.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r84d-causal-grounding.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js"
   ],
-  "rollbackPlan": "git checkout 6009c06d0c6599030635fc614dfe9e61024ba7be -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
+  "rollbackPlan": "git checkout 44c11f8a40847d7b9047e33124a87d221afbb920 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js"
 }

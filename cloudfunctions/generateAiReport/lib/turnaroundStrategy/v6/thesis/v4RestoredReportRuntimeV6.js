@@ -32,6 +32,8 @@ const { runV4RestoredAdapter } = require('./v4RestoredAdapterV6.js')
 const { validateV4Restored } = require('./v4RestoredValidatorV6.js')
 const { compressVisibleCards } = require('./v4RestoredCompressV6.js')
 const { guardVisibleCards } = require('./v4RestoredCopyGuardV6.js')
+const { buildGameThesis, screenGameThesis } = require('./gameThesisV6.js')
+const { screenPricingPower } = require('./pricingPowerV6.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
 const RENDER_SOURCE = Object.freeze({
@@ -184,7 +186,30 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
   // R84-D — the causal-grounding screen shares the same REAL-profile gate.
   const groundingCtx = (hybridProfile || hybridContext) ? buildGroundingCtx(hybridProfile, hybridContext) : null
   const guard = guardVisibleCards(cmpRaw, st, personalityCtx, groundingCtx)
-  const cmp = guard.cmp
+  let cmp = guard.cmp
+  // R85C3 §6/§7/§12/§13 — GAME_THESIS dominance screen (only when a REAL profile
+  // is present so a GameModel exists). Repairs a behavioral-only Card01 with the
+  // deterministic game-native Card01; counts legacy-theme overrides + loop fails.
+  let r85c3 = null
+  if (personalityCtx) {
+    const gameModel = (hybridProfile && hybridProfile.gameModel) || (hybridContext && hybridContext.gameModel) || null
+    const gameThesis = buildGameThesis(gameModel, hybridProfile || null, hybridContext || null)
+    if (gameThesis) {
+      const gtScreen = screenGameThesis(cmp, gameThesis)
+      cmp = gtScreen.cards
+      r85c3 = { counts: gtScreen.counts, repaired: gtScreen.repaired, authorityOrder: gameThesis.authorityOrder }
+    }
+    // R85C3 §3/§8/§10 — PRICING POWER screen: verify the FINAL cards separate
+    // pricingAuthority from pricingPower, explicitly select a SWITCH_TYPE on
+    // card04, test it on card05, and carry none of the universal-bias defects.
+    const pricingPower = (hybridProfile && hybridProfile.pricingPower) || (hybridContext && hybridContext.pricingPower) || null
+    if (pricingPower) {
+      const ppScreen = screenPricingPower(cmp, pricingPower, gameModel)
+      r85c3 = r85c3 || { counts: {}, repaired: {} }
+      r85c3.powerCounts = ppScreen.counts
+      r85c3.switchType = (pricingPower.switchType && pricingPower.switchType.value) || 'UNKNOWN'
+    }
+  }
   const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
   const insight = cmp.card03.rule || st.systemTrap || (c.systemLoop && c.systemLoop.insight) || ''
   const card05ActionItems = parseActionItems(cmp.card05.actions)
@@ -254,7 +279,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       card04: cmp.card04,
       card05: Object.assign({}, cmp.card05, { actionItems: card05ActionItems })
     },
-    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [] }),
+    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [], r85c3Guard: (r85c3 && r85c3.counts) || null, r85c3Repaired: (r85c3 && r85c3.repaired) || null, r85c3PowerGuard: (r85c3 && r85c3.powerCounts) || null, r85c3SwitchType: (r85c3 && r85c3.switchType) || null }),
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance

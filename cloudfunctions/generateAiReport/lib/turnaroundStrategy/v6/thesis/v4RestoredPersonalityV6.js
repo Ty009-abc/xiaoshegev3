@@ -26,6 +26,10 @@ const R84D_VERSION = 'r84d_personality_v1'
 // OUTPUT CONTRACT) and PERSONALITY_VERSION (tone) stay frozen; R85-C adds the
 // game-deconstruction reasoning chain ABOVE the R84 personality spec.
 const R85C_VERSION = 'r85c1_game_model_v1'
+// R85C3 — the GAME-THESIS authority marker. PROMPT_VERSION / PERSONALITY_VERSION /
+// R85C_VERSION stay frozen; R85C3 makes GAME/RULE/TRAP the DOMINANT visible
+// thesis and binds all five cards to the deterministic GAME_THESIS.
+const R85C3_VERSION = 'r85c3_game_thesis_v1'
 
 // 珠澳小事哥 tone: sharp, reality-based, anti-self-deception, anti-fake-effort,
 // anti-fantasy — but NEVER humiliating, abusive, faking certainty, inventing
@@ -54,7 +58,30 @@ const ONE_THESIS_BLOCK = [
   '任何一张卡都不得变成独立的小诊断、独立的小建议。'
 ].join('\n')
 
-// R84-C §1/§2 — ONE PERSON + ONE CENTRAL CONTRADICTION + FIVE ANGLES.
+// R85C3 §3–§14 — GAME_THESIS AUTHORITY: GAME/RULE/TRAP is the DOMINANT visible
+// thesis. Legacy R84 themes (准备/市场验证/执行/第二次付费/价值结构) may only
+// SUPPORT; they may NOT become the top-level thesis when a GameModel is available.
+const GAME_THESIS_AUTHORITY_BLOCK = [
+  '================== GAME_THESIS 最高权威（R85C3）==================',
+  '这份报告的第一权威是【他正在玩的局】，不是他的心理状态，也不是泛泛的执行建议。',
+  '权威顺序（从高到低，不能倒置）：',
+  '  1. GAME（他在哪个局）',
+  '  2. RULE / 谁定定价权',
+  '  3. TRAP（越努力越被锁住的机制）',
+  '  4. REALITY EVIDENCE（他已发生的真实证据）',
+  '  5. SWITCH（换的是位置，不是努力）',
+  '  6. BET（一个最小现实下注）',
+  '  7. B1 / R84 人格信号（只作补充，永远不得取代 GAME 论点）',
+  '内部先构造 GAME_THESIS（不要输出字段名）：WHO_SETS_PRICE=谁定价 / WHAT_USER_SELLS=他卖什么 / CURRENT_POSITION=他现在什么位置 / TRAP=陷阱 / SWITCH=换什么 / BET=最小下注。五张卡全部由它派生。',
+  '每一份报告只能有一个中心矛盾：【他现在的局/位置】 vs 【他想要的经济位置】。',
+  '  例（方向，不要照抄）：“你的技术已经有价值，但它现在主要只能在雇主定价的游戏里兑现。”',
+  '  不能只是：“你还没验证第二次。”',
+  '硬限制：legacy 主题（没准备好 / 市场验证 / 执行力 / 第二次付费 / 价值结构）只能作为补充说明；当 GAME 模型可用时，它们不得成为顶层论点。',
+  'IP 原生用语优先：谁给你定价 / 你现在卖的到底是什么 / 钱为什么经过谁到你手里 / 停手是不是停收 / 有没有第二个付款人 / 你的价值能不能离开公司或平台 / 你要换的是努力还是位置。',
+  '不要强迫赌场词彽（庄家/赌桌/赔率/下注/赌场）——IP 是世界观的拆解，不是词汇 cosplay。用“局/规则/定价权/现实验证”自然表达。',
+  '硬度 ≠ 攻击性：不要靠侮辱 / 假确定性 / 恐惧 / 职业唱衰 / 薪资断言 / AI 替代断言来制造分量；要靠结构、具体、有证据、反直觉。',
+  'legacy R84 的“行为型 card01”（如“市场已经给过你一次答案，你却还在等自己准备好。”）在本版本里是【反例】：它接不住局，不得作为 card01 首选。'
+].join('\n')
 // This upgrades the report from "one thesis + five business sections" to
 // "this system is talking specifically about ME".
 const ONE_CONTRADICTION_BLOCK = [
@@ -100,16 +127,19 @@ const NO_FAKE_PERSONALITY_BLOCK = [
 
 // §3 / §11 — CARD01 collision structure + vivid identity language.
 const CARD01_BLOCK = [
-  '================== card01 写法（致命一句话）==================',
-  '首选结构：『你不是 X，你是在 Y。』或等价的"反转/再定义"。',
+  '================== card01 写法（致命一句话 · 必须先是局）==================',
+  '首选结构：『你不是 X，是你/你的<具体能力>现在在<什么局>里。』——把【真实损失/错误游戏】先说出来。',
+  '等价结构：你不是 X，你是在 Y。',
+  '- R85C3 最高优先：card01 必须含至少一个【局信号】：定价者/定价权/局结构/交换物/依赖。',
+  '  即：谁在给他定价、他卖的到底是什么、他依赖谁。',
+  '  方向示例（不要照抄）：『你不是技术不够，是你的技术现在只有公司一个定价者。』',
+  '  方向示例（不要照抄）：『你不是不够拼，是你的收入主要由平台规则定价。』',
+  '- 当 GAME 模型可用时，禁止【纯行为型】card01（如“市场已经给过你一次答案，你却还在等自己准备好。”）——它没接住局。',
   '- 必须：一句话；<=40 个汉字（最好 <=36）；有再定义或内在矛盾；值得截图。',
   '- 禁止：复述问卷；顾问腔；泛泛的励志；只描述现状的总结。',
-  '方向示例（不要照抄）：『你不是没行动，你是在用"再准备一下"回避被市场拒绝。』',
-  '反例（禁止）：『你的核心问题是缺乏市场验证。』',
-  '- R84-C：card01 必须是【核心矛盾】最锋利的形式，且优先使用画像里的具体信号（已被付费 / 免费被认可 / 有手艺没资产 / 靠工资兜底），',
-  '  而不是通用句式"你在用准备逃避拒绝"。能用上具体证据就必须用。',
-  '- R84-C 方向示例（不要照抄）：『市场已经给过你一次答案，你却还在等自己准备好。』',
-  '- R84-C：若画像里没有可靠具体信号，才退回更通用的矛盾表达。'
+  '- 反例（禁止）：『你的核心问题是缺乏市场验证。』',
+  '- 优先使用画像里的具体信号（已被付费 / 免费被认可 / 有手艺没资产 / 靠工资兜底），而不是通用句式；能用上具体证据就必须用。',
+  '- 若画像里没有可靠具体信号，才退回更通用的矛盾表达（但仍不得是纯心理学总结）。'
 ].join('\n')
 
 const CARD02_BLOCK = [
@@ -146,15 +176,20 @@ const CARD03_BLOCK = [
 ].join('\n')
 
 const CARD04_BLOCK = [
-  '================== card04 写法（翻身路径 = 身份迁移）==================',
+  '================== card04 写法（换法 = 明确选择 SWITCH_TYPE）==================',
   '结构固定：FROM（现在的身份）→ TO（要变成的身份）+ 1 句迁移原则 / 世界规则。',
-  '- 身份标签要鲜活、有人味。避免"技能持有者""可重复交付者"这类工程名词。',
-  '- 优先方向（按证据改写）："靠手艺接活的人" → "拥有一个能重复卖的产品的人"。',
-  '- 让他明白："不是多努力一点，而是换一种价值结构。"',
+  'R85C3 最高优先：card04 必须从三种换法里【明确选一个】，TO 必须体现那个换法，并带上他自己的具体价值词（手艺/技术/内容/成交能力…）：',
+  '  STAY_AND_UPGRADE → TO = “留在现在的体系里、把<他的价值>往上走到更靠近定价权的位置”。',
+  '  ADD_PRICING_SOURCE → TO = “保住现在的局，同时能把<他的价值>在局外直接卖给第二个独立付款人的位置”。',
+  '  SWITCH_GAME → TO = “带<他的价值>换到一个能自己积累定价权的局里的位置”。',
+  '- 禁止把 TO 写成一句可以套给多个人的模板句；不同的人、不同的局，TO 必须不同。',
+  '- 身份标签要鲜活、有人味。避免“技能持有者”“可重复交付者”这类工程名词。',
+  '- 让他明白：“不是多努力一点，而是换一种价值位置。”',
   '- 可见上限：<=160 个汉字。',
   '- R84-C：card04 的迁移必须是【人的身份转变】，不只是商业结构转变。',
-  '  方向（不要照抄）：FROM"等别人偶尔发现你价值的人" → TO"主动把价值摆上市场、让陌生人用钱投票的人"。',
-  '  用这个人真实的处境改写，不要工程名词（技能持有者/产品经营者）。'
+  '  用这个人真实的处境改写，不要工程名词（技能持有者/产品经营者）。',
+  '- 禁止把 TO 固定写成“陌生人直接买单 / 自己报价 / 绕过公司或平台”（这是强制去中介化偏见）。',
+  '  除非 SWITCH_TYPE 确实是去中介化方向，否则不得默认“只有自己定价 / 直接卖给陌生人才算翻身”。'
 ].join('\n')
 
 const CARD05_BLOCK = [
@@ -170,10 +205,13 @@ const CARD05_BLOCK = [
   '- 验证标准：一个可观察的结果（例如：有人为一个明确交付真实付了钱）。',
   '- 可见上限：<=240 个汉字。',
   '- R84-C：card05 必须直接打【同一个核心矛盾】——它要能回答 card01 提出的问题。',
-  '  例如 card01 若说"第二次验证还没做出来"，card05 就必须制造一次"第二次验证"。',
-  '  owner 类（已被付过一次钱）：不要停留在"定产品/找买家/跑复购"，而是围绕"验证第一次付费是否可重复"：',
-  '    重建上次他为什么付钱 → 对真实潜在买家重复同样的价值主张并给出真实报价 → 交付后问清他为什么付、会不会介绍别人。',
-  '  验证标准：第二次/第三次独立的付费信号（用"验证/是否可重复"，不要写"证明不是运气"）。具体实现必须由画像决定。'
+  '  R85C3：card05 必须去检验 card04 选定的【同一个 SWITCH_TYPE】：',
+  '    STAY_AND_UPGRADE → 检验“在现有体系里能否拿到一次更明确的定价信号（更高的价码/层级/职责）”。',
+  '    ADD_PRICING_SOURCE → 检验“能否出现第二个独立付款人，为同一份价值付第一笔钱”。',
+  '    SWITCH_GAME → 检验“能否在一个新的局里拿到第一笔可积累的定价反馈”。',
+  '  禁止把 card05 固定写成“找陌生买家 / 自己报价 / 雇主体系之外”（强制去中介化）。',
+  '  owner 类（已被付过一次钱）：不要停留在“定产品/找买家/跑复购”，而是围绕“验证第一次付费是否可重复”。',
+  '  验证标准：第二次/第三次独立的付费信号（用“验证/是否可重复”，不要写“证明不是运气”）。具体实现必须由画像决定。'
 ].join('\n')
 
 // R85-C §1/§3/§11 — THE GAME-DECONSTRUCTION CHAIN (the ORIGINAL IP spine).
@@ -249,10 +287,35 @@ const PROBABILITY_DISCIPLINE_BLOCK = [
   'card05 的验收标准要写"验证"，不要写"证明不是运气"。'
 ].join('\n')
 
+// R85C3 — PRICING POWER + SWITCH_TYPE 最高权威。
+// 修正 owner 目标：报告曾把【谁在定价】折叠成【应该自己定价 / 直接卖给陌生人】。
+const PRICING_POWER_AUTHORITY_BLOCK = [
+  '================== 定价权 ≠ 定价力（R85C3 最高优先）==================',
+  '【关键区分】定价权（authority）= 现在谁在给他定价；定价力（power）= 他的价值还能被多少个可信的替代方式重新定价与兑现。',
+  '不要把“谁在定价”误当成“他应该自己定价 / 直接卖给陌生人”。SELF-PRICED 并不天然高于 EMPLOYER-PRICED。',
+  '核心原则：让用户拥有更多被重新定价的选择，而不是让所有人自己定价。',
+  '三种换法都合理，不排名（card04 必须明确选一个）：',
+  '  A. STAY_AND_UPGRADE：留在现在的局，把位置升级到更靠近定价权的一层。',
+  '  B. ADD_PRICING_SOURCE：不推翻现在的局，在它之外再加一个独立定价来源（第二个付款人）。',
+  '  C. SWITCH_GAME：这个局的机制本身封住了再定价，所以要换的是局，不是更努力。',
+  'card04 必须从这三种里【明确选一个】写清；card05 必须用一次最小现实下注去检验【同一个换法】。',
+  '严格禁止（universal）：',
+  '  ✗ “老板定价不好 / 自己定价才高级 / 陌生人付钱才算市场”',
+  '  ✗ “绕过公司或平台才算翻身 / 员工都应该创业 / 不做员工”',
+  '  ✗ 把公司/平台一律描述成敌人；把“留在体系内”天然写成失败。',
+  'card03（陷阱）：陷阱的因必须是【机制】（规则→行为/激励→结果→锁死），不是他的心理。',
+  '  ✓ “技术越熟练→在岗位内越值钱→内部兑现越依赖雇主→外部定价的证据仍然是空的”',
+  '  ✗ “你却还把定价权交给别人 / 你舍不得 / 你不愿承认 / 你一直在骗自己”（这是读心，不是机制）',
+  '交易事实：只有在画像已有付费证据（被付过一次钱/断续付费/稳定合作）时，才可以说“已经有人为他付过钱”。',
+  '  没有付费证据时，禁止出现“市场已经为你付过钱 / 陌生人已经买单”。'
+].join('\n')
+
 function buildPersonalityBlock () {
   return [
     TONE_BLOCK,
     ONE_THESIS_BLOCK,
+    GAME_THESIS_AUTHORITY_BLOCK,
+    PRICING_POWER_AUTHORITY_BLOCK,
     GAME_MODEL_BLOCK,
     ONE_CONTRADICTION_BLOCK,
     GROUNDING_EVIDENCE_BLOCK,
@@ -286,7 +349,17 @@ const DETERMINISTIC_TARGETS = Object.freeze({
   UNSUPPORTED_CAUSAL_CLAIM_COUNT: 0,
   ABSOLUTE_MARKET_CLAIM_COUNT: 0,
   CERTAINTY_OVERSTATEMENT_COUNT: 0,
-  OWNER_MORTGAGE_CAUSAL_BUG_COUNT: 0
+  OWNER_MORTGAGE_CAUSAL_BUG_COUNT: 0,
+  // R85C3 §3–§10 — PRICING_POWER + SWITCH_TYPE targets (all defect-only).
+  CARD01_GAME_SIGNAL_MISSING_COUNT: 0,
+  LEGACY_THEME_OVERRIDES_GAME_COUNT: 0,
+  CARD01_CARD05_GAME_LOOP_FAIL_COUNT: 0,
+  PRICING_AUTHORITY_PRICING_POWER_COLLAPSE_COUNT: 0,
+  SWITCH_TYPE_MISSING_COUNT: 0,
+  FORCED_DISINTERMEDIATION_COUNT: 0,
+  ENTREPRENEURSHIP_BIAS_COUNT: 0,
+  PSYCHOLOGY_AS_TRAP_COUNT: 0,
+  FABRICATED_TRANSACTION_COUNT: 0
 })
 
 module.exports = {
@@ -294,8 +367,11 @@ module.exports = {
   R84C_VERSION,
   R84D_VERSION,
   R85C_VERSION,
+  R85C3_VERSION,
   TONE_BLOCK,
   ONE_THESIS_BLOCK,
+  GAME_THESIS_AUTHORITY_BLOCK,
+  PRICING_POWER_AUTHORITY_BLOCK,
   GAME_MODEL_BLOCK,
   IP_NATIVE_LANGUAGE_BLOCK,
   ONE_CONTRADICTION_BLOCK,

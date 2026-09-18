@@ -68,6 +68,8 @@ const L = {
 }
 const lbl = (v) => (v == null ? null : (L[v] || String(v)))
 
+const { buildGameThesis } = require('./gameThesisV6.js')
+
 /**
  * Build the full user-profile block (all 18 answered fields, human language).
  * @param {Object} hybrid HybridProfile
@@ -134,6 +136,11 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
   const userContext = buildUserContext(hybrid)
   const diagnosticContext = buildDiagnosticContext(diagnosis, hybridContext)
   const answeredFieldCount = Object.keys(userContext).filter((k) => userContext[k] != null).length
+  const gameModel = (hybrid && hybrid.gameModel) || (hybridContext && hybridContext.gameModel) || null
+  const pricingPower = (hybrid && hybrid.pricingPower) || (hybridContext && hybridContext.pricingPower) || null
+  // R85C3 §5 — the DOMINANT visible-thesis object, built deterministically on top
+  // of the GameModel. PRIMARY prompt authority; five cards must derive from it.
+  const gameThesis = buildGameThesis(gameModel, hybrid || null, hybridContext || null)
   return {
     reportVersion: 'v4-restored',
     userContext,
@@ -141,7 +148,12 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
     // R85-B §13 — structured real economy model (causal input, not a noun swap).
     realEconomyModel: (hybrid && hybrid.realEconomyModel) || (hybridContext && hybridContext.realEconomyModel) || null,
     // R85-C §11 — structured GAME MODEL (REALITY→GAME→RULE→TRAP→SWITCH→BET causal input).
-    gameModel: (hybrid && hybrid.gameModel) || (hybridContext && hybridContext.gameModel) || null,
+    gameModel: gameModel,
+    // R85C3 — GAME_THESIS (PRIMARY visible-thesis authority; five cards bind to it).
+    gameThesis: gameThesis,
+    // R85C3 §3 — PRICING_POWER: separates pricingAuthority (who sets price NOW)
+    // from pricingPower (how many alternative re-pricing routes exist) + SWITCH_TYPE.
+    pricingPower: pricingPower,
     hasUserOccupation: !!userContext.occupationDetail,
     answeredFieldCount
   }

@@ -27,6 +27,7 @@
 const C = require('./hybridContractV6.js')
 const { computeRealEconomyModelV6 } = require('./realEconomyModelV6.js')
 const { computeGameModelV6 } = require('./gameModelV6.js')
+const { computePricingPowerV6 } = require('../thesis/pricingPowerV6.js')
 
 // R85-C §4 — pricing authority is normalized to its own value vocabulary (who
 // decides the final income). ZERO B1 authority (B1 inputs unchanged).
@@ -103,6 +104,12 @@ function buildHybridProfileV6 (raw) {
   // model) as RUNTIME context. EVIDENCE_LAYER only: ZERO B1 authority, never
   // read by any B1 file, and NEVER persisted as a permanent profile fact.
   profile.gameModel = computeGameModelV6(profile.realEconomyModel, profile)
+  // R85C3 §3 — attach the DETERMINISTIC PRICING-POWER model (DERIVED above the
+  // GameModel): it SEPARATES pricingAuthority (who sets the price NOW) from
+  // pricingPower (how many alternative ways value can be RE-PRICED) and selects
+  // one SWITCH_TYPE. EVIDENCE_LAYER only: ZERO B1 authority, never read by any
+  // B1 file, and NEVER persisted as a permanent profile fact.
+  profile.pricingPower = computePricingPowerV6(profile.gameModel, profile)
   return profile
 }
 

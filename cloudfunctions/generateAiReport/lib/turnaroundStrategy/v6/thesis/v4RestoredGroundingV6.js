@@ -85,8 +85,12 @@ const GAME_HYPOTHETICAL = /(能不能|能否|可以|能够|应该|如果|若|假
 // platform, nor that customers "recognise the store, not you". The system never
 // asks who owns the customer → customer ownership stays UNKNOWN, and customer
 // recognition is never observed. Aspirational/directional phrasing is exempt.
-const CUSTOMER_OWNERSHIP_CLAIM_PAT = /(客户|顾客|买家|甲方)[^。，,；！？]{0,6}(归属|属于|都归|全归|归)[^。，,；！？]{0,4}(公司|平台|雇主|老板|店家|企业|单位)/
-const CUSTOMER_RECOGNITION_CLAIM_PAT = /(顾客|客户|买家)[^。，,；！？]{0,8}(只认|不认|认的?是|只记住|只记住的是)[^。，,；！？]{0,6}(店|餐厅|门店|平台|公司|品牌|店家|招牌)/
+// R85C3 §18: the detector is widened to the natural provider phrasings actually
+// observed in real output (e.g. 「顾客记住的是店，不是你」 / 「顾客只记住店」),
+// which the R85C1 pattern missed. The OBJECT list stays narrow (store/platform/
+// brand/company) so legitimate 「顾客认可你的手艺」 is never flagged.
+const CUSTOMER_OWNERSHIP_CLAIM_PAT = /((客户|顾客|买家|甲方)[^。，,；！？]{0,6}(归属|属于|都归|全归|归)[^。，,；！？]{0,4}(公司|平台|雇主|老板|店家|企业|单位))|((客户|顾客|买家|甲方)[^。，,；！？]{0,6}(也不是|不是|并不属于|不属于|不归)[^。，,；！？]{0,3}(你|你自己|你的))/
+const CUSTOMER_RECOGNITION_CLAIM_PAT = /(顾客|客户|买家)[^。，,；！？]{0,8}(只认|不认|认的?是|只记住|只记得|记住的?是|记住的只有|心里只有)[^。，,；！？]{0,6}(店|餐厅|门店|平台|公司|品牌|店家|招牌)/
 
 /** Detect a game/pricing claim that contradicts the computed game model. */
 function detectGameConflict (text, ctx) {
@@ -128,7 +132,9 @@ function detectCustomerOwnershipClaim (text) {
 function downshift (text) {
   let t = String(text || '')
   t = t.replace(/证明([^。，,；！？]{0,10})不是运气/g, '验证$1是否具备可重复性')
-  t = t.replace(/不是运气/g, '是否具备可重复性')
+  // bare 「不是运气」mid-sentence must downshift to a GRAMMATICAL probabilistic
+  // phrase (e.g. 「这不是运气，是…」→「这不能证明可重复，是…」).
+  t = t.replace(/不是运气/g, '不能证明可重复')
   t = t.replace(/证明了?([^。，,；！？]{0,12}?)(一定|必然|绝对|肯定)(能|会|是|成立|成功)?/g, '需要用现实检验$1是否$3')
   t = t.replace(/一定保证|保证一定/g, '更有机会')
   t = t.replace(/市场只认/g, '市场更看重')
@@ -295,12 +301,18 @@ const CONSTRAINT_FRAME = {
  * ONLY when a required field would otherwise go empty after dropping an
  * unsupported causal sentence. They assert no user-specific fact.
  */
+// R85C3 §13/§15 — DIRECTION-CORRECT: a card04 `from` is the CURRENT identity and a
+// card04 `to` is the DESIRED identity; a single shared sentence was being used for
+// BOTH (so `from` could read as a target). The target is deliberately NEUTRAL and
+// does NOT force disintermediation (绕过公司/店家/平台) — it only asks for a SECOND
+// independent payer, which is valid for every game.
 const NEUTRAL_FALLBACK = {
   card01: '现实已经给过一次答案，你还没把第二次验证做出来。',
   card02: '你是被市场付过一次钱、却还没把一次成交变成重复验证的人。',
   card03: '缺的不是再准备，而是第二次真实市场反馈。',
   card03rule: '缺的不是再准备，而是第二次真实市场反馈。',
-  card04: '把价值主动摆到市场，让陌生人用钱投票。',
+  card04from: '还在被单一体系定价、靠它兑现价值的人。',
+  card04to: '能让第二个独立付款人出现的人。',
   card04rule: '一次付费只说明有人愿意买；重复付费才开始说明这件事可复制。',
   card05: '对真实潜在买家完成一次明确报价与交付。',
   card05accept: '出现第二个与你没有人情关系的人真实付费。'
@@ -314,6 +326,13 @@ const NEUTRAL_FALLBACK = {
  * mission-sanctioned neutral grounded line, if the field would go empty.
  */
 function fixField (text, slot, ctx, fallbackText, audit, repaired) {
+  // R85C3 §6 — for a card04 target identity, a customer-ownership fragment
+  // (客户/顾客/买家 ... 也不是你的 / 归属公司 / 属于平台) asserts an UNSUPPORTED
+  // claim, but the rest of the sentence (the switch target) is fine. Remove ONLY
+  // the ownership fragment in place — text-preserving, nothing invented.
+  if (slot === 'card04to' || slot === 'card02') {
+    text = String(text || '').replace(/[、，,]?\s*(客户|顾客|买家|甲方)[^。，,；！？]{0,8}(也不是(你(的)?|你的人)|不属于你|不是你的|归属(公司|平台|店家|老板|雇主|企业|单位)|归(公司|平台|店家|老板|雇主)(所有)?)/g, '')
+  }
   const parts = sentences(text)
   if (!parts.length) return String(text || '')
   const g = ctx || {}
@@ -379,8 +398,8 @@ function screenGrounding (cmp, thesis, ctx, fb) {
   }
   const c4 = c.card04 || { from: '', to: '', rule: '' }
   c.card04 = {
-    from: fixField(c4.from, 'card04', g, f.card04From, audit, repaired),
-    to: fixField(c4.to, 'card04', g, f.card04To, audit, repaired),
+    from: fixField(c4.from, 'card04from', g, f.card04From, audit, repaired),
+    to: fixField(c4.to, 'card04to', g, f.card04To, audit, repaired),
     rule: fixField(c4.rule, 'card04rule', g, f.card04Rule, audit, repaired)
   }
   const c5 = c.card05 || { goal: '', actions: [], acceptance: '' }
