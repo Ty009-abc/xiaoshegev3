@@ -4,17 +4,25 @@
  *
  * RC8.4 V6 R44 — HYBRID 10-SCREEN QUESTIONNAIRE CONTRACT (backend authority).
  *
- * 10 visible screens · 20 raw fields (R85-C adds occupationCategory + pricingAuthority).
+ * 10 visible screens · 21 raw fields (R86-C World Model upgrade).
  *      S1  lifeStage
  *      S2  incomeStructure + occupationCategory (optional) + occupationDetail (required) + pricingAuthority (required)
  *      S3  monthlySurplus
  *      S4  safetyMonths + debtPressure
  *      S5  skillValidation + monetizableSkill
- *      S6  weeklyTime + executionStability
+ *      S6  weeklyTime + laborModel            (R86-C: was executionStability; LABOR cognition)
  *      S7  pastAttemptStage + selfBelief
- *      S8  decisionStyle + timeBehavior
- *      S9  primaryProblem + primaryGoal
- *      S10 maxTrialCost + failureResponse
+ *      S8  decisionStyle (PROBABILITY scenario, reused) + timeBehavior
+ *      S9  primaryProblem + systemModel       (R86-C: was primaryGoal; SYSTEM cognition)
+ *      S10 maxTrialCost + failureResponse (EVIDENCE scenario, reused) + ruleModel (RULE cognition)
+ *
+ * R86-C (World Model, `worldModelV1.js`): removes `executionStability` + `primaryGoal`
+ * (both NONE in `hybridB1AdapterV6.B1_MAPPING_TABLE`); adds `laborModel` /
+ * `systemModel` / `ruleModel` (each ONE world-model axis, ZERO B1 authority);
+ * REUSES `decisionStyle` as the PROBABILITY scenario and `failureResponse` as the
+ * EVIDENCE scenario, keeping their B1 option ids/map VERBATIM (their visible text
+ * is reframed). Canonical B1 option ids for selfBelief / timeBehavior /
+ * primaryProblem are untouched. SEMANTIC_DOUBLE_WRITE_COUNT = 0.
  *
  * AUTHORITY (frozen, non-negotiable):
  *   - V6 B1 remains the ONLY bottleneck-diagnosis authority.
@@ -215,13 +223,13 @@ const SCREENS = [
       ['TIME_20_PLUS', '20小时以上', null]
     ],
     secondary: {
-      key: 'executionStability', required: true,
-      prompt: '你的执行力更接近哪一种？',
+      key: 'laborModel', required: true,
+      prompt: '有一件每周都要花时间的活儿。如果多出 10 个小时，你更愿意先花在哪？',
       options: [
-        ['EXEC_VOLATILE', '很容易三分钟热度，计划经常中断'],
-        ['EXEC_UNSTABLE', '偶尔能坚持，但不稳定'],
-        ['EXEC_STABLE', '有固定计划，基本能执行'],
-        ['EXEC_VERY_STABLE', '非常稳定，不需要外部督促']
+        ['LABOR_MORE_WORK', '再多接两单、多做一点'],
+        ['LABOR_REUSABLE', '整理成能重复用的方法'],
+        ['LABOR_LEVERAGE', '让别人帮我分担一部分'],
+        ['LABOR_PRICING', '找愿意出更高价的人']
       ]
     }
   },
@@ -266,17 +274,13 @@ const SCREENS = [
     canonical: true,
     options: CANONICAL_PROBLEM_IDS.map((id) => [id, CANONICAL_TEXT[id], id]),
     secondary: {
-      key: 'primaryGoal', required: true,
-      prompt: '同一个未来12个月，这些里面你最想先做成的是哪件？',
-      reportOnly: true,
+      key: 'systemModel', required: true,
+      prompt: '一个店反复出同一个问题，换了几拨人还是老样子。你更可能怎么想？',
       options: [
-        ['GOAL_SIDE_INCOME', '搞一份副业收入'],
-        ['GOAL_SKILL_MONETIZE', '把技能变现/做咨询'],
-        ['GOAL_PERSONAL_BRAND', '建立个人IP/品牌'],
-        ['GOAL_CAREER_SWITCH', '转行进入新领域'],
-        ['GOAL_SIDE_TO_MAIN', '从副业变主业/独立'],
-        ['GOAL_DEBT', '还清债务/修复现金流'],
-        ['GOAL_FIND_DIRECTION', '先找到方向再说']
+        ['SYS_PERSON', '换个靠谱的人就好'],
+        ['SYS_STRUCTURE', '多半是流程的问题'],
+        ['SYS_PER_EVENT', '每次原因都不一样'],
+        ['SYS_NONE', '没细想过这类事']
       ]
     }
   },
@@ -292,13 +296,22 @@ const SCREENS = [
     ],
     secondary: {
       key: 'failureResponse', required: true,
-      prompt: '如果试错失败了，你会？',
+      prompt: '你做成了一件事，别人夸你厉害。你更可能怎么处理这次成功？',
       options: [
-        ['FAIL_GIVE_UP', '直接放弃，不再尝试', 'NORESULT_STOP'],
-        ['FAIL_SWITCH', '换个方向继续试', 'NORESULT_SWITCH'],
-        ['FAIL_RECHECK', '复盘优化后继续', 'NORESULT_RECHECK'],
-        ['FAIL_ADD_MONEY', '追加投入再试一次', null],
-        ['FAIL_UNSURE', '不确定', null]
+        ['EVID_PRAISE', '挺受用，觉得自己行', 'NORESULT_NONE'],
+        ['EVID_REPEATABLE', '想想下次还能不能成', 'NORESULT_RECHECK'],
+        ['EVID_LUCK', '可能只是运气好', 'NORESULT_NONE'],
+        ['EVID_UNREFLECTIVE', '接着做下一件事', 'NORESULT_SWITCH']
+      ]
+    },
+    secondary2: {
+      key: 'ruleModel', required: true,
+      prompt: '同一份活你干得更多更快，收入却没什么变化。你先想的是？',
+      options: [
+        ['RULE_EFFORT', '那我再努力点、做好点'],
+        ['RULE_AWARE', '这活是谁在定价'],
+        ['RULE_DEMAND', '先看市场还缺不缺人'],
+        ['RULE_NONE', '没多想，先把活干好']
       ]
     }
   }
@@ -361,8 +374,22 @@ const HYBRID_RAW_FIELD_COUNT = FIELDS.length
 
 // R85-B §4 — occupation category ids (kept in sync with realEconomyModelV6).
 const OCCUPATION_CATEGORY_IDS = ['OCC_TECH', 'OCC_SALES', 'OCC_SERVICE', 'OCC_PLATFORM_LABOR', 'OCC_SELF_EMPLOYED', 'OCC_CONTENT_CREATIVE', 'OCC_OPERATIONS_ADMIN', 'OCC_OTHER']
-// R85-C §4 — pricing-authority ids (who decides the final income).
+// R86-C §4 — pricing-authority ids (who decides the final income).
 const PRICING_AUTHORITY_IDS = ['PRICE_EMPLOYER', 'PRICE_PLATFORM', 'PRICE_CLIENT', 'PRICE_SELF', 'PRICE_MIXED', 'PRICE_UNKNOWN']
+// R86-C — the three NEW world-model cognitive fields (ZERO B1 authority).
+const WORLD_MODEL_FIELD_KEYS = ['laborModel', 'systemModel', 'ruleModel']
+// R86-C — LEGACY option ids accepted for BACKWARD COMPATIBILITY only (never
+// rendered by the client; never part of the product UI). The R86-C questionnaire
+// reframes the EVIDENCE scenario onto the `failureResponse` slot with new
+// EVID_* ids; historical submissions still carry the old FAIL_* ids, so the
+// backend keeps accepting them and the B1 adapter still maps them.
+const LEGACY_OPTION_IDS = Object.freeze({
+  failureResponse: ['FAIL_GIVE_UP', 'FAIL_SWITCH', 'FAIL_RECHECK', 'FAIL_ADD_MONEY', 'FAIL_UNSURE']
+})
+// R86-C — world-model option ids (kept in sync with worldModelV1.js).
+const LABOR_MODEL_IDS = ['LABOR_MORE_WORK', 'LABOR_REUSABLE', 'LABOR_LEVERAGE', 'LABOR_PRICING']
+const SYSTEM_MODEL_IDS = ['SYS_PERSON', 'SYS_STRUCTURE', 'SYS_PER_EVENT', 'SYS_NONE']
+const RULE_MODEL_IDS = ['RULE_EFFORT', 'RULE_AWARE', 'RULE_DEMAND', 'RULE_NONE']
 
 function isFreeText (key) { return FREE_TEXT_FIELD_KEYS.indexOf(key) !== -1 }
 function isRequiredField (key) { return REQUIRED_FIELD_KEYS.indexOf(key) !== -1 }
@@ -370,8 +397,11 @@ function optionsFor (key) { return OPTIONS_BY_FIELD[key] || [] }
 function resolveOptionId (key, value) {
   if (typeof value !== 'string') return null
   const map = OPTION_BY_ID[key]
-  if (!map) return null
-  return Object.prototype.hasOwnProperty.call(map, value) ? value : null
+  if (map && Object.prototype.hasOwnProperty.call(map, value)) return value
+  // R86-C — legacy ids (e.g. FAIL_*) remain valid inputs for back-compat.
+  const legacy = LEGACY_OPTION_IDS[key]
+  if (legacy && legacy.indexOf(value) !== -1) return value
+  return null
 }
 function canonicalFor (key, optionId) {
   const map = OPTION_BY_ID[key]
@@ -403,6 +433,10 @@ function validateHybridRaw (raw) {
     // GAME/RULE authority but ZERO B1 authority (B1 inputs unchanged) → the B1
     // input builder stays tolerant; the requirement is enforced at the
     // questionnaire/client layer (same pattern as occupation).
+    if (WORLD_MODEL_FIELD_KEYS.indexOf(key) !== -1) continue // R86-C §6: the three
+    // NEW world-model fields have ZERO B1 authority (they feed worldModelV1 only,
+    // never any B1 file) → B1-tolerant; the requirement is enforced at the
+    // questionnaire/client layer (same pattern as occupation).
     const v = raw[key]
     if (v === undefined || v === null || v === '') { errors.push('MISSING:' + key); continue }
     if (!resolveOptionId(key, v)) errors.push('UNKNOWN_OPTION:' + key + ':' + v)
@@ -417,6 +451,14 @@ function validateHybridRaw (raw) {
   const pa = raw.pricingAuthority
   if (pa !== undefined && pa !== null && pa !== '' && !resolveOptionId('pricingAuthority', pa)) {
     errors.push('UNKNOWN_OPTION:pricingAuthority:' + pa)
+  }
+  // R86-C — the world-model fields are B1-tolerant when absent, but fail-closed on
+  // an UNKNOWN option when present (never a silent default into a valid state).
+  for (const key of WORLD_MODEL_FIELD_KEYS) {
+    const wv = raw[key]
+    if (wv !== undefined && wv !== null && wv !== '' && !resolveOptionId(key, wv)) {
+      errors.push('UNKNOWN_OPTION:' + key + ':' + wv)
+    }
   }
   return { valid: errors.length === 0, errors, malformed: false }
 }
@@ -439,6 +481,11 @@ module.exports = {
   HYBRID_RAW_FIELD_COUNT,
   OCCUPATION_CATEGORY_IDS,
   PRICING_AUTHORITY_IDS,
+  WORLD_MODEL_FIELD_KEYS,
+  LABOR_MODEL_IDS,
+  SYSTEM_MODEL_IDS,
+  RULE_MODEL_IDS,
+  LEGACY_OPTION_IDS,
   isFreeText,
   isRequiredField,
   optionsFor,

@@ -23,6 +23,8 @@ const { renderEconomyLines } = require('../hybrid/realEconomyModelV6.js')
 const { renderGameLines } = require('../hybrid/gameModelV6.js')
 const { renderGameThesisLines } = require('./gameThesisV6.js')
 const { renderPricingPowerLines } = require('./pricingPowerV6.js')
+const { renderWorldModelLines } = require('../hybrid/worldModelV1.js')
+const { renderMismatchLines } = require('../hybrid/modelRealityMismatchV6.js')
 
 function buildSystemPrompt () {
   return [
@@ -56,12 +58,12 @@ function buildSystemPrompt () {
     '- 即使系统给不出主瓶颈，你仍然必须形成一个强有力的结构性解释，例如："你真正浪费的不是能力，而是一直没把能力变成可交易资产。"',
     '- 不要出现"诊断状态 / 瓶颈 / 信封 / 字段 / NO_PRIMARY"这类内部词。',
     '',
-    '================== 五、五张卡的职责 ==================',
-    'card01 致命一句话：制造认知碰撞，一句话击中，不要只是总结现状（建议 <=40 字）。',
-    'card02 核心问题：解读他的身份/价值位置，先给一个记得住的身份标签；事实为判断服务，而不是事实罗列（建议 <=140 字）。',
-    'card03 系统困局：讲清一条机制 / 反馈回路 / 世界规则（最多 3 步 + 1 句拔高结论，整体建议 <=220 字）。',
-    'card04 翻身路径：给出真实的 FROM → TO 迁移，可含 2–3 步（建议 <=160 字）。',
-    'card05 行动建议：一个 90 天主目标 + 3 个带中文微标题的具体动作 + 验证标准（建议 <=240 字）。',
+    '================== 五、五张卡的职责（R86-C 世界模型版）==================',
+    'card01 致命一句话＝【模型–现实碰撞】：把他“习惯怎么理解这类事”（世界模型）和“现实实际怎么运转”（局/现实）撞在一起，一句话击中，不要只是总结现状（建议 <=40 字）。不能只有职业/金钱、也不能只有性格，两半都要有。',
+    'card02 核心问题＝【他现在的世界模型】：回答“你通常用什么规则解释这类问题？”，先给一个记得住的说法；不是职业身份、不是经济阶段、不是性格标签（建议 <=140 字）。',
+    'card03 系统困局＝【现实对模型的奖励/惩罚回路】：讲清一条机制，并且要让读者看到这套旧模型在短期内是“被奖励”的（所以才会一直用下去），最多 3 步 + 1 句拔高结论（整体建议 <=220 字）。',
+    'card04 翻身路径＝【世界模型升级】：给出一个真实的【旧模型 → 新模型】迁移（来自现实检验方向），可含 2–3 步（建议 <=160 字）。现实里的换局选项（STAY_AND_UPGRADE / ADD_PRICING_SOURCE / SWITCH_GAME）只能作为“升级后的应用”附带出现，不能取代模型升级本身。',
+    'card05 行动建议＝【世界模型现实检验（不先谈钱）】：一个 90 天里可做、可反悔的动作，用来判断“新模型是不是比旧模型更贴合现实”，再配 3 个带中文微标题的具体动作 + 验证标准（建议 <=240 字）。最小现实下注（如有）只能作为其中一个具体载体，不能取代这个检验本身。',
     '',
     buildPersonalityBlock(),
     '',
@@ -97,9 +99,10 @@ function buildUserMessage (payload) {
     pricingAuthority: '主要收入由谁定价',
     monthlySurplus: '每月结余', safetyMonths: '存款可支撑时长', debtPressure: '负债情况',
     monetizableSkill: '可能变现的能力', skillValidation: '能力被市场验证的程度', weeklyTime: '每周可自由支配时间',
-    executionStability: '执行力稳定性', maxTrialCost: '可承受的试错成本', primaryProblem: '最想先解决的问题',
-    primaryGoal: '未来12个月最想做成的事', pastAttemptStage: '过去一年最接近赚钱的尝试', decisionStyle: '面对不确定性时的决策方式',
-    timeBehavior: '时间分配习惯', selfBelief: '他觉得自己卡在哪', failureResponse: '失败后的反应'
+    laborModel: '多出时间时会先做什么（价值/劳动模型）', maxTrialCost: '可承受的试错成本', primaryProblem: '最想先解决的问题',
+    systemModel: '遇到反复出现的问题时的想法（系统模型）', pastAttemptStage: '过去一年最接近赚钱的尝试', decisionStyle: '面对不确定机会时的第一反应（概率模型）',
+    timeBehavior: '时间分配习惯', selfBelief: '他觉得自己卡在哪', failureResponse: '做成事后如何处理成功（证据模型）',
+    ruleModel: '收入没随努力变化时的第一反应（规则模型）'
   }
   let present = 0
   for (const k of Object.keys(FIELD_LABEL)) {
@@ -135,6 +138,17 @@ function buildUserMessage (payload) {
   if (p.pricingPower) {
     lines.push('================== 定价力模型（pricingAuthority ≠ pricingPower）==================')
     for (const ln of renderPricingPowerLines(p.pricingPower)) lines.push(ln)
+    lines.push('')
+  }
+  // R86-C §1/§2 — WORLD MODEL（本报告最高权威·他习惯怎么理解世界）+ 模型-现实错配。
+  if (p.worldModel) {
+    lines.push('================== 世界模型（他习惯怎么理解问题·最高权威）==================')
+    for (const ln of renderWorldModelLines(p.worldModel)) lines.push(ln)
+    lines.push('')
+  }
+  if (p.mismatch) {
+    lines.push('================== 模型-现实错配（对照物，不是判决）==================')
+    for (const ln of renderMismatchLines(p.mismatch)) lines.push(ln)
     lines.push('')
   }
   lines.push('================== 系统诊断（证据/上下文，不是文案模板）==================')

@@ -1,30 +1,36 @@
 {
-  "taskId": "RC8.4_V6_R85C3_PRICING_POWER_AND_GAME_THESIS_CORRECTION",
-  "baseCommit": "44c11f8a40847d7b9047e33124a87d221afbb920",
+  "taskId": "RC8.4_V6_R86C_WORLD_MODEL_RUNTIME_IMPLEMENTATION",
+  "baseCommit": "5788d16158df346459da0bcf72054e8b32a69ce5",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "The five-card report collapsed PRICING AUTHORITY into SELF-PRICING / DIRECT-CUSTOMER PAYMENT. Card04 was hard-wired to 'from employer-priced person -> to someone strangers pay directly', Card05 to 'find strangers/quote yourself/outside the employer system', and the world rule to 'your craft only becomes yours the moment a stranger pays'. That is a universal disintermediation ideology, NOT a diagnosis. It forces everyone toward freelance/direct sales and implies SELF-PRICED is superior to EMPLOYER-PRICED. R85C3 separates pricingAuthority (WHO sets the price now) from pricingPower (HOW MANY credible alternative ways the value can be RE-PRICED), adds a deterministic SWITCH_TYPE (STAY_AND_UPGRADE | ADD_PRICING_SOURCE | SWITCH_GAME | UNKNOWN), makes card04 explicitly select one and card05 test that same one, and removes the entrepreneurship / direct-customer bias with defect-only detectors. Core principle: 让用户拥有更多被重新定价的选择，而不是让所有人自己定价。",
+  "problem": "The report treated reality facts (occupation / income / pricing authority) and game structure as the top authority, so the diagnosis could imply the user's COGNITION is wrong. RC8.4 V6 R86-C introduces a deterministic WORLD MODEL (how the user REASONS) as a cognitive layer ABOVE the game, separate from MODEL_UPGRADE (a better-adapted frame) and from REAL_WORLD_STRATEGY (what to do). Frozen laws: WORLD MODEL is measured ONLY by cognitive input — reality facts are supporting context, never direct axis authority (REALITY_TO_WORLD_MODEL_DIRECT_AUTHORITY_COUNT=0); a mismatch requires TWO-SIDED evidence (model side AND reality side) and outputs CODES + evidence, never a verdict; Card04 expresses a WORLD-MODEL UPGRADE as PRIMARY (switch-type is supporting consequence only — MODEL_UPGRADE_SWITCH_TYPE_COLLAPSE=NO); Card05 expresses a WORLD-MODEL REALITY TEST as PRIMARY (game bet is supporting only — REALITY_TEST_GAME_BET_COLLAPSE=NO). Questionnaire economy: 10 screens / 13 decision units / 21 raw fields — remove executionStability + primaryGoal; add laborModel (S6) + systemModel (S9) + ruleModel (S10); REUSE decisionStyle (PROBABILITY) + failureResponse (EVIDENCE) so B1 option ids/map stay intact (SEMANTIC_DOUBLE_WRITE_COUNT=0). Five cards remapped: Card01=MODEL-REALITY COLLISION, Card02=CURRENT WORLD MODEL, Card03=REALITY REWARD/PUNISH LOOP, Card04=WORLD MODEL UPGRADE, Card05=WORLD MODEL REALITY TEST. No IQ / 认知高低 / moral language. Money appears only as scenario medium (MONEY_ADVICE_DOMINANCE=NO).",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridB1AdapterV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/modelRealityMismatchV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js",
+    "utils/v6/turnaroundQuestionnaireHybridV10.js",
+    "tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
+    "tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
+    "tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js",
     "tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [],
   "contractsAffected": [],
   "requiredTests": [
-    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
     "node tests/v6/thesis/rc8.4-v6-r84a-five-card-personality.test.js",
     "node tests/v6/thesis/rc8.4-v6-r84c-one-person-one-contradiction.test.js",
     "node tests/v6/thesis/rc8.4-v6-r84d-causal-grounding.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js",
-    "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js"
+    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js"
   ],
-  "rollbackPlan": "git checkout 44c11f8a40847d7b9047e33124a87d221afbb920 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPersonalityV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredGroundingV6.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js"
+  "rollbackPlan": "git checkout 5788d16158df346459da0bcf72054e8b32a69ce5 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridB1AdapterV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js utils/v6/turnaroundQuestionnaireHybridV10.js tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/modelRealityMismatchV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV6.js tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js"
 }

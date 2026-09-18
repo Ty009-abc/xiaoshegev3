@@ -6,10 +6,14 @@
  *
  * Single source of truth for the client. Mirrors the FROZEN backend contract
  * `cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js`
- * EXACTLY: 10 visible screens, 20 raw fields, canonical B1 option ids for the
+ * EXACTLY: 10 visible screens, 21 raw fields, canonical B1 option ids for the
  * three B1-critical selectors (selfBelief / timeBehavior / primaryProblem).
  * R85-C adds ONE controlled sub-question (pricingAuthority) on the existing S2
  * screen — the visible screen count stays 10.
+ * R86-C (World Model, `worldModelV1.js`) removes `executionStability` + `primaryGoal`,
+ * adds `laborModel` (S6) / `systemModel` (S9) / `ruleModel` (S10 secondary2), and
+ * reuses `decisionStyle` (PROBABILITY) / `failureResponse` (EVIDENCE) with their
+ * B1 option ids preserved. 10 screens / 21 raw fields.
  *
  * Client is PRESENTATION + INPUT only: it never diagnoses, scores or rewrites.
  * It submits the explicit hybrid contract version and renders the returned
@@ -138,13 +142,13 @@ const HYBRID_SCREENS = [
       ['TIME_UNDER_2', '不到2小时'], ['TIME_2_5', '2-5小时'], ['TIME_5_10', '5-10小时'],
       ['TIME_10_20', '10-20小时'], ['TIME_20_PLUS', '20小时以上'],
     ]),
+    // R86-C — LABOR world-model scenario (was executionStability; ZERO B1).
     secondary: {
-      key: 'executionStability', required: true, prompt: '你的执行力更接近哪一种？',
+      key: 'laborModel', required: true,
+      prompt: '有一件每周都要花时间的活儿。如果多出 10 个小时，你更愿意先花在哪？',
       options: opt([
-        ['EXEC_VOLATILE', '很容易三分钟热度，计划经常中断'],
-        ['EXEC_UNSTABLE', '偶尔能坚持，但不稳定'],
-        ['EXEC_STABLE', '有固定计划，基本能执行'],
-        ['EXEC_VERY_STABLE', '非常稳定，不需要外部督促'],
+        ['LABOR_MORE_WORK', '再多接两单、多做一点'], ['LABOR_REUSABLE', '整理成能重复用的方法'],
+        ['LABOR_LEVERAGE', '让别人帮我分担一部分'], ['LABOR_PRICING', '找愿意出更高价的人'],
       ]),
     },
   },
@@ -162,11 +166,11 @@ const HYBRID_SCREENS = [
     },
   },
   {
-    sid: 'S8', key: 'decisionStyle', prompt: '当一个机会看起来不错但不确定时，你一般怎么做？',
+    sid: 'S8', key: 'decisionStyle', prompt: '一个朋友靠做某件事赚到了钱，劝你也做。你接下来最可能先做的是？',
     options: opt([
-      ['DECISION_ALL_IN', '直接辞职/全职All-in'], ['DECISION_SMALL_TEST', '边上班边小规模测试'],
-      ['DECISION_LEARN_FIRST', '先学一阵子再判断'], ['DECISION_WAIT_OTHERS', '等别人先做了我再跟上'],
-      ['DECISION_AVOID', '能不动就不动'],
+      ['DECISION_SMALL_TEST', '先小范围试一下看效果'], ['DECISION_LEARN_FIRST', '先打听这事成的比例'],
+      ['DECISION_WAIT_OTHERS', '等别人做稳了我再动'], ['DECISION_ALL_IN', '他都行，我先干起来'],
+      ['DECISION_AVOID', '先算占用我多少、值不值'],
     ]),
     secondary: {
       key: 'timeBehavior', required: true, canonical: true,
@@ -178,14 +182,13 @@ const HYBRID_SCREENS = [
     sid: 'S9', key: 'primaryProblem', canonical: true,
     prompt: '未来12个月，如果只能先解决一个问题，你最想先解决什么？',
     options: opt(PROBLEM_OPTIONS),
+    // R86-C — SYSTEM world-model scenario (was primaryGoal; ZERO B1).
     secondary: {
-      key: 'primaryGoal', required: true, reportOnly: true,
-      prompt: '同一个未来12个月，这些里面你最想先做成的是哪件？',
+      key: 'systemModel', required: true,
+      prompt: '一个店反复出同一个问题，换了几拨人还是老样子。你更可能怎么想？',
       options: opt([
-        ['GOAL_SIDE_INCOME', '搞一份副业收入'], ['GOAL_SKILL_MONETIZE', '把技能变现/做咨询'],
-        ['GOAL_PERSONAL_BRAND', '建立个人IP/品牌'], ['GOAL_CAREER_SWITCH', '转行进入新领域'],
-        ['GOAL_SIDE_TO_MAIN', '从副业变主业/独立'], ['GOAL_DEBT', '还清债务/修复现金流'],
-        ['GOAL_FIND_DIRECTION', '先找到方向再说'],
+        ['SYS_PERSON', '换个靠谱的人就好'], ['SYS_STRUCTURE', '多半是流程的问题'],
+        ['SYS_PER_EVENT', '每次原因都不一样'], ['SYS_NONE', '没细想过这类事'],
       ]),
     },
   },
@@ -195,12 +198,21 @@ const HYBRID_SCREENS = [
       ['COST_ZERO', '几乎为零（赔不起）'], ['COST_UNDER_1K', '1000元以内'],
       ['COST_1K_5K', '1000-5000元'], ['COST_5K_20K', '5000-20000元'], ['COST_OVER_20K', '20000元以上'],
     ]),
+    // R86-C — EVIDENCE world-model scenario (reuses failureResponse slot; B1 map preserved).
     secondary: {
-      key: 'failureResponse', required: true, prompt: '如果试错失败了，你会？',
+      key: 'failureResponse', required: true, prompt: '你做成了一件事，别人夸你厉害。你更可能怎么处理这次成功？',
       options: opt([
-        ['FAIL_GIVE_UP', '直接放弃，不再尝试'], ['FAIL_SWITCH', '换个方向继续试'],
-        ['FAIL_RECHECK', '复盘优化后继续'], ['FAIL_ADD_MONEY', '追加投入再试一次'],
-        ['FAIL_UNSURE', '不确定'],
+        ['EVID_PRAISE', '挺受用，觉得自己行'], ['EVID_REPEATABLE', '想想下次还能不能成'],
+        ['EVID_LUCK', '可能只是运气好'], ['EVID_UNREFLECTIVE', '接着做下一件事'],
+      ]),
+    },
+    // R86-C — RULE world-model scenario (ZERO B1).
+    secondary2: {
+      key: 'ruleModel', required: true,
+      prompt: '同一份活你干得更多更快，收入却没什么变化。你先想的是？',
+      options: opt([
+        ['RULE_EFFORT', '那我再努力点、做好点'], ['RULE_AWARE', '这活是谁在定价'],
+        ['RULE_DEMAND', '先看市场还缺不缺人'], ['RULE_NONE', '没多想，先把活干好'],
       ]),
     },
   },

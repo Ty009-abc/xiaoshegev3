@@ -34,6 +34,7 @@ const { compressVisibleCards } = require('./v4RestoredCompressV6.js')
 const { guardVisibleCards } = require('./v4RestoredCopyGuardV6.js')
 const { buildGameThesis, screenGameThesis } = require('./gameThesisV6.js')
 const { screenPricingPower } = require('./pricingPowerV6.js')
+const { screenWorldModelCards } = require('./worldModelCardScreenV6.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
 const RENDER_SOURCE = Object.freeze({
@@ -191,6 +192,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
   // is present so a GameModel exists). Repairs a behavioral-only Card01 with the
   // deterministic game-native Card01; counts legacy-theme overrides + loop fails.
   let r85c3 = null
+  let r86c = null
   if (personalityCtx) {
     const gameModel = (hybridProfile && hybridProfile.gameModel) || (hybridContext && hybridContext.gameModel) || null
     const gameThesis = buildGameThesis(gameModel, hybridProfile || null, hybridContext || null)
@@ -208,6 +210,17 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       r85c3 = r85c3 || { counts: {}, repaired: {} }
       r85c3.powerCounts = ppScreen.counts
       r85c3.switchType = (pricingPower.switchType && pricingPower.switchType.value) || 'UNKNOWN'
+    }
+    // R86-C §1/§2 — WORLD-MODEL card screen. PRIMARY five-card authority: Card01
+    // collision / Card02 current model / Card03 reward loop / Card04 model upgrade
+    // / Card05 reality test. Gated to genuine R86-C submissions (worldModel.isR86C)
+    // so legacy fixtures stay byte-identical.
+    const worldModel = (hybridProfile && hybridProfile.worldModel) || (hybridContext && hybridContext.worldModel) || null
+    const mismatch = (hybridProfile && hybridProfile.mismatch) || (hybridContext && hybridContext.mismatch) || null
+    if (worldModel) {
+      const wmScreen = screenWorldModelCards(cmp, worldModel, mismatch, gameThesis)
+      cmp = wmScreen.cards
+      r86c = { counts: wmScreen.counts, repaired: wmScreen.repaired }
     }
   }
   const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
@@ -279,7 +292,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       card04: cmp.card04,
       card05: Object.assign({}, cmp.card05, { actionItems: card05ActionItems })
     },
-    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [], r85c3Guard: (r85c3 && r85c3.counts) || null, r85c3Repaired: (r85c3 && r85c3.repaired) || null, r85c3PowerGuard: (r85c3 && r85c3.powerCounts) || null, r85c3SwitchType: (r85c3 && r85c3.switchType) || null }),
+    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [], r85c3Guard: (r85c3 && r85c3.counts) || null, r85c3Repaired: (r85c3 && r85c3.repaired) || null, r85c3PowerGuard: (r85c3 && r85c3.powerCounts) || null, r85c3SwitchType: (r85c3 && r85c3.switchType) || null, r86cGuard: (r86c && r86c.counts) || null, r86cRepaired: (r86c && r86c.repaired) || null }),
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance

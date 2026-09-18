@@ -264,7 +264,8 @@ async function main () {
   ok('R85C §23 B1_AUTHORITY_DIFF_COUNT = 0 (occupation/game never changes B1)', new Set(diags).size === 1, diags.join(' || '))
 
   // ── §4/§22 QUESTIONNAIRE (pricing authority is the ONE new controlled field) ──
-  ok('R85C §4/§22 questionnaire adds ONE pricing-authority field (visible screens stay 10)', C.HYBRID_RAW_FIELD_COUNT === 20 && C.HYBRID_SCREEN_COUNT === 10 && C.ALL_FIELD_KEYS.indexOf('pricingAuthority') !== -1)
+  ok('R85C §4/§22 questionnaire adds ONE pricing-authority field (visible screens stay 10)', C.HYBRID_RAW_FIELD_COUNT === 21 && C.HYBRID_SCREEN_COUNT === 10 && C.ALL_FIELD_KEYS.indexOf('pricingAuthority') !== -1)
+  ok('R86C world-model fields added; legacy executionStability/primaryGoal removed (R86-C)', ['laborModel', 'systemModel', 'ruleModel'].every((k) => C.ALL_FIELD_KEYS.indexOf(k) !== -1) && C.ALL_FIELD_KEYS.indexOf('executionStability') === -1 && C.ALL_FIELD_KEYS.indexOf('primaryGoal') === -1)
   ok('R85C §4 pricingAuthority is REQUIRED and lives on the existing S2 screen', C.REQUIRED_FIELD_KEYS.indexOf('pricingAuthority') !== -1 && C.SCREENS.find((s) => s.key === 'incomeStructure').secondary2.key === 'pricingAuthority')
   ok('R85C §4 pricing-authority ids present (6)', C.PRICING_AUTHORITY_IDS.length === 6 && CLIENT.getScreensHybridV10().find((s) => s.key === 'incomeStructure').secondary2.options.map((o) => o.optionId).join(',') === C.PRICING_AUTHORITY_IDS.join(','))
   ok('R85C §4 no 11th screen was added', CLIENT.getScreensHybridV10().length === 10 && C.SCREENS.length === 10)

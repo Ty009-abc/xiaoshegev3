@@ -77,7 +77,7 @@ async function main () {
   ok('R70 §1 diagnosis valid', o.valid === true)
   ok('R70 §1 owner NO_PRIMARY', o.diagnosis.diagnosisState === 'NO_PRIMARY', o.diagnosis.diagnosisState)
   const payload = buildV4RestoredPayload(o.hybridProfile, o.diagnosis, o.hybridContext)
-  ok('R70 §1 answered fields preserved (17/18)', payload.answeredFieldCount === 17, String(payload.answeredFieldCount))
+  ok('R70 §1 answered fields preserved (15/21 contract; R86-C field economy)', payload.answeredFieldCount === 15, String(payload.answeredFieldCount))
   ok('R70 §1 no occupation inferred', payload.userContext.occupationDetail === null)
   ok('R70 §1 hasUserOccupation=false', payload.hasUserOccupation === false)
   const ENUM = /LIFE_[0-9]|INC_[A-Z]|SURPLUS_[A-Z]|SAFETY_[A-Z0-9]|DEBT_[A-Z]|PROOF_[A-Z]|ASSET_[A-Z]|TIME_[A-Z0-9]|EXEC_[A-Z]|COST_[A-Z0-9]|PROBLEM_[A-Z]|GOAL_[A-Z]|ATTEMPT_[A-Z0-9]|DECISION_[A-Z]|BELIEF_[A-Z]|FAIL_[A-Z]/
@@ -106,7 +106,9 @@ async function main () {
   // ── §6/§7: shared thesis across five cards + five-card completeness ──
   const cards = r1.report.cards
   ok('R70 §7 five cards present', !!(cards.fatalInsight && cards.coreProblem && cards.systemLoop && cards.turnaroundPath && cards.firstAction))
-  ok('R70 §7 CARD01 cognitive collision', /攥在手里|标价/.test(cards.fatalInsight.text))
+  // R85-C3/R86-C — card01 is now a GAME/MODEL-native collision (game signal + a 不是…是… collision),
+  // not the legacy behavioral wording. Assert the collision shape + a game/reality signal.
+  ok('R70 §7 CARD01 cognitive collision', /不是|而是|并非/.test(cards.fatalInsight.text) && /市场|定价|雇主|付费|成交|价值/.test(cards.fatalInsight.text), cards.fatalInsight.text)
   ok('R70 §7 CARD02 identity/value interpretation', /能被购买的商品|价值/.test(cards.coreProblem.text))
   ok('R70 §7 CARD03 mechanism', cards.systemLoop.steps.length >= 3)
   ok('R70 §7 CARD04 real FROM→TO', cards.turnaroundPath.from === '把能力当成本事留着' && cards.turnaroundPath.to === '把能力做成能被购买的最小交付')

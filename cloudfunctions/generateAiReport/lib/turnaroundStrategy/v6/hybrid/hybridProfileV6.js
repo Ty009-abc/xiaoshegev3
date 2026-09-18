@@ -10,11 +10,12 @@
  *   reality       { lifeStage, incomeStructure, occupation, monthlySurplus,
  *                   safetyMonths, debtPressure }
  *   asset         { type, marketProof, skillDetail }
- *   capacity      { weeklyTime, executionStability, maxTrialCost }
- *   desiredChange { primaryProblem, primaryGoal }
+ *   capacity      { weeklyTime, maxTrialCost }   (R86-C: `executionStability` REMOVED)
+ *   desiredChange { primaryProblem }              (R86-C: `primaryGoal` REMOVED)
  *   belief        { perceivedRootCause }
  *   stage         { pastAttemptStage }
  *   behavior      { decisionStyle, timeAllocation, noResultResponse }
+ *   worldModel    { 5 cognitive axes ... }        (R86-C — EVIDENCE_LAYER, ZERO B1)
  *
  * AUTHORITY: pure normalization. NO bottleneck authority. NO scoring. NO AI.
  * The asset/reality layer is CONTEXT ONLY — it may never change primaryBottleneck.
@@ -28,6 +29,8 @@ const C = require('./hybridContractV6.js')
 const { computeRealEconomyModelV6 } = require('./realEconomyModelV6.js')
 const { computeGameModelV6 } = require('./gameModelV6.js')
 const { computePricingPowerV6 } = require('../thesis/pricingPowerV6.js')
+const { computeWorldModelV1 } = require('./worldModelV1.js')
+const { computeModelRealityMismatchV6 } = require('./modelRealityMismatchV6.js')
 
 // R85-C §4 — pricing authority is normalized to its own value vocabulary (who
 // decides the final income). ZERO B1 authority (B1 inputs unchanged).
@@ -76,12 +79,17 @@ function buildHybridProfileV6 (raw) {
     },
     capacity: {
       weeklyTime: raw.weeklyTime,
-      executionStability: raw.executionStability,
+      // R86-C: `executionStability` is REMOVED from the contract; the legacy slot
+      // is kept only as an optional passthrough so historical submissions remain
+      // valid (it is never a product input and is never read by worldModelV1).
+      executionStability: raw.executionStability || null,
       maxTrialCost: raw.maxTrialCost
     },
     desiredChange: {
       primaryProblem: raw.primaryProblem, // canonical PROBLEM_* (B1 evidence)
-      primaryGoal: raw.primaryGoal // V4 goal (REPORT-ONLY)
+      // R86-C: `primaryGoal` REMOVED from the contract; legacy passthrough only
+      // (never a product input; report consumers re-point to primaryProblem).
+      primaryGoal: raw.primaryGoal || null
     },
     belief: {
       perceivedRootCause: raw.selfBelief // canonical BELIEF_* (B1 evidence)
@@ -110,6 +118,26 @@ function buildHybridProfileV6 (raw) {
   // one SWITCH_TYPE. EVIDENCE_LAYER only: ZERO B1 authority, never read by any
   // B1 file, and NEVER persisted as a permanent profile fact.
   profile.pricingPower = computePricingPowerV6(profile.gameModel, profile)
+  // R86-C §1 — attach the deterministic WORLD MODEL (how the user REASONS;
+  // 5 cognitive axes). Derived from the COGNITIVE answers only; reality facts
+  // (pricingAuthority / skillValidation / income / occupation) are supporting
+  // context for confidence, never axis authority. EVIDENCE_LAYER only: ZERO B1
+  // authority, never read by any B1 file, never persisted.
+  profile.worldModel = computeWorldModelV1(profile._raw, {
+    profile: profile,
+    gameModel: profile.gameModel,
+    realEconomyModel: profile.realEconomyModel,
+    pricingPower: profile.pricingPower
+  })
+  // R86-C §19 — attach the deterministic MODEL↔REALITY MISMATCH set (codes +
+  // evidence, never a verdict). Same authority boundary as worldModel.
+  profile.mismatch = computeModelRealityMismatchV6({
+    worldModel: profile.worldModel,
+    raw: profile._raw,
+    gameModel: profile.gameModel,
+    realEconomyModel: profile.realEconomyModel,
+    pricingPower: profile.pricingPower
+  })
   return profile
 }
 

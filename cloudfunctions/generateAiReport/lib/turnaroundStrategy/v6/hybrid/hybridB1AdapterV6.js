@@ -45,6 +45,12 @@ const DECISION_STYLE_TO_V6 = {
 }
 
 const FAILURE_RESPONSE_TO_V6 = {
+  // R86-C — the EVIDENCE scenario now lives on this slot (visible text reframed).
+  EVID_PRAISE: null, // no "pride/praise" semantic in V6 Q9 — NOT equivalent
+  EVID_REPEATABLE: 'NORESULT_RECHECK', // "是否可重复" ≡ 复盘后再试
+  EVID_LUCK: null, // no "luck" semantic — NOT equivalent
+  EVID_UNREFLECTIVE: 'NORESULT_SWITCH', // 不复盘、直接换下一件 ≡ 换方向
+  // LEGACY ids (historical submissions only; never rendered by the R86-C client).
   FAIL_GIVE_UP: 'NORESULT_STOP',
   FAIL_SWITCH: 'NORESULT_SWITCH',
   FAIL_RECHECK: 'NORESULT_RECHECK',

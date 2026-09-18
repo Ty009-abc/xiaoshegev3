@@ -41,30 +41,41 @@ const L = {
   // capacity
   TIME_UNDER_2: '每周自由时间不到 2 小时', TIME_2_5: '每周自由时间 2–5 小时', TIME_5_10: '每周自由时间 5–10 小时',
   TIME_10_20: '每周自由时间 10–20 小时', TIME_20_PLUS: '每周自由时间 20 小时以上',
-  EXEC_VOLATILE: '执行很不稳定', EXEC_UNSTABLE: '执行不太稳定', EXEC_STABLE: '执行比较稳定', EXEC_VERY_STABLE: '执行非常稳定',
   COST_ZERO: '试错预算几乎为零', COST_UNDER_1K: '能承受 1000 元以内的试错', COST_1K_5K: '能承受 1000–5000 元的试错',
   COST_5K_20K: '能承受 5000–20000 元的试错', COST_OVER_20K: '能承受 20000 元以上的试错',
+  // R86-C — world-model cognitive answers (human language)
+  LABOR_MORE_WORK: '多出来的时间先再多接两单、多做一点', LABOR_REUSABLE: '先把它整理成能重复用的方法',
+  LABOR_LEVERAGE: '先让别人帮我分担一部分', LABOR_PRICING: '先去找愿意出更高价的人',
+  SYS_PERSON: '换个靠谱的人就好', SYS_STRUCTURE: '多半是流程的问题',
+  SYS_PER_EVENT: '每次原因都不一样', SYS_NONE: '没细想过这类事',
+  RULE_EFFORT: '那我再努力点、做好点', RULE_AWARE: '先看这活是谁在定价',
+  RULE_DEMAND: '先看市场还缺不缺人', RULE_NONE: '没多想，先把活干好',
   // desiredChange
   PROBLEM_INCOME_STUCK: '收入卡住了、上不去', PROBLEM_NO_FUTURE: '看不到未来的方向',
   PROBLEM_DEBT: '被债务和现金流压着', PROBLEM_CAREER_SWITCH: '想转行/换赛道', PROBLEM_SIDE_UNSTARTED: '副业一直没真正开始',
   PROBLEM_MONETIZE: '有本事却变不成钱', PROBLEM_FOCUS: '事太多、无法聚焦', PROBLEM_OTHER: '其它问题',
-  GOAL_SIDE_INCOME: '先搞出一份副业收入', GOAL_SKILL_MONETIZE: '把技能真正变现', GOAL_PERSONAL_BRAND: '把个人 IP 做起来',
-  GOAL_CAREER_SWITCH: '转行进一个新领域', GOAL_SIDE_TO_MAIN: '把副业做成主业', GOAL_DEBT: '先把债务和现金流修好', GOAL_FIND_DIRECTION: '先找到一个方向',
   // stage
   ATTEMPT_NONE: '过去一年基本没真正尝试过', ATTEMPT_COURSE_ONLY: '只报过课/学过、没落地', ATTEMPT_UNDER_30D: '试过不到 30 天就停了',
   ATTEMPT_NO_SALE: '做过产品/服务、但没卖出去', ATTEMPT_FEW_SALES: '有过一两笔成交', ATTEMPT_STABLE_SIDE: '副业已经相对稳定',
   // behavior
-  DECISION_ALL_IN: '做决定要么全押要么放弃', DECISION_SMALL_TEST: '习惯先小步试一下', DECISION_LEARN_FIRST: '习惯先学明白再动手',
-  DECISION_WAIT_OTHERS: '习惯先看别人怎么做', DECISION_AVOID: '倾向先回避、拖着不做',
+  DECISION_ALL_IN: '他都行，我就先干起来', DECISION_SMALL_TEST: '先小范围试一下看效果', DECISION_LEARN_FIRST: '先打听这事成的比例',
+  DECISION_WAIT_OTHERS: '等别人做稳了我再动', DECISION_AVOID: '先算占用我多少、值不值',
   TIME_SHORT_FIRST: '优先做眼前最急的事', TIME_BALANCE: '在生活和工作之间平衡', TIME_PROTECT_LONG: '会刻意保留长期投入的时间', TIME_LONG_DROPS: '长期投入一忙就断',
   // belief
   BELIEF_NO_DIRECTION: '觉得自己是没找到方向', BELIEF_KNOW_NO_ACTION: '知道该做什么、但没行动',
   BELIEF_TRIED_NO_RESULT: '试过但没结果', BELIEF_RESOURCE: '觉得自己缺资源/启动资金', BELIEF_TIME: '觉得自己没时间',
   BELIEF_FEAR: '怕失败/怕被拒绝', BELIEF_SWITCHING: '总在换方向', BELIEF_ABILITY: '怀疑自己能力不够',
   BELIEF_FAMILY: '受家庭/环境限制', BELIEF_OTHER: '其它原因',
-  // failureResponse
+  // failureResponse (R86-C: now the EVIDENCE world-model scenario; ids reframed)
+  EVID_PRAISE: '做成事被夸时挺受用、觉得自己行', EVID_REPEATABLE: '会想想下次还能不能成',
+  EVID_LUCK: '容易把成绩归给运气', EVID_UNREFLECTIVE: '不回头看，直接做下一件',
+  // LEGACY ids (historical submissions only; never rendered by the R86-C client).
+  // Kept so an old raw answer never leaks an unlabeled enum into the prompt.
   FAIL_GIVE_UP: '遇到挫折容易放弃', FAIL_SWITCH: '遇到挫折就换方向', FAIL_RECHECK: '遇到挫折会复盘再试',
-  FAIL_ADD_MONEY: '遇到挫折会加大投入', FAIL_UNSURE: '还没想好失败后怎么办'
+  FAIL_ADD_MONEY: '遇到挫折会加大投入', FAIL_UNSURE: '还没想好失败后怎么办',
+  GOAL_SIDE_INCOME: '先搞出一份副业收入', GOAL_SKILL_MONETIZE: '把技能真正变现', GOAL_PERSONAL_BRAND: '把个人 IP 做起来',
+  GOAL_CAREER_SWITCH: '转行进一个新领域', GOAL_SIDE_TO_MAIN: '把副业做成主业', GOAL_DEBT: '先把债务和现金流修好', GOAL_FIND_DIRECTION: '先找到一个方向',
+  EXEC_VOLATILE: '执行很不稳定', EXEC_UNSTABLE: '执行不太稳定', EXEC_STABLE: '执行比较稳定', EXEC_VERY_STABLE: '执行非常稳定'
 }
 const lbl = (v) => (v == null ? null : (L[v] || String(v)))
 
@@ -95,15 +106,16 @@ function buildUserContext (hybrid) {
     monetizableSkill: lbl(a.type),
     skillValidation: lbl(a.marketProof),
     weeklyTime: lbl(c.weeklyTime),
-    executionStability: lbl(c.executionStability),
+    laborModel: lbl(b.laborModel),
     maxTrialCost: lbl(c.maxTrialCost),
     primaryProblem: lbl(d.primaryProblem),
-    primaryGoal: lbl(d.primaryGoal),
+    systemModel: lbl(b.systemModel),
     pastAttemptStage: lbl(g.pastAttemptStage),
     decisionStyle: lbl(b.decisionStyle),
     timeBehavior: lbl(b.timeAllocation),
     selfBelief: lbl(bl.perceivedRootCause),
-    failureResponse: lbl(b.noResultResponse)
+    failureResponse: lbl(b.noResultResponse),
+    ruleModel: lbl(b.ruleModel)
   }
 }
 
@@ -138,6 +150,10 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
   const answeredFieldCount = Object.keys(userContext).filter((k) => userContext[k] != null).length
   const gameModel = (hybrid && hybrid.gameModel) || (hybridContext && hybridContext.gameModel) || null
   const pricingPower = (hybrid && hybrid.pricingPower) || (hybridContext && hybridContext.pricingPower) || null
+  // R86-C §1 — WORLD MODEL + MODEL↔REALITY MISMATCH (PRIMARY visible-thesis
+  // authority on top of the GameModel). Deterministic; EVIDENCE_LAYER only.
+  const worldModel = (hybrid && hybrid.worldModel) || (hybridContext && hybridContext.worldModel) || null
+  const mismatch = (hybrid && hybrid.mismatch) || (hybridContext && hybridContext.mismatch) || null
   // R85C3 §5 — the DOMINANT visible-thesis object, built deterministically on top
   // of the GameModel. PRIMARY prompt authority; five cards must derive from it.
   const gameThesis = buildGameThesis(gameModel, hybrid || null, hybridContext || null)
@@ -154,6 +170,11 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
     // R85C3 §3 — PRICING_POWER: separates pricingAuthority (who sets price NOW)
     // from pricingPower (how many alternative re-pricing routes exist) + SWITCH_TYPE.
     pricingPower: pricingPower,
+    // R86-C §1 — WORLD MODEL (5 cognitive axes; how the user REASONS) + the
+    // deterministic MODEL↔REALITY MISMATCH codes. These are the PRIMARY
+    // visible-thesis authority (above GAME); five cards bind to them.
+    worldModel: worldModel,
+    mismatch: mismatch,
     hasUserOccupation: !!userContext.occupationDetail,
     answeredFieldCount
   }

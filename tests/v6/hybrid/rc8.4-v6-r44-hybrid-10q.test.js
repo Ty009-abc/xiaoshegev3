@@ -103,26 +103,33 @@ t('§2 screen order + field ownership (S1..S10)', () => {
   assert.deepStrictEqual(CONTRACT.SCREENS.map((s) => s.key), expected)
 })
 
-// ── §4 20 raw fields (R85-B adds occupationCategory; R85-C adds pricingAuthority) ──
-t('§4 HYBRID_RAW_FIELD_COUNT = 20 (R85-B + R85-C)', () => {
-  assert.strictEqual(CONTRACT.HYBRID_RAW_FIELD_COUNT, 20)
-  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.length, 20)
-  assert.strictEqual(CONTRACT.REQUIRED_FIELD_KEYS.length, 19)
+// ── §4 21 raw fields (R85-B adds occupationCategory; R85-C adds pricingAuthority;
+//        R86-C removes executionStability+primaryGoal and adds laborModel/systemModel/ruleModel) ──
+t('§4 HYBRID_RAW_FIELD_COUNT = 21 (R85-B + R85-C + R86-C)', () => {
+  assert.strictEqual(CONTRACT.HYBRID_RAW_FIELD_COUNT, 21)
+  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.length, 21)
+  assert.strictEqual(CONTRACT.REQUIRED_FIELD_KEYS.length, 20)
   assert.deepStrictEqual(CONTRACT.FREE_TEXT_FIELD_KEYS, ['occupationDetail'])
   assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf('occupationCategory') !== -1)
   assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf('pricingAuthority') !== -1, 'R85-C §4 pricing authority field')
   assert.ok(CONTRACT.REQUIRED_FIELD_KEYS.indexOf('occupationDetail') !== -1, 'R85-B §3 occupation required')
+  // R86-C — three NEW world-model cognitive fields present; two legacy fields gone.
+  for (const k of ['laborModel', 'systemModel', 'ruleModel']) assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf(k) !== -1, 'R86-C field ' + k)
+  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.indexOf('executionStability'), -1, 'R86-C removes executionStability')
+  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.indexOf('primaryGoal'), -1, 'R86-C removes primaryGoal')
   assert.deepStrictEqual(CLIENT.allFieldKeys(), CONTRACT.ALL_FIELD_KEYS)
 })
 
-t('§4 the 15 V4-rich fields are preserved verbatim', () => {
+t('§4 the V4-rich + canonical fields are preserved (R86-C field economy)', () => {
   const need = ['lifeStage', 'incomeStructure', 'occupationDetail', 'monthlySurplus', 'safetyMonths',
-    'debtPressure', 'skillValidation', 'monetizableSkill', 'weeklyTime', 'executionStability',
-    'pastAttemptStage', 'decisionStyle', 'primaryGoal', 'maxTrialCost', 'failureResponse']
+    'debtPressure', 'skillValidation', 'monetizableSkill', 'weeklyTime',
+    'pastAttemptStage', 'decisionStyle', 'maxTrialCost', 'failureResponse']
   for (const k of need) assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf(k) !== -1, 'missing ' + k)
   for (const k of ['selfBelief', 'timeBehavior', 'primaryProblem']) {
     assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf(k) !== -1, 'missing canonical ' + k)
   }
+  // R86-C: the three world-model fields are present.
+  for (const k of ['laborModel', 'systemModel', 'ruleModel']) assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf(k) !== -1, 'missing ' + k)
 })
 
 t('§4 no field silently overwrites another (profile slots distinct)', () => {
