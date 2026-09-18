@@ -133,6 +133,8 @@ function buildV4RestoredPayload (hybrid, diagnosis, hybridContext) {
     reportVersion: 'v4-restored',
     userContext,
     diagnosticContext,
+    // R85-B §13 — structured real economy model (causal input, not a noun swap).
+    realEconomyModel: (hybrid && hybrid.realEconomyModel) || (hybridContext && hybridContext.realEconomyModel) || null,
     hasUserOccupation: !!userContext.occupationDetail,
     answeredFieldCount
   }

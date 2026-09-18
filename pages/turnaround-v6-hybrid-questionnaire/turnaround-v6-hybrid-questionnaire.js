@@ -193,6 +193,11 @@ Page({
     const a = this.data.answers
     if (!a[s.key]) return false
     if (s.secondary && s.secondary.required !== false && !a[s.secondary.key]) return false
+    // R85-B §3/§5 — required occupation text must be meaningfully non-empty.
+    if (s.secondaryText && s.secondaryText.required === true) {
+      const t = this.data.occupation
+      if (typeof t !== 'string' || !t.trim()) return false
+    }
     return true
   },
 
@@ -206,11 +211,13 @@ Page({
     }
 
     const payload = Object.assign({}, this.data.answers)
+    // R85-B §3/§5 — occupation is a required real-world input now.
     if (this.data.occupation && this.data.occupation.trim()) payload.occupationDetail = this.data.occupation.trim()
 
     const { valid, errors } = validateAnswersHybridV10(payload)
     if (!valid) {
-      this.setData({ error: '还有题目没有完成，请检查后再提交。' })
+      const occMissing = errors.some((e) => /occupationDetail|occupationCategory/.test(e))
+      this.setData({ error: occMissing ? '请把你的具体职业写具体一点（比如：前端开发、厨师、房产销售）。' : '还有题目没有完成，请检查后再提交。' })
       console.error('[TurnaroundV6Hybrid] answer validation failed:', errors)
       return
     }

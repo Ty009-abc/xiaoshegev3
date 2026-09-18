@@ -25,6 +25,7 @@
  */
 
 const C = require('./hybridContractV6.js')
+const { computeRealEconomyModelV6 } = require('./realEconomyModelV6.js')
 
 /**
  * @param {Object} raw validated hybrid answers
@@ -39,12 +40,13 @@ function buildHybridProfileV6 (raw) {
     return (typeof v === 'string' && v.trim()) ? raw[k].trim() : null
   }
 
-  return {
+  const profile = {
     reality: {
       lifeStage: raw.lifeStage,
       incomeStructure: raw.incomeStructure,
       incomeModeCanonical: C.canonicalFor('incomeStructure', raw.incomeStructure),
-      occupation: txt('occupationDetail'), // optional free text — never invented
+      occupation: txt('occupationDetail'), // R85-B: REQUIRED free text — never invented
+      occupationCategory: raw.occupationCategory || null, // R85-B: required quick-select
       monthlySurplus: raw.monthlySurplus,
       surplusCanonical: C.canonicalFor('monthlySurplus', raw.monthlySurplus),
       safetyMonths: raw.safetyMonths,
@@ -77,6 +79,11 @@ function buildHybridProfileV6 (raw) {
     },
     _raw: Object.assign({}, raw)
   }
+
+  // R85-B §11 — attach the deterministic real economy model as RUNTIME context.
+  // ZERO B1 authority (never read by any B1 file); not a second profile store.
+  profile.realEconomyModel = computeRealEconomyModelV6(profile)
+  return profile
 }
 
 module.exports = { buildHybridProfileV6 }

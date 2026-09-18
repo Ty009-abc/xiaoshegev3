@@ -68,7 +68,18 @@ const HYBRID_SCREENS = [
       ['INC_CONTENT', '线上内容/流量变现'], ['INC_ASSET', '资产/投资/租金收入'],
       ['INC_UNSTABLE', '收入不稳定'],
     ]),
-    secondaryText: { key: 'occupationDetail', placeholder: '（可选）你的具体职业，例如：厨师、销售、程序员' },
+    // R85-B §4 — occupation category quick-select (does NOT replace specific text).
+    secondary: {
+      key: 'occupationCategory', required: false, prompt: '你的工作更接近哪一类？（可选，但建议选）',
+      options: opt([
+        ['OCC_TECH', '技术类（编程/工程/设计）'], ['OCC_SALES', '销售/商务'],
+        ['OCC_SERVICE', '服务/手艺（餐饮/维修/美业）'], ['OCC_PLATFORM_LABOR', '平台接单（外卖/网约车/跑腿）'],
+        ['OCC_SELF_EMPLOYED', '个体/自营生意'], ['OCC_CONTENT_CREATIVE', '内容/创作'],
+        ['OCC_OPERATIONS_ADMIN', '运营/行政/管理'], ['OCC_OTHER', '其他'],
+      ]),
+    },
+    // R85-B §3/§5 — occupation is REQUIRED real-world input (same screen).
+    secondaryText: { key: 'occupationDetail', required: true, maxlength: 30, placeholder: '写具体一点，比如：前端开发、厨师、房产销售、外卖骑手' },
   },
   {
     sid: 'S3', key: 'monthlySurplus', prompt: '你每个月扣除所有支出后，还剩多少？',
@@ -202,7 +213,7 @@ function getScreensHybridV10 () {
     canonical: !!s.canonical,
     options: s.options.map((o) => ({ optionId: o.optionId, text: o.text })),
     secondaryText: s.secondaryText
-      ? { key: s.secondaryText.key, placeholder: s.secondaryText.placeholder }
+      ? { key: s.secondaryText.key, required: s.secondaryText.required === true, maxlength: s.secondaryText.maxlength || null, placeholder: s.secondaryText.placeholder }
       : null,
     secondary: s.secondary
       ? {
@@ -221,6 +232,11 @@ function isScreenComplete (screen, answers) {
   const a = answers || {}
   if (!a[screen.key]) return false
   if (screen.secondary && screen.secondary.required !== false && !a[screen.secondary.key]) return false
+  // R85-B §3/§5 — a required free-text field must be meaningfully non-empty.
+  if (screen.secondaryText && screen.secondaryText.required === true) {
+    const t = a[screen.secondaryText.key]
+    if (typeof t !== 'string' || !t.trim()) return false
+  }
   return true
 }
 
@@ -235,11 +251,16 @@ function validateAnswersHybridV10 (answers) {
     if (s.secondary) {
       const sec = a[s.secondary.key]
       if (s.secondary.required !== false) {
-        if (!sec) { errors.push('MISSING:' + s.secondary.key); continue }
+        if (!sec) errors.push('MISSING:' + s.secondary.key)
       }
       if (sec && !s.secondary.options.some((o) => o.optionId === sec)) {
         errors.push('UNKNOWN_OPTION:' + s.secondary.key + ':' + sec)
       }
+    }
+    // R85-B §3/§5 — required free text must be non-blank (trim).
+    if (s.secondaryText && s.secondaryText.required === true) {
+      const t = a[s.secondaryText.key]
+      if (typeof t !== 'string' || !t.trim()) errors.push('MISSING:' + s.secondaryText.key)
     }
   }
   return { valid: errors.length === 0, errors }

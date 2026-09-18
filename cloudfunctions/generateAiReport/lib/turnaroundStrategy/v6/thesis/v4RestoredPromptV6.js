@@ -19,6 +19,7 @@
 const PROMPT_VERSION = 'turnaround_strategy_v6_v4_restored_prompt_v2_r84a'
 
 const { buildPersonalityBlock } = require('./v4RestoredPersonalityV6.js')
+const { renderEconomyLines } = require('../hybrid/realEconomyModelV6.js')
 
 function buildSystemPrompt () {
   return [
@@ -104,6 +105,14 @@ function buildUserMessage (payload) {
   lines.push('（未出现的字段＝用户没有提供＝不得推断或补全；共 ' + present + ' 项已提供）')
   if (!uc.occupationDetail) lines.push('- 注意：用户没有填写具体职业，禁止编造一个具体职业。')
   lines.push('')
+  // R85-B §13 — structured REAL ECONOMY MODEL as grounded causal input.
+  if (p.realEconomyModel) {
+    lines.push('================== 现实经济模型（确定性推导；作为因果输入，不是名词替换）==================')
+    for (const ln of renderEconomyLines(p.realEconomyModel)) lines.push(ln)
+    lines.push('用法：用这套机制解释他“靠什么赚钱、谁在给他定价、什么能迁移、什么只留在岗位里”，不要只把职业名词写进卡片。')
+    lines.push('硬约束：不得由职业/收入推出薪资数额、岗位稳定性、行业前景、AI 替代概率（本系统没有市场数据库）。')
+    lines.push('')
+  }
   lines.push('================== 系统诊断（证据/上下文，不是文案模板）==================')
   lines.push('- 诊断状态：' + (dc.diagnosisState || 'UNKNOWN'))
   lines.push('- 主瓶颈：' + (dc.primaryBottleneck || 'NONE（证据不足以确认唯一瓶颈）'))

@@ -7,7 +7,7 @@
  *
  * §2  10-screen contract · VISIBLE_SCREEN_COUNT = 10 · no 11th screen
  * §3  canonical belief/time/problem ids preserved (no SB_/TB_/PP_ ids)
- * §4  18 raw fields preserved · no silent overwrite
+ * §4  19 raw fields preserved (R85-B adds occupationCategory) · no silent overwrite
  * §5  hybrid profile shape
  * §6/§7 explicit adapter · SEMANTICALLY_UNSAFE_MAPPING_COUNT = 0
  * §8  execution stage mapping boundaries (marketProof never upgrades stage)
@@ -15,6 +15,9 @@
  * §10 failureResponse mapping coverage
  * §11 asset axis · ASSET_AXIS_DIAGNOSIS_MUTATION_COUNT = 0
  * §13 occupation optional downstream use; never invented
+ * §13b R85-B OCCUPATION_DETAIL_REQUIRED = YES at the questionnaire layer
+ *      (occupation has ZERO B1 authority → the B1 input builder stays
+ *      occupation-tolerant; the requirement is enforced by the client)
  * §14 market-proof overclaim = 0
  * §15 primaryGoal B1 usage = 0
  * §17 five-card product contract
@@ -100,12 +103,14 @@ t('§2 screen order + field ownership (S1..S10)', () => {
   assert.deepStrictEqual(CONTRACT.SCREENS.map((s) => s.key), expected)
 })
 
-// ── §4 18 raw fields ────────────────────────────────────────────────────
-t('§4 HYBRID_RAW_FIELD_COUNT = 18', () => {
-  assert.strictEqual(CONTRACT.HYBRID_RAW_FIELD_COUNT, 18)
-  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.length, 18)
-  assert.strictEqual(CONTRACT.REQUIRED_FIELD_KEYS.length, 17)
+// ── §4 19 raw fields (R85-B §3/§4 adds occupationCategory) ───────────────
+t('§4 HYBRID_RAW_FIELD_COUNT = 19 (R85-B adds occupationCategory)', () => {
+  assert.strictEqual(CONTRACT.HYBRID_RAW_FIELD_COUNT, 19)
+  assert.strictEqual(CONTRACT.ALL_FIELD_KEYS.length, 19)
+  assert.strictEqual(CONTRACT.REQUIRED_FIELD_KEYS.length, 18)
   assert.deepStrictEqual(CONTRACT.FREE_TEXT_FIELD_KEYS, ['occupationDetail'])
+  assert.ok(CONTRACT.ALL_FIELD_KEYS.indexOf('occupationCategory') !== -1)
+  assert.ok(CONTRACT.REQUIRED_FIELD_KEYS.indexOf('occupationDetail') !== -1, 'R85-B §3 occupation required')
   assert.deepStrictEqual(CLIENT.allFieldKeys(), CONTRACT.ALL_FIELD_KEYS)
 })
 
@@ -269,6 +274,31 @@ t('§13 occupation captured + used downstream when present', () => {
   const ctx = out.hybridContext || H.buildHybridReportContextV6(out.hybridProfile, out.diagnosis)
   assert.ok(ctx.realityLine.includes('程序员'), 'occupation not used in context')
   assert.ok(ctx.pathLine.includes('程序员'), 'occupation not used in pathLine')
+})
+
+// ── §13b R85-B occupation now REQUIRED at the questionnaire layer ────────
+t('§13b OCCUPATION_DETAIL_REQUIRED = YES (client blocks blank occupation)', () => {
+  const screens = CLIENT.getScreensHybridV10()
+  const s2 = screens.find((s) => s.secondaryText)
+  assert.ok(s2, 'S2 carries the occupation text field')
+  assert.strictEqual(s2.secondaryText.required, true, 'occupationDetail required')
+  assert.ok(s2.secondaryText.maxlength > 0, 'maxlength set')
+  // Client-side completeness: blank / whitespace occupation is NOT complete.
+  const scr = screens.find((s) => s.key === 'incomeStructure')
+  assert.strictEqual(CLIENT.isScreenComplete(scr, { incomeStructure: 'INC_SALARY' }), false, 'blank occupation must not be complete')
+  assert.strictEqual(CLIENT.isScreenComplete(scr, { incomeStructure: 'INC_SALARY', occupationDetail: '   ' }), false)
+  assert.strictEqual(CLIENT.isScreenComplete(scr, { incomeStructure: 'INC_SALARY', occupationDetail: '程序员' }), true)
+  const v = CLIENT.validateAnswersHybridV10({ incomeStructure: 'INC_SALARY', occupationDetail: '' })
+  assert.ok(v.errors.some((e) => /occupationDetail/.test(e)), 'client validator rejects blank occupation')
+})
+
+t('§13b occupation category quick-select present + valid ids (R85-B §4)', () => {
+  const screens = CLIENT.getScreensHybridV10()
+  const s2 = screens.find((s) => s.secondary && s.secondary.key === 'occupationCategory')
+  assert.ok(s2, 'occupationCategory quick-select present')
+  const ids = s2.secondary.options.map((o) => o.optionId)
+  assert.deepStrictEqual(ids, CONTRACT.OCCUPATION_CATEGORY_IDS)
+  assert.strictEqual(ids.length, 8)
 })
 
 // ── §14 market proof overclaim ──────────────────────────────────────────

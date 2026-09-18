@@ -100,7 +100,24 @@ const SCREENS = [
   {
     screen: 2, key: 'incomeStructure', required: true, group: 'REALITY',
     prompt: '你的主要收入结构是？',
-    secondaryText: { key: 'occupationDetail', required: false, placeholder: '（可选）你的具体职业，例如：厨师、销售、程序员' },
+    // R85-B §3/§4 — occupation is now REQUIRED on the SAME screen (visible
+    // count stays 10): a category quick-select + a specific-occupation text.
+    secondary: {
+      key: 'occupationCategory', required: false,
+      prompt: '你的工作更接近哪一类？（可选，但建议选）',
+      options: [
+        ['OCC_TECH', '技术类（编程/工程/设计）'],
+        ['OCC_SALES', '销售/商务'],
+        ['OCC_SERVICE', '服务/手艺（餐饮/维修/美业）'],
+        ['OCC_PLATFORM_LABOR', '平台接单（外卖/网约车/跑腿）'],
+        ['OCC_SELF_EMPLOYED', '个体/自营生意'],
+        ['OCC_CONTENT_CREATIVE', '内容/创作'],
+        ['OCC_OPERATIONS_ADMIN', '运营/行政/管理'],
+        ['OCC_OTHER', '其他']
+      ]
+    },
+    // R85-B §5 — meaningful non-empty input required (trim, blank rejection).
+    secondaryText: { key: 'occupationDetail', required: true, maxlength: 30, placeholder: '写具体一点，比如：前端开发、厨师、房产销售、外卖骑手' },
     options: [
       ['INC_SALARY', '工资/固定薪资', 'INCOME_SALARY'],
       ['INC_SKILL_SERVICE', '技能服务（按次/项目收费）', 'INCOME_FREELANCE'],
@@ -279,8 +296,8 @@ for (const s of SCREENS) {
   })
   if (s.secondaryText) {
     FIELDS.push({
-      key: s.secondaryText.key, screen: s.screen, required: false,
-      group: s.group, canonical: false, freeText: true
+      key: s.secondaryText.key, screen: s.screen, required: s.secondaryText.required !== false,
+      group: s.group, canonical: false, freeText: true, maxlength: s.secondaryText.maxlength || null
     })
   }
   if (s.secondary) {
@@ -318,6 +335,9 @@ const FREE_TEXT_FIELD_KEYS = FIELDS.filter((f) => f.freeText).map((f) => f.key)
 const HYBRID_SCREEN_COUNT = SCREENS.length
 const HYBRID_RAW_FIELD_COUNT = FIELDS.length
 
+// R85-B §4 — occupation category ids (kept in sync with realEconomyModelV6).
+const OCCUPATION_CATEGORY_IDS = ['OCC_TECH', 'OCC_SALES', 'OCC_SERVICE', 'OCC_PLATFORM_LABOR', 'OCC_SELF_EMPLOYED', 'OCC_CONTENT_CREATIVE', 'OCC_OPERATIONS_ADMIN', 'OCC_OTHER']
+
 function isFreeText (key) { return FREE_TEXT_FIELD_KEYS.indexOf(key) !== -1 }
 function isRequiredField (key) { return REQUIRED_FIELD_KEYS.indexOf(key) !== -1 }
 function optionsFor (key) { return OPTIONS_BY_FIELD[key] || [] }
@@ -350,7 +370,9 @@ function validateHybridRaw (raw) {
   }
   const errors = []
   for (const key of REQUIRED_FIELD_KEYS) {
-    if (isFreeText(key)) continue
+    if (isFreeText(key)) continue // occupationDetail: required by the QUESTIONNAIRE,
+    // but R85-B §12 gives occupation ZERO B1 authority → the B1 input builder
+    // stays occupation-tolerant (occupation is cosmetic/report context only).
     const v = raw[key]
     if (v === undefined || v === null || v === '') { errors.push('MISSING:' + key); continue }
     if (!resolveOptionId(key, v)) errors.push('UNKNOWN_OPTION:' + key + ':' + v)
@@ -379,6 +401,7 @@ module.exports = {
   FREE_TEXT_FIELD_KEYS,
   HYBRID_SCREEN_COUNT,
   HYBRID_RAW_FIELD_COUNT,
+  OCCUPATION_CATEGORY_IDS,
   isFreeText,
   isRequiredField,
   optionsFor,

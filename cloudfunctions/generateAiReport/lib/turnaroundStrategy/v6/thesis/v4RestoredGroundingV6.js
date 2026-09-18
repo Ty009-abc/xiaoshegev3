@@ -55,6 +55,20 @@ const NOT_LUCK_PAT = /不是运气/
 // ── universalising thresholds masquerading as evidence (vs experiment design) ──
 const ARBITRARY_THRESHOLD_PAT = /(至少|必须|只有|才算|才能算|得需要|需要有|要凑够|达到)\s*([0-9]{1,4}|[一二三四五六七八九十]+)\s*(个人|位|家|个客户|个买家|个用户|单|笔|次)/
 
+// ── R85-B §20/§21 — OCCUPATION MARKET CLAIMS (no external market database) ──
+// Occupation ALONE may never support: AI displacement · income ceiling · job-loss
+// probability · career outlook · a destiny stereotype. These require external
+// market evidence this system does NOT have → always unsupported → dropped.
+// NOTE: deliberate occupation-grounding ADDITION (R84-D semantics untouched).
+const OCCUPATION_AI_PAT = /(AI|人工智能|算法|机器|自动化)[^。，,；！？]{0,8}(淘汰|取代|替代|抢走|干掉)|被(AI|人工智能|机器|算法|自动化)[^。，,；！？]{0,4}(淘汰|取代|替代|干掉)/
+const OCCUPATION_CEILING_PAT = /(收入|薪资|工资|赚钱|前景|未来)[^。，,；！？]{0,6}(天花板|封顶|上限)|天花板(很|太|特别)?低|(收入|薪资|工资)上限(很|太|特别)?低|赚不了大钱|没有(大|高)?前途|没什么前途|前景(很|太)?差/
+const OCCUPATION_STEREOTYPE_PAT = /(只能|只配|一辈子只|永远只)(靠|用|出卖)(体力|时间|青春)|吃(的)?青春饭|青春饭|没什么技术含量|没有技术含量/
+const OCCUPATION_DESTINY_PAT = /(注定|天生|一辈子|生来)(只能|就|注定是|适合)|(做|当|作为|干)(程序员|厨师|销售|外卖|骑手|司机|设计师|老师|医生|导购|客服|美发师|美甲师)[^。，,；！？]{0,10}(一定|必然|注定|肯定|只能)|(程序员|厨师|销售|外卖|骑手|司机|设计师|老师|医生)[^。，,；！？]{0,6}(一定|必然|注定|肯定)(会|能|适合|被)/
+const OCCUPATION_JOB_SECURITY_PAT = /(一定|必然|迟早|早晚|终究)(会|要)?(失业|下岗|被裁|被优化|没饭吃)/
+
+// ── R85-B §10/§21 — EXACT INCOME FORECAST (system has NO authority for a number) ──
+const EXACT_INCOME_FORECAST_PAT = /(月入|年入|收入|工资|薪水|赚|挣)[^。，,；！？]{0,6}[0-9]+\s*[万千]?\s*[元块]|(月入|年入|收入|赚)[^。，,；！？]{0,4}[0-9]+\s*万|(月入|年入|收入|工资|赚)[^。，,；！？]{0,4}[一两三四五六七八九十]+万|(月入|年入|收入)[^。，,；！？]{0,3}(过万|上万|破万)/
+
 // ── deterministic DOWNSHIFTS (introduce NO new fact, only hedge) ──
 function downshift (text) {
   let t = String(text || '')
@@ -132,6 +146,11 @@ function classifyClause (cl, ctx) {
   // 5) certainty overstatement
   if (NOT_LUCK_PAT.test(c)) return { type: 'CERTAINTY', evidenceClass: 'OBSERVED' }
   if (CERTAINTY_PAT.test(c)) return { type: 'CERTAINTY', evidenceClass: 'OBSERVED' }
+  // 6) R85-B §20/§21 — occupation market claim (no external market evidence)
+  if (OCCUPATION_AI_PAT.test(c) || OCCUPATION_CEILING_PAT.test(c) || OCCUPATION_STEREOTYPE_PAT.test(c) ||
+      OCCUPATION_DESTINY_PAT.test(c) || OCCUPATION_JOB_SECURITY_PAT.test(c)) return { type: 'OCCUPATION_MARKET', evidenceClass: 'HYPOTHESIS' }
+  // 7) R85-B §10/§21 — exact income forecast (no authority for a number)
+  if (EXACT_INCOME_FORECAST_PAT.test(c)) return { type: 'EXACT_INCOME', evidenceClass: 'HYPOTHESIS' }
   return null
 }
 
@@ -161,7 +180,9 @@ const ZERO_COUNTS = () => ({
   MORTGAGE_AS_SAFETY_NET_COUNT: 0, DEBT_AS_BUFFER_COUNT: 0, COMPLACENCY_CAUSALITY_COUNT: 0,
   CARD01_UNSUPPORTED_MINDREAD_COUNT: 0, UNSUPPORTED_CAUSAL_CLAIM_COUNT: 0,
   ABSOLUTE_MARKET_CLAIM_COUNT: 0, CERTAINTY_OVERSTATEMENT_COUNT: 0, ARBITRARY_NUMBER_COUNT: 0,
-  OWNER_MORTGAGE_CAUSAL_BUG_COUNT: 0
+  OWNER_MORTGAGE_CAUSAL_BUG_COUNT: 0,
+  // R85-B §20/§10 — occupation-market + exact-income-forecast (both must be 0)
+  UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT: 0, EXACT_INCOME_FORECAST_COUNT: 0
 })
 
 /** Count defects on a FINAL (already-repaired) text — expected 0. */
@@ -176,6 +197,8 @@ function countGroundingDefects (text, ctx, slot) {
     else if (v.type === 'MINDREAD') { if (slot === 'card01') counts.CARD01_UNSUPPORTED_MINDREAD_COUNT++; else counts.UNSUPPORTED_CAUSAL_CLAIM_COUNT++ }
     else if (v.type === 'ABSOLUTE_MARKET') counts.ABSOLUTE_MARKET_CLAIM_COUNT++
     else if (v.type === 'CERTAINTY') counts.CERTAINTY_OVERSTATEMENT_COUNT++
+    else if (v.type === 'OCCUPATION_MARKET') counts.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT++
+    else if (v.type === 'EXACT_INCOME') counts.EXACT_INCOME_FORECAST_COUNT++
   }
   counts.UNSUPPORTED_CAUSAL_CLAIM_COUNT += counts.MORTGAGE_AS_SAFETY_NET_COUNT + counts.DEBT_AS_BUFFER_COUNT + counts.COMPLACENCY_CAUSALITY_COUNT + counts.CARD01_UNSUPPORTED_MINDREAD_COUNT
   counts.ARBITRARY_NUMBER_COUNT = countArbitraryNumbers(text)
@@ -249,6 +272,8 @@ function fixField (text, slot, ctx, fallbackText, audit, repaired) {
     }
     if (v.type === 'MINDREAD') repaired.mindread++
     else if (v.type === 'COMPLACENCY') repaired.complacency++
+    else if (v.type === 'OCCUPATION_MARKET') repaired.occupationMarket++
+    else if (v.type === 'EXACT_INCOME') repaired.exactIncome++
     else repaired.financial++
   }
   let out = kept.join('').trim()
@@ -272,7 +297,7 @@ function screenGrounding (cmp, thesis, ctx, fb) {
   const c = Object.assign({}, cmp || {})
   const g = ctx || {}
   const f = fb || {}
-  const repaired = { financial: 0, complacency: 0, mindread: 0, absoluteMarket: 0, certainty: 0 }
+  const repaired = { financial: 0, complacency: 0, mindread: 0, absoluteMarket: 0, certainty: 0, occupationMarket: 0, exactIncome: 0 }
   const audit = []
 
   c.card01 = fixField(c.card01, 'card01', g, f.card01, audit, repaired)
@@ -313,6 +338,8 @@ function screenGrounding (cmp, thesis, ctx, fb) {
     counts.ABSOLUTE_MARKET_CLAIM_COUNT += cc.ABSOLUTE_MARKET_CLAIM_COUNT
     counts.CERTAINTY_OVERSTATEMENT_COUNT += cc.CERTAINTY_OVERSTATEMENT_COUNT
     counts.ARBITRARY_NUMBER_COUNT += cc.ARBITRARY_NUMBER_COUNT
+    counts.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT += cc.UNSUPPORTED_OCCUPATION_MARKET_CLAIM_COUNT
+    counts.EXACT_INCOME_FORECAST_COUNT += cc.EXACT_INCOME_FORECAST_COUNT
   }
   counts.OWNER_MORTGAGE_CAUSAL_BUG_COUNT = (g.debtPressure === 'DEBT_MORTGAGE') ? counts.MORTGAGE_AS_SAFETY_NET_COUNT : 0
 
@@ -345,6 +372,12 @@ module.exports = {
   ABSOLUTE_STRONG_PAT,
   CERTAINTY_PAT,
   ARBITRARY_THRESHOLD_PAT,
+  OCCUPATION_AI_PAT,
+  OCCUPATION_CEILING_PAT,
+  OCCUPATION_STEREOTYPE_PAT,
+  OCCUPATION_DESTINY_PAT,
+  OCCUPATION_JOB_SECURITY_PAT,
+  EXACT_INCOME_FORECAST_PAT,
   classifyClause,
   downshift,
   cleanupConnectors,

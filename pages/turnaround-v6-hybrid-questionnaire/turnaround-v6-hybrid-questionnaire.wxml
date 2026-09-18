@@ -60,14 +60,16 @@
       </view>
     </view>
 
-    <!-- 可选职业自由文本（不阻塞） -->
+    <!-- R85-B §4/§5 — 职业必答：类别快选 + 具体职业文本（不阻塞其它题，但必答） -->
     <view class="occupation" wx:if="{{screens[currentIndex].secondaryText}}">
       <input
         class="occupation-input"
         placeholder="{{screens[currentIndex].secondaryText.placeholder}}"
         value="{{occupation}}"
+        maxlength="{{screens[currentIndex].secondaryText.maxlength}}"
         bindinput="onOccupationInput"
       />
+      <view class="occupation-hint">写具体一点，比如：前端开发、厨师、房产销售、外卖骑手。</view>
     </view>
 
     <view class="nav">

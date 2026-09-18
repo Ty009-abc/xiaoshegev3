@@ -118,6 +118,13 @@
   color: #1a1a2e;
 }
 
+.occupation-hint {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8a90a6;
+  line-height: 1.5;
+}
+
 .nav {
   display: flex;
   gap: 24rpx;
