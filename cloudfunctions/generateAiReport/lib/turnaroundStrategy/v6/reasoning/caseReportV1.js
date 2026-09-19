@@ -95,7 +95,7 @@ function M (ev) {
 const SWITCH_APP = Object.freeze({
   STAY_AND_UPGRADE: '留在当前这个局里，把已经成立的优势放大',
   ADD_OPTIONALITY: '不辞职，保住现在的收入，再用一小部分时间开一条能产生新证据的第二线',
-  CHANGE_ALLOCATION: '不换整个局，只把一小部分可支配时间，从已有确定回报的路径，转移到能产生新证据的路径',
+  CHANGE_ALLOCATION: '不换整个局，只做一次资源分配的调整',
   CHANGE_GAME: '换的不是努力程度，是你在这个局里的位置',
   RUN_TEST_FIRST: '先用你手里的缓冲，跑一次最小现实检验',
   NO_SWITCH_YET: '先不切换任何赛道，把缓冲修好再谈别的'
@@ -324,11 +324,16 @@ function card04Segs (id, k, ev, switchOutcome) {
   const target = (id === 'CAPABILITY_UNEXPOSED' || id === 'EFFORT_ALLOCATION')
     ? '，先从' + (k.skill || '这项能力') + '开始这一步'
     : ''
+  // §R87D_3 — owner-visible copy must NEVER expose an internal enum switch id
+  // (e.g. CHANGE_ALLOCATION). The switch is expressed in natural language only,
+  // and the worldRule no longer repeats the TO sentence verbatim (the visible
+  // FROM → TO block already carries it). worldRule stays WHY-fails + WHY-switch
+  // + HOW-to-apply.
   return {
     from: s('你现在的规则：你默认「' + rule + '」，具体就是「' + from + '」', L1, present(ev, [F.rule, F.labor])),
     to: s(to, L2, present(ev, [F.price, F.skill])),
     why: s(why, L2, present(ev, [F.price, F.income, F.safety, F.debt, F.time])),
-    app: s('以你「' + (k.decisionStyle || '先看看再说') + '」的决定方式，用在' + (k.occ ? '你（' + k.occ + '）' : '你') + '身上（' + switchOutcome + '）：' + app + target + '。', L2, present(ev, [F.occ, F.skill, F.price, 'decisionStyle']))
+    app: s('以你「' + (k.decisionStyle || '先看看再说') + '」的决定方式，用在' + (k.occ ? '你（' + k.occ + '）' : '你') + '身上：' + app + target + '。', L2, present(ev, [F.occ, F.skill, F.price, 'decisionStyle']))
   }
 }
 

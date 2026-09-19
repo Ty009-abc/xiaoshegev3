@@ -162,12 +162,14 @@ function buildCardListV6 (cards) {
       const fallbackItems = actionItems.length ? actionItems : arr(vis.actions).map((s) => ({ title: '', text: str(s) })).filter((it) => it.text)
       // R84-B §11 — stable action index (行动1/2/3) + fixed section labels so the
       // user can locate goal / each action / validation standard instantly.
+      // §R87D_3 — the goal label must NOT assert a fixed 90-day horizon when the
+      // action card is a short real-market test. Horizon-agnostic by design.
       const indexedItems = fallbackItems.map((it, i) => ({ index: i + 1, label: '行动' + (i + 1), title: it.title, text: it.text }))
       out.push({
         key: 'firstAction',
         title: title,
         goal: str(vis.goal),
-        goalLabel: '90天目标',
+        goalLabel: '本次目标',
         actions: arr(vis.actions),
         actionItems: indexedItems,
         acceptance: str(vis.acceptance),

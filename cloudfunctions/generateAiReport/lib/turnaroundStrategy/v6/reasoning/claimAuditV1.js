@@ -106,6 +106,16 @@ const CARD05_MULTI_ACTION_TOKENS = [
   '一次报价/一次公开交付', '/一次公开交付', '一次报价或',
   '打包成一个明确的对外动作', '两个动作', '二选一', '或者一次'
 ]
+// §R87D_3 — owner-visible copy must NEVER expose an internal enum / ontology
+// identifier (switch class, contradiction id, derived-insight id, …). Any UPPER_
+// SNAKE_CASE token on the visible surface is a leak. Generic by construction, with
+// the known identifiers listed explicitly for clarity.
+const INTERNAL_IDENTIFIER_PATTERNS = [/[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+/g]
+const INTERNAL_IDENTIFIER_TOKENS = [
+  'CHANGE_ALLOCATION', 'CAPABILITY_UNEXPOSED', 'CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY',
+  'STAY_AND_UPGRADE', 'ADD_OPTIONALITY', 'CHANGE_GAME', 'RUN_TEST_FIRST', 'NO_SWITCH_YET',
+  'CAPABILITY_VS_MARKET_PROOF', 'VALIDATED_NOT_REPEATABLE', 'STABILITY_BINDING'
+]
 
 // generic quantifiers / horizon markers that do NOT assert a new fact
 const NUMERIC_WHITELIST = [
@@ -254,6 +264,17 @@ function auditVisibleClaims (caseReport, evidence) {
   const effortPricingOver = countToken(blobAll, EFFORT_PRICING_OVERCLAIM_TOKENS)
   const card05Multi = countToken(flatten(cr.card05, []).join(' '), CARD05_MULTI_ACTION_TOKENS)
 
+  // ── §R87D_3 OWNER_VISIBLE_INTERNAL_ENUM ── internal identifiers must never
+  // reach the owner. Counts UPPER_SNAKE_CASE tokens on the whole visible surface.
+  let internalEnum = 0
+  const internalEnumHits = []
+  for (const p of pieces) {
+    for (const re of INTERNAL_IDENTIFIER_PATTERNS) {
+      const m = p.match(re)
+      if (m) { internalEnum += m.length; m.forEach((x) => { if (internalEnumHits.length < 8) internalEnumHits.push(x) }) }
+    }
+  }
+
   // ── EMPLOYMENT_MECHANIC_OVERCLAIM ──
   let empOver = 0
   const empSamples = []
@@ -289,6 +310,7 @@ function auditVisibleClaims (caseReport, evidence) {
     INDEPENDENT_MARKET_PROOF_CONFUSED_WITH_JOB_INCOME_COUNT: jobIncomeConfusion.n,
     EFFORT_TO_PRICING_CAUSAL_OVERCLAIM_COUNT: effortPricingOver.n,
     CARD05_MULTI_ACTION_EXPERIMENT_COUNT: card05Multi.n,
+    OWNER_VISIBLE_INTERNAL_ENUM_COUNT: internalEnum,
     CLAIM_LEDGER_SIZE: ledger.length,
     _samples: {
       withoutLedger: unledgeredSamples,
@@ -303,9 +325,10 @@ function auditVisibleClaims (caseReport, evidence) {
       employmentDenial: empValueDenied.hits,
       jobConfusion: jobIncomeConfusion.hits,
       effortPricing: effortPricingOver.hits,
-      card05Multi: card05Multi.hits
+      card05Multi: card05Multi.hits,
+      internalEnum: internalEnumHits
     }
   }
 }
 
-module.exports = { CLAIM_AUDIT_VERSION, auditVisibleClaims, FABRICATED_PSYCHOLOGY_TOKENS, TEMPORAL_TOKENS, EMPLOYMENT_OVERCLAIM_TOKENS, PRICING_UNIVERSALIZATION_TOKENS, EXPERIMENT_RESULT_OVERCLAIM_TOKENS, FREE_ONLY_MISCLASSIFICATION_TOKENS, EMPLOYMENT_VALUE_DENIAL_TOKENS, JOB_INCOME_CONFUSION_TOKENS, EFFORT_PRICING_OVERCLAIM_TOKENS, CARD05_MULTI_ACTION_TOKENS, meaningPool }
+module.exports = { CLAIM_AUDIT_VERSION, auditVisibleClaims, FABRICATED_PSYCHOLOGY_TOKENS, TEMPORAL_TOKENS, EMPLOYMENT_OVERCLAIM_TOKENS, PRICING_UNIVERSALIZATION_TOKENS, EXPERIMENT_RESULT_OVERCLAIM_TOKENS, FREE_ONLY_MISCLASSIFICATION_TOKENS, EMPLOYMENT_VALUE_DENIAL_TOKENS, JOB_INCOME_CONFUSION_TOKENS, EFFORT_PRICING_OVERCLAIM_TOKENS, CARD05_MULTI_ACTION_TOKENS, INTERNAL_IDENTIFIER_TOKENS, meaningPool }

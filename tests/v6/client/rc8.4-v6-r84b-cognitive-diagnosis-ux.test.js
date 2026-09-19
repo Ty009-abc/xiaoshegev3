@@ -113,7 +113,9 @@ t('§10 card04 FROM→TO directional labels + one-wayarrow + worldRule label', (
 })
 t('§11 card05 action units carry 行动n index + fixed section labels', () => {
   assert.deepStrictEqual(c5.actionItems.map((x) => x.label), ['行动1', '行动2', '行动3'])
-  assert.strictEqual(c5.goalLabel, '90天目标')
+  // §R87D_3 — the goal label must NOT assert a fixed 90-day horizon; it is now a
+  // horizon-agnostic section label (supersedes the R84-B 90天目标 wording).
+  assert.strictEqual(c5.goalLabel, '本次目标')
   assert.strictEqual(c5.acceptLabel, '验证标准')
   assert.ok(/action-step-head/.test(WXML), 'action micro-heading rendered')
 })

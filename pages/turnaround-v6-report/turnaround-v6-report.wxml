@@ -90,10 +90,10 @@
       </view>
       <view wx:if="{{item.specificity}}" class="card-specificity">{{item.specificity}}</view>
 
-      <!-- 05 现在就做：90天目标 + 中文微标题行动（行动1/2/3）+ 验证标准 -->
+      <!-- 05 现在就做：本次目标 + 中文微标题行动（行动1/2/3）+ 验证标准 -->
       <view wx:if="{{item.goal}}" class="action-block">
         <view class="action-goal">
-          <text class="action-goal-label">{{item.goalLabel || '90天目标'}}</text>
+          <text class="action-goal-label">{{item.goalLabel || '本次目标'}}</text>
           <text class="action-goal-text">{{item.goal}}</text>
         </view>
         <!-- R84-A — 中文微标题（定产品/找买家/跑复购）；无微标题时回退到中性序号 -->

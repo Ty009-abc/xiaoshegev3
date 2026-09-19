@@ -158,7 +158,9 @@ function screenCaseReportV1 (cmp, hybridProfile, opts) {
     // §R87C P0 — employment-value vs independent-market-proof precision
     'EMPLOYED_SKILL_MISCLASSIFIED_AS_FREE_ONLY_COUNT', 'EMPLOYMENT_VALUE_DENIED_COUNT',
     'INDEPENDENT_MARKET_PROOF_CONFUSED_WITH_JOB_INCOME_COUNT', 'EFFORT_TO_PRICING_CAUSAL_OVERCLAIM_COUNT',
-    'CARD05_MULTI_ACTION_EXPERIMENT_COUNT'
+    'CARD05_MULTI_ACTION_EXPERIMENT_COUNT',
+    // §R87D_3 — no internal enum/ontology identifier may reach the owner
+    'OWNER_VISIBLE_INTERNAL_ENUM_COUNT'
   ].some((k) => audit[k] > 0)
 
   const counts = Object.assign({}, audit, {
