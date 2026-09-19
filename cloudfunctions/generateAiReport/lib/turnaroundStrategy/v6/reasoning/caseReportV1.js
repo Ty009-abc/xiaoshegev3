@@ -48,9 +48,9 @@ const P = Object.freeze({
   SAFETY_3_6: '存款能撑 3–6 个月', SAFETY_6_12: '你有 6–12 个月的缓冲',
   SAFETY_12_24: '你有 12–24 个月的缓冲', SAFETY_24_PLUS: '你有两年以上的缓冲',
   PROOF_NEVER: '这项能力从没被人用过', PROOF_FREE_HELPED: '只免费帮人做过、没收过钱',
-  PROOF_FREE_THANKED: '免费帮人做过、对方很认可', PROOF_PAID_ONCE: '被人付过一次钱',
+  PROOF_FREE_THANKED: '免费帮人做过、被对方感谢过', PROOF_PAID_ONCE: '被人付过一次钱',
   PROOF_OCCASIONAL: '断断续续有人付费', PROOF_STABLE: '已经有稳定客户/长期合作',
-  ATTEMPT_NONE: '过去一年你还没真正开始过任何尝试', ATTEMPT_COURSE_ONLY: '只学过、还没落地',
+  ATTEMPT_NONE: '你还没真正开始过任何尝试', ATTEMPT_COURSE_ONLY: '只学过、还没落地',
   ATTEMPT_UNDER_30D: '试过不到 30 天就停了', ATTEMPT_NO_SALE: '做过东西、但没卖出去',
   ATTEMPT_FEW_SALES: '有过一两笔成交', ATTEMPT_STABLE_SIDE: '副业已经相对稳定',
   SURPLUS_NEGATIVE: '每月结余是负的', SURPLUS_ZERO: '每月基本没有结余',
@@ -94,8 +94,8 @@ function M (ev) {
 // ── switch-class application language (§7) ─────────────────────────────────
 const SWITCH_APP = Object.freeze({
   STAY_AND_UPGRADE: '留在当前这个局里，把已经成立的优势放大',
-  ADD_OPTIONALITY: '不辞职，保住现在的收入，再加一条由你或市场直接定价的第二线',
-  CHANGE_ALLOCATION: '不换整个局，但从每周的时间里固定切出一块，给能被直接定价的产出',
+  ADD_OPTIONALITY: '不辞职，保住现在的收入，再用一小部分时间开一条能产生新证据的第二线',
+  CHANGE_ALLOCATION: '不换整个局，只把一小部分可支配时间，从已有确定回报的路径，转移到能产生新证据的路径',
   CHANGE_GAME: '换的不是努力程度，是你在这个局里的位置',
   RUN_TEST_FIRST: '先用你手里的缓冲，跑一次最小现实检验',
   NO_SWITCH_YET: '先不切换任何赛道，把缓冲修好再谈别的'
@@ -114,12 +114,12 @@ const OLD_RULE_OF = Object.freeze({
   ALIGNED_NO_CONTRADICTION: '再多想清楚一点、再准备充分一点'
 })
 const NEW_RULE_OF = Object.freeze({
-  CAPABILITY_UNEXPOSED: '把一部分时间变成「能被你自己或市场直接定价」的产出',
+  CAPABILITY_UNEXPOSED: '把一小部分可支配时间，从已有确定回报的路径，转移到能产生新证据的路径',
   CAPABILITY_VS_MARKET_PROOF: '先走到「有人直接为它付钱」那一步，再谈加码',
   VALIDATED_NOT_REPEATABLE: '把最常被要的那一项，做成一份能被重复交付、重复购买的东西',
-  STABILITY_BINDING: '在不牺牲收入的前提下，先造出一点点「不由别人定价」的空间',
-  STABILITY_VS_OPTIONALITY: '把缓冲从「安全垫」改成「期权」——用它去行使一次不由别人定价的动作',
-  EFFORT_ALLOCATION: '把时间从「加固旧路」改成「投向能被单独定价的产出」',
+  STABILITY_BINDING: '在不牺牲收入的前提下，先造出一点点「能产生新证据」的空间',
+  STABILITY_VS_OPTIONALITY: '把缓冲从「安全垫」改成「期权」——用它去行使一次能产生新证据的动作',
+  EFFORT_ALLOCATION: '把时间从「加固旧路」改成「投向能产生新证据的路径」',
   LIQUIDITY_VS_AMBITION: '先把现金流修到「不能断」，再谈收益',
   DEBT_PRESSURE_DOMINANT: '先让缓冲活过来，扩张往后排',
   TIME_SHORTAGE: '先把一块可支配时间固定下来，再谈内容',
@@ -159,7 +159,7 @@ function card01Segs (id, k, ev) {
     case 'CAPABILITY_UNEXPOSED':
       return [s('你做的是' + k.occ + '，' + k.price + '。', L1, present(ev, [F.occ, F.price])),
         s('你每周可自由支配的时间有 ' + k.time + '，也' + k.proof + '——可' + k.attempt + '：这项能力至今只在「被感谢」的场景里出现过。', L1, present(ev, [F.time, F.proof, F.attempt])),
-        s('你真正的矛盾不是「要不要更努力」，而是：你手里有一项被需要的能力，却从没被放到一个由你或市场定价的地方，去核实它到底值多少。', L2, present(ev, [F.occ, F.price, F.proof, F.attempt]))]
+        s('你真正的矛盾不是「要不要更努力」，而是：你手里有一项被需要的能力，却从没被放进一个能产生新证据的真实场景，去核实它到底能不能成立。', L2, present(ev, [F.occ, F.price, F.proof, F.attempt]))]
     case 'CAPABILITY_VS_MARKET_PROOF':
       return [s('你做的是' + k.occ + '，' + k.attempt + '，可' + k.proof + '。', L1, present(ev, [F.occ, F.attempt, F.proof])),
         s('这说明卡点不在「敢不敢开始」：你每次都在走到「有人直接为它付钱」那一步之前就收手了。', L2, present(ev, [F.attempt, F.proof])),
@@ -199,10 +199,9 @@ function card01Segs (id, k, ev) {
 // ── CARD02 (hidden mechanism, segments) ────────────────────────────────────
 function card02Segs (id, k, ev) {
   const rule = k.ruleModel || k.laborModel || '再把这一套做一遍'
-  const hasEffort = /努力|多做|做好/.test(String(rule))
   switch (id) {
     case 'CAPABILITY_UNEXPOSED':
-      return [s('为什么这些会同时出现在你身上？因为你用的是「' + rule + '」的默认，遇到不确定又习惯「' + (k.decisionStyle || '先看看再说') + '」——而这套在你现在这个局里确实被奖励：' + k.price + '、按时到账，你越投入账面越稳。', L2, present(ev, [F.rule, F.labor, 'decisionStyle', F.price])),
+      return [s('为什么这些会同时出现在你身上？因为你用的是「' + rule + '」的默认，遇到不确定又习惯「' + (k.decisionStyle || '先看看再说') + '」——而这套在你现在这个局里确实被奖励：' + k.price + '、按时到账。', L2, present(ev, [F.rule, F.labor, 'decisionStyle', F.price])),
         s('于是你多出的时间会默认加回那条已经有回报的路，' + k.skillRef + '始终只在免费场合露面（谢谢、帮忙、顺手）。', L2, present(ev, [F.time, F.skill, F.attempt])),
         s('不是它不行，是它从没被你带去收费的场景。', L2, present(ev, [F.proof, F.attempt]))]
     case 'CAPABILITY_VS_MARKET_PROOF':
@@ -212,13 +211,13 @@ function card02Segs (id, k, ev) {
       return [s('为什么明明被付费验证过，收入还是上不去？因为你的默认是「' + rule + '」，加上你的时间习惯是「' + (k.timeBehavior || '先做当天见效的事') + '」——手艺被切成了一单一单，每一单都要你重新出场。', L2, present(ev, [F.rule, F.labor, F.timeBehavior])),
         s('你赚的是「当次的手艺」，而不是「一次做好、能反复卖的东西」。', L2, present(ev, [F.proof, F.income]))]
     case 'STABILITY_BINDING':
-      return [s('为什么这些会同时出现？因为「' + rule + '」在你现在的局里真的有用：' + k.price + '、收入按时到账，' + (hasEffort ? '你越努力，账面越稳' : '你越守住本职，位置越稳') + '。', L2, present(ev, [F.rule, F.price, F.income])),
+      return [s('为什么这些会同时出现？因为「' + rule + '」在你现在的局里真的有用：' + k.price + '、收入按时到账。', L2, present(ev, [F.rule, F.price, F.income])),
         s('可这份「稳」是别人给的，' + k.safety + '——于是你既换不起，也加不出抗风险，越投入越被锁在原地。', L2, present(ev, [F.price, F.safety]))]
     case 'STABILITY_VS_OPTIONALITY':
       return [s('为什么有缓冲却一直没动？因为「' + rule + '」让你把缓冲理解成了「更保险」，而不是「可以做点什么」。', L2, present(ev, [F.rule, F.safety])),
-        s(k.safety + '本来是一张牌，但你一直把它压箱底，只用来对冲风险，从没用来行使一次「不由别人定价」的动作。', L2, present(ev, [F.safety, F.price]))]
+        s(k.safety + '本来是一张牌，但你一直把它压箱底，只用来对冲风险，从没用来行使一次能产生新证据的动作。', L2, present(ev, [F.safety, F.price]))]
     case 'EFFORT_ALLOCATION':
-      return [s('为什么这些会同时出现？因为「' + rule + '」这套默认，在你现在的现实里确实有回报（任务完成、被说靠谱）。', L2, present(ev, [F.rule, F.labor])),
+      return [s('为什么这些会同时出现？因为「' + rule + '」这套默认，在你现在的现实里确实有回报（任务完成）。', L2, present(ev, [F.rule, F.labor])),
         s('于是你多出的时间会默认加回那条已经稳的路，' + k.skillRef + '只在顺手的场景出现。你的努力一直在给旧路添砖，而不是给新路开门。', L2, present(ev, [F.time, F.skill, F.labor]))]
     case 'LIQUIDITY_VS_AMBITION':
       return [s('为什么第一问题会是现金流？因为你' + k.surplus + '，' + k.debt + '——可你的注意力还停在「怎么把收入做上去」。', L2, present(ev, [F.surplus, F.debt])),
@@ -245,7 +244,7 @@ function card02Segs (id, k, ev) {
 function card03Data (id, k) {
   switch (id) {
     case 'CAPABILITY_UNEXPOSED':
-      return { rule: '多投入一点时间，就更稳', behavior: '多出的时间会默认加回那条已经稳、已经有回报的路，' + k.skillRef + '只在免费场合露面', reward: '钱按时到账、被当成「靠谱」（这是真实的，不否认）', cost: k.skillRef + '始终没有第二个定价者；这份工作一旦变动，你的安全垫只有 ' + k.safetyShort }
+      return { rule: '多投入一点时间，就更稳', behavior: '多出的时间会默认加回那条已经稳、已经有回报的路，' + k.skillRef + '只在免费场合露面', reward: '钱按时到账（这是真实的，不否认）', cost: k.skillRef + '始终没有第二个定价者；这份工作一旦变动，你的安全垫只有 ' + k.safetyShort }
     case 'CAPABILITY_VS_MARKET_PROOF':
       return { rule: '再准备一点、再做完整一点，就更接近成', behavior: '力气都花在「把东西做得更完整」上，收费那一步一直被往后排', reward: '交出去的东西一次比一次体面，被认可（真实的）', cost: '东西越来越好，可「有人直接付钱」这件事始终没被验证，市场证据一直是零' }
     case 'VALIDATED_NOT_REPEATABLE':
@@ -253,9 +252,9 @@ function card03Data (id, k) {
     case 'STABILITY_BINDING':
       return { rule: '先保住这份稳的收入，再想别的', behavior: '把时间和精力优先给本职，' + k.price, reward: '收入按时到账、位置稳定（真实的）', cost: '「稳」是别人给的：你的安全垫只有 ' + k.safetyShort + '，一旦这份收入有波动，你几乎没有缓冲，也几乎没有第二条定价来源' }
     case 'STABILITY_VS_OPTIONALITY':
-      return { rule: '先把本职做到最好，别的以后再说', behavior: k.safety + '被当成「更保险」，而不是可以动用的资源', reward: '不做冒险动作，也就不会踩坑（真实的好处）', cost: '缓冲一直只是缓冲，没被换成任何「不由别人定价」的产出，时间越久越难动' }
+      return { rule: '先把本职做到最好，别的以后再说', behavior: k.safety + '被当成「更保险」，而不是可以动用的资源', reward: '不做冒险动作，也就不会踩坑（真实的好处）', cost: '缓冲一直只是缓冲，没被换成任何能产生新证据的产出，时间越久越难动' }
     case 'EFFORT_ALLOCATION':
-      return { rule: '多做一点、做好一点就稳', behavior: '多出的时间优先加回已经稳的那条路', reward: '任务完成、被说「靠谱」（真实的）', cost: '努力一直用来加固旧路，' + k.skillRef + '始终没有在能直接定价的地方出现过' }
+      return { rule: '多做一点、做好一点就稳', behavior: '多出的时间优先加回已经稳的那条路', reward: '任务完成（真实的）', cost: '努力一直用来加固旧路，' + k.skillRef + '始终没有在能产生新证据的地方出现过' }
     case 'LIQUIDITY_VS_AMBITION':
       return { rule: '先把收入做上去，现金流自然就好', behavior: '注意力集中在「多赚」，' + k.surplus + '这件事被排在后面', reward: '偶尔进账增加，看似在变好', cost: '只要现金流一断，之前赚到的都不算数；' + k.debt }
     case 'DEBT_PRESSURE_DOMINANT':
@@ -317,7 +316,7 @@ function card04Segs (id, k, ev, switchOutcome) {
   }
   const app = SWITCH_APP[switchOutcome] || SWITCH_APP.STAY_AND_UPGRADE
   const target = (id === 'CAPABILITY_UNEXPOSED' || id === 'EFFORT_ALLOCATION')
-    ? '，让' + (k.skill || '这项能力') + '在一个陌生人看得见的渠道里，被明码标价一次'
+    ? '，先从' + (k.skill || '这项能力') + '开始这一步'
     : ''
   return {
     from: s('你现在的规则：你默认「' + rule + '」，具体就是「' + from + '」', L1, present(ev, [F.rule, F.labor])),
@@ -331,13 +330,19 @@ function card04Segs (id, k, ev, switchOutcome) {
 function card05Segs (id, k, ev, caseThesis) {
   const ex = caseThesis.realityExperiment || {}
   const dec = k.decisionStyle || '先看看再说'
-  const hypothesis = ex.hypothesis || '你离「这件事能不能成立」，差的是一次真实动作，不是能力或决心'
   const test = ex.test || '3–7 天内，只做一个可观察的最小动作，用来检验上面那条判断。'
   const observe = ex.observe || '这个动作有没有改变任何一项现实指标。'
-  const signal = ex.passFailSignal || '指标朝预期方向动 → 判断成立；没动 → 判断需要修正。'
+  // §R87B2_1 E — the VISIBLE goal must NOT assert that one action RESOLVES the
+  // question (the core hypothesis is retained internally as an explanation).
+  // Bounded authority: what is missing is a reality test that yields NEW EVIDENCE.
+  const goalText = '当前缺少的是一次能够产生新证据的现实测试'
+  // §R87B2_1 §3 — bounded experiment semantics: a positive signal means CONTINUE
+  // VALIDATION; no signal means diagnose EXPOSURE / DEMAND / OFFER / PRESENTATION —
+  // never declare the final market truth.
+  const signal = '出现正向信号（有人问价或愿意付费）→ 继续验证这条路径；完全没有信号 → 先分别排查「曝光不够」「需求不足」「供给不对口」「呈现不到位」，不据此得出最终市场结论。'
   const update = ex.updateRule || '按这次结果，决定下一次把时间/资源切给哪一边。'
   return {
-    goal: s('假设：以你「' + dec + '」的决定方式，' + hypothesis, L3, present(ev, [F.proof, F.attempt, 'decisionStyle'])),
+    goal: s('假设：以你「' + dec + '」的决定方式，' + goalText + '。', L3, present(ev, [F.proof, F.attempt, 'decisionStyle'])),
     test: s('检验：' + test, L3, present(ev, [F.skill, F.time, F.cost])),
     observe: s('观察：' + observe, L3, present(ev, [F.skill])),
     signal: s('成败信号：' + signal, L3, present(ev, [F.proof])),

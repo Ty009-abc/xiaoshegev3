@@ -69,6 +69,44 @@ t('§11 owner visible claim audit: all six counters + option-restatement = 0', (
   assert.strictEqual(a.EMPLOYMENT_MECHANIC_OVERCLAIM_COUNT, 0)
   assert.strictEqual(a.CARD02_OPTION_RESTATEMENT_COUNT, 0)
 })
+
+// ── §R87B2_1 VISIBLE SEMANTIC BOUNDARIES ────────────────────────────────────
+t('§R87B2_1 owner audit adds pricing-universalization + experiment-overclaim = 0', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.audit.PRICING_POWER_UNIVERSALIZATION_COUNT, 0)
+  assert.strictEqual(b.audit.EXPERIMENT_RESULT_OVERCLAIM_COUNT, 0)
+})
+t('§R87B2_1 A: no unsourced "过去一年" duration in the visible report', () => {
+  const b = build(OWNER)
+  const blob = [b.caseReport.card01, b.caseReport.card02, JSON.stringify(b.caseReport.card03), JSON.stringify(b.caseReport.card04), JSON.stringify(b.caseReport.card05)].join(' ')
+  assert.ok(!/过去一年/.test(blob), 'unsourced duration present')
+})
+t('§R87B2_1 C: no fabricated "靠谱/认可" reward attribution', () => {
+  const b = build(OWNER)
+  const blob = [b.caseReport.card02, JSON.stringify(b.caseReport.card03)].join(' ')
+  assert.ok(!/靠谱|对方很认可|被当成/.test(blob), 'fabricated reward attribution present')
+})
+t('§R87B2_1 D: no pricing-power universalization as the change target', () => {
+  const b = build(OWNER)
+  const blob = [b.caseReport.card01, b.caseReport.card02, JSON.stringify(b.caseReport.card03), JSON.stringify(b.caseReport.card04), JSON.stringify(b.caseReport.card05)].join(' ')
+  assert.ok(!/由你或市场定价|能被直接定价|不由别人定价|明码标价|陌生人看得见的渠道/.test(blob))
+  assert.ok(/产生新证据/.test(b.caseReport.card04.to), 'target should be new-evidence re-allocation')
+})
+t('§R87B2_1 E: Card05 goal does NOT assert certainty ("只差一次")', () => {
+  const b = build(OWNER)
+  assert.ok(!/只差一次|差的不是决心或能力/.test(b.caseReport.card05.goal))
+  assert.ok(/产生新证据的现实测试/.test(b.caseReport.card05.goal))
+})
+t('§R87B2_1 §3: Card05 acceptance is bounded (no "方向对" final truth)', () => {
+  const b = build(OWNER)
+  assert.ok(!/方向对|≥1 次真实付费意向/.test(b.caseReport.card05.acceptance))
+  assert.ok(/继续验证|暴露|需求|供给|呈现/.test(b.caseReport.card05.acceptance))
+})
+t('§R87B2_1 §4: contradiction + derived insight preserved after tightening', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.caseReport.contradictionId, 'CAPABILITY_UNEXPOSED')
+  assert.strictEqual(b.caseThesis.primaryDerivedInsight.insightId, 'CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY')
+})
 t('§3 every visible segment resolves to answered evidence (no phantom facts)', () => {
   const b = build(OWNER)
   for (const cl of b.caseReport.claims) {
@@ -77,6 +115,10 @@ t('§3 every visible segment resolves to answered evidence (no phantom facts)', 
       assert.ok(cl.evidenceIds.length > 0, 'L1/L2 claim has evidence: ' + cl.semanticClaim)
     }
   }
+})
+t('§R87B2_1 §5: five-card coherence still PASS after tightening', () => {
+  const b = build(OWNER)
+  assert.strictEqual(S.checkCoherence(b.caseReport, b.caseThesis).CARD_COHERENCE_PASS, 'YES')
 })
 t('§3 B1 boundary: no employment overclaim, no fabricated psychology in any card', () => {
   const b = build(OWNER)

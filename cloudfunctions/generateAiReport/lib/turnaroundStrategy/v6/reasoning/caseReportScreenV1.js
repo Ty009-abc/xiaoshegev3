@@ -152,7 +152,9 @@ function screenCaseReportV1 (cmp, hybridProfile, opts) {
   const hardFail = [
     'VISIBLE_CLAIM_WITHOUT_LEDGER_COUNT', 'UNSUPPORTED_SENTENCE_COUNT', 'FABRICATED_FACT_COUNT',
     'FABRICATED_PSYCHOLOGY_COUNT', 'TEMPORAL_FACT_WITHOUT_SOURCE_COUNT', 'EMPLOYMENT_MECHANIC_OVERCLAIM_COUNT',
-    'CARD02_OPTION_RESTATEMENT_COUNT'
+    'CARD02_OPTION_RESTATEMENT_COUNT',
+    // §R87B2_1 — tightened visible semantic boundaries
+    'PRICING_POWER_UNIVERSALIZATION_COUNT', 'EXPERIMENT_RESULT_OVERCLAIM_COUNT'
   ].some((k) => audit[k] > 0)
 
   const counts = Object.assign({}, audit, {

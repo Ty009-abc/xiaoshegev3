@@ -49,6 +49,28 @@ const EMPLOYMENT_OVERCLAIM_TOKENS = [
   '老板认可', '老板会给', '老板一定', '保证涨薪', '涨薪', '客户一定会喜欢', '客户喜欢'
 ]
 
+// §R87B2_1 D — PRICING-AUTHORITY UNIVERSALIZATION. Pricing authority must NOT be
+// asserted as the universal TARGET of the change. For
+// CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY the target is RE-ALLOCATION toward a
+// path that yields NEW EVIDENCE — not "get priced" as the only endpoint.
+const PRICING_UNIVERSALIZATION_TOKENS = [
+  '由你或市场定价', '由你或市场直接定价', '由你自己或市场直接定价',
+  '能被你自己或市场直接定价', '能被直接定价', '能被单独定价',
+  '不由别人定价', '能被定价的产出', '能被单独定价的产出',
+  '被明码标价', '明码标价一次', '陌生人看得见的渠道'
+]
+
+// §R87B2_1 E — EXPERIMENT RESULT OVERCLAIM. The visible experiment must NOT assert
+// that ONE action RESOLVES the question (certainty / sufficiency). It may only
+// state that a NEW-EVIDENCE reality test is missing, and must keep the outcome
+// bounded (positive → continue validation; none → diagnose exposure/demand/offer/
+// presentation; never a final market verdict).
+const EXPERIMENT_RESULT_OVERCLAIM_TOKENS = [
+  '只差一次真实对外动作', '差的不是决心或能力', '差的不是能力', '只差一次',
+  '只差一步', '只差一个动作', '就能知道', '就能验证', '必然', '一定能', '肯定能',
+  '方向对', '方向就是对的', '一次就能验证'
+]
+
 // generic quantifiers / horizon markers that do NOT assert a new fact
 const NUMERIC_WHITELIST = [
   '3–7天', '3-7天', '一个', '一次', '一点', '一条', '一单', '一两笔', '两单',
@@ -144,16 +166,38 @@ function auditVisibleClaims (caseReport, evidence) {
   const psy = countToken(pieces.join(' '), FABRICATED_PSYCHOLOGY_TOKENS)
 
   // ── TEMPORAL_FACT_WITHOUT_SOURCE ──
+  // Checked PER LEDGER CLAIM: a temporal token is UNSOURCED when the sentence it
+  // appears in cannot cite an answered temporal field (pastAttemptStage /
+  // weeklyTime / timeBehavior). A sourced sentence no longer masks an unsourced one
+  // (e.g. an explicit "过去一年" with no duration source must be caught even when
+  // other temporal fields were answered).
   let temporalNoSource = 0
   const temporalSamples = []
-  const hasTemporalSource = TEMPORAL_SOURCE_FIELDS.some((f) => (ev.byField && ev.byField[f]) || (ev.cognitiveByField && ev.cognitiveByField[f]))
-  if (!hasTemporalSource) {
-    for (const p of pieces) {
-      // structural loop labels are not temporal claims about the user
-      const scan = p.replace(/长期代价/g, '').replace(/短期真实回报/g, '')
-      const hit = countToken(scan, TEMPORAL_TOKENS)
-      if (hit.n) { temporalNoSource += hit.n; if (temporalSamples.length < 5) temporalSamples.push(hit.hits.join(',')) }
-    }
+  const globalTemporalSource = TEMPORAL_SOURCE_FIELDS.some((f) => (ev.byField && ev.byField[f]) || (ev.cognitiveByField && ev.cognitiveByField[f]))
+  for (const c of ledger) {
+    // structural loop labels are not temporal claims about the user
+    const scan = String(c.semanticClaim || '').replace(/长期代价/g, '').replace(/短期真实回报/g, '')
+    const hit = countToken(scan, TEMPORAL_TOKENS)
+    if (!hit.n) continue
+    const ids = c.evidenceIds || []
+    const sourced = ids.some((f) => TEMPORAL_SOURCE_FIELDS.indexOf(f) >= 0)
+    if (!sourced && !globalTemporalSource) { temporalNoSource += hit.n; if (temporalSamples.length < 5) temporalSamples.push(hit.hits.join(',')) }
+  }
+
+  // ── PRICING_POWER_UNIVERSALIZATION (§R87B2_1 D) ──
+  let pricingUniv = 0
+  const pricingSamples = []
+  for (const p of pieces) {
+    const hit = countToken(p, PRICING_UNIVERSALIZATION_TOKENS)
+    if (hit.n) { pricingUniv += hit.n; if (pricingSamples.length < 5) pricingSamples.push(hit.hits.join(',')) }
+  }
+
+  // ── EXPERIMENT_RESULT_OVERCLAIM (§R87B2_1 E / §3) ──
+  let expOver = 0
+  const expSamples = []
+  for (const p of flatten(cr.card05, [])) {
+    const hit = countToken(p, EXPERIMENT_RESULT_OVERCLAIM_TOKENS)
+    if (hit.n) { expOver += hit.n; if (expSamples.length < 5) expSamples.push(hit.hits.join(',')) }
   }
 
   // ── EMPLOYMENT_MECHANIC_OVERCLAIM ──
@@ -184,6 +228,8 @@ function auditVisibleClaims (caseReport, evidence) {
     TEMPORAL_FACT_WITHOUT_SOURCE_COUNT: temporalNoSource,
     EMPLOYMENT_MECHANIC_OVERCLAIM_COUNT: empOver,
     CARD02_OPTION_RESTATEMENT_COUNT: card02Restate,
+    PRICING_POWER_UNIVERSALIZATION_COUNT: pricingUniv,
+    EXPERIMENT_RESULT_OVERCLAIM_COUNT: expOver,
     CLAIM_LEDGER_SIZE: ledger.length,
     _samples: {
       withoutLedger: unledgeredSamples,
@@ -191,9 +237,11 @@ function auditVisibleClaims (caseReport, evidence) {
       fabricated: fabricatedSamples,
       psychology: psy.hits,
       temporal: temporalSamples,
-      employment: empSamples
+      employment: empSamples,
+      pricing: pricingSamples,
+      experiment: expSamples
     }
   }
 }
 
-module.exports = { CLAIM_AUDIT_VERSION, auditVisibleClaims, FABRICATED_PSYCHOLOGY_TOKENS, TEMPORAL_TOKENS, EMPLOYMENT_OVERCLAIM_TOKENS, meaningPool }
+module.exports = { CLAIM_AUDIT_VERSION, auditVisibleClaims, FABRICATED_PSYCHOLOGY_TOKENS, TEMPORAL_TOKENS, EMPLOYMENT_OVERCLAIM_TOKENS, PRICING_UNIVERSALIZATION_TOKENS, EXPERIMENT_RESULT_OVERCLAIM_TOKENS, meaningPool }

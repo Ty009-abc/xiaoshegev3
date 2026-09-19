@@ -1,45 +1,33 @@
 {
-  "taskId": "XSG-COS-V3_R87B2_FIVE_CARD_INTEGRATION",
-  "baseCommit": "ecce29784bc1aa6d2e2d655abdf66afe0603e222",
+  "taskId": "XSG-COS-V3_R87B2_1_VISIBLE_SEMANTIC_TIGHTENING",
+  "baseCommit": "963495659f7c19ebe095994bf8a6de9dad1c320b",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "R87B1 built the R87 reasoning core (REALITY EVIDENCE -> CONTRADICTION -> DERIVED INSIGHT -> CASE THESIS) but it was intentionally NOT wired into the visible five-card output. R87B2 wires it in: the five VISIBLE cards now render from ONE caseThesis (REALITY -> CONTRADICTION -> DERIVED INSIGHT -> MECHANISM -> PERSONAL LOOP -> SWITCH -> REALITY TEST). The WorldModel stays the explanatory engine (it may sharpen Card02's mechanism and the model-aware loop/probe) but NEVER owns a card, and legacy Game/Pricing/WorldModel layers may not independently take over a card. USER REALITY = SUBJECT. Deterministic, 0 extra provider calls; the ONE existing provider call may only polish clarity/rhythm/compression/sharpness and is rejected on any mutation of contradiction/insight/switch/experiment/facts/claim level. Every visible sentence passes the claim ledger. Code + test + commit + push ONLY - no deploy, no preview, no DB/payment change, no XSG voice, no poster layout change; MODE stays SHADOW.",
+  "problem": "R87B2 engineering = PASS but product output = CONDITIONAL PASS (DEPLOY HOLD). The five visible cards still carried a few unearned visible claims: an unsourced '过去一年' duration; the unsupported mechanism '你越投入账面越稳'; the fabricated reward attribution '被当成靠谱/对方很认可'; pricing-authority universalization ('能被你自己或市场直接定价' / '不由别人定价' / '明码标价' / '陌生人看得见的渠道') used as the change target; and Card05 overclaim ('你只差一次真实对外动作' + '>=1付费意向 = 方向对'). This change TIGHTENS ONLY THE FINAL VISIBLE SEMANTIC BOUNDARIES in the visible rendering layer: (A) drop the unsourced duration; (B) remove the unsupported investment->stability mechanism; (C) remove fabricated reward attribution; (D) for CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY target RE-ALLOCATION toward a path that yields NEW EVIDENCE instead of pricing authority; (E) replace Card05 certainty with bounded 'a reality test that yields NEW EVIDENCE is what is missing'; and use bounded experiment semantics (positive signal -> continue validation; no signal -> diagnose exposure/demand/offer/presentation, no final market truth). Preserves PRIMARY_CONTRADICTION=CAPABILITY_UNEXPOSED, PRIMARY_DERIVED_INSIGHT=CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY and five-card coherence. Adds two independent §11 audit counters PRICING_POWER_UNIVERSALIZATION_COUNT + EXPERIMENT_RESULT_OVERCLAIM_COUNT and makes the temporal audit per-claim. NO redesign of R87 reasoning; NO modification of B1 core; MODE stays SHADOW; code + test + commit + push ONLY - no deploy, no preview, no DB/payment, no UI change.",
   "allowedFiles": [
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportV1.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/claimAuditV1.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportScreenV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportPolishV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
     "tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js",
-    "tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/realityEvidenceV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/contradictionEngineV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/derivedInsightV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseThesisV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/index.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/modelRealityMismatchV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/realEconomyModelV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/realityEvidenceV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/contradictionEngineV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/derivedInsightV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseThesisV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/index.js"
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js"
   ],
   "contractsAffected": [],
   "requiredTests": [
     "node tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js",
     "node tests/v6/reasoning/rc8.4-v6-r87b1-reality-reasoning-core.test.js",
-    "node tests/v6/run.js",
-    "node tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
-    "node tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r84c-one-person-one-contradiction.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r84d-causal-grounding.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
-    "node tests/v6/report/rc8.4-v6-report.test.js",
-    "node tests/v6/runtime/rc8.4-v6-runtime.test.js",
-    "node tests/v6/shadow/rc8.4-v6-shadow-wiring.test.js"
+    "node tests/v6/run.js"
   ],
-  "rollbackPlan": "git checkout ecce29784bc1aa6d2e2d655abdf66afe0603e222 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js .changes/current-change.json && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/claimAuditV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportScreenV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportPolishV1.js tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js"
+  "rollbackPlan": "git checkout 963495659f7c19ebe095994bf8a6de9dad1c320b -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/claimAuditV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportScreenV1.js tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js .changes/current-change.json"
 }
