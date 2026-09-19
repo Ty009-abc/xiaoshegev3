@@ -157,9 +157,10 @@ function present (ev, ids) {
 function card01Segs (id, k, ev) {
   switch (id) {
     case 'CAPABILITY_UNEXPOSED':
-      return [s('你做的是' + k.occ + '，' + k.price + '。', L1, present(ev, [F.occ, F.price])),
-        s('你每周可自由支配的时间有 ' + k.time + '，也' + k.proof + '——可' + k.attempt + '：这项能力至今只在「被感谢」的场景里出现过。', L1, present(ev, [F.time, F.proof, F.attempt])),
-        s('你真正的矛盾不是「要不要更努力」，而是：你手里有一项被需要的能力，却从没被放进一个能产生新证据的真实场景，去核实它到底能不能成立。', L2, present(ev, [F.occ, F.price, F.proof, F.attempt]))]
+      return [s('你做的是' + k.occ + '，这项能力不是停留在想法里——它已经在公司体系内被使用，你也因此在拿一份工资。', L1, present(ev, [F.occ, F.income])),
+        s('但' + k.price + '——定价的主动权在公司这套体系手里，而不是在它独立面对的市场手里。', L1, present(ev, [F.price])),
+        s('你每周可自由支配的时间有 ' + k.time + '，也' + k.proof + '——可' + k.attempt + '：这项能力还没有被你单独拿到真实市场里，验证过一次「有人愿意直接为它付费」。', L1, present(ev, [F.time, F.proof, F.attempt])),
+        s('你缺的不是「会不会做」的证据，而是「离开现有体系以后，这项能力还能不能独立成立」的证据。', L2, present(ev, [F.occ, F.price, F.proof, F.attempt]))]
     case 'CAPABILITY_VS_MARKET_PROOF':
       return [s('你做的是' + k.occ + '，' + k.attempt + '，可' + k.proof + '。', L1, present(ev, [F.occ, F.attempt, F.proof])),
         s('这说明卡点不在「敢不敢开始」：你每次都在走到「有人直接为它付钱」那一步之前就收手了。', L2, present(ev, [F.attempt, F.proof])),
@@ -201,9 +202,9 @@ function card02Segs (id, k, ev) {
   const rule = k.ruleModel || k.laborModel || '再把这一套做一遍'
   switch (id) {
     case 'CAPABILITY_UNEXPOSED':
-      return [s('为什么这些会同时出现在你身上？因为你用的是「' + rule + '」的默认，遇到不确定又习惯「' + (k.decisionStyle || '先看看再说') + '」——而这套在你现在这个局里确实被奖励：' + k.price + '、按时到账。', L2, present(ev, [F.rule, F.labor, 'decisionStyle', F.price])),
-        s('于是你多出的时间会默认加回那条已经有回报的路，' + k.skillRef + '始终只在免费场合露面（谢谢、帮忙、顺手）。', L2, present(ev, [F.time, F.skill, F.attempt])),
-        s('不是它不行，是它从没被你带去收费的场景。', L2, present(ev, [F.proof, F.attempt]))]
+      return [s('为什么这些会同时出现在你身上？因为你用的是「' + rule + '」的默认，遇到不确定又习惯「' + (k.decisionStyle || '先看看再说') + '」——而这套在你现在这个局里确实被奖励：' + k.price + '、按时到账（这份回报是真实的，不否认）。', L2, present(ev, [F.rule, F.labor, 'decisionStyle', F.price])),
+        s('于是你多出的时间会继续投入那条确定路径，公司体系外的独立市场验证一直没有发生。', L2, present(ev, [F.time, F.attempt])),
+        s('不是这项能力没有价值，而是它一直在一个别人替你定价的体系里被使用；真正没有发生过的，是你自己把它带到体系外，接受一次市场定价。', L2, present(ev, [F.proof, F.attempt, F.price]))]
     case 'CAPABILITY_VS_MARKET_PROOF':
       return [s('为什么每次都停在同一个位置？因为你的默认是「' + rule + '」，习惯把「再多准备一点、再做到更好」当成行动本身。', L2, present(ev, [F.rule, F.labor])),
         s('于是每一轮你都把力气花在「把它做得更完整」上，而真正决定结果的「有人直接付费」那一步，一直没被走到。', L2, present(ev, [F.attempt, F.proof]))]
@@ -244,7 +245,7 @@ function card02Segs (id, k, ev) {
 function card03Data (id, k) {
   switch (id) {
     case 'CAPABILITY_UNEXPOSED':
-      return { rule: '多投入一点时间，就更稳', behavior: '多出的时间会默认加回那条已经稳、已经有回报的路，' + k.skillRef + '只在免费场合露面', reward: '钱按时到账（这是真实的，不否认）', cost: k.skillRef + '始终没有第二个定价者；这份工作一旦变动，你的安全垫只有 ' + k.safetyShort }
+      return { rule: '多投入一点时间，就更稳', behavior: '能力主要继续留在已有工作体系里；体系外只有免费帮助，还没有直接的付费验证', reward: '工资/确定性继续存在（这是真实回报，不否认）', cost: '外部市场始终没有形成第二个独立的需求/定价证据；这份工作一旦变动，你的安全垫只有 ' + k.safetyShort }
     case 'CAPABILITY_VS_MARKET_PROOF':
       return { rule: '再准备一点、再做完整一点，就更接近成', behavior: '力气都花在「把东西做得更完整」上，收费那一步一直被往后排', reward: '交出去的东西一次比一次体面，被认可（真实的）', cost: '东西越来越好，可「有人直接付钱」这件事始终没被验证，市场证据一直是零' }
     case 'VALIDATED_NOT_REPEATABLE':
@@ -275,7 +276,7 @@ function card03Segs (id, k, ev) {
     s('当前规则：你默认「' + rule + '」，具体到这件事就是「' + d.rule + '」。', L1, present(ev, [F.rule, F.labor])),
     s('真实行为：' + d.behavior + '。', L1, present(ev, [F.time, F.skill, F.timeBehavior, F.price, F.problem])),
     s('短期真实回报：' + d.reward + '。', L2, present(ev, [F.price, F.income, F.proof, F.surplus])),
-    s('强化：「' + dec + '」这条决定方式，又一次被现实确认。', L2, present(ev, ['decisionStyle', F.rule])),
+    s('强化：「' + dec + '」这条决定方式又一次被现实确认——你继续把时间放回那条确定路径。', L2, present(ev, ['decisionStyle', F.rule])),
     s('长期代价：' + d.cost + '。', L2, present(ev, [F.skill, F.attempt, F.safety, F.debt, F.problem, F.price]))
   ] }
 }
@@ -289,7 +290,7 @@ function card04Segs (id, k, ev, switchOutcome) {
   switch (id) {
     case 'CAPABILITY_UNEXPOSED':
     case 'EFFORT_ALLOCATION':
-      why = '为什么失效：这份收入的价格由' + k.pricer + '说了算，你投入再多也不改变「谁定价」；而安全垫只有 ' + k.safetyShort + '，靠「更努力」并不会让你更抗风险。'
+      why = '为什么失效：这份收入的价格由' + k.pricer + '说了算——只增加投入，并不会自动改变「谁定价」；而安全垫只有 ' + k.safetyShort + '，光靠「更努力」也不会自动让你更抗风险。'
       break
     case 'CAPABILITY_VS_MARKET_PROOF':
       why = '为什么失效：「准备得更完整」不会自动变成「有人付钱」——市场看的从来不是完整度，是你有没有把它拿到台面上。'
@@ -330,8 +331,16 @@ function card04Segs (id, k, ev, switchOutcome) {
 function card05Segs (id, k, ev, caseThesis) {
   const ex = caseThesis.realityExperiment || {}
   const dec = k.decisionStyle || '先看看再说'
-  const test = ex.test || '3–7 天内，只做一个可观察的最小动作，用来检验上面那条判断。'
-  const observe = ex.observe || '这个动作有没有改变任何一项现实指标。'
+  // §R87C CARD05 — the visible experiment must be ONE concrete action, and must
+  // describe the INDEPENDENT-MARKET test (out of the current system), never a
+  // bundle of two alternative actions.
+  const isMarketTest = /打包成一个明确的对外动作|一次报价|一次公开交付/.test(String(ex.test || ''))
+  const test = isMarketTest
+    ? '3–7 天内，把' + (k.skill || '这项能力') + '整理成一个明确的服务，向 1 个真实潜在客户完成一次报价。'
+    : (ex.test || '3–7 天内，只做一个可观察的最小动作，用来检验上面那条判断。')
+  const observe = isMarketTest
+    ? '看对方的反应：是继续询问、讨价还价、拒绝并给出原因，还是愿意付费。'
+    : (ex.observe || '这个动作有没有改变任何一项现实指标。')
   // §R87B2_1 E — the VISIBLE goal must NOT assert that one action RESOLVES the
   // question (the core hypothesis is retained internally as an explanation).
   // Bounded authority: what is missing is a reality test that yields NEW EVIDENCE.

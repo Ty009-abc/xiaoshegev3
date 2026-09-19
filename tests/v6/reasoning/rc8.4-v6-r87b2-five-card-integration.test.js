@@ -107,6 +107,58 @@ t('§R87B2_1 §4: contradiction + derived insight preserved after tightening', (
   assert.strictEqual(b.caseReport.contradictionId, 'CAPABILITY_UNEXPOSED')
   assert.strictEqual(b.caseThesis.primaryDerivedInsight.insightId, 'CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY')
 })
+
+// ── §R87C P0 EMPLOYMENT VALUE vs INDEPENDENT MARKET PROOF ───────────────────
+t('§R87C P0 owner: employed+free-only misclassification = 0', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.audit.EMPLOYED_SKILL_MISCLASSIFIED_AS_FREE_ONLY_COUNT, 0)
+  const blob = [b.caseReport.card01, b.caseReport.card02, JSON.stringify(b.caseReport.card03)].join(' ')
+  assert.ok(!/只在免费场合露面|至今只在|只在「被感谢」的场景里出现过/.test(blob), 'free-only misclassification present')
+})
+t('§R87C P0 owner: employment value is NOT denied', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.audit.EMPLOYMENT_VALUE_DENIED_COUNT, 0)
+  // card01 must acknowledge the capability is already used inside paid employment
+  assert.ok(/已经在公司体系内被使用|工资/.test(b.caseReport.card01))
+  assert.ok(!/从未产生过收入|没上过场/.test(b.caseReport.card01))
+})
+t('§R87C P0 owner: independent-market-proof not confused with job income', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.audit.INDEPENDENT_MARKET_PROOF_CONFUSED_WITH_JOB_INCOME_COUNT, 0)
+  // the employed+free fixture must NOT be told its capability is market-validated
+  assert.ok(!/已经被市场验证|已被市场验证|已经被付费验证/.test(b.caseReport.card01))
+  // it must point to the OUT-OF-SYSTEM independent validation as what's missing
+  assert.ok(/系统外|体系外|独立/.test(b.caseReport.card02))
+})
+t('§R87C P0 owner: effort→pricing is NOT an absolute causal claim', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.audit.EFFORT_TO_PRICING_CAUSAL_OVERCLAIM_COUNT, 0)
+  assert.ok(!/你投入再多也不改变/.test(b.caseReport.card04.rule))
+  assert.ok(/并不会自动改变/.test(b.caseReport.card04.rule))
+})
+t('§R87C P0 owner: Card05 experiment is ONE action (no bundle)', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.audit.CARD05_MULTI_ACTION_EXPERIMENT_COUNT, 0)
+  const test = b.caseReport.card05.actions[0]
+  assert.ok(!/一次报价\/一次公开交付|或者一次|二选一/.test(test))
+  assert.ok(/一次报价/.test(test))
+  // observation enumerates reactions but does NOT require actual payment
+  assert.ok(/继续询问|讨价还价|拒绝/.test(b.caseReport.card05.actions[1]))
+})
+t('§R87C P0 owner: base §11 counters + pricing/experiment overclaim stay 0', () => {
+  const b = build(OWNER)
+  assert.strictEqual(b.audit.UNSUPPORTED_SENTENCE_COUNT, 0)
+  assert.strictEqual(b.audit.FABRICATED_FACT_COUNT, 0)
+  assert.strictEqual(b.audit.FABRICATED_PSYCHOLOGY_COUNT, 0)
+  assert.strictEqual(b.audit.PRICING_POWER_UNIVERSALIZATION_COUNT, 0)
+  assert.strictEqual(b.audit.EXPERIMENT_RESULT_OVERCLAIM_COUNT, 0)
+})
+t('§R87C P0 guard: a fixture that DOES say "only free" is caught', () => {
+  const b = build(OWNER)
+  const tampered = Object.assign({}, b.caseReport, { card01: '这项能力至今只在「被感谢」的场景里出现过。' })
+  const a = CA.auditVisibleClaims(tampered, b.evidence)
+  assert.ok(a.EMPLOYED_SKILL_MISCLASSIFIED_AS_FREE_ONLY_COUNT > 0)
+})
 t('§3 every visible segment resolves to answered evidence (no phantom facts)', () => {
   const b = build(OWNER)
   for (const cl of b.caseReport.claims) {

@@ -71,6 +71,42 @@ const EXPERIMENT_RESULT_OVERCLAIM_TOKENS = [
   '方向对', '方向就是对的', '一次就能验证'
 ]
 
+// ── §R87C P0 — EMPLOYMENT VALUE vs INDEPENDENT MARKET PROOF ────────────────
+// A user whose capability is exercised inside PAID EMPLOYMENT must never be
+// described as if the capability produced no economic value, or as if it only
+// ever appeared in free/thanked scenarios. The missing evidence is INDEPENDENT /
+// EXTERNAL market validation — NOT whether the capability ever produced value.
+const FREE_ONLY_MISCLASSIFICATION_TOKENS = [
+  '只在免费场合露面', '始终只在免费', '只在「被感谢」的场景里出现过',
+  '只在被感谢的场景里出现过', '至今只在', '一直只在免费', '只在免费场景'
+]
+// flat denial that the capability ever produced economic value (false for an
+// employed user, whose capability IS used productively on the job)
+const EMPLOYMENT_VALUE_DENIAL_TOKENS = [
+  '从未产生过收入', '从未产生经济价值', '从来没有产生经济价值', '没有产生任何经济价值',
+  '能力一直没上过场', '能力还没上过场', '这项能力从未产生'
+]
+// conflating INDEPENDENT market proof with job income: asserting the capability
+// is already "market validated" when the evidence shows only employer pricing +
+// free/thanked proof (checked CONDITIONALLY — see auditVisibleClaims)
+const JOB_INCOME_CONFUSION_TOKENS = [
+  '已经被市场验证', '已被市场验证', '市场已经验证', '已经被付费验证',
+  '有人为它付过钱', '已经有人付费', '已经拿到市场认可'
+]
+// §R87C CARD04 — effort→pricing ABSOLUTE causal overclaim. Effort may not be
+// claimed to NEVER influence salary / promotion / income; only that ADDING effort
+// alone does not AUTOMATICALLY change who sets the price.
+const EFFORT_PRICING_OVERCLAIM_TOKENS = [
+  '你投入再多也不改变', '投入再多也改变不了', '再努力也改变不了谁定价',
+  '努力永远不会改变', '再怎么努力也不会改变', '无论多努力都不'
+]
+// §R87C CARD05 — the experiment must be ONE concrete action ("只做这一个动作"),
+// never a bundle/choice of two alternative actions.
+const CARD05_MULTI_ACTION_TOKENS = [
+  '一次报价/一次公开交付', '/一次公开交付', '一次报价或',
+  '打包成一个明确的对外动作', '两个动作', '二选一', '或者一次'
+]
+
 // generic quantifiers / horizon markers that do NOT assert a new fact
 const NUMERIC_WHITELIST = [
   '3–7天', '3-7天', '一个', '一次', '一点', '一条', '一单', '一两笔', '两单',
@@ -200,6 +236,24 @@ function auditVisibleClaims (caseReport, evidence) {
     if (hit.n) { expOver += hit.n; if (expSamples.length < 5) expSamples.push(hit.hits.join(',')) }
   }
 
+  // ── §R87C P0 semantic-precision counters ──
+  const blobAll = pieces.join(' ')
+  const freeOnlyMisclass = countToken(blobAll, FREE_ONLY_MISCLASSIFICATION_TOKENS)
+  const empValueDenied = countToken(blobAll, EMPLOYMENT_VALUE_DENIAL_TOKENS)
+  const effPricingBlob = blobAll
+  const jobIncomeConfusion = (() => {
+    // Only a risk when the user is an EMPLOYEE (employer pricing) WITHOUT any paid
+    // independent proof: claiming "market validated" then would conflate the job
+    // with independent validation.
+    const pa2 = ev.byField && ev.byField.pricingAuthority && ev.byField.pricingAuthority.normalizedValue
+    const proof = ev.byField && ev.byField.skillValidation && ev.byField.skillValidation.normalizedValue
+    const paidProof = proof === 'PROOF_PAID_ONCE' || proof === 'PROOF_OCCASIONAL' || proof === 'PROOF_STABLE'
+    if (pa2 === 'PRICE_EMPLOYER' && !paidProof) return countToken(effPricingBlob, JOB_INCOME_CONFUSION_TOKENS)
+    return { n: 0, hits: [] }
+  })()
+  const effortPricingOver = countToken(blobAll, EFFORT_PRICING_OVERCLAIM_TOKENS)
+  const card05Multi = countToken(flatten(cr.card05, []).join(' '), CARD05_MULTI_ACTION_TOKENS)
+
   // ── EMPLOYMENT_MECHANIC_OVERCLAIM ──
   let empOver = 0
   const empSamples = []
@@ -230,6 +284,11 @@ function auditVisibleClaims (caseReport, evidence) {
     CARD02_OPTION_RESTATEMENT_COUNT: card02Restate,
     PRICING_POWER_UNIVERSALIZATION_COUNT: pricingUniv,
     EXPERIMENT_RESULT_OVERCLAIM_COUNT: expOver,
+    EMPLOYED_SKILL_MISCLASSIFIED_AS_FREE_ONLY_COUNT: freeOnlyMisclass.n,
+    EMPLOYMENT_VALUE_DENIED_COUNT: empValueDenied.n,
+    INDEPENDENT_MARKET_PROOF_CONFUSED_WITH_JOB_INCOME_COUNT: jobIncomeConfusion.n,
+    EFFORT_TO_PRICING_CAUSAL_OVERCLAIM_COUNT: effortPricingOver.n,
+    CARD05_MULTI_ACTION_EXPERIMENT_COUNT: card05Multi.n,
     CLAIM_LEDGER_SIZE: ledger.length,
     _samples: {
       withoutLedger: unledgeredSamples,
@@ -239,9 +298,14 @@ function auditVisibleClaims (caseReport, evidence) {
       temporal: temporalSamples,
       employment: empSamples,
       pricing: pricingSamples,
-      experiment: expSamples
+      experiment: expSamples,
+      freeOnly: freeOnlyMisclass.hits,
+      employmentDenial: empValueDenied.hits,
+      jobConfusion: jobIncomeConfusion.hits,
+      effortPricing: effortPricingOver.hits,
+      card05Multi: card05Multi.hits
     }
   }
 }
 
-module.exports = { CLAIM_AUDIT_VERSION, auditVisibleClaims, FABRICATED_PSYCHOLOGY_TOKENS, TEMPORAL_TOKENS, EMPLOYMENT_OVERCLAIM_TOKENS, PRICING_UNIVERSALIZATION_TOKENS, EXPERIMENT_RESULT_OVERCLAIM_TOKENS, meaningPool }
+module.exports = { CLAIM_AUDIT_VERSION, auditVisibleClaims, FABRICATED_PSYCHOLOGY_TOKENS, TEMPORAL_TOKENS, EMPLOYMENT_OVERCLAIM_TOKENS, PRICING_UNIVERSALIZATION_TOKENS, EXPERIMENT_RESULT_OVERCLAIM_TOKENS, FREE_ONLY_MISCLASSIFICATION_TOKENS, EMPLOYMENT_VALUE_DENIAL_TOKENS, JOB_INCOME_CONFUSION_TOKENS, EFFORT_PRICING_OVERCLAIM_TOKENS, CARD05_MULTI_ACTION_TOKENS, meaningPool }
