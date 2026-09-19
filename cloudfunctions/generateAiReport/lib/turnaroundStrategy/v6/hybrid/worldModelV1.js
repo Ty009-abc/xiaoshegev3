@@ -151,8 +151,15 @@ const STATE_TEXT = Object.freeze({
   PRAISE_BASED: '靠别人的评价判断',
   LUCK_DISMISS: '把成绩归给运气',
   UNREFLECTIVE: '不回头看，直接做下一件',
-  UNKNOWN: '还看不清'
+  // R86-E §5 — MIXED / UNKNOWN are SYSTEM EPISTEMIC STATES ONLY. They are NEVER
+  // a user's world model / identity, and MIXED must never silently collapse into
+  // the UNKNOWN visible text (the R86-D root bug). Kept explicit + distinct.
+  UNKNOWN: '还看不清',
+  MIXED: '同一个问题上，你的习惯判断在两个方向之间来回（系统判定：证据有冲突）'
 })
+
+// R86-E §4 — explicit non-identity system states.
+const NON_REPORTABLE_STATES = Object.freeze(['UNKNOWN', 'MIXED'])
 
 // ── REALITY TEST per axis (§5): one bounded, reversible, NON-money-first test
 //    — it asks "does the upgraded model explain reality better?" ─────────────
@@ -321,6 +328,14 @@ function resolveAxis (axis, raw, optionToState, buildSupport) {
     if (state === 'MIXED' && confidence === 'HIGH') confidence = 'MEDIUM'
   }
 
+  // R86-E §3 — a REPORTABLE axis needs: not UNKNOWN/MIXED, a defined confidence,
+  // AND a primary evidence item whose provenance class is OBSERVED.
+  const primaryClass = primaryEvidence[0] && primaryEvidence[0].class
+  const reportable = recognized &&
+    NON_REPORTABLE_STATES.indexOf(state) === -1 &&
+    confidence !== 'UNKNOWN' &&
+    primaryClass === EVIDENCE.OBSERVED
+
   return {
     axis: axis,
     state: state,
@@ -328,6 +343,9 @@ function resolveAxis (axis, raw, optionToState, buildSupport) {
     primaryEvidence: primaryEvidence,
     supportingEvidence: supportingEvidence,
     confidence: confidence,
+    // R86-E — reportability is metadata ABOUT the axis; it never rewrites state.
+    reportable: reportable,
+    primaryEvidenceClass: primaryClass || 'UNKNOWN',
     provenance: ['worldModelV1', 'axis=' + axis, 'primary=' + srcKey]
   }
 }
@@ -391,6 +409,15 @@ function computeWorldModelV1 (raw, deps) {
   const unknownCount = AXES.filter((a) => axes[a].state === 'UNKNOWN').length
   const mixedCount = AXES.filter((a) => axes[a].state === 'MIXED').length
 
+  // R86-E §3/§4 — READINESS CONTRACT. isR86C (protocol present) is SEPARATE from
+  // worldModelReady (at least one REPORTABLE cognitive axis exists). When nothing
+  // is reportable we expose NO_REPORTABLE_AXIS and downstream must stay honest:
+  // UNKNOWN/MIXED never become the user's identity.
+  const reportableAxes = AXES.filter((a) => axes[a].reportable)
+  const reportableAxisCount = reportableAxes.length
+  const worldModelReady = reportableAxisCount >= 1
+  const readinessClass = worldModelReady ? 'PRIMARY_AXIS' : 'NO_REPORTABLE_AXIS'
+
   // A GENUINE R86-C submission answers all three NEW world-model cognitive
   // fields. Legacy / frozen fixtures never do → downstream screens must stay
   // byte-identical for them.
@@ -407,12 +434,136 @@ function computeWorldModelV1 (raw, deps) {
     weakestAxis: focusAxis,
     needsModelUpgrade: needsModelUpgrade,
     upgrade: upgrade,
+    // R86-E §3/§4 — readiness (independent of isR86C).
+    reportableAxes: reportableAxes.slice(),
+    reportableAxisCount: reportableAxisCount,
+    worldModelReady: worldModelReady,
+    readinessClass: readinessClass,
+    // R86-E §6 — evidence-based primary axis (filled by applyPrimaryAxisV2 once the
+    // mismatch set is known). `focusAxis` stays for byte-compat of the R86-C layer.
+    primaryAxis: null,
+    primaryAxisState: null,
+    primaryAxisEvidence: [],
+    primaryAxisReportable: false,
     // measure-only diagnostics
     unknownCount: unknownCount,
     mixedCount: mixedCount,
     primarySignalCountPerAxis: 1,
     realityDirectAuthorityCount: 0
   }
+}
+
+// ── R86-E §6 — PRIMARY AXIS SELECTION V2 (deterministic, evidence-based) ──────
+// Deterministic ranking, in strict priority order:
+//   1. reportable status        2. mismatch relevance
+//   3. primary evidence strength 4. confidence
+//   5. reality-context relevance 6. conflict / entropy
+//   7. frozen AXES order        (final tie-break ONLY)
+// UNKNOWN / MIXED axes are never candidates for the reportable primary.
+const MISMATCH_AXIS = Object.freeze({
+  LABOR_LINEARITY_TRAP: ['LABOR'],
+  CERTAINTY_SEEKING_TRAP: ['PROBABILITY', 'EVIDENCE'],
+  SINGLE_CAUSE_TRAP: ['SYSTEM'],
+  RULE_BLINDNESS_TRAP: ['RULE'],
+  ANECDOTE_EVIDENCE_TRAP: ['EVIDENCE'],
+  MODEL_REALITY_ALIGNED: []
+})
+const EVIDENCE_STRENGTH = Object.freeze({ OBSERVED: 2, DERIVED: 1, INFERRED: 1, HYPOTHESIS: 0, UNKNOWN: 0 })
+const CONF_STRENGTH = Object.freeze({ HIGH: 2, MEDIUM: 1, LOW: 0, UNKNOWN: 0 })
+
+function mismatchRelevance (axis, mismatch) {
+  const codes = (mismatch && mismatch.codes) || []
+  let n = 0
+  for (const c of codes) {
+    const axes = MISMATCH_AXIS[c]
+    if (axes && axes.indexOf(axis) !== -1) n++
+  }
+  return n
+}
+function realityRelevance (ax) {
+  const sup = (ax && ax.supportingEvidence) || []
+  return sup.some((s) => s.dir && s.dir !== 'NEUTRAL') ? 1 : 0
+}
+function conflictEntropy (ax) {
+  const sup = (ax && ax.supportingEvidence) || []
+  return sup.filter((s) => s.dir === 'CONFLICT').length
+}
+
+/**
+ * Deterministically select the reportable PRIMARY axis (R86-E §6/§7).
+ * @returns {{axis:string|null, state:string|null, evidence:Array, score:Object}}
+ */
+function selectPrimaryAxisV2 (worldModel, mismatch) {
+  const wm = worldModel || {}
+  const axes = wm.axes || {}
+  let best = null
+  let bestScore = null
+  for (const a of AXES) {
+    const ax = axes[a]
+    if (!ax) continue
+    if (NON_REPORTABLE_STATES.indexOf(ax.state) !== -1) continue
+    if (!ax.reportable) continue
+    const score = {
+      reportable: ax.reportable ? 1 : 0,
+      mismatch: mismatchRelevance(a, mismatch),
+      evidence: EVIDENCE_STRENGTH[ax.primaryEvidenceClass] != null ? EVIDENCE_STRENGTH[ax.primaryEvidenceClass] : 0,
+      confidence: CONF_STRENGTH[ax.confidence] != null ? CONF_STRENGTH[ax.confidence] : 0,
+      reality: realityRelevance(ax),
+      entropy: conflictEntropy(ax),
+      order: AXES.indexOf(a)
+    }
+    if (!best || betterScore(score, bestScore)) { best = a; bestScore = score }
+  }
+  if (!best) return { axis: null, state: null, evidence: [], score: null }
+  const ax = axes[best]
+  return {
+    axis: best,
+    state: ax.state,
+    evidence: (ax.primaryEvidence || []).concat(ax.supportingEvidence || []),
+    score: bestScore
+  }
+}
+
+function betterScore (s, b) {
+  if (!b) return true
+  const keys = ['reportable', 'mismatch', 'evidence', 'confidence', 'reality', 'entropy']
+  for (const k of keys) {
+    if (k === 'entropy') { if (s.entropy !== b.entropy) return s.entropy < b.entropy }
+    else if (s[k] !== b[k]) return s[k] > b[k]
+  }
+  return s.order < b.order // frozen AXES order — final tie-break only
+}
+
+/**
+ * Attach the V2 primary axis + the R86-E upgrade onto an ALREADY-COMPUTED world
+ * model (deterministic, idempotent — does not touch `focusAxis`/`upgrade`).
+ */
+function applyPrimaryAxisV2 (worldModel, mismatch) {
+  const wm = worldModel
+  if (!wm || !wm.axes) return wm
+  const sel = selectPrimaryAxisV2(wm, mismatch)
+  wm.primaryAxis = sel.axis
+  wm.primaryAxisState = sel.state
+  wm.primaryAxisEvidence = sel.evidence
+  wm.primaryAxisReportable = !!sel.axis
+  wm.primaryAxisScore = sel.score
+  if (sel.axis) {
+    const map = UPGRADE_MAP[sel.axis]
+    const alreadyAdapted = (ADAPT_RANK[sel.axis][sel.state] === 1)
+    wm.reportableUpgrade = {
+      axis: sel.axis,
+      fromState: sel.state,
+      fromText: STATE_TEXT[sel.state] || STATE_TEXT.UNKNOWN,
+      toState: alreadyAdapted ? sel.state : map.toState,
+      toText: alreadyAdapted ? (STATE_TEXT[sel.state] || STATE_TEXT.UNKNOWN) : map.toText,
+      framing: alreadyAdapted ? '模型已经够贴近现实，这次要升级的是「位置」而不是「模型」' : map.framing,
+      realityTest: REALITY_TEST[sel.axis],
+      needsModelUpgrade: !alreadyAdapted
+    }
+  } else {
+    wm.reportableUpgrade = null
+  }
+  return wm
 }
 
 /**
@@ -459,6 +610,10 @@ module.exports = {
   WORLD_MODEL_UPGRADE_MAP,
   WORLD_MODEL_STATE_TEXT,
   WORLD_MODEL_REALITY_TEST,
+  NON_REPORTABLE_STATES,
+  MISMATCH_AXIS,
   computeWorldModelV1,
-  renderWorldModelLines
+  renderWorldModelLines,
+  selectPrimaryAxisV2,
+  applyPrimaryAxisV2
 }

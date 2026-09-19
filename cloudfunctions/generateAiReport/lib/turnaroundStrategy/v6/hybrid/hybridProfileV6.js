@@ -29,7 +29,7 @@ const C = require('./hybridContractV6.js')
 const { computeRealEconomyModelV6 } = require('./realEconomyModelV6.js')
 const { computeGameModelV6 } = require('./gameModelV6.js')
 const { computePricingPowerV6 } = require('../thesis/pricingPowerV6.js')
-const { computeWorldModelV1 } = require('./worldModelV1.js')
+const { computeWorldModelV1, applyPrimaryAxisV2 } = require('./worldModelV1.js')
 const { computeModelRealityMismatchV6 } = require('./modelRealityMismatchV6.js')
 
 // R85-C §4 — pricing authority is normalized to its own value vocabulary (who
@@ -138,6 +138,10 @@ function buildHybridProfileV6 (raw) {
     realEconomyModel: profile.realEconomyModel,
     pricingPower: profile.pricingPower
   })
+  // R86-E §6 — attach the EVIDENCE-BASED primary axis (deterministic ranking).
+  // ZERO authority over B1 / lower layers; it only names which reportable
+  // cognitive axis the visible cards must speak from. Idempotent + pure.
+  applyPrimaryAxisV2(profile.worldModel, profile.mismatch)
   return profile
 }
 

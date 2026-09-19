@@ -354,12 +354,19 @@ function charLenSafe (s) { return String(s || '').length }
 function card04Texts (c4) { const x = c4 || {}; return [x.from, x.to, x.rule].filter(Boolean) }
 function card05Texts (c5) { const x = c5 || {}; return [x.goal].concat(x.actions || [], [x.acceptance]).filter(Boolean) }
 
-/** Human+model readable lines for the prompt (PRIMARY structured block). */
-function renderGameThesisLines (gt) {
+/** Human+model readable lines for the prompt (PRIMARY structured block).
+ * @param {Object} gt game thesis
+ * @param {boolean} [demoted] R86-E §2 — when true (R86 path), GAME_THESIS is
+ *   REALITY_EVIDENCE / CONTEXT / APPLICATION, NOT the top authority. */
+function renderGameThesisLines (gt, demoted) {
   if (!gt) return []
   const L = []
-  L.push('【这是本报告的 PRIMARY 论点。五张卡必须全部从这个局出发，legacy 主题只能作为补充。】')
-  L.push('- 权威顺序：' + AUTHORITY_ORDER.join(' > ') + '（legacy R84/人格信号排最后，不得取代 GAME）')
+  if (demoted) {
+    L.push('【R86-E：本块是【现实证据/上下文/应用】，不是本报告的最高权威。最高权威是下面的世界模型 + 模型-现实错配。五张卡的【模型】必须来自世界模型；这个局只用来提供现实例证。】')
+  } else {
+    L.push('【这是本报告的 PRIMARY 论点。五张卡必须全部从这个局出发，legacy 主题只能作为补充。】')
+  }
+  L.push('- 权威顺序：' + AUTHORITY_ORDER.join(' > ') + (demoted ? '（R86-E 下，GAME 及其后各项均从属于世界模型）' : '（legacy R84/人格信号排最后，不得取代 GAME）'))
   L.push('- 局（GAME）：' + gameLabel(gt.gameType) + '（' + gt.gameType + '）')
   L.push('- 谁定价（WHO_SETS_PRICE）：' + (gt.whoSetsPrice && gt.whoSetsPrice.text))
   L.push('- 他在卖什么（WHAT_USER_SELLS）：' + (gt.whatUserSells && gt.whatUserSells.text))

@@ -1,24 +1,30 @@
 {
-  "taskId": "RC8.4_V6_R86C2_AUTHORITY_ISOLATION_AND_CONTRACT_MIRROR_FIX",
-  "baseCommit": "8bdf59cdfcefbe09588ac7a7b3af329674e7a82d",
+  "taskId": "RC8.4_V6_R86E_COGNITIVE_OS_VISIBLE_AUTHORITY_RECONSTRUCTION",
+  "baseCommit": "9d25f5eee117342851f63a661aa76520fe3d663e",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "R86-C1 build/package verification (PASS) surfaced two pre-deploy corrections. (1) AUTHORITY ISOLATION DEFECT: the R86 WorldModel prompt/context injection was NOT gated on isR86C, so legacy submissions (no laborModel/systemModel/ruleModel → worldModel.isR86C=false) still received the R86 WorldModel + MODEL↔REALITY mismatch blocks (and the R86 five-card responsibility copy naming 世界模型升级 / 世界模型现实测试) inside the prompt. This violated the frozen authority-isolation contract. Fix: the ENTIRE R86 authority bundle (worldModel + mismatch + model-upgrade/reality-test lines + the R86 card-responsibility copy) must share ONE gate — included ONLY when worldModel.isR86C === true. No partial gating. (2) CONTRACT-MIRROR DRIFT: the backend hybridContractV6.js S8 mirror still carried the pre-R86-C prompt/option order/text; it is now aligned VERBATIM to the frozen R86-B1 client contract (prompt / option ids / option order / visible text), with the `v6` mapping column still tied to each id (runtime semantics UNCHANGED). (3) DECISION-UNIT TRUTH frozen at 12: failureResponse ITSELF is the EVIDENCE primary scenario — there is NO separate evidenceModel decision unit, so TOTAL_DECISION_UNITS=12 (not 13). No product redesign, no questionnaire semantic change, no new axis, no mismatch expansion, no UI change, no env change, no deploy, no preview.",
+  "problem": "R86-D (READ-ONLY) proved that on the R86 path the REPORTABLE_WORLD_MODEL existed as a prompt block but did NOT bind the final visible five cards: legacy R85 economic/game semantics still owned Card01–05. Root cause was structural (not copy): (1) a reportable axis was never separated from mere protocol presence (isR86C), so a MIXED/LABOR axis leaked the UNKNOWN text 「还看不清」 into Card02/Card04; (2) primary-axis selection used frozen axis order, so a non-reportable axis could still name the user's model; (3) the visible screen used lexical/boolean checks (substring matches, 「验证」/「定价者」 vocab) instead of a structured, producer-tagged card schema; (4) final visible text was never re-grounded after R86 overrides (「更不敢动」 survived). R86-E reconstructs visible authority: REPORTABLE_WORLD_MODEL + MODEL_REALITY_MISMATCH become the single top semantic authority; R85 lower layers (RealEconomyModel / GameModel / PricingPower) remain as REALITY_EVIDENCE / CONTEXT / APPLICATION only. Code + test + commit + push ONLY — no deploy, no preview, no owner test, no env change.",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/cognitiveOsCardSchemaV2.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV2.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js",
-    "tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
+    "tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [],
   "contractsAffected": [],
   "requiredTests": [
+    "node tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
     "node tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
     "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js",
     "node tests/v6/thesis/rc8.4-v6-r84a-five-card-personality.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r84c-one-person-one-contradiction.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r84d-causal-grounding.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
   ],
-  "rollbackPlan": "git checkout 8bdf59cdfcefbe09588ac7a7b3af329674e7a82d -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredContextV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js"
+  "rollbackPlan": "git checkout 9d25f5eee117342851f63a661aa76520fe3d663e -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/cognitiveOsCardSchemaV2.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV2.js tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js"
 }

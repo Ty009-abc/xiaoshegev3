@@ -144,9 +144,16 @@ function buildUserMessage (payload) {
     lines.push('')
   }
   // R85C3 §3/§5 — GAME_THESIS 是本报告的 PRIMARY 论点（比 legacy R84 主题优先）。
+  // R86-E §2 — SINGLE TOP SEMANTIC AUTHORITY. On the R86 path ONLY the
+  // REPORTABLE_WORLD_MODEL + MODEL_REALITY_MISMATCH bundle is 最高权威. GAME_THESIS
+  // is demoted to REALITY_EVIDENCE / CONTEXT / APPLICATION. Legacy (isR86C=false)
+  // keeps its FROZEN wording (byte-identical).
+  const r86cActive = !!(p.worldModel && p.worldModel.isR86C === true)
   if (p.gameThesis) {
-    lines.push('================== GAME_THESIS（本报告的中心论点·最高权威）==================')
-    for (const ln of renderGameThesisLines(p.gameThesis)) lines.push(ln)
+    lines.push(r86cActive
+      ? '================== GAME_THESIS（现实证据·上下文·可作补充，不是最高权威；最高权威是下面的世界模型）=================='
+      : '================== GAME_THESIS（本报告的中心论点·最高权威）==================')
+    for (const ln of renderGameThesisLines(p.gameThesis, r86cActive)) lines.push(ln)
     lines.push('')
   }
   // R85C3 §3/§7 — PRICING POWER: pricingAuthority ≠ pricingPower + SWITCH_TYPE。
@@ -162,7 +169,6 @@ function buildUserMessage (payload) {
   // lines they carry — is gated TOGETHER on `worldModel.isR86C === true`.
   // A legacy submission (no laborModel/systemModel/ruleModel) receives NEITHER
   // block: NO partial gating (PARTIAL_R86_PROMPT_GATE_COUNT = 0).
-  const r86cActive = !!(p.worldModel && p.worldModel.isR86C === true)
   if (r86cActive) {
     lines.push('================== 世界模型（他习惯怎么理解问题·最高权威）==================')
     for (const ln of renderWorldModelLines(p.worldModel)) lines.push(ln)

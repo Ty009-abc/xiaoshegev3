@@ -35,6 +35,8 @@ const { guardVisibleCards } = require('./v4RestoredCopyGuardV6.js')
 const { buildGameThesis, screenGameThesis } = require('./gameThesisV6.js')
 const { screenPricingPower } = require('./pricingPowerV6.js')
 const { screenWorldModelCards } = require('./worldModelCardScreenV6.js')
+const { screenWorldModelCardsV2 } = require('./worldModelCardScreenV2.js')
+const { postGroundingV2 } = require('./cognitiveOsCardSchemaV2.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
 const RENDER_SOURCE = Object.freeze({
@@ -193,6 +195,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
   // deterministic game-native Card01; counts legacy-theme overrides + loop fails.
   let r85c3 = null
   let r86c = null
+  let r86e = null
   if (personalityCtx) {
     const gameModel = (hybridProfile && hybridProfile.gameModel) || (hybridContext && hybridContext.gameModel) || null
     const gameThesis = buildGameThesis(gameModel, hybridProfile || null, hybridContext || null)
@@ -211,16 +214,29 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       r85c3.powerCounts = ppScreen.counts
       r85c3.switchType = (pricingPower.switchType && pricingPower.switchType.value) || 'UNKNOWN'
     }
-    // R86-C §1/§2 — WORLD-MODEL card screen. PRIMARY five-card authority: Card01
-    // collision / Card02 current model / Card03 reward loop / Card04 model upgrade
-    // / Card05 reality test. Gated to genuine R86-C submissions (worldModel.isR86C)
-    // so legacy fixtures stay byte-identical.
+    // R86-E §2 — COGNITIVE OS CARD SCHEMA V2 is the TRUE visible authority on the
+    // R86 path: REPORTABLE_WORLD_MODEL + MODEL_REALITY_MISMATCH own Card01–05.
+    // The R86-C screen (screenWorldModelCards) is preserved (and still exported)
+    // for the frozen R86-C suite; on the R86 path V2 supersedes it.
     const worldModel = (hybridProfile && hybridProfile.worldModel) || (hybridContext && hybridContext.worldModel) || null
     const mismatch = (hybridProfile && hybridProfile.mismatch) || (hybridContext && hybridContext.mismatch) || null
-    if (worldModel) {
-      const wmScreen = screenWorldModelCards(cmp, worldModel, mismatch, gameThesis)
-      cmp = wmScreen.cards
-      r86c = { counts: wmScreen.counts, repaired: wmScreen.repaired }
+    if (worldModel && worldModel.isR86C === true) {
+      const v2 = screenWorldModelCardsV2(cmp, worldModel, mismatch, {
+        pricingPower: (hybridProfile && hybridProfile.pricingPower) || (hybridContext && hybridContext.pricingPower) || null,
+        gameThesis: gameThesis
+      })
+      cmp = v2.cards
+      // internal slot carrier is test-only; never user-visible.
+      delete cmp._slots
+      r86e = { counts: v2.counts, repaired: v2.repaired, trace: v2.trace, authorityShare: v2.authorityShare }
+      r86c = { counts: v2.counts, repaired: v2.repaired }
+      // R86-E §22 — FINAL-VISIBLE GROUNDING runs AFTER all R86 overrides and
+      // inspects the FINAL visible text (drops unsupported psychology only).
+      // STRICTLY R86-path only (isR86C) so the legacy path stays byte-identical.
+      const grd = postGroundingV2(cmp, { selfBelief: groundingCtx && groundingCtx.selfBelief })
+      cmp = grd.cards
+      r86e.guard = grd.counts
+      r86e.guardRepaired = grd.repaired
     }
   }
   const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
@@ -292,7 +308,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       card04: cmp.card04,
       card05: Object.assign({}, cmp.card05, { actionItems: card05ActionItems })
     },
-    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [], r85c3Guard: (r85c3 && r85c3.counts) || null, r85c3Repaired: (r85c3 && r85c3.repaired) || null, r85c3PowerGuard: (r85c3 && r85c3.powerCounts) || null, r85c3SwitchType: (r85c3 && r85c3.switchType) || null, r86cGuard: (r86c && r86c.counts) || null, r86cRepaired: (r86c && r86c.repaired) || null }),
+    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [], r85c3Guard: (r85c3 && r85c3.counts) || null, r85c3Repaired: (r85c3 && r85c3.repaired) || null, r85c3PowerGuard: (r85c3 && r85c3.powerCounts) || null, r85c3SwitchType: (r85c3 && r85c3.switchType) || null, r86cGuard: (r86c && r86c.counts) || null, r86cRepaired: (r86c && r86c.repaired) || null, r86eGuard: (r86e && r86e.counts) || null, r86eRepaired: (r86e && r86e.repaired) || null, r86eTrace: (r86e && r86e.trace) || null, r86eAuthorityShare: (r86e && r86e.authorityShare) || null, r86eVisibleGrounding: (r86e && r86e.guard) || null, r86eVisibleGroundingRepaired: (r86e && r86e.guardRepaired) || null }),
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance
