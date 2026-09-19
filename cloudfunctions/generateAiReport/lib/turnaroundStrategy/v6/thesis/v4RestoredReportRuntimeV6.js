@@ -223,7 +223,8 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
     if (worldModel && worldModel.isR86C === true) {
       const v2 = screenWorldModelCardsV2(cmp, worldModel, mismatch, {
         pricingPower: (hybridProfile && hybridProfile.pricingPower) || (hybridContext && hybridContext.pricingPower) || null,
-        gameThesis: gameThesis
+        gameThesis: gameThesis,
+        profile: hybridProfile || null
       })
       cmp = v2.cards
       // internal slot carrier is test-only; never user-visible.
