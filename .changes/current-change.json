@@ -1,15 +1,16 @@
 {
-  "taskId": "XSG-COS-V3_R87B1_REALITY_REASONING_CORE",
-  "baseCommit": "353579195a9914947c740015b755d7c5b3da3eac",
+  "taskId": "XSG-COS-V3_R87B2_FIVE_CARD_INTEGRATION",
+  "baseCommit": "ecce29784bc1aa6d2e2d655abdf66afe0603e222",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "R87A (design-only) proved the R86E owner product acceptance FAILED because the WORLD MODEL became the report SUBJECT instead of an explanatory engine: on the owner fixture the R86 path emitted a model-first diagnosis (PRIMARY=PROBABILITY/CERTAINTY_SEEKING) and the user's own reality never appeared in Card01. R87 core = REALITY FIRST COGNITIVE DIAGNOSIS: USER REALITY = SUBJECT, WORLD MODEL = EXPLANATORY ENGINE. R87B1 builds the R87 reasoning core ONLY (new package cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/): REALITY EVIDENCE -> CONTRADICTION -> DERIVED INSIGHT -> CASE THESIS. It is intentionally NOT wired into the visible five-card production output (that is R87B2). Code + test + commit + push ONLY — no deploy, no preview, no DB/payment change, no XSG voice, no card UI/poster change; MODE stays SHADOW.",
+  "problem": "R87B1 built the R87 reasoning core (REALITY EVIDENCE -> CONTRADICTION -> DERIVED INSIGHT -> CASE THESIS) but it was intentionally NOT wired into the visible five-card output. R87B2 wires it in: the five VISIBLE cards now render from ONE caseThesis (REALITY -> CONTRADICTION -> DERIVED INSIGHT -> MECHANISM -> PERSONAL LOOP -> SWITCH -> REALITY TEST). The WorldModel stays the explanatory engine (it may sharpen Card02's mechanism and the model-aware loop/probe) but NEVER owns a card, and legacy Game/Pricing/WorldModel layers may not independently take over a card. USER REALITY = SUBJECT. Deterministic, 0 extra provider calls; the ONE existing provider call may only polish clarity/rhythm/compression/sharpness and is rejected on any mutation of contradiction/insight/switch/experiment/facts/claim level. Every visible sentence passes the claim ledger. Code + test + commit + push ONLY - no deploy, no preview, no DB/payment change, no XSG voice, no poster layout change; MODE stays SHADOW.",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/realityEvidenceV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/contradictionEngineV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/derivedInsightV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseThesisV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/index.js",
-    "tests/v6/reasoning/rc8.4-v6-r87b1-reality-reasoning-core.test.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/claimAuditV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportScreenV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportPolishV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
+    "tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js",
+    "tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
@@ -18,24 +19,27 @@
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/realEconomyModelV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/cognitiveOsCardSchemaV2.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV2.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js"
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/realityEvidenceV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/contradictionEngineV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/derivedInsightV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseThesisV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/index.js"
   ],
   "contractsAffected": [],
   "requiredTests": [
+    "node tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js",
     "node tests/v6/reasoning/rc8.4-v6-r87b1-reality-reasoning-core.test.js",
     "node tests/v6/run.js",
-    "node tests/v6/report/run.js",
-    "node tests/v6/runtime/run.js",
-    "node tests/v6/shadow/run.js",
-    "node tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
     "node tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
+    "node tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
+    "node tests/v6/thesis/rc8.4-v6-r70-v4-report-engine-controlled-restore.test.js",
     "node tests/v6/thesis/rc8.4-v6-r84c-one-person-one-contradiction.test.js",
     "node tests/v6/thesis/rc8.4-v6-r84d-causal-grounding.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js",
-    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
+    "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js",
+    "node tests/v6/report/rc8.4-v6-report.test.js",
+    "node tests/v6/runtime/rc8.4-v6-runtime.test.js",
+    "node tests/v6/shadow/rc8.4-v6-shadow-wiring.test.js"
   ],
-  "rollbackPlan": "git checkout 353579195a9914947c740015b755d7c5b3da3eac -- .changes/current-change.json && rm -rf cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning tests/v6/reasoning"
+  "rollbackPlan": "git checkout ecce29784bc1aa6d2e2d655abdf66afe0603e222 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js .changes/current-change.json && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/claimAuditV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportScreenV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportPolishV1.js tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js"
 }

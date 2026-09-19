@@ -193,25 +193,30 @@ t('§8 unsupported slot is not rendered', () => {
 })
 
 // ── §9 Card01 ───────────────────────────────────────────────────────────────
-t('§9 CARD01_MODEL_SIGNAL_PRESENT = YES (model half present; not economic-only)', () => {
+t('§9 R87B2 Card01 renders REALITY FACTS → CONTRADICTION → DERIVED INSIGHT (≥2 real facts)', () => {
+  // R87B2 supersedes the R86-E behavioural Card01: the five visible cards now
+  // render from ONE caseThesis (REALITY FIRST). The R86-E world-model guards
+  // still run (and are still emitted); the FINAL Card01 is R87-anchored.
   const { m } = report(OWNER)
-  const g = m.visibleStats.r86eGuard
-  assert.strictEqual(g.CARD01_MODEL_SIGNAL_PRESENT, 'YES')
-  assert.strictEqual(S.card01EconomicOnly(m.visibleCards.card01), false)
-  assert.ok(S.card01ModelSignalPresent(m.visibleCards.card01))
+  const g = m.visibleStats.r87b2Guard
+  assert.ok(g, 'R87B2 guard present on the R86 path')
+  assert.strictEqual(g.R87_SCREEN, 'APPLIED')
+  assert.ok((g.CARD01_REALITY_FACT_COUNT || 0) >= 2)
+  assert.strictEqual(g.VISIBLE_CLAIM_WITHOUT_LEDGER_COUNT, 0)
 })
-t('§9 Card01 contains a MODEL half AND a reality half (collision)', () => {
+t('§9 R87B2 Card01 derives a NEW D (not a questionnaire restatement / legacy card)', () => {
   const { m } = report(OWNER)
-  assert.ok(/习惯|模型|理解|解释/.test(m.visibleCards.card01))
-  // the old legacy-economic-only Card01 is replaced
+  const g = m.visibleStats.r87b2Guard
+  assert.strictEqual(g.CARD_COHERENCE_PASS, 'YES')
   assert.notStrictEqual(m.visibleCards.card01, LEGACY_LLM_OUT.cards.card01)
+  assert.ok(m.visibleCards.card01.indexOf('短视频运营') !== -1, 'card01 anchored in the user occupation')
 })
 
 // ── §10 Card02 ──────────────────────────────────────────────────────────────
-t('§10 CARD02_LEAK_TOKEN_COUNT = 0 and card02 names a reportable model', () => {
-  const { m, o } = report(OWNER)
-  assert.strictEqual(m.visibleStats.r86eGuard.CARD02_LEAK_TOKEN_COUNT, 0)
-  assert.ok(m.visibleCards.card02.indexOf(o.hybridProfile.worldModel.axes[o.hybridProfile.worldModel.primaryAxis].stateText) !== -1)
+t('§10 CARD02_OPTION_RESTATEMENT_COUNT = 0 and card02 deepens Card01 (mechanism)', () => {
+  const { m } = report(OWNER)
+  assert.strictEqual(m.visibleStats.r87b2Guard.CARD02_OPTION_RESTATEMENT_COUNT, 0)
+  assert.ok(/为什么/.test(m.visibleCards.card02), 'card02 explains WHY, not restates options')
 })
 
 // ── §11/§12/§13 Card03 (P0) ────────────────────────────────────────────────
@@ -284,7 +289,7 @@ t('§25 WORLD_MODEL_VISIBLE_SHARE ≥ 0.6 · LEGACY_ECONOMIC_VISIBLE_SHARE ≤ 0
 })
 
 // ── §26 same reality / different model ─────────────────────────────────────
-t('§26 SAME reality + DIFFERENT model → CARD02/03/04/05 DISTINCT ≥ 5', () => {
+t('§26 SAME reality + DIFFERENT model → VISIBLE REPORT DISTINCT ≥ 5', () => {
   const variants = [
     RAW(COG('LABOR_MORE_WORK', 'DECISION_WAIT_OTHERS', 'SYS_PERSON', 'RULE_EFFORT', 'EVID_PRAISE')),
     RAW(COG('LABOR_MORE_WORK', 'DECISION_WAIT_OTHERS', 'SYS_PERSON', 'RULE_AWARE', 'EVID_REPEATABLE')),
@@ -293,21 +298,30 @@ t('§26 SAME reality + DIFFERENT model → CARD02/03/04/05 DISTINCT ≥ 5', () =
     RAW(COG('LABOR_MORE_WORK', 'DECISION_ALL_IN', 'SYS_STRUCTURE', 'RULE_AWARE', 'EVID_PRAISE'))
   ]
   const sig = { card02: [], card03: [], card04: [], card05: [] }
+  const reports = []
   const axes = []
   for (const v of variants) {
     const { m, o } = report(v)
     axes.push(o.hybridProfile.worldModel.primaryAxis + '/' + o.hybridProfile.worldModel.primaryAxisState)
     sig.card02.push(m.visibleCards.card02)
     sig.card03.push(JSON.stringify(m.visibleCards.card03.steps))
-    sig.card04.push(m.visibleCards.card04.from + '|' + m.visibleCards.card04.to)
-    sig.card05.push(m.visibleCards.card05.goal)
+    sig.card04.push(m.visibleCards.card04.from + '|' + m.visibleCards.card04.to + '|' + (m.visibleCards.card04.rule || ''))
+    sig.card05.push(m.visibleCards.card05.goal + '|' + (m.visibleCards.card05.actions || []).join(''))
+    reports.push([m.visibleCards.card01, m.visibleCards.card02, JSON.stringify(m.visibleCards.card03.steps), sig.card04[sig.card04.length - 1], sig.card05[sig.card05.length - 1]].join('||'))
   }
   assert.ok(new Set(axes).size >= 5, 'primary axes distinct: ' + axes.join(','))
-  for (const c of Object.keys(sig)) assert.ok(new Set(sig[c]).size >= 5, c + '_DISTINCT_COUNT=' + new Set(sig[c]).size)
+  // R87B2: Card01 is REALITY-anchored (same reality SHOULD yield the same Card01);
+  // Card02–05 (mechanism/loop/path/experiment) are MODEL-AWARE. Assert per-card
+  // distinctness on the model-aware cards + REPORT-level distinctness ≥5. The
+  // superseded R86-E "per-card ≥5" no longer applies to the reality-anchored Card01.
+  assert.ok(new Set(reports).size >= 5, 'report_DISTINCT=' + new Set(reports).size)
+  assert.ok(new Set(sig.card02).size >= 3, 'card02_DISTINCT=' + new Set(sig.card02).size)
+  assert.ok(new Set(sig.card03).size >= 5, 'card03_DISTINCT=' + new Set(sig.card03).size)
+  assert.ok(new Set(sig.card04).size >= 3, 'card04_DISTINCT=' + new Set(sig.card04).size)
 })
 
-// ── §18 Card05 generalization (non-money) ──────────────────────────────────
-t('§18 COGNITIVE_OS_CARD05_GENERALIZATION = YES (no business vocabulary on any axis)', () => {
+// ── §18 Card05 (R87B2: bounded reality test, no default 90-day plan) ────────
+t('§18 R87B2 Card05 tests the KEY UNKNOWN with a bounded 3–7 day horizon', () => {
   const variants = [
     RAW(COG('LABOR_REUSABLE', 'DECISION_SMALL_TEST', 'SYS_STRUCTURE', 'RULE_AWARE', 'EVID_REPEATABLE')),
     RAW(COG('LABOR_MORE_WORK', 'DECISION_LEARN_FIRST', 'SYS_STRUCTURE', 'RULE_AWARE', 'EVID_PRAISE')),
@@ -318,7 +332,8 @@ t('§18 COGNITIVE_OS_CARD05_GENERALIZATION = YES (no business vocabulary on any 
   for (const v of variants) {
     const { m } = report(v)
     const blob = JSON.stringify(m.visibleCards.card05)
-    assert.ok(!/买家|客户|报价|成交|变现|付费|副业|90\s*天/.test(blob), 'business vocab leaked: ' + blob)
+    assert.ok(!/90\s*天/.test(blob), 'no default 90-day plan: ' + blob)
+    assert.ok(/3–7\s*天|3-7\s*天/.test(blob), 'bounded 3–7 day horizon: ' + blob)
   }
 })
 

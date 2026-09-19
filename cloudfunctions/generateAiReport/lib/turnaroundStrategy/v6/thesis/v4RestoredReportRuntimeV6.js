@@ -37,6 +37,7 @@ const { screenPricingPower } = require('./pricingPowerV6.js')
 const { screenWorldModelCards } = require('./worldModelCardScreenV6.js')
 const { screenWorldModelCardsV2 } = require('./worldModelCardScreenV2.js')
 const { postGroundingV2 } = require('./cognitiveOsCardSchemaV2.js')
+const { screenCaseReportV1 } = require('../reasoning/caseReportScreenV1.js')
 const { getV6WorldviewModelFromEnv, V6_DEFAULT_MODEL } = require('../../../config/worldviewV6Model.js')
 
 const RENDER_SOURCE = Object.freeze({
@@ -196,6 +197,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
   let r85c3 = null
   let r86c = null
   let r86e = null
+  let r87b2 = null
   if (personalityCtx) {
     const gameModel = (hybridProfile && hybridProfile.gameModel) || (hybridContext && hybridContext.gameModel) || null
     const gameThesis = buildGameThesis(gameModel, hybridProfile || null, hybridContext || null)
@@ -237,6 +239,19 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       cmp = grd.cards
       r86e.guard = grd.counts
       r86e.guardRepaired = grd.repaired
+
+      // ── RC8.4 V6 R87B2 §2/§9 — REALITY-FIRST FIVE CARDS ──
+      // The accepted R87B1 reasoning core renders the five VISIBLE cards from ONE
+      // `caseThesis` (REALITY → CONTRADICTION → DERIVED INSIGHT → MECHANISM →
+      // PERSONAL LOOP → SWITCH → REALITY TEST). The WorldModel stays the
+      // explanatory engine (it may sharpen Card02's mechanism) but never owns a
+      // card. DETERMINISTIC, 0 extra provider calls. FAIL-CLOSED: on any claim-
+      // audit (§11) or five-card coherence (§9) failure the previous cards are
+      // kept unchanged. STRICTLY R86-path (isR86C) — the legacy path is
+      // byte-identical because this whole block is gated above.
+      const r87 = screenCaseReportV1(cmp, hybridProfile || null, { worldModel: worldModel })
+      if (!r87.rejected && r87.cards) cmp = r87.cards
+      r87b2 = { counts: r87.counts, claims: r87.claims, rejected: r87.rejected }
     }
   }
   const steps = cmp.card03.steps.length ? cmp.card03.steps : oc.card03.slice().slice(0, 3)
@@ -308,7 +323,7 @@ function mapV4RestoredToReport (fb, output, hybridProfile, hybridContext) {
       card04: cmp.card04,
       card05: Object.assign({}, cmp.card05, { actionItems: card05ActionItems })
     },
-    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [], r85c3Guard: (r85c3 && r85c3.counts) || null, r85c3Repaired: (r85c3 && r85c3.repaired) || null, r85c3PowerGuard: (r85c3 && r85c3.powerCounts) || null, r85c3SwitchType: (r85c3 && r85c3.switchType) || null, r86cGuard: (r86c && r86c.counts) || null, r86cRepaired: (r86c && r86c.repaired) || null, r86eGuard: (r86e && r86e.counts) || null, r86eRepaired: (r86e && r86e.repaired) || null, r86eTrace: (r86e && r86e.trace) || null, r86eAuthorityShare: (r86e && r86e.authorityShare) || null, r86eVisibleGrounding: (r86e && r86e.guard) || null, r86eVisibleGroundingRepaired: (r86e && r86e.guardRepaired) || null }),
+    visibleStats: Object.assign({}, cmp.stats, { r84aGuard: guard.counts, r84aRepaired: guard.repaired, r84cGuard: (guard.r84c && guard.r84c.counts) || null, r84cRepaired: (guard.r84c && guard.r84c.repaired) || null, r84cSignals: (guard.r84c && guard.r84c.signals) || [], r84dGuard: (guard.r84d && guard.r84d.counts) || null, r84dRepaired: (guard.r84d && guard.r84d.repaired) || null, r84dAudit: (guard.r84d && guard.r84d.audit) || [], r85c3Guard: (r85c3 && r85c3.counts) || null, r85c3Repaired: (r85c3 && r85c3.repaired) || null, r85c3PowerGuard: (r85c3 && r85c3.powerCounts) || null, r85c3SwitchType: (r85c3 && r85c3.switchType) || null, r86cGuard: (r86c && r86c.counts) || null, r86cRepaired: (r86c && r86c.repaired) || null, r86eGuard: (r86e && r86e.counts) || null, r86eRepaired: (r86e && r86e.repaired) || null, r86eTrace: (r86e && r86e.trace) || null, r86eAuthorityShare: (r86e && r86e.authorityShare) || null, r86eVisibleGrounding: (r86e && r86e.guard) || null, r86eVisibleGroundingRepaired: (r86e && r86e.guardRepaired) || null, r87b2Guard: (r87b2 && r87b2.counts) || null, r87b2Claims: (r87b2 && r87b2.claims) || null, r87b2Rejected: (r87b2 && r87b2.rejected) || false }),
     strategicThesis: st,
     commercialThesis: ct,
     provenance: fb.provenance
