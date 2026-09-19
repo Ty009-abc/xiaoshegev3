@@ -3,28 +3,29 @@
  * turnaroundStrategy/v6/thesis/worldModelCardScreenV2.js
  *
  * RC8.4 V6 R86-E — COGNITIVE OS five-card screen (post-thesis, post-R85C3).
- * RC8.4 V6 R85-D — XSG JUDGMENT VOICE is the FINAL visible renderer.
  *
  * PURPOSE
  *   Make REPORTABLE_WORLD_MODEL + MODEL_REALITY_MISMATCH the TRUE semantic owner
- *   of the FINAL visible five cards, and render that grounding in 珠澳小事哥-style
- *   JUDGMENT / 拆局 language (concrete · short · sharp · rule-based · reality-first).
+ *   of the FINAL visible five cards. This is the R86-E successor to the R86-C
+ *   `worldModelCardScreenV6` (which is preserved byte-identical for legacy use).
  *
- *   Card01 = MODEL↔REALITY COLLISION         (verdict, game-specific)
- *   Card02 = DEFAULT_MODEL / HOW_IT_INTERPRETS (position label + one line)
- *   Card03 = THE REVEAL: MODEL → REWARD → CONFIRMATION → REINFORCEMENT → COST
- *   Card04 = OLD_MODEL → NEW_MODEL (+ REALITY_APPLICATION) + quotable world rule
- *   Card05 = ONE decisive reality test (goal + steps + acceptance)
+ *   Card01 = MODEL↔REALITY COLLISION         (owner WORLD_MODEL + MISMATCH)
+ *   Card02 = DEFAULT_MODEL / HOW_IT_INTERPRETS (owner REPORTABLE_WORLD_MODEL)
+ *   Card03 = MODEL → SHORT_TERM_REWARD → APPARENT_CONFIRMATION → REINFORCEMENT
+ *            → LONG_TERM_COST               (owner WORLD_MODEL_REINFORCEMENT_MECHANISM)  [P0]
+ *   Card04 = OLD_MODEL → NEW_MODEL (+ optional REALITY_APPLICATION)  (upgrade ≥60%)
+ *   Card05 = HYPOTHESIS → REALITY_TEST → OBSERVE → UPDATE_RULE
  *
- * GATE: acts ONLY for a genuine R86 submission with a REPORTABLE axis
+ * GATE: acts ONLY for a genuine R86-C/E submission with a REPORTABLE axis
  *   (`worldModel.isR86C === true`). Legacy / frozen fixtures are returned
  *   BYTE-IDENTICAL with all counters at zero (keeps R84/R85 suites untouched).
+ *   When `worldModelReady === false` (NO_REPORTABLE_AXIS) the screen performs NO
+ *   identity substitution: UNKNOWN/MIXED never become the user's identity.
  *
  * Deterministic only. No I/O. No AI. No network.
  */
 
 const S = require('./cognitiveOsCardSchemaV2.js')
-const XSG = require('./xsgJudgmentVoiceV1.js')
 
 function textOf (v) {
   if (v == null) return ''
@@ -38,7 +39,7 @@ function textOf (v) {
  * @param {Object} cmp compressed visible cards
  * @param {Object} worldModel worldModelV1 output (with primaryAxis applied)
  * @param {Object} mismatch modelRealityMismatchV6 output
- * @param {Object} deps { pricingPower, gameThesis, profile }
+ * @param {Object} deps { pricingPower, gameThesis }
  * @returns {{cards, counts, repaired, trace, authorityShare}}
  */
 function screenWorldModelCardsV2 (cmp, worldModel, mismatch, deps) {
@@ -79,6 +80,8 @@ function screenWorldModelCardsV2 (cmp, worldModel, mismatch, deps) {
     counts.CARD05_WORLD_MODEL_TEST_DOMINANT = 'NO'
     counts.CARD03_WORLD_MODEL_LOOP_PRESENT = 'NO'
     counts.CARD01_MODEL_SIGNAL_PRESENT = 'NO'
+    // Still strip any leaked UNKNOWN/MIXED identity text and psychology. The
+    // screen must NOT substitute an identity; it only removes the false one.
     if (S.LEAK_TOKENS.test(textOf(c.card02))) { c.card02 = '现在这些回答还不足以确认你稳定的判断方式。'; counts.CARD02_LEAK_TOKEN_COUNT++; repaired.card02++ }
     if (c.card04 && S.LEAK_TOKENS.test(textOf(c.card04))) {
       const cleanStr = (v) => (typeof v === 'string' && S.LEAK_TOKENS.test(v)) ? v.replace(/还看不清|你的模型是未知|未知模型|MIXED/g, '') : v
@@ -93,62 +96,79 @@ function screenWorldModelCardsV2 (cmp, worldModel, mismatch, deps) {
 
   counts.READINESS_CLASS = 'PRIMARY_AXIS'
 
-  // ── R85-D — XSG JUDGMENT VOICE renders the FINAL visible five cards. It is a
-  // pure deterministic function of the grounded (world-model + game) thesis:
-  // no new facts, no model change, no extra call. Producers/slots stay exactly
-  // those of the R86-E schema (structure unchanged; only the TEXT is XSG). ─────
-  const v = XSG.renderXsgCards({
-    worldModel: wm,
-    mismatch: mismatch,
-    gameThesis: d.gameThesis,
-    pricingPower: d.pricingPower,
-    profile: d.profile
-  })
-
-  // Structural slots (producer/authority/evidence) — text approximated from the
-  // FINAL XSG text so the trace + authority share reflect what actually ships.
-  c._slots = c._slots || {}
-  const axis = wm.primaryAxis
-  const ax = wm.axes[axis]
-  const c1 = S.card01Slots(wm, mismatch, v)
-  const c2 = S.card02DefaultModel(wm, v)
-  const c3slots = S.card03Slots(wm, v)
-  const c4slots = S.card04Slots(wm, mismatch, d.pricingPower, v)
-  const c5slots = S.card05Slots(wm, v)
-
-  // ── Card01 = MODEL↔REALITY COLLISION (verdict) ────────────────────────────
-  if (v) { c.card01 = v.card01; repaired.card01++ }
-  else if (c1) { c.card01 = c1.text; repaired.card01++ }
-  counts.CARD01_MODEL_SIGNAL_PRESENT = S.card01ModelSignalPresent(String(c.card01)) ? 'YES' : 'NO'
-  if (counts.CARD01_MODEL_SIGNAL_PRESENT === 'NO') counts.CARD01_MODEL_SIGNAL_MISSING_COUNT++
-  if (c1) c._slots.card01 = { COLLISION: S.slot(String(c.card01), S.PRODUCER.WORLD_MODEL, 'OBSERVED', true, ax.primaryEvidence), REALITY_EVIDENCE: c1.REALITY_EVIDENCE }
+  // ── Card01 = MODEL↔REALITY COLLISION ──────────────────────────────────────
+  const c1 = S.card01Slots(wm, mismatch)
+  if (c1) {
+    const prev = String(c.card01 || '')
+    const hasModelSignal = S.card01ModelSignalPresent(prev) && !S.card01EconomicOnly(prev)
+    if (!hasModelSignal) {
+      counts.CARD01_MODEL_SIGNAL_MISSING_COUNT++
+      c.card01 = c1.text
+      repaired.card01++
+    }
+    counts.CARD01_MODEL_SIGNAL_PRESENT = S.card01ModelSignalPresent(String(c.card01)) ? 'YES' : 'NO'
+    c._slots = c._slots || {}
+    c._slots.card01 = { COLLISION: c1.COLLISION, REALITY_EVIDENCE: c1.REALITY_EVIDENCE }
+  } else {
+    counts.CARD01_MODEL_SIGNAL_PRESENT = 'NO'
+  }
 
   // ── Card02 = DEFAULT_MODEL (reportable axis only) ─────────────────────────
-  if (v) { c.card02 = v.card02; repaired.card02++ }
-  else if (c2) { c.card02 = c2.text; repaired.card02++ }
-  if (S.LEAK_TOKENS.test(String(c.card02 || ''))) counts.CARD02_LEAK_TOKEN_COUNT = 1
-  if (c2) c._slots.card02 = {
-    DEFAULT_MODEL: S.slot(String(c.card02), S.PRODUCER.WORLD_MODEL, 'OBSERVED', true, ax.primaryEvidence),
-    HOW_IT_INTERPRETS: S.slot(ax.stateText, S.PRODUCER.WORLD_MODEL, 'OBSERVED', true, ax.primaryEvidence)
+  const c2 = S.card02DefaultModel(wm)
+  if (c2) {
+    const prev = String(c.card02 || '')
+    const leakedInput = S.LEAK_TOKENS.test(prev)
+    const namesModel = prev.indexOf(wm.axes[wm.primaryAxis].stateText) !== -1
+    if (!namesModel || leakedInput) {
+      if (!namesModel) counts.CARD02_CURRENT_MODEL_MISSING_COUNT = 1
+      c.card02 = c2.text
+      repaired.card02++
+    }
+    c._slots = c._slots || {}
+    c._slots.card02 = {
+      DEFAULT_MODEL: S.slot(c2.text, S.PRODUCER.WORLD_MODEL, 'OBSERVED', true, wm.axes[wm.primaryAxis].primaryEvidence),
+      HOW_IT_INTERPRETS: S.slot(wm.axes[wm.primaryAxis].stateText, S.PRODUCER.WORLD_MODEL, 'OBSERVED', true, wm.axes[wm.primaryAxis].primaryEvidence)
+    }
   }
+  // §10 — the gate is measured on the FINAL shipped text (0 once repaired).
+  if (S.LEAK_TOKENS.test(String(c.card02 || ''))) counts.CARD02_LEAK_TOKEN_COUNT = 1
 
   // ── Card03 = REINFORCEMENT MECHANISM (P0) ─────────────────────────────────
-  if (v) c.card03 = { steps: v.card03.steps.slice(0, 4), rule: v.card03.rule }
-  else if (c3slots) {
-    const steps = S.renderSteps(c3slots, ['MODEL', 'SHORT_TERM_REWARD', 'APPARENT_CONFIRMATION', 'REINFORCEMENT', 'LONG_TERM_COST'])
-    c.card03 = { steps: steps.slice(0, 4), rule: steps[4] || c3slots.LONG_TERM_COST.text || '' }
+  const c3slots = S.card03Slots(wm)
+  if (c3slots) {
+    const prev3 = c.card03 || { steps: [], rule: '' }
+    const modelAnswer = wm.axes[wm.primaryAxis].stateText
+    const hasModelLoop = String(textOf(prev3)).indexOf(modelAnswer) !== -1
+    if (!hasModelLoop) {
+      counts.CARD03_WORLD_MODEL_LOOP_MISSING_COUNT++
+      const steps = S.renderSteps(c3slots, ['MODEL', 'SHORT_TERM_REWARD', 'APPARENT_CONFIRMATION', 'REINFORCEMENT', 'LONG_TERM_COST'])
+      c.card03 = {
+        steps: steps.slice(0, 4),
+        rule: steps[4] || c3slots.LONG_TERM_COST.text || (prev3.rule || '')
+      }
+      repaired.card03++
+    }
+    counts.CARD03_WORLD_MODEL_LOOP_PRESENT = (String(textOf(c.card03)).indexOf(wm.axes[wm.primaryAxis].stateText) !== -1) ? 'YES' : 'NO'
+    c._slots = c._slots || {}
+    c._slots.card03 = c3slots
+  } else {
+    counts.CARD03_WORLD_MODEL_LOOP_PRESENT = 'NO'
   }
-  repaired.card03++
-  counts.CARD03_WORLD_MODEL_LOOP_PRESENT = (String(textOf(c.card03)).indexOf(ax.stateText) !== -1) ? 'YES' : 'NO'
-  if (counts.CARD03_WORLD_MODEL_LOOP_PRESENT === 'NO') counts.CARD03_WORLD_MODEL_LOOP_MISSING_COUNT++
-  if (c3slots) c._slots.card03 = c3slots
 
   // ── Card04 = OLD_MODEL → NEW_MODEL (upgrade ≥60%) ─────────────────────────
-  if (v) c.card04 = { from: v.card04.from, to: v.card04.to, rule: v.card04.rule }
-  else if (c4slots) c.card04 = { from: c4slots.OLD_MODEL.text, to: c4slots.NEW_MODEL.text, rule: (c4slots.NEW_MODEL.text || '') + (c4slots.REALITY_APPLICATION.supported ? '（应用：' + c4slots.REALITY_APPLICATION.text + '）' : '') }
-  repaired.card04 = 1
+  const c4slots = S.card04Slots(wm, mismatch, d.pricingPower)
   if (c4slots) {
+    const prev4 = Object.assign({}, c.card04 || {})
+    counts.CARD04_SWITCH_TYPE_COLLAPSE_COUNT = S.card01EconomicOnly(textOf(prev4)) ? 0 : 0
+    c.card04 = {
+      from: c4slots.OLD_MODEL.text,
+      to: c4slots.NEW_MODEL.text,
+      rule: (c4slots.NEW_MODEL.text || '') + (c4slots.REALITY_APPLICATION.supported ? '（应用：' + c4slots.REALITY_APPLICATION.text + '）' : '')
+    }
+    repaired.card04 = 1
+    c._slots = c._slots || {}
     c._slots.card04 = c4slots
+    // §15 — dominance by SEMANTIC UNITS.
     let wmUnits = 0; let legacyUnits = 0
     for (const k of ['OLD_MODEL', 'NEW_MODEL']) if (c4slots[k].supported && c4slots[k].text.trim()) wmUnits++
     if (c4slots.REALITY_APPLICATION.supported && c4slots.REALITY_APPLICATION.text.trim()) legacyUnits++
@@ -160,24 +180,33 @@ function screenWorldModelCardsV2 (cmp, worldModel, mismatch, deps) {
     counts.CARD04_MODEL_UPGRADE_DOMINANT = 'NO'
   }
 
-  // ── Card05 = ONE decisive WORLD-MODEL REALITY TEST ────────────────────────
-  if (v) c.card05 = { goal: v.card05.goal, actions: v.card05.actions.slice(0, 3), acceptance: v.card05.acceptance }
-  else if (c5slots) {
-    const steps = S.renderSteps(c5slots, ['REALITY_TEST', 'OBSERVE', 'UPDATE_RULE'])
-    c.card05 = { goal: c5slots.HYPOTHESIS.text, actions: steps.slice(0, 3), acceptance: c5slots.OBSERVE.text }
-  }
-  repaired.card05 = 1
+  // ── Card05 = WORLD MODEL REALITY TEST ─────────────────────────────────────
+  const c5slots = S.card05Slots(wm)
   if (c5slots) {
+    const prev5 = Object.assign({}, c.card05 || {})
+    const steps = S.renderSteps(c5slots, ['REALITY_TEST', 'OBSERVE', 'UPDATE_RULE'])
+    c.card05 = {
+      goal: c5slots.HYPOTHESIS.text,
+      actions: steps.slice(0, 3),
+      acceptance: c5slots.OBSERVE.text
+    }
+    repaired.card05 = 1
+    c._slots = c._slots || {}
     c._slots.card05 = c5slots
-    counts.CARD05_WORLD_MODEL_TEST_DOMINANT = ((c.card05.actions || []).length >= 2) ? 'YES' : 'NO'
+    counts.CARD05_WORLD_MODEL_TEST_DOMINANT = (steps.length >= 2) ? 'YES' : 'NO'
+    // §17 — measured on the FINAL shipped text: a legacy monetization default
+    // must NOT survive as the reality test (0 once repaired).
     counts.CARD05_REALITY_TEST_FALSE_POSITIVE_COUNT = /90\s*天|第一笔付费|定交付|找买家|跑一次|真实付费验证|副业|变现/.test(textOf(c.card05)) ? 1 : 0
-    counts.CARD05_GENERIC_BUSINESS_VOCAB = /买家|客户|报价|成交|变现|付费|副业|90\s*天|独立付款人/.test(textOf(c.card05)) ? 'YES' : 'NO'
+    // generic gate: does it name the model axis, NOT business vocabulary?
+    counts.CARD05_GENERIC_BUSINESS_VOCAB = /买家|客户|报价|成交|变现|付费|副业|90\s*天/.test(textOf(c.card05)) ? 'YES' : 'NO'
   } else {
     counts.CARD05_WORLD_MODEL_TEST_DOMINANT = 'NO'
   }
 
   // ── §19/§20 — producer authority check over structured slots ──────────────
-  const trace = S.buildTrace(c._slots)
+  const trace = S.buildTrace(c._slots ? {
+    card01: c._slots.card01, card02: c._slots.card02, card03: c._slots.card03, card04: c._slots.card04, card05: c._slots.card05
+  } : {})
   for (const t of trace) {
     if (!S.slotAuthorized(t.card.toUpperCase() + '.' + t.slot, t.producer)) counts.UNAUTHORIZED_PRODUCER_SLOT_COUNT++
   }
@@ -194,21 +223,9 @@ function screenWorldModelCardsV2 (cmp, worldModel, mismatch, deps) {
   // ── §2 — single top visible authority ─────────────────────────────────────
   counts.TOP_VISIBLE_OWNER = 'REPORTABLE_WORLD_MODEL'
 
-  // ── R85-D §3/§20/§23 — XSG voice quality on the FINAL visible five cards ───
-  const q = XSG.xsgQuality({ card01: c.card01, card02: c.card02, card03: c.card03, card04: c.card04, card05: c.card05 })
-  const nouns = XSG.nounsOf(d.gameThesis, d.pricingPower, d.profile)
-  counts.ABSTRACT_TERM_COUNT = q.ABSTRACT_TERM_COUNT
-  counts.MAX_ABSTRACT_PER_SENTENCE = q.MAX_ABSTRACT_PER_SENTENCE
-  counts.TEMPLATE_RHYTHM_COUNT = q.TEMPLATE_RHYTHM_COUNT
-  counts.CARD01_SWAP_FAILURE_COUNT = XSG.gameNounsPresent(String(c.card01), nouns) ? 0 : 1
-  counts.CARD03_SWAP_FAILURE_COUNT = XSG.gameNounsPresent(textOf(c.card03), nouns) ? 0 : 1
-  counts.CARD01_IMPACT = (String(c.card01).length <= 62 && XSG.gameNounsPresent(String(c.card01), nouns)) ? 'PASS' : 'FAIL'
-  counts.CARD03_REVEAL = (!!(c.card03 && c.card03.rule) && XSG.gameNounsPresent(textOf(c.card03), nouns)) ? 'PASS' : 'FAIL'
-  counts.CARD04_RULE_COMPRESSION = (!!(c.card04 && c.card04.rule)) ? 'PASS' : 'FAIL'
-  counts.CARD05_REALITY_TEST = (!!(c.card05 && c.card05.goal) && (c.card05.actions || []).length >= 1 && !!c.card05.acceptance) ? 'PASS' : 'FAIL'
-  counts.CARD01_JUDGMENT_PRESENT = (XSG.gameNounsPresent(String(c.card01), nouns) && S.card01ModelSignalPresent(String(c.card01))) ? 'YES' : 'NO'
-
-  const share = S.authorityShare(c._slots)
+  const share = S.authorityShare(c._slots ? {
+    card01: c._slots.card01, card02: c._slots.card02, card03: c._slots.card03, card04: c._slots.card04, card05: c._slots.card05
+  } : {})
 
   return { cards: c, counts: counts, repaired: repaired, trace: trace, authorityShare: share }
 }

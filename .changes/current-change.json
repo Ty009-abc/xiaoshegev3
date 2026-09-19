@@ -1,26 +1,22 @@
 {
-  "taskId": "RC8.4_V6_R85D_XSG_VOICE_AND_JUDGMENT_LAYER",
-  "baseCommit": "faec5d77102477dbe605a59ced8000ae514e8228",
+  "taskId": "RC8.4_V6_R86E_COGNITIVE_OS_VISIBLE_AUTHORITY_RECONSTRUCTION",
+  "baseCommit": "9d25f5eee117342851f63a661aa76520fe3d663e",
   "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "R85-C3 owner real-device product acceptance = HOLD. Underlying Reality/Economy/Game/PricingPower architecture is KEPT. The remaining defect is VOICE, not structure: the VISIBLE report is still AI-consulting prose — correct, structured, grounded, but too explanatory / abstract / symmetrical / consultant-like / low-impact. The user should feel '这个人不是在给我分析，他是一句话把我没看到的规则点破了', not '分析得很专业'. R85-D adds an XSG JUDGMENT / 拆局 VOICE LAYER (deterministic, no LLM) that converts the ALREADY-GROUNDED (world-model + game) content of the final five cards into 珠澳小事哥-style language: CONCRETE · SHORT · SHARP · RULE-BASED · ANTI-BULLSHIT · REALITY-FIRST. It adds NO new facts, changes NO GameModel/PricingPower/questionnaire/B1/profile, adds NO model call, changes NO report UI. THESIS → XSG JUDGMENT → FIVE VISIBLE CARDS. CODE + TEST + COMMIT + PUSH only — no deploy.",
+  "problem": "R86-D (READ-ONLY) proved that on the R86 path the REPORTABLE_WORLD_MODEL existed as a prompt block but did NOT bind the final visible five cards: legacy R85 economic/game semantics still owned Card01–05. Root cause was structural (not copy): (1) a reportable axis was never separated from mere protocol presence (isR86C), so a MIXED/LABOR axis leaked the UNKNOWN text 「还看不清」 into Card02/Card04; (2) primary-axis selection used frozen axis order, so a non-reportable axis could still name the user's model; (3) the visible screen used lexical/boolean checks (substring matches, 「验证」/「定价者」 vocab) instead of a structured, producer-tagged card schema; (4) final visible text was never re-grounded after R86 overrides (「更不敢动」 survived). R86-E reconstructs visible authority: REPORTABLE_WORLD_MODEL + MODEL_REALITY_MISMATCH become the single top semantic authority; R85 lower layers (RealEconomyModel / GameModel / PricingPower) remain as REALITY_EVIDENCE / CONTEXT / APPLICATION only. Code + test + commit + push ONLY — no deploy, no preview, no owner test, no env change.",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/xsgJudgmentVoiceV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/cognitiveOsCardSchemaV2.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV2.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js",
+    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js",
     "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js",
-    "tests/v6/thesis/rc8.4-v6-r85d-xsg-voice.test.js",
+    "tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
     ".changes/current-change.json"
   ],
-  "forbiddenFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/gameModelV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridContractV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridB1AdapterV6.js",
-    "miniprogram/"
-  ],
+  "forbiddenFiles": [],
   "contractsAffected": [],
   "requiredTests": [
-    "node tests/v6/thesis/rc8.4-v6-r85d-xsg-voice.test.js",
     "node tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js",
     "node tests/v6/hybrid/rc8.4-v6-r86c-world-model.test.js",
     "node tests/v6/hybrid/rc8.4-v6-r44-hybrid-10q.test.js",
@@ -30,5 +26,5 @@
     "node tests/v6/thesis/rc8.4-v6-r85b-real-economy-model.test.js",
     "node tests/v6/thesis/rc8.4-v6-r85c-game-model-and-ip-restore.test.js"
   ],
-  "rollbackPlan": "git checkout faec5d77102477dbe605a59ced8000ae514e8228 -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/cognitiveOsCardSchemaV2.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV2.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/xsgJudgmentVoiceV1.js tests/v6/thesis/rc8.4-v6-r85d-xsg-voice.test.js"
+  "rollbackPlan": "git checkout 9d25f5eee117342851f63a661aa76520fe3d663e -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/hybridProfileV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredPromptV6.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js && rm -f cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/cognitiveOsCardSchemaV2.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/worldModelCardScreenV2.js tests/v6/thesis/rc8.4-v6-r86e-cognitive-os.test.js"
 }

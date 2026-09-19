@@ -265,17 +265,16 @@ function axisFor (wm) {
  * the reportable axis's own model; reality half = the mismatch code's grounded
  * reality note. Never only 定价者/买家/收入/职业/第二付款人.
  */
-function card01Slots (wm, mismatch, v) {
+function card01Slots (wm, mismatch) {
   const axis = axisFor(wm)
   if (!axis) return null
   const ax = wm.axes[axis]
+  const modelText = ax.stateText
   const code = mismatch && mismatch.primaryCode
   const ev = mismatch && mismatch.evidence && mismatch.evidence[code]
   const realityNote = (ev && ev.note) || ''
   const reality = realityNote ? ('可现实里，' + realityNote) : '可现实并不按这套规则回报'
-  // R85-D — when the XSG voice produced the shipped verdict, the COLLISION slot
-  // text IS that verdict (structure unchanged; only the TEXT is XSG).
-  const text = (v && v.card01) ? String(v.card01) : ('你习惯用「' + ax.stateText + '」理解这类事，' + reality + '。')
+  const text = '你习惯用「' + modelText + '」理解这类事，' + reality + '。'
   return {
     COLLISION: slot(text, PRODUCER.WORLD_MODEL, 'OBSERVED', true, ax.primaryEvidence),
     REALITY_EVIDENCE: slot(reality, PRODUCER.REALITY, 'DERIVED', true, (ev && ev.reality) || []),
@@ -308,10 +307,9 @@ const AXIS_DOMAIN = Object.freeze({
   RULE: '事情按什么规则运转',
   EVIDENCE: '怎么判断自己做得对不对'
 })
-function card02DefaultModel (wm, v) {
+function card02DefaultModel (wm) {
   const axis = axisFor(wm)
   if (!axis) return null
-  if (v && v.card02) return { text: String(v.card02), axis }
   const domain = AXIS_DOMAIN[axis] || '这类问题'
   return { text: '遇到「' + domain + '」这类问题，你通常用「' + wm.axes[axis].stateText + '」来解释。', axis }
 }
@@ -320,49 +318,34 @@ function card02DefaultModel (wm, v) {
 const LEAK_TOKENS = /还看不清|你的模型是未知|未知模型|MIXED/
 
 /** §11/§12/§13 — Card03 structured reinforcement-mechanism slots. */
-function card03Slots (wm, v) {
+function card03Slots (wm) {
   const axis = axisFor(wm)
   if (!axis) return null
   const st = wm.axes[axis].state
   const table = REINFORCEMENT[axis]
   const m = table && (table[st] || null)
   if (!m) return null
-  const ax = wm.axes[axis]
-  // R85-D — when the XSG voice produced the shipped reveal, the structured slots
-  // carry the XSG steps/rule (structure unchanged; only the TEXT is XSG).
-  if (v && v.card03) {
-    const steps = Array.isArray(v.card03.steps) ? v.card03.steps : []
-    return {
-      MODEL: slot(steps[0] || ax.stateText, PRODUCER.WORLD_MODEL, 'OBSERVED', true, ax.primaryEvidence),
-      SHORT_TERM_REWARD: slot(steps[1] || m.reward, PRODUCER.REALITY, 'DERIVED', true, []),
-      APPARENT_CONFIRMATION: slot(steps[2] || m.confirm, PRODUCER.REALITY, 'DERIVED', true, []),
-      REINFORCEMENT: slot(steps[3] || m.reuse, PRODUCER.WORLD_MODEL, 'DERIVED', true, ax.supportingEvidence),
-      LONG_TERM_COST: slot(v.card03.rule || m.cost, PRODUCER.WORLD_MODEL, 'DERIVED', true, ax.supportingEvidence)
-    }
-  }
   return {
-    MODEL: slot(ax.stateText, PRODUCER.WORLD_MODEL, 'OBSERVED', true, ax.primaryEvidence),
+    MODEL: slot(wm.axes[axis].stateText, PRODUCER.WORLD_MODEL, 'OBSERVED', true, wm.axes[axis].primaryEvidence),
     SHORT_TERM_REWARD: slot(m.reward, PRODUCER.REALITY, 'DERIVED', true, []),
     APPARENT_CONFIRMATION: slot(m.confirm, PRODUCER.REALITY, 'DERIVED', true, []),
-    REINFORCEMENT: slot(m.reuse, PRODUCER.WORLD_MODEL, 'DERIVED', true, ax.supportingEvidence),
-    LONG_TERM_COST: slot(m.cost, PRODUCER.WORLD_MODEL, 'DERIVED', true, ax.supportingEvidence)
+    REINFORCEMENT: slot(m.reuse, PRODUCER.WORLD_MODEL, 'DERIVED', true, wm.axes[axis].supportingEvidence),
+    LONG_TERM_COST: slot(m.cost, PRODUCER.WORLD_MODEL, 'DERIVED', true, wm.axes[axis].supportingEvidence)
   }
 }
 
 /** §14 — Card04 OLD_MODEL / NEW_MODEL (+ optional REALITY_APPLICATION). */
-function card04Slots (wm, mismatch, pricingPower, v) {
+function card04Slots (wm, mismatch, pricingPower) {
   const axis = axisFor(wm)
   if (!axis) return null
   const up = wm.reportableUpgrade
   if (!up) return null
   const app = (pricingPower && pricingPower.switchType && pricingPower.switchType.label) || null
-  const appEvidence = (pricingPower && pricingPower.switchType && pricingPower.switchType.sourceEvidence) || []
-  const hasApp = !!(v && v.card04 && v.card04.app) || !!app
   return {
-    OLD_MODEL: slot((v && v.card04 && v.card04.from) || up.fromText, PRODUCER.WORLD_MODEL, 'OBSERVED', true, wm.axes[axis].primaryEvidence),
-    NEW_MODEL: slot((v && v.card04 && v.card04.to) || up.toText, PRODUCER.WORLD_MODEL, 'DERIVED', true, wm.axes[axis].supportingEvidence),
-    REALITY_APPLICATION: hasApp
-      ? slot((v && v.card04 && v.card04.app) || app, PRODUCER.PRICING_POWER, 'DERIVED', true, appEvidence)
+    OLD_MODEL: slot(up.fromText, PRODUCER.WORLD_MODEL, 'OBSERVED', true, wm.axes[axis].primaryEvidence),
+    NEW_MODEL: slot(up.toText, PRODUCER.WORLD_MODEL, 'DERIVED', true, wm.axes[axis].supportingEvidence),
+    REALITY_APPLICATION: app
+      ? slot(app, PRODUCER.PRICING_POWER, 'DERIVED', true, (pricingPower.switchType && pricingPower.switchType.sourceEvidence) || [])
       : slot('', PRODUCER.PRICING_POWER, 'DERIVED', false, [])
   }
 }
@@ -371,7 +354,7 @@ function card04Slots (wm, mismatch, pricingPower, v) {
  * State-aware: the hypothesis + update rule reference the PRIMARY axis's own
  * STATE (not just the axis), so the SAME reality with a DIFFERENT model yields a
  * structurally different reality test (§26). */
-function card05Slots (wm, v) {
+function card05Slots (wm) {
   const axis = axisFor(wm)
   if (!axis) return null
   const t = REALITY_TEST_V2[axis]
@@ -382,17 +365,6 @@ function card05Slots (wm, v) {
   const up = wm.reportableUpgrade
   const newModel = (up && up.toText) || (WORLD_MODEL_STATE_TEXT[ax.state] || '')
   const cost = (rein && rein.cost) || ''
-  // R85-D — when the XSG voice produced the shipped test, the structured slots
-  // carry the XSG goal/steps/acceptance (structure unchanged; only TEXT is XSG).
-  if (v && v.card05) {
-    const acts = Array.isArray(v.card05.actions) ? v.card05.actions : []
-    return {
-      HYPOTHESIS: slot(v.card05.goal || '', PRODUCER.WORLD_MODEL, 'HYPOTHESIS', true, ax.primaryEvidence),
-      REALITY_TEST: slot(acts[0] || t.test, PRODUCER.WORLD_MODEL, 'DERIVED', true, ax.supportingEvidence),
-      OBSERVE: slot(v.card05.acceptance || t.observe, PRODUCER.WORLD_MODEL, 'DERIVED', true, []),
-      UPDATE_RULE: slot(acts[2] || acts[1] || (cost ? ('如果出现「' + cost + '」，就说明该换成「' + newModel + '」。') : t.update), PRODUCER.WORLD_MODEL, 'DERIVED', true, [])
-    }
-  }
   return {
     HYPOTHESIS: slot('你是不是一直用「' + stateText + '」这套，它是不是只在你现在这个场景里才成立？', PRODUCER.WORLD_MODEL, 'HYPOTHESIS', true, ax.primaryEvidence),
     REALITY_TEST: slot(t.test, PRODUCER.WORLD_MODEL, 'DERIVED', true, ax.supportingEvidence),
