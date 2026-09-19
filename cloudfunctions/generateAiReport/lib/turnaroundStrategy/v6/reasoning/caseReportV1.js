@@ -157,10 +157,15 @@ function present (ev, ids) {
 function card01Segs (id, k, ev) {
   switch (id) {
     case 'CAPABILITY_UNEXPOSED':
-      return [s('你做的是' + k.occ + '，这项能力不是停留在想法里——它已经在公司体系内被使用，你也因此在拿一份工资。', L1, present(ev, [F.occ, F.income])),
-        s('但' + k.price + '——定价的主动权在公司这套体系手里，而不是在它独立面对的市场手里。', L1, present(ev, [F.price])),
-        s('你每周可自由支配的时间有 ' + k.time + '，也' + k.proof + '——可' + k.attempt + '：这项能力还没有被你单独拿到真实市场里，验证过一次「有人愿意直接为它付费」。', L1, present(ev, [F.time, F.proof, F.attempt])),
-        s('你缺的不是「会不会做」的证据，而是「离开现有体系以后，这项能力还能不能独立成立」的证据。', L2, present(ev, [F.occ, F.price, F.proof, F.attempt]))]
+      // §R87D_1 CARD01 HERO COMPRESSION — ONE dominant insight + ONE short
+      // evidence paragraph. The hero insight leads; the evidence line carries
+      // only the load-bearing reality facts (capability already used inside
+      // paid employment · employer currently controls pricing · the missing
+      // evidence is INDEPENDENT market validation, not capability). Removed from
+      // CARD01 (still causally used in CARD02/03/04): 5–10 小时, 免费帮人, 被感谢,
+      // and the full company-pricing explanation. Semantic authority unchanged.
+      return [s('你缺的不是「会不会做」的证据，而是「离开现有体系以后，这项能力还能不能独立成立」的证据。', L2, present(ev, [F.occ, F.price, F.proof, F.attempt])),
+        s('你做的是' + k.occ + '，它已经在公司体系内被使用、领着工资；但' + k.price + '——你还没把它单独拿到真实市场，验证有没有人愿意付费。', L1, present(ev, [F.occ, F.income, F.price, F.proof, F.attempt]))]
     case 'CAPABILITY_VS_MARKET_PROOF':
       return [s('你做的是' + k.occ + '，' + k.attempt + '，可' + k.proof + '。', L1, present(ev, [F.occ, F.attempt, F.proof])),
         s('这说明卡点不在「敢不敢开始」：你每次都在走到「有人直接为它付钱」那一步之前就收手了。', L2, present(ev, [F.attempt, F.proof])),
