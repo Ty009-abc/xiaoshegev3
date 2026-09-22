@@ -170,7 +170,7 @@ function getQuestionsV6 () {
 
 /**
  * Validate a completed answer set.
- * @param {Object} answers  { Q1..Q9: optionId, occupation?: string }
+ * @param {Object} answers  { Q1..Q9: optionId, occupationDetail?: string }
  * @returns {{valid:boolean, errors:string[]}}
  */
 function validateAnswersV6 (answers) {
@@ -195,8 +195,17 @@ function buildCloudRequestV6 (answers) {
   const input = answers || {}
   const out = {}
   for (const qid of REQUIRED_QIDS) out[qid] = input[qid]
-  if (typeof input.occupation === 'string' && input.occupation.trim()) {
-    out.occupation = input.occupation.trim()
+  // §4 — Q2 「其他」 supplemental occupation is stored SEPARATELY from incomeMode
+  // (incomeMode stays INCOME_OTHER; the raw text never overwrites it) and is only
+  // serialized when Q2 is actually 「其他」 — guaranteeing no stale leak. The value
+  // is emitted under BOTH the mission-canonical key `occupationDetail` and the
+  // frozen native V6 backend key `occupation` (profileBuilderV6 reads .occupation).
+  const detail = (typeof input.occupationDetail === 'string' && input.occupationDetail.trim())
+    ? input.occupationDetail.trim()
+    : ((typeof input.occupation === 'string' && input.occupation.trim()) ? input.occupation.trim() : '')
+  if (out.Q2 === 'INCOME_OTHER' && detail) {
+    out.occupation = detail
+    out.occupationDetail = detail
   }
   return {
     name: 'generateAiReport',
@@ -223,7 +232,9 @@ function buildTurnaroundProfileV6 (answers) {
       ageStage: input.Q1,
       incomeMode: input.Q2,
       monthlySurplus: input.Q3,
-      occupation: (typeof input.occupation === 'string' && input.occupation.trim()) ? input.occupation.trim() : null,
+      occupation: ((typeof input.occupationDetail === 'string' && input.occupationDetail.trim())
+        ? input.occupationDetail.trim()
+        : ((typeof input.occupation === 'string' && input.occupation.trim()) ? input.occupation.trim() : null)),
     },
     desiredChange: { primaryProblem: input.Q4 },
     userBelief: { perceivedRootCause: input.Q5 },

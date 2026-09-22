@@ -38,8 +38,19 @@
       </view>
     </view>
 
-    <view class="occupation" wx:if="{{questions[currentIndex].optionalOccupation}}">
-      <input class="occupation-input" placeholder="（可选）你的职业 / 行业" value="{{occupation}}" bindinput="onOccupationInput" />
+    <!-- §2 — Q2 「其他」补充职业输入：仅在选中「其他」时出现（不是新题）
+         placeholder-class + 内联 placeholder-style 双保险（避免类作用域/未定义类导致占位符不可见） -->
+    <view class="occupation" wx:if="{{questions[currentIndex].optionalOccupation && selectedOptionId === 'INCOME_OTHER'}}">
+      <input
+        class="occupation-input"
+        type="text"
+        placeholder="请输入你的职业名称"
+        placeholder-class="occupation-ph"
+        placeholder-style="color:#9aa0b4;"
+        maxlength="20"
+        value="{{occupationDetail}}"
+        bindinput="onOccupationDetailInput"
+      />
     </view>
 
     <view class="nav">

@@ -40,7 +40,7 @@ Page({
     totalCount: 0,          // = questions.length
     currentIndex: 0,        // 0-based
     answers: {},            // qid -> optionId
-    occupation: '',         // optional free text (Q2 step only)
+    occupationDetail: '',   // Q2 「其他」supplemental occupation (free text; only when OTHER)
     selectedOptionId: '',   // highlight for current question
     progressPercent: 0,
     submitting: false,
@@ -76,7 +76,7 @@ Page({
       started: true,
       currentIndex: 0,
       answers: {},
-      occupation: '',
+      occupationDetail: '',
       selectedOptionId: '',
       progressPercent: this._pct(1),
       submitting: false,
@@ -106,11 +106,22 @@ Page({
 
     const answers = Object.assign({}, this.data.answers)
     answers[q.qid] = optionId
-    this.setData({ answers: answers, selectedOptionId: optionId, error: '' })
+    const patch = { answers: answers, selectedOptionId: optionId, error: '' }
+    // §5 — switching Q2 AWAY from 「其他」 clears the supplemental occupation so a
+    // hidden input can never leak into diagnosis (STALE_OTHER_OCCUPATION_LEAK_COUNT = 0).
+    if (q.qid === 'Q2' && optionId !== 'INCOME_OTHER') patch.occupationDetail = ''
+    this.setData(patch)
   },
 
-  onOccupationInput(e) {
-    this.setData({ occupation: (e && e.detail && e.detail.value) || '' })
+  onOccupationDetailInput(e) {
+    this.setData({ occupationDetail: (e && e.detail && e.detail.value) || '' })
+  },
+
+  // §3 — Q2 「其他」 requires a non-empty occupation before advancing.
+  _otherOccupationMissing(q) {
+    return !!(q && q.optionalOccupation) &&
+      this.data.answers['Q2'] === 'INCOME_OTHER' &&
+      !(this.data.occupationDetail || '').trim()
   },
 
   goNext() {
@@ -119,6 +130,11 @@ Page({
     if (!q) return
     if (!this.data.answers[q.qid]) {
       wx.showToast({ title: '请先选择一项', icon: 'none' })
+      return
+    }
+    // §3 —「其他」+ empty occupation must NOT advance.
+    if (this._otherOccupationMissing(q)) {
+      wx.showToast({ title: '请填写你的职业名称', icon: 'none' })
       return
     }
     if (this.data.currentIndex >= this.data.questions.length - 1) return
@@ -153,9 +169,17 @@ Page({
       return
     }
 
-    // Assemble payload answers (Q1..Q9 + optional occupation).
+    // §3 — final-step guard: Q2 「其他」 with empty occupation is refused here too.
+    if (this._otherOccupationMissing(q)) {
+      wx.showToast({ title: '请填写你的职业名称', icon: 'none' })
+      return
+    }
+
+    // Assemble payload answers (Q1..Q9 + Q2 supplemental occupation).
+    // §4 — the text is stored under `occupationDetail`, SEPARATE from incomeMode
+    // (which stays INCOME_OTHER); buildCloudRequestV6 only serializes it when Q2=其他.
     const payload = Object.assign({}, this.data.answers)
-    if (this.data.occupation && this.data.occupation.trim()) payload.occupation = this.data.occupation.trim()
+    if (this.data.occupationDetail && this.data.occupationDetail.trim()) payload.occupationDetail = this.data.occupationDetail.trim()
 
     const { valid, errors } = validateAnswersV6(payload)
     if (!valid) {

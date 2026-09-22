@@ -105,17 +105,29 @@
   word-break: break-word;
 }
 
+/* §3 — 「其他」选项卡 → 输入框之间保持 12–20rpx 间距（不贴卡、不悬浮） */
 .occupation {
-  margin-top: 24rpx;
+  margin-top: 16rpx;
 }
 
+/* §2 — 正常表单字段尺寸：高度 96–112rpx、左右内边距 28–32rpx、字号 30–32rpx、
+   圆角与问卷卡片一致、清晰描边、白底。明显区别于「可选项卡片」，传达“这里需要输入文字”。 */
 .occupation-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 104rpx;
+  line-height: 104rpx;
+  padding: 0 30rpx;
   background: #fff;
-  border: 2rpx solid #e5e7ef;
+  border: 2rpx solid #d9dce6;
   border-radius: 16rpx;
-  padding: 24rpx;
-  font-size: 28rpx;
+  font-size: 32rpx;
   color: #1a1a2e;
+}
+
+/* §1 — 明确的占位符颜色，确保真机可见（placeholder-class 作用域内定义） */
+.occupation-ph {
+  color: #9aa0b4;
 }
 
 .nav {
