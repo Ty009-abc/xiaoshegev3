@@ -24,6 +24,8 @@
     "pages/turnaround-v6-report/turnaround-v6-report",
     "pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire",
     "pages/turnaround-6q-report/turnaround-6q-report",
+    "pages/legacy6q-thinking/legacy6q-thinking",
+    "pages/legacy6q-report/legacy6q-report",
     "pages/v2-report/v2-report",
     "pages/membership/membership",
     "pages/membership-center/membership-center",

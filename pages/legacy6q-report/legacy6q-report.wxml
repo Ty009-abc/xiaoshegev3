@@ -1,0 +1,55 @@
+<!--
+  pages/legacy6q-report/legacy6q-report.wxml
+  RC8.8_STAGE2_R5 — 2026-07-11 legacy 6Q result UI fed by a READY report.
+  No loading skeletons: every card is populated before reveal (opacity only).
+  可见顺序：01 致命一句话 → 02 核心问题 → 03 系统困局 → 04 翻身路径 → 05 行动建议（Card01 red hero）。
+-->
+<view class="page">
+  <xsg-navbar title="认知翻身报告" showBack light />
+
+  <!-- ═══ §10 emergency state only (missing/invalid handoff) — never five empty cards ═══ -->
+  <view class="report-emergency" wx:if="{{error}}">
+    <text class="em-title">报告没有完成</text>
+    <text class="em-sub">{{error}}</text>
+    <button class="em-btn" bindtap="onRetry">重新推演</button>
+  </view>
+
+  <!-- ═══ 5模块（完整内容 → 逐卡揭晓） ═══ -->
+  <block wx:else>
+    <view class="report-blocks">
+      <block wx:for="{{sections}}" wx:key="key">
+        <view class="section-card {{item.key === 'fatal' ? 'red-card' : ''}} {{item.revealed ? 'revealed' : 'pre-reveal'}}">
+          <view class="section-header">
+            <text class="section-badge {{item.key === 'fatal' ? 'bg-red' : ''}}">{{index + 1}}</text>
+            <text class="section-title {{item.key === 'fatal' ? 'text-red' : ''}}">{{item.label}}</text>
+          </view>
+
+          <view class="section-body">
+            <text class="real-text {{item.key === 'fatal' ? 'fatal-text' : ''}} fade-in" user-select="true">
+              {{item.key === 'fatal' ? '💀 ' : ''}}{{item.text}}
+            </text>
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- ═══ 底部操作区 ═══ -->
+    <view class="bottom-bar">
+      <view class="compliance-tips">
+        系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出！
+      </view>
+
+      <view class="action-buttons">
+        <button class="btn-save-poster" bindtap="generatePoster" loading="{{posterGenerating}}">
+          {{posterGenerating ? '淬炼中...' : '保存海报'}}
+        </button>
+        <button class="btn-share" open-type="share">分享好友</button>
+      </view>
+
+      <button class="btn-retry" bindtap="onRetry">重做诊断</button>
+    </view>
+  </block>
+
+  <!-- ═══ Canvas 海报（旧版API / 750 x 动态高） ═══ -->
+  <canvas canvas-id="posterCanvas" style="width:750px;height:2200px;position:fixed;left:-9999px;top:-9999px;"></canvas>
+</view>

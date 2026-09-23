@@ -22,7 +22,9 @@ const { getRandomPersonality } = require('../../utils/personalityModes.js')
 const legacy6q = require('../../services/legacy6qReportService.js')
 
 const app = getApp()
-const REPORT_ROUTE = '/pages/turnaround-6q-report/turnaround-6q-report'
+// RC8.8_STAGE2_R5 — Q6 submit now routes through the dedicated LIGHT thinking
+// page, which makes the ONE model call and hands a READY report to the result page.
+const THINKING_ROUTE = '/pages/legacy6q-thinking/legacy6q-thinking'
 const DIAGNOSTIC_VERSION = 'turnaround_strategy_6q_v1'
 
 /** Restored 07/11 6-question fixed data source (wording verbatim). */
@@ -113,6 +115,7 @@ Page({
   },
 
   _submitDiagnostic () {
+    // §11 — double-tap Q6 submit is blocked by the submission lock.
     if (this.data.dQ.submitting) return
     this.setData({ 'dQ.submitting': true })
 
@@ -124,10 +127,17 @@ Page({
     answers.diagnosticVersion = DIAGNOSTIC_VERSION
     const p = this.data.dQ.personality
 
-    app.globalData._diagnosticAnswers = answers
-    app.globalData._diagnosticPersonality = p
-    app.globalData._diagnosticVersion = DIAGNOSTIC_VERSION
-    wx.redirectTo({ url: REPORT_ROUTE + '?mode=diagnostic' })
+    // §3/§11 — validate six answers, save raw answers to TEMP request state, then
+    // hand off to the thinking page with ONE stable requestId (ONE model call).
+    const requestId = 'r6q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+    app.globalData._legacy6qThinkingRequest = {
+      requestId,
+      answers,
+      personality: p,
+      diagnosticVersion: DIAGNOSTIC_VERSION,
+      createdAt: Date.now(),
+    }
+    wx.redirectTo({ url: THINKING_ROUTE + '?requestId=' + encodeURIComponent(requestId) })
   },
 
   onUnload () {

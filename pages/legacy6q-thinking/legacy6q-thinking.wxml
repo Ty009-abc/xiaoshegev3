@@ -1,0 +1,74 @@
+<!--
+  pages/legacy6q-thinking/legacy6q-thinking.wxml
+  RC8.8_STAGE2_R5 — restored 2026-08-30 15:39 LIGHT full-screen "推演等待页"
+  (canonical 55453bb → report-detail `v5-loading-screen`). Presentation layer only.
+-->
+<view class="page">
+  <view class="v5-loading-screen">
+
+    <!-- ═══ Normal thinking state ═══ -->
+    <block wx:if="{{!failed}}">
+      <view class="v5-loading-spacer"></view>
+      <view class="v5-loading-body">
+        <!-- 认知推演轨道 -->
+        <view class="v5-orbit">
+          <view class="v5-orbit-ring v5-orbit-outer"></view>
+          <view class="v5-orbit-ring v5-orbit-inner"></view>
+          <view class="v5-orbit-core">
+            <text class="v5-orbit-core-text">翻</text>
+          </view>
+          <!-- 光点 -->
+          <view class="v5-orbit-dot v5-orbit-dot-1"></view>
+          <view class="v5-orbit-dot v5-orbit-dot-2"></view>
+          <view class="v5-orbit-dot v5-orbit-dot-3"></view>
+        </view>
+
+        <!-- 主标题 -->
+        <text class="v5-loading-title">{{title}}</text>
+
+        <!-- 动态阶段标题 -->
+        <text class="v5-loading-sub">{{subtitle}}</text>
+
+        <!-- 五阶段进度点 -->
+        <view class="v5-loading-steps">
+          <block wx:for="{{steps}}" wx:key="id">
+            <view class="v5-loading-dot {{item.active ? 'v5-loading-dot-on' : ''}}"></view>
+            <view class="v5-loading-line" wx:if="{{index < steps.length - 1}}"></view>
+          </block>
+        </view>
+        <text class="v5-loading-step-text">第 {{stepIndex}} / {{steps.length}} 步</text>
+
+        <!-- 阶段说明 -->
+        <text class="v5-loading-meta">{{stageBody}}</text>
+      </view>
+
+      <!-- 底部品牌签名 -->
+      <view class="v5-loading-footer">
+        <text class="v5-loading-brand">{{brand}}</text>
+        <text class="v5-loading-slogan">{{slogan}}</text>
+      </view>
+    </block>
+
+    <!-- ═══ §10 failure state — stays on the thinking page ═══ -->
+    <block wx:else>
+      <view class="v5-loading-spacer"></view>
+      <view class="v5-loading-body">
+        <view class="v5-orbit" style="opacity:0.3">
+          <view class="v5-orbit-core">
+            <text class="v5-orbit-core-text" style="color:#EF4B4B">!</text>
+          </view>
+        </view>
+        <text class="v5-loading-title" style="color:#EF4B4B">推演没有完成</text>
+        <text class="v5-loading-sub">网络或AI服务暂时没有返回结果</text>
+
+        <button class="v5-loading-retry" bindtap="onRetryThinking">重新推演</button>
+        <button class="v5-loading-back" bindtap="onBackEdit">返回修改答案</button>
+      </view>
+      <view class="v5-loading-footer">
+        <text class="v5-loading-brand">{{brand}}</text>
+        <text class="v5-loading-slogan">{{slogan}}</text>
+      </view>
+    </block>
+
+  </view>
+</view>

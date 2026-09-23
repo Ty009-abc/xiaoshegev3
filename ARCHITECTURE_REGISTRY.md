@@ -34,6 +34,21 @@ RESULT:          pages/report-detail
 REPORT:          pages/report-preview
 ```
 
+## FEATURE: LEGACY_6Q_TURNAROUND（6Q 翻身策略 · RC8.8 Stage2 复活链路）
+
+```
+ENTRY:           pages/home → goStrategy() → pages/turnaround-6q-questionnaire
+QUESTIONNAIRE:   pages/turnaround-6q-questionnaire (6 questions: age/job/education/income/anxiety/rootCause)
+THINKING:        pages/legacy6q-thinking  ← RESTORED 2026-08-30 15:39 LIGHT 推演等待页
+                 (5 stages · visual schedule 0/1400/2800/4200/5600 · MIN_DISPLAY_MS 5800 · ONE model call)
+CLOUD_REPORT:    cloudfunctions/generateAiReport (turnaround_strategy_6q_v1 → lib/legacy6q/*)
+HANDOFF:         app.globalData._legacy6qThinkingRequest (raw answers) → app.globalData._legacy6qReport (READY report)
+RESULT:          pages/legacy6q-report  ← READY content, NO loading skeletons, progressive reveal 300/700/1100/1500/1900
+POSTER:          pages/legacy6q-report (inline Canvas, unchanged)
+FROZEN_REF:      pages/turnaround-6q-report (07/11 legacy result) · pages/turnaround-v6-hybrid-* · v6/9q pages
+MODEL_CALLS:     1 (thinking page owns the single call; result page makes none)
+```
+
 ## FEATURE: WORLD_RULES（世界规则）
 
 ```
