@@ -74,10 +74,10 @@ Page({
   async goStrategy() {
     analytics.track('strategy_start')
     this.setData({ strategyLoading: true })
-    // RC8.4 V6 R44：主 CTA “开始翻身策略” 切换到生产 Hybrid 10 屏问卷。
-    // 旧 V6 9 题页 / legacy V4 10 题页 / legacy 18 题页保留为可回滚参考，
-    // 不再是首页主入口（LEGACY_FILES_DELETED = 0）。
-    wx.navigateTo({ url:'/pages/turnaround-v6-hybrid-questionnaire/turnaround-v6-hybrid-questionnaire' })
+    // RC8.8 Stage2：主 CTA “开始翻身策略” 指向复活的 legacy 6Q 问卷。
+    // Hybrid 10 屏 / V6 9 题 / legacy V4 10 题 / legacy 18 题页保留为可回滚参考
+    // （LEGACY_FILES_DELETED = 0），不再是首页主入口。
+    wx.navigateTo({ url:'/pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire' })
     this.setData({ strategyLoading: false })
   },
 
