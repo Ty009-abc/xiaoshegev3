@@ -1,0 +1,17 @@
+/* pages/turnaround-6q-poster/turnaround-6q-poster.wxss */
+.page { background: #0a0a14; min-height: 100vh; padding: 0 32rpx 60rpx; }
+.nav-safe { width: 100%; }
+.poster-canvas {
+  /* drawn off-screen; only the exported image is shown */
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 600px;
+  height: 1000px;
+}
+.poster-preview { margin-top: 24rpx; border-radius: 20rpx; overflow: hidden; }
+.poster-lines { margin-top: 24rpx; display: flex; flex-direction: column; gap: 24rpx; }
+.pl-row { background: rgba(255,255,255,0.05); border: 1rpx solid rgba(255,255,255,0.12); border-radius: 16rpx; padding: 24rpx; }
+.pl-label { display: block; font-size: 26rpx; color: #F5C16C; margin-bottom: 12rpx; }
+.pl-text { font-size: 28rpx; color: #f5f7fa; line-height: 1.6; }
+.poster-actions { margin-top: 40rpx; display: flex; flex-direction: column; gap: 20rpx; }

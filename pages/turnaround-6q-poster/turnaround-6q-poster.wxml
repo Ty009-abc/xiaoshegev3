@@ -1,0 +1,35 @@
+<!-- pages/turnaround-6q-poster — 6Q 分享海报（报告同款文案） -->
+<view class="page">
+  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
+
+  <view wx:if="{{loading}}" class="state">加载中…</view>
+
+  <view wx:elif="{{!hasReport}}" class="state-block">
+    <view class="state-title">暂无报告</view>
+    <view class="state-message">请先生成你的翻身策略。</view>
+    <button class="btn-ghost" bindtap="onBack">返回</button>
+  </view>
+
+  <block wx:else>
+    <!-- Canvas 2D（隐藏绘制） -->
+    <canvas id="posterCanvas" type="2d" class="poster-canvas"></canvas>
+
+    <view class="poster-preview" wx:if="{{posterPath}}">
+      <image src="{{posterPath}}" mode="widthFix" style="width:100%;" />
+    </view>
+
+    <view class="poster-lines" wx:else>
+      <view class="pl-row"><text class="pl-label">☠️ 致命一句话</text><text class="pl-text">{{lines.fatal}}</text></view>
+      <view class="pl-row"><text class="pl-label">🎯 核心问题</text><text class="pl-text">{{lines.core}}</text></view>
+      <view class="pl-row"><text class="pl-label">🔍 系统困局</text><text class="pl-text">{{lines.trap}}</text></view>
+      <view class="pl-row"><text class="pl-label">🚀 翻身路径</text><text class="pl-text">{{lines.strategy}}</text></view>
+      <view class="pl-row"><text class="pl-label">📋 行动建议</text><text class="pl-text">{{lines.advice}}</text></view>
+    </view>
+
+    <view class="poster-actions">
+      <button class="btn-primary" wx:if="{{!posterPath}}" loading="{{generating}}" bindtap="generatePoster">生成海报</button>
+      <button class="btn-primary" wx:if="{{posterPath}}" bindtap="onSave">保存到相册</button>
+      <button class="btn-ghost" bindtap="onBack">返回</button>
+    </view>
+  </block>
+</view>

@@ -170,6 +170,42 @@ exports.main = async (event, context) => {
         return buildTurnaroundV6BaselineResponse()
       }
 
+      // ═══ RC8.8: turnaround_strategy_6q_v1 — 6Q refoundation (SEPARATE product line) ═══
+      // A NEW, clean contract that rebuilds the OLD 6-question real-life product
+      // experience on top of the current engineering baseline. It is DELIBERATELY
+      // independent: it does NOT consult resolveV6Authority, does NOT run the V6
+      // diagnosis kernel, and does NOT require PRIMARY / NO_PRIMARY. AI forms the
+      // primary interpretation of the six raw user facts; a structural validator
+      // + a semantic grounding validator gate the output; a deterministic
+      // fallback is used ONLY when the AI report is invalid.
+      if (diagnosticVersion === 'turnaround_strategy_6q_v1') {
+        // ── RC8.8 Stage2: REVIVED legacy 6Q product line ──
+        // MODEL FIRST + LIGHT STRUCTURAL RECOVERY (§9/§14). The primary path
+        // does NOT call the semantic validator, the grounding taxonomy, the
+        // field-repair AI pipeline or the whole-report deterministic content
+        // fallback. The RC8.8 hybrid experiment is retained as
+        // FROZEN_REFERENCE ONLY (lib/turnaround6q/*) and is NOT reached here.
+        const { runLegacy6QReport } = require('./lib/legacy6q/legacy6qRuntime.js')
+        const rep = await runLegacy6QReport({
+          event, callAI,
+          // §21: model selection is LOCAL to the diagnostic request path; the
+          // shared AI_MODEL_PRO env is NOT altered. No obsolete `v4-pro` alias —
+          // the current provider contract model id is used (env-driven).
+          model: process.env.AI_MODEL_6Q || process.env.AI_MODEL_PRO || undefined,
+        })
+        const m = rep._meta || {}
+        // ai_logs: presence-only metadata, never raw answers / report body / openid.
+        db.collection('ai_logs').add({ data: {
+          openid, action: 'generate_report_6q', type: 'diagnostic',
+          reportType: 'turnaround_6q', success: rep.reportState === 'PRIMARY',
+          parsePath: m.parsePath || '', renderSource: m.renderSource || '',
+          fallbackFieldCount: Array.isArray(m.fallbackFields) ? m.fallbackFields.length : 0,
+          latencyMs: m.latencyMs || 0, createdAt: ts,
+        } }).catch(() => {})
+        const { _meta, ...publicRep } = rep
+        return ok(publicRep)
+      }
+
       // ═══ V3 原有链路（不变）═══
       const { buildDiagnosticPrompt } = require('./lib/ai.js')
 

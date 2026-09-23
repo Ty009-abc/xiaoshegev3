@@ -1,0 +1,59 @@
+/*
+  pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.wxss
+  RC8.8 — rebuild on the CURRENT visual system (no redesign). The V6 questionnaire
+  wxss supplies page/section/button/progress/thinking styles; here we add the
+  text-input / textarea controls the 6Q model needs.
+*/
+@import "../turnaround-v6-questionnaire/turnaround-v6-questionnaire.wxss";
+
+/* §5 人格指示条 */
+.persona-bar {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin: 8rpx 0 24rpx;
+  padding: 14rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(124, 92, 255, 0.12);
+  border: 1rpx solid rgba(124, 92, 255, 0.28);
+}
+.persona-emoji { font-size: 30rpx; }
+.persona-name { font-size: 24rpx; color: #c9c2ff; letter-spacing: 0.5rpx; }
+
+.q-subtitle {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+  color: #98a2b3;
+}
+
+.input-area {
+  margin-top: 40rpx;
+}
+
+.text-input,
+.text-area {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(255, 255, 255, 0.12);
+  border-radius: 16rpx;
+  padding: 28rpx 24rpx;
+  color: #f5f7fa;
+  font-size: 30rpx;
+  line-height: 1.6;
+}
+
+.text-area {
+  min-height: 240rpx;
+}
+
+.input-ph {
+  color: #9aa0b4;
+}
+
+.input-hint {
+  margin-top: 14rpx;
+  font-size: 24rpx;
+  color: #6b7280;
+}

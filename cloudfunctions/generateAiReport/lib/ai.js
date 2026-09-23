@@ -273,6 +273,12 @@ async function callAI(options) {
       httpStatus: httpStatus,
       providerErrorCode: null,
       providerTrace: successTrace,
+      // R1 (§11): additive reasoning telemetry so callers can distinguish
+      // REASONING_ONLY (hidden reasoning burned the budget, visible content
+      // empty) from EMPTY_VISIBLE_CONTENT (no reasoning evidence). Purely
+      // additive — no behaviour change for any existing caller.
+      hasReasoning: !!(choice.message && choice.message.reasoning_content),
+      reasoningContentLength: ((choice.message && choice.message.reasoning_content) || '').length,
     }
   } catch (err) {
     console.error('[AI] 调用失败:', err.message)

@@ -1,0 +1,98 @@
+<!--
+  pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.wxml
+  RC8.8 — 6 题翻身策略问卷（内容模型=旧版 6Q；UI=当前现代问卷）
+  UI 全部由 totalCount 驱动（不硬编码）。
+-->
+<view class="page">
+
+  <!-- 自定义导航安全区（仅布局） -->
+  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
+
+  <!-- 未开始 -->
+  <view wx:if="{{!started}}" class="intro">
+    <view class="title">翻身策略测评</view>
+    <view class="desc">6 道题，先看清你的现实条件，再给你一份贴着你情况的翻身策略。</view>
+    <button class="btn-primary" bindtap="startSession">开始测评</button>
+  </view>
+
+  <!-- 答题中 -->
+  <view wx:if="{{started && !submitted}}" class="quiz">
+    <!-- 人格指示条（§5：视角已激活；不暴露内部系统文本） -->
+    <view wx:if="{{personality}}" class="persona-bar">
+      <text class="persona-emoji">{{personality.emoji}}</text>
+      <text class="persona-name">{{personality.name}}视角已激活</text>
+    </view>
+
+    <view class="progress-wrap">
+      <view class="progress-label">第 {{currentIndex + 1}} / {{totalCount}} 题</view>
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+    </view>
+
+    <view class="q-prompt">{{current.title}}</view>
+    <view class="q-subtitle">{{current.subtitle}}</view>
+
+    <view class="input-area">
+      <input
+        wx:if="{{current.inputMode !== 'textarea'}}"
+        class="text-input"
+        type="{{current.inputMode === 'number' ? 'number' : 'text'}}"
+        placeholder="{{current.placeholder}}"
+        placeholder-class="input-ph"
+        placeholder-style="color:#9aa0b4;"
+        maxlength="{{current.maxlength}}"
+        value="{{answers[current.key]}}"
+        data-key="{{current.key}}"
+        confirm-type="{{currentIndex === totalCount - 1 ? 'done' : 'next'}}"
+        bindinput="onInput"
+        bindconfirm="goNext"
+      />
+      <textarea
+        wx:else
+        class="text-area"
+        placeholder="{{current.placeholder}}"
+        placeholder-class="input-ph"
+        placeholder-style="color:#9aa0b4;"
+        maxlength="{{current.maxlength}}"
+        value="{{answers[current.key]}}"
+        data-key="{{current.key}}"
+        auto-height
+        adjust-position="{{true}}"
+        cursor-spacing="24"
+        bindinput="onInput"
+      />
+      <view class="input-hint" wx:if="{{current.inputMode === 'textarea'}}">
+        已输入 {{answers[current.key].length || 0}} 字 / 上限 {{current.maxlength}}
+      </view>
+    </view>
+
+    <view class="nav">
+      <button class="btn-ghost" bindtap="goBack" disabled="{{currentIndex === 0}}">上一题</button>
+      <button class="btn-primary" bindtap="goNext" wx:if="{{currentIndex < totalCount - 1}}">下一题</button>
+      <button class="btn-primary" bindtap="submit" wx:if="{{currentIndex === totalCount - 1}}" loading="{{submitting}}">生成我的翻身策略</button>
+    </view>
+
+    <view wx:if="{{error}}" class="result-error">{{error}}</view>
+  </view>
+
+  <!-- 已提交 / 加载中 -->
+  <view wx:if="{{submitted}}" class="result">
+    <view class="title">正在生成你的翻身策略</view>
+    <view class="thinking">
+      <view class="thinking-line thinking-line-active">
+        <view class="thinking-dot"></view>
+        <text>正在比对你的现实条件</text>
+      </view>
+      <view class="thinking-line">
+        <view class="thinking-dot"></view>
+        <text>正在寻找反复卡住你的模式</text>
+      </view>
+      <view class="thinking-line">
+        <view class="thinking-dot"></view>
+        <text>正在整理你的破局路径</text>
+      </view>
+    </view>
+  </view>
+
+</view>

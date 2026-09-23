@@ -1,0 +1,56 @@
+/*
+  pages/turnaround-6q-report/turnaround-6q-report.wxss
+  RC8.8 Stage2 — reuse the CURRENT five-card report visual system (no redesign),
+  plus Card01 hero authority (§17) and progressive-reveal skeleton (§16).
+*/
+@import "../turnaround-v6-report/turnaround-v6-report.wxss";
+
+/* §5 报告人格标识 */
+.report-persona {
+  display: inline-flex;
+  align-items: center;
+  gap: 8rpx;
+  margin-top: 16rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  background: rgba(124, 92, 255, 0.12);
+  border: 1rpx solid rgba(124, 92, 255, 0.28);
+}
+.report-persona-emoji { font-size: 26rpx; }
+.report-persona-name { font-size: 24rpx; color: #c9c2ff; }
+
+/* §17 Card01 hero authority */
+.card-hero {
+  border-color: rgba(255, 77, 79, 0.55) !important;
+  background: linear-gradient(180deg, rgba(255, 77, 79, 0.16), rgba(255, 77, 79, 0.04)) !important;
+  box-shadow: 0 0 40rpx rgba(255, 77, 79, 0.18);
+}
+.card-num-hero {
+  color: #ff4d4f !important;
+  font-weight: 700;
+}
+.card-oneliner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  font-size: 36rpx;
+  line-height: 1.55;
+  font-weight: 600;
+  color: #ffe3e3;
+}
+.hero-mark { font-size: 40rpx; line-height: 1.4; }
+.hero-text { flex: 1; }
+
+/* §16 progressive-reveal skeleton (placeholder while a card body is pending) */
+.card-skeleton {
+  height: 32rpx;
+  margin-top: 18rpx;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.14), rgba(255,255,255,0.06));
+  background-size: 200% 100%;
+  animation: c6qShimmer 1.2s ease-in-out infinite;
+}
+@keyframes c6qShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

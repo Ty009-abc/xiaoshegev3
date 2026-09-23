@@ -1,0 +1,88 @@
+<!--
+  pages/turnaround-6q-report/turnaround-6q-report.wxml
+  RC8.8 Stage2 — 6Q 五卡翻身策略报告（纯展示层）
+  可见顺序（§15）：01 致命一句话 → 02 核心问题 → 03 系统困局 → 04 翻身路径 → 05 行动建议
+  Card01 = 致命一句话（红色 hero · ☠️）；渐进揭晓（§16）。
+-->
+<view class="page">
+
+  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
+
+  <view wx:if="{{loading}}" class="state">加载中…</view>
+
+  <view wx:elif="{{!hasReport}}" class="state-block">
+    <view class="state-title">翻身策略</view>
+    <view class="state-message">{{message}}</view>
+    <button wx:if="{{retake}}" class="btn-primary" bindtap="onRetake">重新测评</button>
+    <button class="btn-ghost" bindtap="onRetry">刷新</button>
+    <button class="btn-ghost" bindtap="onBack">返回</button>
+  </view>
+
+  <block wx:else>
+    <view class="report-head">
+      <view class="report-title">你的翻身策略</view>
+      <view class="report-sub">下面不是建议，是针对你自己情况的判断。</view>
+      <view wx:if="{{personality}}" class="report-persona">
+        <text class="report-persona-emoji">{{personality.emoji}}</text>
+        <text class="report-persona-name">{{personality.name}}视角</text>
+      </view>
+    </view>
+
+    <view class="card {{item.hero ? 'card-hero' : ''}}" wx:for="{{cards}}" wx:key="key" wx:for-index="cardIndex">
+      <view class="card-head">
+        <view class="card-num {{item.hero ? 'card-num-hero' : ''}}">0{{cardIndex + 1}}</view>
+        <view class="card-title">{{item.title}}</view>
+      </view>
+
+      <!-- 01 致命一句话（hero · 红色强调） -->
+      <view wx:if="{{item.hero && revealed[cardIndex]}}" class="card-body card-oneliner">
+        <text class="hero-mark">☠️</text>
+        <text class="hero-text">{{item.oneLiner}}</text>
+      </view>
+      <view wx:elif="{{item.hero}}" class="card-skeleton"></view>
+
+      <!-- 02 核心问题 -->
+      <block wx:if="{{item.body}}">
+        <view wx:if="{{revealed[cardIndex]}}" class="card-body">{{item.body}}</view>
+        <view wx:else class="card-skeleton"></view>
+      </block>
+
+      <!-- 03 系统困局 -->
+      <block wx:if="{{item.loopNodes && item.loopNodes.length}}">
+        <view wx:if="{{revealed[cardIndex]}}" class="card-body">{{item.loopNodes[0]}}</view>
+        <view wx:else class="card-skeleton"></view>
+      </block>
+
+      <!-- 04 翻身路径 -->
+      <block wx:if="{{item.to}}">
+        <view wx:if="{{revealed[cardIndex]}}" class="path-block">
+          <view class="path-row path-row-to">
+            <view class="path-label path-label-to">{{item.toLabel || '方向'}}</view>
+            <view class="path-text">{{item.to}}</view>
+          </view>
+        </view>
+        <view wx:else class="card-skeleton"></view>
+      </block>
+
+      <!-- 05 行动建议 -->
+      <block wx:if="{{item.actionItems && item.actionItems.length}}">
+        <view wx:if="{{revealed[cardIndex]}}" class="action-block">
+          <view class="action-step" wx:for="{{item.actionItems}}" wx:for-item="act" wx:key="index">
+            <view class="action-step-head">
+              <text class="action-step-idx">{{act.label}}</text>
+            </view>
+            <text class="action-step-text">{{act.text}}</text>
+          </view>
+        </view>
+        <view wx:else class="card-skeleton"></view>
+      </block>
+    </view>
+
+    <view class="report-actions">
+      <button class="btn-primary" bindtap="onSharePoster">生成分享海报</button>
+      <button class="btn-ghost" bindtap="onGoHome">返回首页</button>
+      <button class="btn-ghost" bindtap="onRetake">重新测评</button>
+    </view>
+  </block>
+
+</view>
