@@ -1,98 +1,68 @@
 <!--
-  pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.wxml
-  RC8.8 — 6 题翻身策略问卷（内容模型=旧版 6Q；UI=当前现代问卷）
-  UI 全部由 totalCount 驱动（不硬编码）。
+  pages/turnaround-6q-questionnaire — RC8.8_STAGE2_R2
+  Restored 2026-07-11 legacy 6Q questionnaire UI (proven online 2.0.0 experience).
+  Diagnostic (6题) block preserved verbatim; challenge mode removed (dedicated page).
 -->
 <view class="page">
+  <xsg-navbar title="翻身策略诊断" light />
 
-  <!-- 自定义导航安全区（仅布局） -->
-  <view class="nav-safe" style="height: {{totalNavHeight}}px;"></view>
-
-  <!-- 未开始 -->
-  <view wx:if="{{!started}}" class="intro">
-    <view class="title">翻身策略测评</view>
-    <view class="desc">6 道题，先看清你的现实条件，再给你一份贴着你情况的翻身策略。</view>
-    <button class="btn-primary" bindtap="startSession">开始测评</button>
+  <!-- ═════ diagnostic 6题问卷 ═════ -->
+  <!-- 人格指示条 -->
+  <view class="d-personality-bar" wx:if="{{dQ.personality}}">
+    <text class="dp-emoji">{{dQ.personality.emoji}}</text>
+    <text class="dp-name">{{dQ.personality.name}}视角已激活</text>
   </view>
 
-  <!-- 答题中 -->
-  <view wx:if="{{started && !submitted}}" class="quiz">
-    <!-- 人格指示条（§5：视角已激活；不暴露内部系统文本） -->
-    <view wx:if="{{personality}}" class="persona-bar">
-      <text class="persona-emoji">{{personality.emoji}}</text>
-      <text class="persona-name">{{personality.name}}视角已激活</text>
+  <!-- 进度条 -->
+  <view class="d-progress-section">
+    <view class="d-progress-track">
+      <view class="d-progress-fill" style="width:{{dQ.percent}}%"></view>
     </view>
-
-    <view class="progress-wrap">
-      <view class="progress-label">第 {{currentIndex + 1}} / {{totalCount}} 题</view>
-      <view class="progress-bar">
-        <view class="progress-fill" style="width: {{progressPercent}}%"></view>
-      </view>
-    </view>
-
-    <view class="q-prompt">{{current.title}}</view>
-    <view class="q-subtitle">{{current.subtitle}}</view>
-
-    <view class="input-area">
-      <input
-        wx:if="{{current.inputMode !== 'textarea'}}"
-        class="text-input"
-        type="{{current.inputMode === 'number' ? 'number' : 'text'}}"
-        placeholder="{{current.placeholder}}"
-        placeholder-class="input-ph"
-        placeholder-style="color:#9aa0b4;"
-        maxlength="{{current.maxlength}}"
-        value="{{answers[current.key]}}"
-        data-key="{{current.key}}"
-        confirm-type="{{currentIndex === totalCount - 1 ? 'done' : 'next'}}"
-        bindinput="onInput"
-        bindconfirm="goNext"
-      />
-      <textarea
-        wx:else
-        class="text-area"
-        placeholder="{{current.placeholder}}"
-        placeholder-class="input-ph"
-        placeholder-style="color:#9aa0b4;"
-        maxlength="{{current.maxlength}}"
-        value="{{answers[current.key]}}"
-        data-key="{{current.key}}"
-        auto-height
-        adjust-position="{{true}}"
-        cursor-spacing="24"
-        bindinput="onInput"
-      />
-      <view class="input-hint" wx:if="{{current.inputMode === 'textarea'}}">
-        已输入 {{answers[current.key].length || 0}} 字 / 上限 {{current.maxlength}}
-      </view>
-    </view>
-
-    <view class="nav">
-      <button class="btn-ghost" bindtap="goBack" disabled="{{currentIndex === 0}}">上一题</button>
-      <button class="btn-primary" bindtap="goNext" wx:if="{{currentIndex < totalCount - 1}}">下一题</button>
-      <button class="btn-primary" bindtap="submit" wx:if="{{currentIndex === totalCount - 1}}" loading="{{submitting}}">生成我的翻身策略</button>
-    </view>
-
-    <view wx:if="{{error}}" class="result-error">{{error}}</view>
+    <text class="d-progress-text">问题 {{dQ.idx+1}} / {{dQ.total}}</text>
   </view>
 
-  <!-- 已提交 / 加载中 -->
-  <view wx:if="{{submitted}}" class="result">
-    <view class="title">正在生成你的翻身策略</view>
-    <view class="thinking">
-      <view class="thinking-line thinking-line-active">
-        <view class="thinking-dot"></view>
-        <text>正在比对你的现实条件</text>
-      </view>
-      <view class="thinking-line">
-        <view class="thinking-dot"></view>
-        <text>正在寻找反复卡住你的模式</text>
-      </view>
-      <view class="thinking-line">
-        <view class="thinking-dot"></view>
-        <text>正在整理你的破局路径</text>
-      </view>
+  <!-- 题目卡片 -->
+  <view class="d-card">
+    <view class="d-back-row" wx:if="{{dQ.idx>0}}">
+      <text class="d-back-btn" bindtap="onDPrev">← 上一题</text>
+    </view>
+
+    <view class="d-q-header">
+      <text class="d-q-num">{{dQ.idx+1}}</text>
+      <text class="d-q-title">{{['你今年几岁？','你现在做什么工作？','你的学历？','你现在月收入多少？','你现在最焦虑什么？','你觉得自己为什么翻不了身？'][dQ.idx]}}</text>
+    </view>
+
+    <!-- 打字机副标题 -->
+    <text class="d-q-subtitle">{{dQ.label || ['年龄决定你的牌桌大小','职业是你当前的筹码形式','学历在这张牌桌上并不决定一切','收入=认知在这个世界的兑现速度','焦虑是你看懂规则的第一步','⚠️ 这里决定AI分析深度，请认真作答'][dQ.idx]}}</text>
+
+    <!-- 输入区（07/11 亮色契约：浅底 #F9FAFB · 深色文字 #101828 · 由 .d-input-area 规则统一覆盖 6 题） -->
+    <view class="d-input-area">
+      <input  wx:if="{{dQ.idx<=3}}"
+        type="{{dQ.idx===0||dQ.idx===3?'number':'text'}}"
+        placeholder="{{['请输入数字','例如：厨师/销售/程序员','例如：高中/大专/本科','请输入数字'][dQ.idx]}}"
+        placeholder-class="d-placeholder"
+        maxlength="{{[3,40,20,7][dQ.idx]}}"
+        bindinput="onDInput" value="{{dQ.answers[dQ.idx]}}"
+        focus="{{true}}" confirm-type="next" bindconfirm="onDNext" />
+      <textarea wx:else
+        placeholder="{{['认真说一次真话…','坦诚面对自己，这是最关键的一问…'][dQ.idx-4]}}"
+        placeholder-class="d-placeholder"
+        bindinput="onDInput" value="{{dQ.answers[dQ.idx]}}"
+        focus="{{true}}" maxlength="{{[300,500][dQ.idx-4]}}" auto-height />
+    </view>
+
+    <!-- 字数提示 -->
+    <view class="d-input-hint" wx:if="{{dQ.idx>=4&&dQ.answers[dQ.idx]}}">
+      <text>已输入 {{dQ.answers[dQ.idx].length}} 字</text>
     </view>
   </view>
 
+  <!-- 提交按钮 -->
+  <view class="d-action">
+    <button class="d-btn-next" hover-class="d-btn-hover" bindtap="onDNext"
+      disabled="{{!dQ.canNext}}" loading="{{dQ.submitting}}">
+      {{dQ.idx===5?'生成翻身策略 ⚡':'下一题 →'}}
+    </button>
+    <text class="d-kb-hint" wx:if="{{dQ.idx<=3}}" style="{{dQ.canNext?'opacity:1':'opacity:0'}}">按键盘「完成」键继续</text>
+  </view>
 </view>

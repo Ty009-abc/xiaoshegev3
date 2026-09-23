@@ -1,4 +1,7 @@
 {
-  "navigationBarTitleText": "翻身策略测评",
-  "usingComponents": {}
+  "navigationStyle": "custom",
+  "backgroundColor": "#f8f9fa",
+  "usingComponents": {
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar"
+  }
 }

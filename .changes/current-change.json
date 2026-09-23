@@ -1,33 +1,53 @@
 {
-  "taskId": "XSG-COS-V3_R87B2_1_VISIBLE_SEMANTIC_TIGHTENING",
-  "baseCommit": "963495659f7c19ebe095994bf8a6de9dad1c320b",
-  "branch": "fix/rc8.4-v6-b2-7-r15-card04",
-  "problem": "R87B2 engineering = PASS but product output = CONDITIONAL PASS (DEPLOY HOLD). The five visible cards still carried a few unearned visible claims: an unsourced '过去一年' duration; the unsupported mechanism '你越投入账面越稳'; the fabricated reward attribution '被当成靠谱/对方很认可'; pricing-authority universalization ('能被你自己或市场直接定价' / '不由别人定价' / '明码标价' / '陌生人看得见的渠道') used as the change target; and Card05 overclaim ('你只差一次真实对外动作' + '>=1付费意向 = 方向对'). This change TIGHTENS ONLY THE FINAL VISIBLE SEMANTIC BOUNDARIES in the visible rendering layer: (A) drop the unsourced duration; (B) remove the unsupported investment->stability mechanism; (C) remove fabricated reward attribution; (D) for CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY target RE-ALLOCATION toward a path that yields NEW EVIDENCE instead of pricing authority; (E) replace Card05 certainty with bounded 'a reality test that yields NEW EVIDENCE is what is missing'; and use bounded experiment semantics (positive signal -> continue validation; no signal -> diagnose exposure/demand/offer/presentation, no final market truth). Preserves PRIMARY_CONTRADICTION=CAPABILITY_UNEXPOSED, PRIMARY_DERIVED_INSIGHT=CONSTRAINT_IS_ALLOCATION_NOT_CAPABILITY and five-card coherence. Adds two independent §11 audit counters PRICING_POWER_UNIVERSALIZATION_COUNT + EXPERIMENT_RESULT_OVERCLAIM_COUNT and makes the temporal audit per-claim. NO redesign of R87 reasoning; NO modification of B1 core; MODE stays SHADOW; code + test + commit + push ONLY - no deploy, no preview, no DB/payment, no UI change.",
+  "taskId": "RC8.8_STAGE2_R2_LEGACY_UI_BASELINE_RECOVERY",
+  "baseCommit": "60827227f630b3990c67d876c6dd3112bd5be658",
+  "branch": "feature/rc8.8-legacy-ui-recovery",
+  "problem": "The 09/23 preview UI (RC8.8 Stage2 modern 6Q) had an input-visibility P0 and drifted from the proven product experience. Owner decided to STOP patching it and restore the proven 2026-07-11 online legacy 6Q UI as the frontend baseline, keeping the CURRENT Stage2 backend (turnaround_strategy_6q_v1 + legacy6q runtime). This change restores ONLY the 07/11 UI layer (questionnaire + result + inline poster) onto the current safe engineering base and bridges the report call to the Stage2 contract via a single adapter. No rebuild from the 09/23 preview; no modernization of the 07/11 visual styles. NO payment/security/env/CloudBase changes.",
   "allowedFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/claimAuditV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportScreenV1.js",
-    "tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js",
+    "pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.js",
+    "pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.wxml",
+    "pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.wxss",
+    "pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.json",
+    "pages/turnaround-6q-report/turnaround-6q-report.js",
+    "pages/turnaround-6q-report/turnaround-6q-report.wxml",
+    "pages/turnaround-6q-report/turnaround-6q-report.wxss",
+    "pages/turnaround-6q-report/turnaround-6q-report.json",
+    "pages/turnaround-6q-poster/turnaround-6q-poster.js",
+    "pages/turnaround-6q-poster/turnaround-6q-poster.wxml",
+    "pages/turnaround-6q-poster/turnaround-6q-poster.wxss",
+    "services/legacy6qReportService.js",
+    "app.json",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/realityEvidenceV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/contradictionEngineV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/derivedInsightV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseThesisV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/index.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/worldModelV1.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/modelRealityMismatchV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/hybrid/realEconomyModelV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/gameThesisV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/pricingPowerV6.js",
-    "cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/thesis/v4RestoredReportRuntimeV6.js"
+    "cloudfunctions/generateAiReport/index.js",
+    "cloudfunctions/generateAiReport/lib/legacy6q/legacy6qContract.js",
+    "cloudfunctions/generateAiReport/lib/legacy6q/legacy6qPrompt.js",
+    "cloudfunctions/generateAiReport/lib/legacy6q/legacy6qParser.js",
+    "cloudfunctions/generateAiReport/lib/legacy6q/legacy6qGuards.js",
+    "cloudfunctions/generateAiReport/lib/legacy6q/legacy6qRuntime.js",
+    "cloudfunctions/generateAiReport/lib/legacy6q/personas.js",
+    "cloudfunctions/generateAiReport/lib/turnaround6q/promptBuilder6Q.js",
+    "cloudfunctions/generateAiReport/lib/turnaround6q/reportValidator6Q.js",
+    "cloudfunctions/generateAiReport/lib/turnaround6q/reportRuntime6Q.js",
+    "cloudfunctions/generateAiReport/lib/turnaround6q/questionContract6Q.js",
+    "cloudfunctions/generateAiReport/lib/turnaround6q/fallbackReport6Q.js",
+    "cloudfunctions/**/verifyPayment*",
+    "cloudfunctions/**/paymentAuthority*",
+    "cloudfunctions/**/antiFraud*",
+    "cloudfunctions/**/entitlement*",
+    "services/permissionService.js",
+    "app.js",
+    "project.config.json"
   ],
-  "contractsAffected": [],
+  "contractsAffected": [
+    "turnaround_strategy_6q_v1 (client submit contract — restored 07/11 UI now sends this)"
+  ],
   "requiredTests": [
-    "node tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js",
-    "node tests/v6/reasoning/rc8.4-v6-r87b1-reality-reasoning-core.test.js",
-    "node tests/v6/run.js"
+    "node tests/legacy6q/legacy6q-revival.test.js",
+    "node tests/legacy6q/legacy6q-route-entry.test.js",
+    "node tests/legacy6q/legacy6q-input-visibility.test.js",
+    "node tests/turnaround6q/run.js"
   ],
-  "rollbackPlan": "git checkout 963495659f7c19ebe095994bf8a6de9dad1c320b -- cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/claimAuditV1.js cloudfunctions/generateAiReport/lib/turnaroundStrategy/v6/reasoning/caseReportScreenV1.js tests/v6/reasoning/rc8.4-v6-r87b2-five-card-integration.test.js .changes/current-change.json"
+  "rollbackPlan": "git checkout 60827227f630b3990c67d876c6dd3112bd5be658 -- pages/turnaround-6q-questionnaire pages/turnaround-6q-report pages/turnaround-6q-poster app.json && rm -f services/legacy6qReportService.js"
 }

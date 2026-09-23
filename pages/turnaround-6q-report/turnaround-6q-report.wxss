@@ -1,56 +1,176 @@
-/*
-  pages/turnaround-6q-report/turnaround-6q-report.wxss
-  RC8.8 Stage2 — reuse the CURRENT five-card report visual system (no redesign),
-  plus Card01 hero authority (§17) and progressive-reveal skeleton (§16).
-*/
-@import "../turnaround-v6-report/turnaround-v6-report.wxss";
+/* report-detail — Progressive Reveal + Poster Share 暗黑质感
+   RC8.8_STAGE2_R2 — restored 2026-07-11 legacy 6Q result UI (proven online). */
 
-/* §5 报告人格标识 */
-.report-persona {
-  display: inline-flex;
+.page {
+  background: #121620;
+  min-height: 100vh;
+  padding-bottom: 60rpx;
+}
+
+/* ═══ 报告板块容器 ═══ */
+.report-blocks {
+  padding: 30rpx 30rpx 0;
+}
+
+/* ═══ 板块卡片 ═══ */
+.section-card {
+  background: #191F2E;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.05);
+}
+.section-card.red-card {
+  background: rgba(255, 59, 48, 0.06);
+  border: 1rpx solid rgba(255, 59, 48, 0.15);
+}
+
+/* ═══ 标题行 ═══ */
+.section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+.section-badge {
+  background: #7B57FF;
+  color: #FFFFFF;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  font-size: 22rpx;
+  font-weight: bold;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+.bg-red { background: #FF3B30 !important; }
+
+.section-title {
+  font-weight: bold;
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+.text-red { color: #FF453A !important; }
+
+/* ═══ 正文 ═══ */
+.section-body { min-height: 60rpx; }
+
+.real-text {
+  font-size: 26rpx;
+  color: #D0D5E0;
+  line-height: 1.7;
+  display: block;
+}
+.fatal-text {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #FF453A !important;
+}
+
+/* ═══ 三点跳动加载动画 ═══ */
+.loading-typing {
+  display: flex;
   align-items: center;
   gap: 8rpx;
-  margin-top: 16rpx;
-  padding: 8rpx 20rpx;
-  border-radius: 999rpx;
-  background: rgba(124, 92, 255, 0.12);
-  border: 1rpx solid rgba(124, 92, 255, 0.28);
+  padding: 8rpx 0;
 }
-.report-persona-emoji { font-size: 26rpx; }
-.report-persona-name { font-size: 24rpx; color: #c9c2ff; }
+.typing-text { font-size: 26rpx; color: #6E758A; }
+.typing-dots { display: flex; gap: 6rpx; align-items: center; }
+.td-dot {
+  width: 8rpx; height: 8rpx; border-radius: 50%;
+  background: #A78BFA;
+  animation: dotBounce 1.2s infinite;
+}
+.td-dot:nth-child(2) { animation-delay: 0.2s; }
+.td-dot:nth-child(3) { animation-delay: 0.4s; }
 
-/* §17 Card01 hero authority */
-.card-hero {
-  border-color: rgba(255, 77, 79, 0.55) !important;
-  background: linear-gradient(180deg, rgba(255, 77, 79, 0.16), rgba(255, 77, 79, 0.04)) !important;
-  box-shadow: 0 0 40rpx rgba(255, 77, 79, 0.18);
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-12rpx); opacity: 1; }
 }
-.card-num-hero {
-  color: #ff4d4f !important;
-  font-weight: 700;
+
+/* ═══ 分段揭晓 fade-in ═══ */
+.fade-in {
+  animation: revealFade 0.5s ease-out;
 }
-.card-oneliner {
+@keyframes revealFade {
+  from { opacity: 0; transform: translateY(8rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ 底部操作区 ═══ */
+.bottom-bar {
+  padding: 0 32rpx 48rpx;
+}
+
+.compliance-tips {
+  font-size: 22rpx;
+  color: #6E758A;
+  text-align: center;
+  padding: 40rpx 0 32rpx;
+}
+
+/* ── 双按钮行 ── */
+.action-buttons {
   display: flex;
-  align-items: flex-start;
-  gap: 12rpx;
-  font-size: 36rpx;
-  line-height: 1.55;
-  font-weight: 600;
-  color: #ffe3e3;
+  flex-direction: column;
+  gap: 20rpx;
+  padding: 0 16rpx 32rpx;
 }
-.hero-mark { font-size: 40rpx; line-height: 1.4; }
-.hero-text { flex: 1; }
 
-/* §16 progressive-reveal skeleton (placeholder while a card body is pending) */
-.card-skeleton {
-  height: 32rpx;
-  margin-top: 18rpx;
-  border-radius: 8rpx;
-  background: linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.14), rgba(255,255,255,0.06));
-  background-size: 200% 100%;
-  animation: c6qShimmer 1.2s ease-in-out infinite;
+/* 紫蓝渐变发光：保存海报 */
+.btn-save-poster {
+  width: 100%;
+  height: 96rpx;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #7B57FF 0%, #5E45E0 50%, #3B82F6 100%);
+  box-shadow: 0 8rpx 32rpx rgba(123, 87, 255, 0.35), 0 0 60rpx rgba(59, 130, 246, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 2rpx;
 }
-@keyframes c6qShimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.btn-save-poster::after { border: none; }
+.btn-save-poster:active {
+  opacity: 0.85;
+  transform: scale(0.97);
 }
+
+/* 透明玻璃描边：分享好友 */
+.btn-share {
+  width: 100%;
+  height: 88rpx;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #A78BFA;
+  background: rgba(123, 87, 255, 0.08);
+  border: 2rpx solid rgba(123, 87, 255, 0.25);
+  backdrop-filter: blur(12rpx);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 2rpx;
+}
+.btn-share::after { border: none; }
+.btn-share:active {
+  background: rgba(123, 87, 255, 0.15);
+  border-color: rgba(123, 87, 255, 0.4);
+}
+
+/* ── 重做诊断 ── */
+.btn-retry {
+  width: 320rpx;
+  height: 80rpx;
+  border-radius: 999rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  background: #22293D;
+  color: #A0A5B5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+.btn-retry::after { border: none; }

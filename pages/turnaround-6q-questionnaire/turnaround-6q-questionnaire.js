@@ -1,189 +1,136 @@
 /**
  * pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.js
  *
- * RC8.8 — dedicated 6-question "翻身策略" questionnaire (client entry).
+ * RC8.8_STAGE2_R2_LEGACY_UI_BASELINE_RECOVERY — restored 2026-07-11 legacy 6Q
+ * questionnaire UI (the proven online 2.0.0 experience).
  *
- * Single source of truth: utils/turnaround6q/turnaround6qQuestionnaire.js
- * A NEW dedicated page (does NOT reuse the challenge-play mode architecture).
+ * UI is a faithful restoration of the 07/11 diagnostic flow
+ * (persona bar · progress · numbered card · typewriter subtitle · visible
+ * light-theme input/textarea · disabled-until-valid 下一题 · 上一题).
  *
- * UX (§4): progress 1/6..6/6 · previous supported · per-step validation ·
- * keyboard-safe · values restored on back navigation · no placeholder bugs ·
- * no debug markers.
+ * ONLY the report wiring is bridged to the CURRENT Stage2 request contract
+ * (`turnaround_strategy_6q_v1` → generateAiReport) via
+ * services/legacy6qReportService.js. No Hybrid 10Q payload, no diagnosis enum,
+ * no world-model payload.
  *
- * Client is INPUT ONLY: no diagnosis, no scoring, no rewriting. On submit it
- * forwards the raw 6Q facts to generateAiReport (turnaround_strategy_6q_v1)
- * and redirects to the 6Q report page.
- *
- * @version turnaround_strategy_6q_v1
+ * @version legacy_ui_0711 + turnaround_strategy_6q_v1 bridge
  */
 
 'use strict'
 
-const {
-  getQuestions6Q,
-  QUESTION_COUNT_6Q,
-  validateField6Q,
-  validateAnswers6Q,
-  buildCloudRequest6Q,
-} = require('../../utils/turnaround6q/turnaround6qQuestionnaire.js')
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
+const legacy6q = require('../../services/legacy6qReportService.js')
 
 const app = getApp()
 const REPORT_ROUTE = '/pages/turnaround-6q-report/turnaround-6q-report'
+const DIAGNOSTIC_VERSION = 'turnaround_strategy_6q_v1'
+
+/** Restored 07/11 6-question fixed data source (wording verbatim). */
+const DIAGNOSTIC_QUESTIONS = [
+  { id: 'age',       title: '你今年几岁？',            subtitle: '年龄决定你的牌桌大小',              type: 'input',    inputType: 'number', placeholder: '请输入数字', maxlength: 3 },
+  { id: 'job',       title: '你现在做什么工作？',       subtitle: '职业是你当前的筹码形式',              type: 'input',    inputType: 'text',   placeholder: '例如：厨师 / 销售 / 程序员' },
+  { id: 'education', title: '你的学历？',              subtitle: '学历在这张牌桌上并不决定一切',        type: 'input',    inputType: 'text',   placeholder: '例如：高中 / 大专 / 本科' },
+  { id: 'income',    title: '你现在月收入多少？',       subtitle: '收入 = 认知在这个世界的兑现速度',    type: 'input',    inputType: 'number', placeholder: '请输入数字' },
+  { id: 'anxiety',   title: '你现在最焦虑什么？',       subtitle: '焦虑是你看懂规则的第一步',            type: 'textarea', placeholder: '认真说一次真话…',                     maxlength: 300 },
+  { id: 'rootCause', title: '你觉得自己为什么翻不了身？', subtitle: '⚠️ 这里决定 AI 分析深度，请认真作答', type: 'textarea', placeholder: '坦诚面对自己，这是最关键的一问…', maxlength: 500 },
+]
 
 Page({
   data: {
-    started: false,
-    questions: [],
-    totalCount: 0,
-    currentIndex: 0,
-    current: null,
-    answers: {},
-    progressPercent: 0,
-    submitting: false,
-    submitted: false,
-    error: '',
-    totalNavHeight: 0,
-    personality: null,
+    dQ: { idx: 0, total: 6, percent: 16, label: '', answers: [], submitting: false, personality: null, canNext: false },
   },
 
   onLoad () {
-    this._initNavBar()
-    this._questions = getQuestions6Q()
-    // §5: select the persona ONCE per session (random, exclude the immediately
-    // previous one, persist last_personality). The persona is shown to the user
-    // as an active analytical lens; its INTERNAL system text is never exposed.
+    this._initDiagnostic()
+  },
+
+  _initDiagnostic () {
     let last = ''
     try { last = wx.getStorageSync('last_personality') || '' } catch (_) { last = '' }
     const p = getRandomPersonality(last)
     try { wx.setStorageSync('last_personality', p.name) } catch (_) {}
-    this._personality = p
-    this._lastPersonality = last
     this.setData({
-      questions: this._questions,
-      totalCount: QUESTION_COUNT_6Q,
-      current: this._questions[0],
-      personality: { name: p.name, emoji: p.emoji },
+      'dQ.personality': p,
+      'dQ.answers': new Array(DIAGNOSTIC_QUESTIONS.length).fill(''),
+      'dQ.total': DIAGNOSTIC_QUESTIONS.length,
+      'dQ.label': DIAGNOSTIC_QUESTIONS[0].subtitle,
     })
+    this._typewriterHint(DIAGNOSTIC_QUESTIONS[0].subtitle)
   },
 
-  _initNavBar () {
-    try {
-      const s = (typeof wx.getWindowInfo === 'function') ? wx.getWindowInfo() : wx.getSystemInfoSync()
-      const m = wx.getMenuButtonBoundingClientRect()
-      const sbh = s.statusBarHeight || 0
-      const nbh = (m.top - sbh) * 2 + m.height
-      this.setData({ totalNavHeight: sbh + nbh })
-    } catch (_) {
-      this.setData({ totalNavHeight: 88 })
-    }
+  onDInput (e) {
+    const a = [...this.data.dQ.answers]
+    const raw = e.detail.value
+    a[this.data.dQ.idx] = raw
+    const valid = typeof raw === 'string' ? raw.trim().length > 0 : String(raw || '').trim().length > 0
+    this.setData({ 'dQ.answers': a, 'dQ.canNext': valid })
   },
 
-  _pct (positionOneBased) {
-    const total = this.data.totalCount || QUESTION_COUNT_6Q
-    return Math.round((positionOneBased / total) * 100)
-  },
-
-  startSession () {
-    this.setData({
-      started: true,
-      currentIndex: 0,
-      current: this._questions[0],
-      answers: {},
-      progressPercent: this._pct(1),
-      submitting: false,
-      submitted: false,
-      error: '',
-    })
-  },
-
-  restartSession () {
-    this.startSession()
-  },
-
-  // ── input (raw language preserved verbatim) ────────────────────────────
-  onInput (e) {
-    if (this.data.submitting || this.data.submitted) return
-    const key = e.currentTarget.dataset.key
-    const q = this.data.current
-    if (!key || !q) return
-    let v = (e && e.detail && e.detail.value !== undefined && e.detail.value !== null)
-      ? String(e.detail.value)
-      : ''
-    // numeric fields: digits only
-    if (q.inputMode === 'number') v = v.replace(/[^0-9]/g, '')
-    // defensive length clamp (never lose prior text)
-    if (q.maxlength && v.length > q.maxlength) v = v.slice(0, q.maxlength)
-    const answers = Object.assign({}, this.data.answers)
-    answers[key] = v
-    this.setData({ answers, error: '' })
-  },
-
-  // ── navigation ─────────────────────────────────────────────────────────
-  goNext () {
-    if (this.data.submitting || this.data.submitted) return
-    const q = this.data.current
-    if (!q) return
-    const err = validateField6Q(q, this.data.answers[q.key])
-    if (err) {
-      wx.showToast({ title: err, icon: 'none' })
+  onDNext () {
+    const { idx, answers } = this.data.dQ
+    if (!answers[idx] || !String(answers[idx]).trim()) {
+      wx.showToast({ title: '说真话，别跳过 🙏', icon: 'none' })
       return
     }
-    if (this.data.currentIndex >= this.data.totalCount - 1) return
-    const next = this.data.currentIndex + 1
-    this.setData({
-      currentIndex: next,
-      current: this._questions[next],
-      error: '',
-      progressPercent: this._pct(next + 1),
-    })
-  },
-
-  goBack () {
-    if (this.data.submitting || this.data.submitted) return
-    if (this.data.currentIndex <= 0) return
-    const prev = this.data.currentIndex - 1
-    this.setData({
-      currentIndex: prev,
-      current: this._questions[prev],
-      error: '',
-      progressPercent: this._pct(prev + 1),
-    })
-  },
-
-  // ── submit ─────────────────────────────────────────────────────────────
-  async submit () {
-    if (this.data.submitting || this.data.submitted) return
-
-    const { valid, errors } = validateAnswers6Q(this.data.answers)
-    if (!valid) {
-      // Jump to the FIRST invalid step and explain why (no silent dead-end).
-      const first = (errors[0] || '').split(':')[0].trim()
-      const idx = this._questions.findIndex((x) => x.key === first)
-      if (idx >= 0) {
-        this.setData({ currentIndex: idx, current: this._questions[idx], progressPercent: this._pct(idx + 1) })
-      }
-      wx.showToast({ title: (errors[0] || '还有题目没有完成').split(': ').slice(-1)[0], icon: 'none' })
+    if (idx === DIAGNOSTIC_QUESTIONS.length - 1) {
+      this._submitDiagnostic()
       return
     }
+    const next = idx + 1
+    const nextVal = answers[next] || ''
+    this.setData({
+      'dQ.idx': next,
+      'dQ.percent': Math.round(((next + 1) / DIAGNOSTIC_QUESTIONS.length) * 100),
+      'dQ.label': '',
+      'dQ.canNext': String(nextVal).trim().length > 0,
+    })
+    this._typewriterHint(DIAGNOSTIC_QUESTIONS[next].subtitle)
+  },
 
-    this.setData({ submitting: true, submitted: true, error: '' })
+  onDPrev () {
+    if (this.data.dQ.idx <= 0) return
+    const prev = this.data.dQ.idx - 1
+    const prevVal = this.data.dQ.answers[prev] || ''
+    this.setData({
+      'dQ.idx': prev,
+      'dQ.percent': Math.round(((prev + 1) / DIAGNOSTIC_QUESTIONS.length) * 100),
+      'dQ.label': '',
+      'dQ.canNext': String(prevVal).trim().length > 0,
+    })
+    this._typewriterHint(DIAGNOSTIC_QUESTIONS[prev].subtitle)
+  },
 
-    const req = buildCloudRequest6Q(this.data.answers, this._personality && this._personality.name, this._lastPersonality)
-    try {
-      const res = await wx.cloud.callFunction(req)
-      const result = res && res.result ? res.result : null
-      // Hand the raw envelope to the report page (no storage, no persistence).
-      app.globalData.turnaround6qResult = result
-      app.globalData.turnaround6qSubmittedAt = Date.now()
-      wx.redirectTo({ url: REPORT_ROUTE })
-    } catch (err) {
-      this.setData({
-        submitting: false,
-        submitted: false,
-        error: '提交失败，请检查网络后重试。',
-      })
-      console.error('[Turnaround6Q] submit failed:', (err && err.message) || err)
-    }
+  _typewriterHint (text) {
+    if (this._twTimer) clearInterval(this._twTimer)
+    if (!text) return
+    this.setData({ 'dQ.label': '' })
+    const chars = [...text]; let i = 0
+    this._twTimer = setInterval(() => {
+      if (i >= chars.length) { clearInterval(this._twTimer); this._twTimer = null; return }
+      this.setData({ 'dQ.label': chars.slice(0, i + 1).join('') })
+      i++
+    }, 50)
+  },
+
+  _submitDiagnostic () {
+    if (this.data.dQ.submitting) return
+    this.setData({ 'dQ.submitting': true })
+
+    const a = this.data.dQ.answers
+    const questions = DIAGNOSTIC_QUESTIONS
+    const answers = {}
+    questions.forEach((q, i) => { answers[q.id] = a[i] })
+    // §7 — explicit raw 6-field contract (no enum, no world-model payload).
+    answers.diagnosticVersion = DIAGNOSTIC_VERSION
+    const p = this.data.dQ.personality
+
+    app.globalData._diagnosticAnswers = answers
+    app.globalData._diagnosticPersonality = p
+    app.globalData._diagnosticVersion = DIAGNOSTIC_VERSION
+    wx.redirectTo({ url: REPORT_ROUTE + '?mode=diagnostic' })
+  },
+
+  onUnload () {
+    if (this._twTimer) { clearInterval(this._twTimer); this._twTimer = null }
   },
 })
