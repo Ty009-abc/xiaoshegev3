@@ -184,7 +184,7 @@ exports.main = async (event, context) => {
         // does NOT call the semantic validator, the grounding taxonomy, the
         // field-repair AI pipeline or the whole-report deterministic content
         // fallback. The RC8.8 hybrid experiment is retained as
-        // FROZEN_REFERENCE ONLY (lib/turnaround6q/*) and is NOT reached here.
+        // FROZEN_REFERENCE ONLY (lib/turnaround6q/) and is NOT reached here.
         const { runLegacy6QReport } = require('./lib/legacy6q/legacy6qRuntime.js')
         const rep = await runLegacy6QReport({
           event, callAI,
