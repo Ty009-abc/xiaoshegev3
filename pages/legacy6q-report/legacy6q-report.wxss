@@ -1,12 +1,38 @@
 /* pages/legacy6q-report/legacy6q-report.wxss
    RC8.8_STAGE2_R5 — 2026-07-11 legacy 6Q result UI (dark), READY content.
    Progressive Reveal + Poster Share. Contrast with the LIGHT thinking page is part
-   of the experience — this page stays dark. */
+   of the experience — this page stays dark.
+
+   RC8.8_STAGE2_RESULT_PAGE_LIGHT_GRADIENT_BACKGROUND — ONLY the outer page
+   background changed: soft-white → pale ice-blue vertical gradient. Card layout,
+   typography, spacing, colors, poster and report logic are UNTOUCHED. */
 
 .page {
-  background: #121620;
+  /* §2 outer background: soft white → pale ice-blue vertical gradient.
+     §3 solid fallback first, then the gradient image (covers the whole page
+     because min-height is 100vh and the root view grows with content). */
+  background: #EEF5FD;
+  background-image: linear-gradient(
+    180deg,
+    #FFFFFF 0%,
+    #F8FAFD 38%,
+    #EEF5FD 68%,
+    #DCEBFB 100%
+  );
   min-height: 100vh;
   padding-bottom: 60rpx;
+}
+
+/* §6 顶部导航接入渐变：去掉深色导航块，标题/返回键改为浅底深字。
+   仅颜色改变 —— 标题、返回键、微信胶囊的位置均不变。 */
+.page .navbar {
+  background: transparent;
+}
+.page .nav-title {
+  color: #101828;
+}
+.page .back-icon {
+  color: #667085;
 }
 
 /* ═══ 报告板块容器 ═══ */

@@ -1,6 +1,8 @@
 {
   "navigationStyle": "custom",
-  "backgroundColor": "#121620",
+  "backgroundColor": "#FFFFFF",
+  "backgroundColorTop": "#FFFFFF",
+  "backgroundColorBottom": "#DCEBFB",
   "usingComponents": {
     "xsg-navbar": "/components/xsg-navbar/xsg-navbar"
   }

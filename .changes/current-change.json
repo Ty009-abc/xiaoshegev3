@@ -1,37 +1,27 @@
 {
-  "taskId": "RC8.8_STAGE2_R5_LEGACY_THINKING_PAGE_REVIVAL",
-  "baseCommit": "4bfc8c8",
+  "taskId": "RC8.8_STAGE2_RESULT_PAGE_LIGHT_GRADIENT_BACKGROUND",
+  "baseCommit": "1ca1aaf",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "After the RC8.8 Stage2 legacy-UI recovery, the result page opened immediately and each of the five cards showed a loading skeleton ('正在推演你的认知结构' / '推演中…') while the single model call ran inside the result page. The owner wants the proven 2026-08-30 15:39 full-screen LIGHT '推演等待页' restored between Q6 submit and the 5-card report. This change restores ONLY that thinking-page presentation layer (layout/animation/progress/transition/branding ported from canonical 55453bb report-detail v5-loading-screen), moves the ONE model call onto it, hands the READY report to the result page via a temp handoff, and removes the result-page skeletons. NO questionnaire/prompt/persona/backend/poster/payment/env changes.",
+  "problem": "The restored 07/11 legacy result page (pages/legacy6q-report) used a dark #121620 page background with a dark navbar block. The owner wants ONLY the outer page background changed to a soft-white → pale ice-blue vertical gradient (#FFFFFF 0% → #F8FAFD 38% → #EEF5FD 68% → #DCEBFB 100%) so the page reads clean/light/technological, while every card's geometry, the typography, spacing, report logic and poster stay byte-identical.",
   "allowedFiles": [
-    "pages/legacy6q-thinking/legacy6q-thinking.js",
-    "pages/legacy6q-thinking/legacy6q-thinking.wxml",
-    "pages/legacy6q-thinking/legacy6q-thinking.wxss",
-    "pages/legacy6q-thinking/legacy6q-thinking.json",
-    "pages/legacy6q-report/legacy6q-report.js",
-    "pages/legacy6q-report/legacy6q-report.wxml",
     "pages/legacy6q-report/legacy6q-report.wxss",
     "pages/legacy6q-report/legacy6q-report.json",
-    "pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.js",
-    "services/legacy6qReportService.js",
-    "app.json",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
-    "cloudfunctions/generateAiReport/index.js",
-    "cloudfunctions/generateAiReport/lib/legacy6q/**",
-    "cloudfunctions/generateAiReport/lib/turnaround6q/**",
-    "cloudfunctions/**/verifyPayment*",
-    "cloudfunctions/**/paymentAuthority*",
-    "cloudfunctions/**/antiFraud*",
-    "cloudfunctions/**/entitlement*",
-    "services/permissionService.js",
-    "app.js",
-    "project.config.json"
+    "pages/legacy6q-report/legacy6q-report.js",
+    "pages/legacy6q-report/legacy6q-report.wxml",
+    "pages/legacy6q-thinking/**",
+    "pages/turnaround-6q-report/**",
+    "pages/turnaround-6q-questionnaire/**",
+    "components/xsg-navbar/**",
+    "cloudfunctions/**",
+    "services/**",
+    "app.json",
+    "app.wxss",
+    "styles/**"
   ],
-  "contractsAffected": [
-    "turnaround_strategy_6q_v1 (client submit contract — unchanged; call now originates from the thinking page)"
-  ],
+  "contractsAffected": [],
   "requiredTests": [
     "node tests/legacy6q/legacy6q-revival.test.js",
     "node tests/legacy6q/legacy6q-route-entry.test.js",
@@ -39,5 +29,5 @@
     "node tests/legacy6q/legacy6q-thinking-page.test.js",
     "node tests/turnaround6q/run.js"
   ],
-  "rollbackPlan": "git checkout 4bfc8c8 -- pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire.js pages/turnaround-6q-report pages/turnaround-6q-report/turnaround-6q-report.js app.json services/legacy6qReportService.js && rm -rf pages/legacy6q-thinking pages/legacy6q-report"
+  "rollbackPlan": "git checkout 1ca1aaf -- pages/legacy6q-report/legacy6q-report.wxss pages/legacy6q-report/legacy6q-report.json"
 }
