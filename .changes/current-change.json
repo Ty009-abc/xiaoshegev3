@@ -1,16 +1,16 @@
 {
-  "taskId": "RC8.8_STAGE2_RESULT_PAGE_LIGHT_GRADIENT_BACKGROUND",
-  "baseCommit": "1ca1aaf",
+  "taskId": "RC8.8_STAGE2_RESULT_CARD_LIGHT_THEME",
+  "baseCommit": "b654ed4",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "The restored 07/11 legacy result page (pages/legacy6q-report) used a dark #121620 page background with a dark navbar block. The owner wants ONLY the outer page background changed to a soft-white → pale ice-blue vertical gradient (#FFFFFF 0% → #F8FAFD 38% → #EEF5FD 68% → #DCEBFB 100%) so the page reads clean/light/technological, while every card's geometry, the typography, spacing, report logic and poster stay byte-identical.",
+  "problem": "After the outer white→ice-blue gradient landed, Card02–Card05 still used the legacy dark card backgrounds (#191F2E / dark red tint) with light-gray body text (#D0D5E0), creating a strong light-page/dark-card conflict. This change lightens ONLY the five report cards into one unified LIGHT theme: near-white tinted backgrounds (lavender / ice-blue / warm cream / mint, plus a light pink fatal hero), thin colored borders, dark ink text, and identity carried by the number badge / icon / border instead of dark fills. Poster, report logic, backend and the outer gradient are untouched.",
   "allowedFiles": [
     "pages/legacy6q-report/legacy6q-report.wxss",
-    "pages/legacy6q-report/legacy6q-report.json",
+    "pages/legacy6q-report/legacy6q-report.wxml",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
     "pages/legacy6q-report/legacy6q-report.js",
-    "pages/legacy6q-report/legacy6q-report.wxml",
+    "pages/legacy6q-report/legacy6q-report.json",
     "pages/legacy6q-thinking/**",
     "pages/turnaround-6q-report/**",
     "pages/turnaround-6q-questionnaire/**",
@@ -22,6 +22,12 @@
     "styles/**"
   ],
   "contractsAffected": [],
+  "geometryInvariance": "margin / padding / width / height / min-height / border-radius / font-size / line-height / gap / card order unchanged — verified programmatically (66 = 66 geometry declarations, zero added or removed).",
+  "contrastCheck": {
+    "body #344054 on card tints": "9.72–10.13:1 (AA/AAA pass)",
+    "title #101828": "16.85:1",
+    "fatal #FF3B3B on #FFF4F5": "3.28:1 (AA pass for 30rpx/800 large text)"
+  },
   "requiredTests": [
     "node tests/legacy6q/legacy6q-revival.test.js",
     "node tests/legacy6q/legacy6q-route-entry.test.js",
@@ -29,5 +35,5 @@
     "node tests/legacy6q/legacy6q-thinking-page.test.js",
     "node tests/turnaround6q/run.js"
   ],
-  "rollbackPlan": "git checkout 1ca1aaf -- pages/legacy6q-report/legacy6q-report.wxss pages/legacy6q-report/legacy6q-report.json"
+  "rollbackPlan": "git checkout b654ed4 -- pages/legacy6q-report/legacy6q-report.wxss pages/legacy6q-report/legacy6q-report.wxml"
 }

@@ -18,9 +18,10 @@
   <block wx:else>
     <view class="report-blocks">
       <block wx:for="{{sections}}" wx:key="key">
-        <view class="section-card {{item.key === 'fatal' ? 'red-card' : ''}} {{item.revealed ? 'revealed' : 'pre-reveal'}}">
+        <!-- RC8.8_STAGE2_RESULT_CARD_LIGHT_THEME: tone-* 仅切换配色；class 顺序 / 结构 / 几何不变 -->
+        <view class="section-card tone-{{item.key}} {{item.key === 'fatal' ? 'red-card' : ''}} {{item.revealed ? 'revealed' : 'pre-reveal'}}">
           <view class="section-header">
-            <text class="section-badge {{item.key === 'fatal' ? 'bg-red' : ''}}">{{index + 1}}</text>
+            <text class="section-badge badge-{{item.key}} {{item.key === 'fatal' ? 'bg-red' : ''}}">{{index + 1}}</text>
             <text class="section-title {{item.key === 'fatal' ? 'text-red' : ''}}">{{item.label}}</text>
           </view>
 
