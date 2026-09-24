@@ -1,33 +1,37 @@
 {
-  "taskId": "RC8.8_STAGE2_RESULT_CARD_LIGHT_THEME",
-  "baseCommit": "b654ed4",
+  "taskId": "RC8.8_AI_CHAT_TOP_LAYOUT_COMPRESSION",
+  "baseCommit": "ad2bafb",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "After the outer white→ice-blue gradient landed, Card02–Card05 still used the legacy dark card backgrounds (#191F2E / dark red tint) with light-gray body text (#D0D5E0), creating a strong light-page/dark-card conflict. This change lightens ONLY the five report cards into one unified LIGHT theme: near-white tinted backgrounds (lavender / ice-blue / warm cream / mint, plus a light pink fatal hero), thin colored borders, dark ink text, and identity carried by the number badge / icon / border instead of dark fills. Poster, report logic, backend and the outer gradient are untouched.",
+  "problem": "On the real device the 「直接问小事哥」 tab page (pages/ai-chat) showed a duplicated/over-tall white header stack that pushed the first chat bubble far down. Root cause: env(safe-area-inset-top) was applied TWICE — once (correctly) by the xsg-navbar component, and again by the .msg-list content container (.msg-list { padding-top: calc(24rpx + env(safe-area-inset-top)) }). On a notched device that stacked a second ~44–59rpx inset between the compact title row and the first bubble. Fix: drop the duplicate inset so the top inset is owned ONCE by the navbar; the chat list keeps a plain 24rpx top gap. Chat bubbles, bottom input bar, tabBar and AI logic are untouched.",
+  "forensics": {
+    "NATIVE_NAV_USED": false,
+    "CUSTOM_NAV_USED": true,
+    "custom_nav_component": "xsg-navbar title=\"直接问小事哥\" light",
+    "HEADER_HEIGHT": "~76rpx + env(safe-area-inset-top) (unchanged by this task)",
+    "TOP_SPACER_HEIGHT": "0 at top (the 200rpx view is a BOTTOM scroll-clearance spacer)",
+    "CHAT_TOP_PADDING_before": "calc(24rpx + env(safe-area-inset-top))  <-- duplicate inset",
+    "CHAT_TOP_PADDING_after": "24rpx"
+  },
   "allowedFiles": [
-    "pages/legacy6q-report/legacy6q-report.wxss",
-    "pages/legacy6q-report/legacy6q-report.wxml",
+    "pages/ai-chat/ai-chat.wxss",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
-    "pages/legacy6q-report/legacy6q-report.js",
-    "pages/legacy6q-report/legacy6q-report.json",
-    "pages/legacy6q-thinking/**",
-    "pages/turnaround-6q-report/**",
-    "pages/turnaround-6q-questionnaire/**",
+    "pages/ai-chat/ai-chat.js",
+    "pages/ai-chat/ai-chat.wxml",
+    "pages/ai-chat/ai-chat.json",
     "components/xsg-navbar/**",
     "cloudfunctions/**",
     "services/**",
     "app.json",
     "app.wxss",
-    "styles/**"
+    "styles/**",
+    "pages/legacy6q-report/**",
+    "pages/legacy6q-thinking/**",
+    "pages/turnaround-6q-*/**"
   ],
   "contractsAffected": [],
-  "geometryInvariance": "margin / padding / width / height / min-height / border-radius / font-size / line-height / gap / card order unchanged — verified programmatically (66 = 66 geometry declarations, zero added or removed).",
-  "contrastCheck": {
-    "body #344054 on card tints": "9.72–10.13:1 (AA/AAA pass)",
-    "title #101828": "16.85:1",
-    "fatal #FF3B3B on #FFF4F5": "3.28:1 (AA pass for 30rpx/800 large text)"
-  },
+  "safeAreaOwnership": "env(safe-area-inset-top) now applied exactly ONCE on this page (xsg-navbar). env(safe-area-inset-bottom) unchanged on the input bar.",
   "requiredTests": [
     "node tests/legacy6q/legacy6q-revival.test.js",
     "node tests/legacy6q/legacy6q-route-entry.test.js",
@@ -35,5 +39,6 @@
     "node tests/legacy6q/legacy6q-thinking-page.test.js",
     "node tests/turnaround6q/run.js"
   ],
-  "rollbackPlan": "git checkout b654ed4 -- pages/legacy6q-report/legacy6q-report.wxss pages/legacy6q-report/legacy6q-report.wxml"
+  "note": "tests/ui/part-b/*.test.js cannot run in this worktree (missing tests/ui/helpers/pageShim) — pre-existing at base commit ad2bafb, unrelated to this CSS-only change.",
+  "rollbackPlan": "git checkout ad2bafb -- pages/ai-chat/ai-chat.wxss"
 }

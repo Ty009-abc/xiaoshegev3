@@ -17,7 +17,10 @@
 .msg-list {
   flex: 1;
   padding: 24rpx;
-  padding-top: calc(24rpx + env(safe-area-inset-top));
+  /* RC8.8_AI_CHAT_TOP_LAYOUT_COMPRESSION — the top safe-area inset is owned by
+     xsg-navbar (padding-top: calc(16rpx + env(safe-area-inset-top))). Applying it
+     here too stacked a second inset and pushed the first bubble far down, so this
+     rule intentionally keeps a plain 24rpx top gap. */
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
