@@ -29,18 +29,15 @@ exports.main = async (event, context) => {
 
     const todayStart = startOfDay(ts)
 
-    // 并行查询
+    // ── CORE 指标（hard-required）：users / orders。任一失败 → 由外层 catch 返回 DB_ERROR ──
     const [
-      totalUsers, todayUsers, totalOrders, paidOrders, allOrdersRes,
-      aiLogsCount, aiLogsRes, vipUsers
+      totalUsers, todayUsers, totalOrders, paidOrders, allOrdersRes, vipUsers
     ] = await Promise.all([
       db.collection('users').count(),
       db.collection('users').where({ createdAt: _.gte(todayStart) }).count(),
       db.collection('orders').count(),
       db.collection('orders').where({ status: 'paid' }).count(),
       db.collection('orders').where({ status: 'paid' }).field({ totalAmount: true }).get(),
-      db.collection('ai_logs').count(),
-      db.collection('ai_logs').field({ tokens: true, createdAt: true, success: true }).get(),
       db.collection('users').where({ membershipLevel: _.neq('free') }).count(),
     ])
 
@@ -49,13 +46,25 @@ exports.main = async (event, context) => {
     const todayOrders = (allOrdersRes.data || []).filter(o => o.paidAt && o.paidAt >= todayStart)
     const todayRevenue = todayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0)
 
-    // AI 统计
-    const aiLogs = aiLogsRes.data || []
-    const aiCalls = aiLogsCount.total
-    const totalTokens = aiLogs.reduce((s, l) => s + (l.tokens || 0), 0)
-    const aiCost = Math.round(totalTokens * 0.000002) // 约 ¥0.002 / 1K tokens 估算
-    const aiErrors = aiLogs.filter(l => !l.success).length
-    const errorRate = aiCalls > 0 ? ((aiErrors / aiCalls) * 100).toFixed(1) + '%' : '0%'
+    // ── OPTIONAL 遥测（fail-soft）：ai_logs 缺失/查询失败不阻断仪表盘，回退安全默认值 ──
+    let aiCalls = 0
+    let aiCost = 0
+    let aiErrors = 0
+    let errorRate = '0%'
+    try {
+      const [aiLogsCount, aiLogsRes] = await Promise.all([
+        db.collection('ai_logs').count(),
+        db.collection('ai_logs').field({ tokens: true, createdAt: true, success: true }).get(),
+      ])
+      const aiLogs = aiLogsRes.data || []
+      aiCalls = aiLogsCount.total
+      const totalTokens = aiLogs.reduce((s, l) => s + (l.tokens || 0), 0)
+      aiCost = Math.round(totalTokens * 0.000002) // 约 ¥0.002 / 1K tokens 估算
+      aiErrors = aiLogs.filter(l => !l.success).length
+      errorRate = aiCalls > 0 ? ((aiErrors / aiCalls) * 100).toFixed(1) + '%' : '0%'
+    } catch (aiErr) {
+      console.warn('[adminGetDashboard] optional ai_logs unavailable — telemetry defaults applied:', aiErr && aiErr.message)
+    }
 
     // 付费率
     const paidRate = totalUsers.total > 0 ? ((paidOrders.total / totalUsers.total) * 100).toFixed(1) + '%' : '0%'

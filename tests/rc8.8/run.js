@@ -23,6 +23,7 @@ const TESTS = [
   'challenge-records.test.js',
   'report-history.test.js',
   'cognition-route.test.js',
+  'admin-dashboard-recovery.test.js',
 ]
 
 const results = []
