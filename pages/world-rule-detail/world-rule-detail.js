@@ -15,7 +15,11 @@ const PService = require('../../share/PosterService.js')
 const RuleRenderer = require('../../share/WorldRulePosterRenderer.js')
 
 const KNOWN_KEY = 'world_…tion'
-const FAV_KEY = 'world_…ites'
+// RC8.8_WORLD_RULE_FAVORITE_KEY_UNIFY — canonical favorites key (was a
+// literal-U+2026 typo 'world_…ites' that never matched the reader in
+// pages/world-rules). Legacy key kept ONLY for one-time migration.
+const FAV_KEY = 'world_rules_favorites'
+const FAV_KEY_LEGACY = 'world_…ites'
 
 function normalizeWorldRule(raw) {
   if (!raw) return null
@@ -100,7 +104,20 @@ function getCatDisplay(cat) {
   const m = { wealth: '💰 财富模型', mindset: '🧠 认知升级', probability: '🎲 概率决策', system: '⚙️ 系统模型', info: '📡 信息网络', cognition: '🧠 认知升级', capital: '💰 财富模型', risk: '🎲 概率决策', business: '🤖 商业与AI', longterm: '🌍 长期文明', ethics: '⚖️ 伦理意义', human: '🧠 认知升级', leverage: '💰 财富模型', decision: '🎲 概率决策', ai: '🤖 商业与AI', network: '📡 信息网络', coevolution: '🌍 长期文明', manifesto: '📜 宣言' }
   return m[cat] || ('📌 ' + (cat || ''))
 }
-function loadFav() { try { const r = wx.getStorageSync(FAV_KEY); return (r && Array.isArray(r)) ? r : [] } catch (_) { return [] } }
+function loadFav() {
+  try {
+    const r = wx.getStorageSync(FAV_KEY)
+    if (r && Array.isArray(r) && r.length) return r
+    // One-time compat migration: legacy literal-U+2026 key -> canonical key.
+    // Legacy key is NOT deleted; it is only read/migrated.
+    const legacy = wx.getStorageSync(FAV_KEY_LEGACY)
+    if (legacy && Array.isArray(legacy) && legacy.length) {
+      try { wx.setStorageSync(FAV_KEY, legacy) } catch (_) {}
+      return legacy
+    }
+    return (r && Array.isArray(r)) ? r : []
+  } catch (_) { return [] }
+}
 function saveFav(l) { try { wx.setStorageSync(FAV_KEY, l) } catch (_) {} }
 function isFav(id, l) { return l.some(f => f.ruleId === id || f.id === id) }
 function addFav(rule, l) { const e = { ruleId: rule.id, title: rule.title, category: rule.category, savedAt: Date.now() }; return [e, ...l.filter(f => f.ruleId !== e.ruleId)] }

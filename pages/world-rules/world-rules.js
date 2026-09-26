@@ -332,10 +332,20 @@ Page({
   /** 收藏模式：从本地 Storage 加载 */
   _loadFavoritesLocal() {
     const FAVORITE_KEY = 'world_rules_favorites'
+    // RC8.8_WORLD_RULE_FAVORITE_KEY_UNIFY — legacy writer used a literal-U+2026
+    // key ('world_…ites'). One-time compat migration on read; legacy key kept.
+    const FAVORITE_KEY_LEGACY = 'world_…ites'
     let favorites = []
     try {
       const raw = wx.getStorageSync(FAVORITE_KEY)
       if (raw && Array.isArray(raw)) favorites = raw
+      if (favorites.length === 0) {
+        const legacy = wx.getStorageSync(FAVORITE_KEY_LEGACY)
+        if (legacy && Array.isArray(legacy) && legacy.length) {
+          favorites = legacy
+          try { wx.setStorageSync(FAVORITE_KEY, legacy) } catch (_) {}
+        }
+      }
     } catch (_) {}
 
     if (favorites.length === 0) {

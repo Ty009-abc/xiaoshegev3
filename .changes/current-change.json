@@ -1,29 +1,20 @@
 {
-  "taskId": "RC8.8_RESULT_FOOTER_DAILY_COGNITION_ROUTE_P0",
-  "baseCommit": "4357426",
+  "taskId": "RC8.8_MY_PAGE_FUNCTION_RECOVERY_A_WORLD_RULE_FAVORITE_KEY",
+  "baseCommit": "80c03b9",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Routing-only P0. The result-page footer entry「每日认知」opened the OLD /pages/cognition-daily/cognition-daily experience. Expected: open the SAME latest「今日认知暴击」experience that the current home page uses. No UI / copy / backend change; no new cognition page.",
+  "problem": "世界规则收藏 read/write key mismatch: the detail page wrote a literal-U+2026 key 'world_…ites' while the list page (favoriteMode) read 'world_rules_favorites'. Result: collection always empty even after favoriting.",
   "forensics": {
-    "RESULT_ENTRY_HANDLER": "goCognitionDaily",
-    "RESULT_CURRENT_ROUTE": "/pages/cognition-daily/cognition-daily",
-    "RESULT_CURRENT_PARAMS": "none",
-    "RESULT_TARGET_VERSION": "OLD legacy daily-cognition page (deprecated primary path)",
-    "OLD_ROUTE": "/pages/cognition-daily/cognition-daily",
-    "HOME_COGNITION_HANDLER": "onStrikeTap (pages/home/home.js)",
-    "HOME_COGNITION_ROUTE": "/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail",
-    "HOME_COGNITION_PARAMS": "?sid=<personalizedId> when feed personalized, else ?id=<today's date-anchored id>",
-    "HOME_COGNITION_MODE": "E. standalone page in subpackage subpkg-ai (navigateTo)",
-    "HOME_COGNITION_SOURCE_FILE": "pages/home/home.js",
-    "ROOT_CAUSE": "RESULT_ENTRY_ROUTE_DRIFT — the rebuilt footer hard-coded the legacy /pages/cognition-daily route while the current homepage authority is /subpkg-ai/cognitive-shock-detail. The two pages had independent hard-coded routes, so they drifted.",
-    "FIX": "Extract ONE shared navigation authority utils/cognitionEntry.js (openCognitionStrike/openDailyCognition/openWorldRules/openAskXiaoshige); route BOTH home and the result page through it. Result「每日认知」now targets the exact home authority; old cognition-daily is DEMOTED to a resilient fallback only.",
-    "HOME_RESULT_NAV_AUTHORITY_SHARED": "YES",
-    "DUPLICATE_ROUTES_CREATED": 0,
-    "double_tap_guard": "per-url 600ms lock in the shared helper (no duplicate navigation)"
+    "WRITE_KEY_BEFORE": "world_…ites (literal U+2026 in source)",
+    "READ_KEY_BEFORE": "world_rules_favorites",
+    "WRITE_READ_MATCH": "YES (canonical world_rules_favorites both sides)",
+    "CANONICAL_KEY": "world_rules_favorites",
+    "LEGACY_KEY": "world_…ites",
+    "MIGRATION": "one-time compat: if canonical empty AND legacy exists -> copy legacy to canonical; legacy NOT deleted",
+    "SCHEMA": "Array<{ ruleId, title, category, savedAt }> (unchanged, compatible)"
   },
   "allowedFiles": [
-    "pages/legacy6q-report/legacy6q-report.js",
-    "pages/home/home.js",
-    "utils/cognitionEntry.js",
+    "pages/world-rule-detail/world-rule-detail.js",
+    "pages/world-rules/world-rules.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
@@ -31,39 +22,26 @@
     "services/**",
     "app.json",
     "app.wxss",
-    "styles/**",
-    "pages/onboarding/**",
-    "pages/cognition-daily/**",
-    "components/**"
+    "pages/turnaround-*/**",
+    "pages/legacy6q-report/**",
+    "pages/home/**"
   ],
   "contractsAffected": [
-    "utils/cognitionEntry.js (new shared nav authority)",
-    "pages/home onStrikeTap / goWorldRules (delegate to shared authority)",
-    "pages/legacy6q-report goCognitionDaily / goWorldRules / goAskXiaoshige (delegate to shared authority)"
+    "world-rule favorites storage key (canonicalised)"
   ],
-  "copyFreeze": {
-    "COPY_DIFF_COUNT": 0,
-    "note": "No visible copy changed. Routing only."
-  },
+  "copyFreeze": { "COPY_DIFF_COUNT": 0, "note": "no visible copy changed" },
   "noUnintendedChange": {
     "UI_CHANGED": "NO",
-    "COPY_CHANGED": "NO",
     "BACKEND_CHANGED": "NO",
-    "OLD_COGNITION_PAGE_REMOVED": "NO (kept as fallback)"
-  },
-  "otherEntriesCheck": {
-    "WORLD_RULE_ROUTE_CORRECT": "YES",
-    "ASK_XIAOSHIGE_ROUTE_CORRECT": "YES",
-    "note": "Both already point at live routes and match the home authority; unchanged."
+    "PAYMENT_CHANGED": "NO",
+    "ENV_CHANGED": "NO",
+    "LEGACY_KEY_DELETED": "NO"
   },
   "requiredTests": [
-    "node utils/cognitionEntry.js (syntax)",
+    "node /tmp/r88c/world-key.test.js",
     "node tests/legacy6q/legacy6q-revival.test.js",
-    "node tests/legacy6q/legacy6q-route-entry.test.js",
-    "node tests/legacy6q/legacy6q-input-visibility.test.js",
-    "node tests/legacy6q/legacy6q-thinking-page.test.js",
-    "node tests/turnaround6q/run.js",
-    "routine: ROUTE_TEST pass=12 fail=0 (home==result target, no legacy primary, fallback, double-tap)"
+    "node tests/turnaround6q/rc8.8-6q-runtime-stabilization.test.js",
+    "node tests/v6/rc8.4-v6-integration.test.js"
   ],
-  "rollbackPlan": "git checkout 4357426 -- pages/home/home.js pages/legacy6q-report/legacy6q-report.js && git rm utils/cognitionEntry.js"
+  "rollbackPlan": "git checkout 80c03b9 -- pages/world-rule-detail/world-rule-detail.js pages/world-rules/world-rules.js"
 }
