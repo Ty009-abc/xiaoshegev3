@@ -34,12 +34,15 @@
       </block>
     </view>
 
-    <!-- ═══ 底部操作区 ═══ -->
+    <!-- ═══ 底部操作区 ═══
+         三层结构：主操作（保存/分享）→ 接下来去哪儿（3入口）→ 次级（重做诊断）
+         卡片内容 / 海报逻辑 / 后端 / 分享能力均不变。 -->
     <view class="bottom-bar">
       <view class="compliance-tips">
         系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出！
       </view>
 
+      <!-- B. 主操作区：一行双列等宽 -->
       <view class="action-buttons">
         <button class="btn-save-poster" bindtap="generatePoster" loading="{{posterGenerating}}">
           {{posterGenerating ? '淬炼中...' : '保存海报'}}
@@ -47,6 +50,26 @@
         <button class="btn-share" open-type="share">分享好友</button>
       </view>
 
+      <!-- C/D. 下一步承接区：标题 + 一行三列入口 -->
+      <view class="next-section">
+        <view class="next-title">接下来去哪儿</view>
+        <view class="next-entries">
+          <view class="entry-card" hover-class="entry-card-hover" hover-stay-time="80" bindtap="goWorldRules">
+            <text class="entry-icon">🌍</text>
+            <text class="entry-label">世界规则</text>
+          </view>
+          <view class="entry-card" hover-class="entry-card-hover" hover-stay-time="80" bindtap="goCognitionDaily">
+            <text class="entry-icon">⚡</text>
+            <text class="entry-label">每日认知</text>
+          </view>
+          <view class="entry-card" hover-class="entry-card-hover" hover-stay-time="80" bindtap="goAskXiaoshige">
+            <text class="entry-icon">💬</text>
+            <text class="entry-label">直接问小事哥</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- E. 次级操作：重做诊断（降权保留） -->
       <button class="btn-retry" bindtap="onRetry">重做诊断</button>
     </view>
   </block>

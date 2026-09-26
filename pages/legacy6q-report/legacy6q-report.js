@@ -94,6 +94,40 @@ Page({
   },
 
   /* ═══════════════════════════════════
+     接下来去哪儿 — 三入口跳转
+     （已有页面直接走现有路由；缺失则兜底不报错）
+     ═══════════════════════════════════ */
+  _safeNavigate (url) {
+    if (!url) return
+    wx.navigateTo({
+      url,
+      fail: (err) => {
+        console.warn('[legacy6q-report] navigateTo 失败:', url, err)
+        wx.showToast({ title: '页面暂不可用', icon: 'none' })
+      },
+    })
+  },
+
+  goWorldRules () {
+    this._safeNavigate('/pages/world-rules/world-rules')
+  },
+
+  goCognitionDaily () {
+    this._safeNavigate('/pages/cognition-daily/cognition-daily')
+  },
+
+  // ai-chat 是 tabBar 页，必须用 switchTab
+  goAskXiaoshige () {
+    wx.switchTab({
+      url: '/pages/ai-chat/ai-chat',
+      fail: (err) => {
+        console.warn('[legacy6q-report] switchTab 失败:', err)
+        this._safeNavigate('/pages/ai-chat/ai-chat')
+      },
+    })
+  },
+
+  /* ═══════════════════════════════════
      海报生成引擎（旧版 API / 750 x 动态高）
      ═══════════════════════════════════ */
   generatePoster () {

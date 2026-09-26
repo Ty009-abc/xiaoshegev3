@@ -23,7 +23,7 @@
     #DCEBFB 100%
   );
   min-height: 100vh;
-  padding-bottom: 60rpx;
+  padding-bottom: 0;
 }
 
 /* 顶部导航接入渐变（仅颜色；标题 / 返回键 / 胶囊位置均不变） */
@@ -122,83 +122,139 @@
 
 /* ═══ 底部操作区（仅配色适配浅色底；尺寸 / 结构不变） ═══ */
 .bottom-bar {
-  padding: 0 32rpx 48rpx;
+  padding: 0 32rpx 32rpx;
 }
 
 .compliance-tips {
   font-size: 22rpx;
   color: #667085;
   text-align: center;
-  padding: 40rpx 0 32rpx;
+  padding: 40rpx 0 24rpx;
 }
 
-/* ── 双按钮行 ── */
+/* ── 主操作区：一行双列等宽（保存海报 / 分享好友） ── */
 .action-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-  padding: 0 16rpx 32rpx;
+  flex-direction: row;
+  gap: 16rpx;
+  padding: 0 0 32rpx;
 }
 
-/* 紫蓝渐变发光：保存海报（深底浅字，浅色页上安全） */
+/* 紫蓝渐变：保存海报（主按钮） */
 .btn-save-poster {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: 96rpx;
-  border-radius: 999rpx;
-  font-size: 30rpx;
-  font-weight: 700;
+  border-radius: 44rpx;
+  font-size: 32rpx;
+  font-weight: 600;
   color: #FFFFFF;
-  background: linear-gradient(135deg, #7B57FF 0%, #5E45E0 50%, #3B82F6 100%);
-  box-shadow: 0 8rpx 32rpx rgba(123, 87, 255, 0.35), 0 0 60rpx rgba(59, 130, 246, 0.15);
+  background: linear-gradient(135deg, #7F56D9 0%, #4F7BFF 100%);
+  border: 2rpx solid rgba(127, 86, 217, 0);
+  box-shadow: 0 8rpx 28rpx rgba(127, 86, 217, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  letter-spacing: 2rpx;
+  padding: 0;
+  line-height: 1;
+  letter-spacing: 1rpx;
 }
 .btn-save-poster::after { border: none; }
 .btn-save-poster:active {
-  opacity: 0.85;
-  transform: scale(0.97);
+  opacity: 0.9;
+  transform: scale(0.98);
 }
 
-/* 玻璃描边：分享好友（浅色页上改用深紫字 + 浅紫底，保证可读性） */
+/* 白色 / 描边：分享好友（次主按钮） */
 .btn-share {
-  width: 100%;
-  height: 88rpx;
-  border-radius: 999rpx;
-  font-size: 28rpx;
+  flex: 1;
+  min-width: 0;
+  height: 96rpx;
+  border-radius: 44rpx;
+  font-size: 32rpx;
   font-weight: 600;
   color: #6B4EE6;
-  background: rgba(123, 87, 255, 0.10);
-  border: 2rpx solid rgba(123, 87, 255, 0.30);
-  backdrop-filter: blur(12rpx);
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(127, 86, 217, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
-  letter-spacing: 2rpx;
+  padding: 0;
+  line-height: 1;
+  letter-spacing: 1rpx;
 }
 .btn-share::after { border: none; }
 .btn-share:active {
-  background: rgba(123, 87, 255, 0.16);
-  border-color: rgba(123, 87, 255, 0.45);
+  background: rgba(127, 86, 217, 0.10);
+  border-color: rgba(127, 86, 217, 0.42);
 }
 
-/* ── 重做诊断 ── */
-.btn-retry {
-  width: 320rpx;
-  height: 80rpx;
-  border-radius: 999rpx;
-  font-size: 26rpx;
+/* ── 接下来去哪儿（下一步承接区） ── */
+.next-section {
+  padding: 0;
+}
+.next-title {
+  font-size: 28rpx;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.92);
+  color: #344054;
+  margin: 32rpx 0 20rpx;
+}
+.next-entries {
+  display: flex;
+  flex-direction: row;
+  gap: 12rpx;
+}
+.entry-card {
+  flex: 1;
+  min-width: 0;
+  height: 140rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(127, 86, 217, 0.10);
+  box-shadow: 0 8rpx 24rpx rgba(16, 24, 40, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
+}
+.entry-card-hover {
+  transform: scale(0.98);
+  opacity: 0.92;
+}
+.entry-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  margin-bottom: 12rpx;
+}
+.entry-label {
+  font-size: 25rpx;
+  font-weight: 500;
+  color: #344054;
+  line-height: 1.25;
+  text-align: center;
+  padding: 0 8rpx;
+}
+
+/* ── 重做诊断：底部次级胶囊按钮（降权保留） ── */
+.btn-retry {
+  width: 260rpx;
+  height: 72rpx;
+  border-radius: 36rpx;
+  font-size: 26rpx;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.70);
   color: #667085;
-  border: 1rpx solid rgba(16, 24, 40, 0.12);
+  border: 1rpx solid rgba(52, 64, 84, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto;
+  margin: 28rpx auto 0;
 }
 .btn-retry::after { border: none; }
+.btn-retry:active {
+  opacity: 0.85;
+}
 
 /* ═══ §10 emergency state ═══ */
 .report-emergency {
