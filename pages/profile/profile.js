@@ -43,7 +43,7 @@ Page({
     } catch (_) {}
   },
 
-  goDaily()       { wx.navigateTo({ url: '/pages/cognition-daily/cognition-daily' }) },
+  goDaily()       { wx.navigateTo({ url: '/pages/cognition-strike-records/cognition-strike-records' }) },
   goRules()       { wx.navigateTo({ url: '/pages/world-rules/world-rules?favorites=1' }) },
   goChallenges()  { wx.switchTab({ url: '/pages/challenge-start/challenge-start' }) },
   goReports()     { wx.navigateTo({ url: '/pages/report-preview/report-preview' }) },

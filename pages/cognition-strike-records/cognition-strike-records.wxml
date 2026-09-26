@@ -1,0 +1,33 @@
+<!-- pages/cognition-strike-records — 认知暴击记录（本地收藏） -->
+<view class="page">
+  <xsg-navbar title="认知暴击记录" light />
+
+  <view class="content">
+    <block wx:if="{{records.length}}">
+      <view class="record-list">
+        <view
+          class="record-card"
+          wx:for="{{records}}"
+          wx:key="id"
+          data-id="{{item.id}}"
+          bindtap="onTapRecord"
+          hover-class="record-card-hover"
+          hover-stay-time="80"
+        >
+          <view class="record-left">
+            <text class="record-title">{{item.title || '今日认知暴击'}}</text>
+            <text class="record-time" wx:if="{{item.timeText}}">{{item.timeText}}</text>
+          </view>
+          <text class="record-arrow">›</text>
+        </view>
+      </view>
+    </block>
+
+    <xsg-empty
+      wx:elif="{{!loading}}"
+      icon="⚡"
+      title="暂无认知暴击记录"
+      desc="在认知暴击页点击「收藏」即可留下记录"
+    />
+  </view>
+</view>
