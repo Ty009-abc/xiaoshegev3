@@ -1,19 +1,51 @@
-<!-- onboarding - 4页引导 -->
+<!-- onboarding - 4页引导（UI 重建 · 文案冻结） -->
 <view class="page">
-  <swiper class="swiper" current="{{current}}" bindchange="onSwiperChange" indicator-dots="{{true}}" indicator-color="rgba(255,255,255,0.2)" indicator-active-color="#0a84ff">
+  <!-- 每页一枚细微径向光晕（随当前页强调色） -->
+  <view class="bg-glow" style="--accent:{{pages[current].color}}"></view>
+
+  <!-- 顶部安全区 / 轻品牌 -->
+  <view class="top-brand">
+    <view class="brand-orb" style="--accent:{{pages[current].color}}"></view>
+  </view>
+
+  <swiper
+    class="swiper"
+    current="{{current}}"
+    duration="320"
+    circular="{{false}}"
+    autoplay="{{false}}"
+    bindchange="onSwiperChange"
+  >
     <swiper-item wx:for="{{pages}}" wx:key="title">
-      <view class="slide" style="--accent:{{item.color}}">
-        <view class="slide-emoji">{{item.emoji}}</view>
-        <view class="slide-title" style="color:{{item.color}}">{{item.title}}</view>
+      <view class="slide {{current === index ? 'is-active' : ''}}" style="--accent:{{item.color}}">
+        <view class="visual">
+          <view class="visual-glow"></view>
+          <view class="visual-shadow"></view>
+          <view class="visual-halo"></view>
+          <view class="visual-emoji">{{item.emoji}}</view>
+        </view>
+        <view class="slide-title">{{item.title}}</view>
         <view class="slide-body">{{item.body}}</view>
       </view>
     </swiper-item>
   </swiper>
 
+  <!-- 固定分页 + 次级/主要 CTA -->
   <view class="footer">
-    <view class="skip" wx:if="{{current < 3}}" bindtap="onStart">跳过</view>
-    <button class="cta-btn" wx:if="{{current === 3}}" bindtap="onStart">
-      开始认知诊断 →
-    </button>
+    <view class="pager">
+      <view
+        wx:for="{{pages}}"
+        wx:key="title"
+        class="dot {{current === index ? 'dot-active' : ''}}"
+        style="--accent:{{item.color}}"
+      ></view>
+    </view>
+
+    <view class="action-slot">
+      <view class="skip" wx:if="{{current < 3}}" bindtap="onSkip">跳过</view>
+      <button class="cta-btn" wx:if="{{current === 3}}" bindtap="onStart">
+        开始认知诊断 →
+      </button>
+    </view>
   </view>
 </view>

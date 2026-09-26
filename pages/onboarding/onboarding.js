@@ -1,5 +1,6 @@
 /**
  * pages/onboarding - 首次引导（4页滑屏）
+ * UI 重建：仅视觉与交互。文案/页数/跳转目标/存储逻辑保持不变。
  */
 Page({
   data: {
@@ -9,25 +10,25 @@ Page({
         emoji: '🤔',
         title: '你为什么翻不了身？',
         body: '不是因为你不够努力。\n\n真正的原因，藏在你理解世界的方式里。',
-        color: '#0a84ff',
+        color: '#2583FF',
       },
       {
         emoji: '🌍',
         title: '你用什么方式理解世界？',
         body: '你的每个决定，都来自你的「世界模型」。\n\n错误模型 → 错误决策 → 错误人生。',
-        color: '#f0ad4e',
+        color: '#F2A93B',
       },
       {
         emoji: '🔍',
         title: '你的世界模型可能是错的',
         body: '大多数人带着出厂设置活了30年。\n\n是时候升级了。',
-        color: '#ff6b6b',
+        color: '#FF5B68',
       },
       {
         emoji: '🚀',
         title: '准备好了吗？',
         body: '30天，重新安装你的操作系统。\n\n不是鸡汤，是认知诊断。',
-        color: '#2ecc71',
+        color: '#31C978',
         isLast: true,
       },
     ],
@@ -35,6 +36,11 @@ Page({
 
   onSwiperChange(e) {
     this.setData({ current: e.detail.current })
+  },
+
+  // 跳过：仅跳到第 4 页（不进入问卷）
+  onSkip() {
+    this.setData({ current: 3 })
   },
 
   onStart() {

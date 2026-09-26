@@ -1,15 +1,242 @@
 @import '../../styles/tokens.wxss';
-/* ═══════════════════════════════════
-   pages/onboarding — 引导页升级
-   ═══════════════════════════════════ */
-.page { height: 100vh; background: var(--bg-primary); display: flex; flex-direction: column; }
-.swiper { flex: 1; }
-.slide { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 var(--sp-64); }
-.slide-emoji { font-size: 120rpx; margin-bottom: var(--sp-48); filter: drop-shadow(0 0 40rpx rgba(245,193,108,0.15)); }
-.slide-title { font-weight: 800; text-align: center; margin-bottom: var(--sp-32); line-height: 1.3; }
-.slide-body { font-size: var(--font-body); color: var(--text-secondary); text-align: center; line-height: 2; white-space: pre-line; }
-.footer { text-align: center; padding: 20rpx var(--sp-48) 80rpx; margin-bottom: 60rpx; }
-.skip { font-size: var(--font-body); color: var(--text-tertiary); padding: var(--sp-24); }
-.cta-btn { width: 100%; height: 96rpx; line-height: 96rpx; border-radius: var(--radius-btn); font-size: 34rpx; font-weight: 700; color: var(--text-inverse); background: linear-gradient(135deg, var(--accent-gold), #D89A3B); border: none; }
-.cta-btn::after { border: none; }
-.cta-btn:active { transform: scale(0.98); }
+/* ═══════════════════════════════════════════════════
+   pages/onboarding — UI 重建（文案冻结 / 仅视觉与交互）
+   SAFE TOP / LIGHT BRAND → CENTER VISUAL → TITLE → BODY
+   → FIXED PAGINATION → SECONDARY / PRIMARY CTA
+   ═══════════════════════════════════════════════════ */
+
+/* ── 安全区归属：本页自行持有底部安全区，抵消 app.wxss 全局 page 的一次应用 ── */
+page {
+  padding-bottom: 0;
+}
+
+/* ── 全局背景：浅色纵向渐变（无暗底） ── */
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    #FFFFFF 0%,
+    #F8FAFD 45%,
+    #F3F7FC 72%,
+    #EEF4FF 100%
+  );
+}
+
+/* ── 每页一枚细微径向光晕（随当前页强调色，仅颜色变化） ── */
+.bg-glow {
+  position: absolute;
+  left: 50%;
+  top: 28%;
+  width: 720rpx;
+  height: 720rpx;
+  margin-left: -360rpx;
+  margin-top: -360rpx;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--accent) 0%, rgba(255, 255, 255, 0) 68%);
+  opacity: 0.08;
+  transition: background 320ms var(--ease-out);
+}
+
+/* ── 安全顶区 / 轻品牌（顶部安全区仅此一处应用） ── */
+.top-brand {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: calc(20rpx + env(safe-area-inset-top)) 48rpx 0;
+}
+.brand-orb {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #FFFFFF 0%, var(--accent) 72%);
+  opacity: 0.9;
+  box-shadow: 0 6rpx 20rpx rgba(16, 24, 40, 0.08);
+  transition: background 320ms var(--ease-out);
+}
+
+/* ── 原生 swiper（左/右滑动） ── */
+.swiper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── 单页：flex 居中，无绝对纵向坐标 ── */
+.slide {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 56rpx;
+  box-sizing: border-box;
+}
+
+/* ── 中央主视觉：柔光 + 半透明圆形承托 + 细微阴影 ── */
+.visual {
+  position: relative;
+  width: 280rpx;
+  height: 280rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 52rpx;
+}
+.visual-halo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0%, rgba(255, 255, 255, 0) 70%);
+  opacity: 0.14;
+}
+.visual-glow {
+  position: absolute;
+  width: 210rpx;
+  height: 210rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0%, rgba(255, 255, 255, 0) 72%);
+  opacity: 0.26;
+  filter: blur(8rpx);
+}
+.visual-shadow {
+  position: absolute;
+  bottom: 6rpx;
+  width: 150rpx;
+  height: 26rpx;
+  border-radius: 50%;
+  background: rgba(16, 24, 40, 0.10);
+  filter: blur(16rpx);
+}
+.visual-emoji {
+  position: relative;
+  font-size: 140rpx;
+  line-height: 1;
+  filter: drop-shadow(0 10rpx 26rpx rgba(16, 24, 40, 0.16));
+}
+
+/* ── 文案排版 ── */
+.slide-title {
+  font-size: 42rpx;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  margin-bottom: 28rpx;
+  color: var(--accent);
+  transition: color 320ms var(--ease-out);
+}
+.slide-body {
+  font-size: 32rpx;
+  line-height: 1.65;
+  color: #101828;
+  text-align: center;
+  white-space: pre-line;
+  max-width: 560rpx;
+}
+
+/* ── 进场动画（仅活跃页）：淡入 + 位移，无回弹无旋转 ── */
+.slide .visual-emoji { opacity: 0; transform: scale(0.92); }
+.slide .slide-title  { opacity: 0; transform: translateY(16rpx); }
+.slide .slide-body   { opacity: 0; transform: translateY(12rpx); }
+
+.slide.is-active .visual-emoji {
+  animation: obEmoji 460ms var(--ease-out) both;
+}
+.slide.is-active .slide-title {
+  animation: obTitle 460ms var(--ease-out) 60ms both;
+}
+.slide.is-active .slide-body {
+  animation: obBody 460ms var(--ease-out) 120ms both;
+}
+
+@keyframes obEmoji {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes obTitle {
+  from { opacity: 0; transform: translateY(16rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes obBody {
+  from { opacity: 0; transform: translateY(12rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 固定底部：分页 + 次级/主要 CTA（底部安全区仅此一处应用） ── */
+.footer {
+  flex: none;
+  padding: 0 48rpx calc(28rpx + env(safe-area-inset-bottom));
+}
+
+/* 分页：跨页固定 */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40rpx;
+  margin-bottom: 28rpx;
+}
+.dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: #D0D5DD;
+  margin: 0 6rpx;
+  transition: width 300ms var(--ease-out), background 300ms var(--ease-out),
+    border-radius 300ms var(--ease-out);
+}
+.dot-active {
+  width: 28rpx;
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: var(--accent);
+}
+
+/* 次级 / 主要 CTA 槽位等高，切换不跳动 */
+.action-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 104rpx;
+}
+
+/* 跳过 — 轻幽灵胶囊（文案冻结） */
+.skip {
+  padding: 16rpx 44rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(16, 24, 40, 0.08);
+  color: #475467;
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.skip:active {
+  background: rgba(16, 24, 40, 0.05);
+}
+
+/* 最终主 CTA — 全宽渐变胶囊（文案冻结） */
+.cta-btn {
+  width: 100%;
+  height: 104rpx;
+  line-height: 104rpx;
+  border-radius: 52rpx;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+  border: none;
+  background: linear-gradient(120deg, #6941C6 0%, #7F56D9 52%, #2583FF 100%);
+  box-shadow: 0 16rpx 36rpx rgba(105, 65, 198, 0.28);
+}
+.cta-btn::after {
+  border: none;
+}
+.cta-btn:active {
+  transform: scale(0.98);
+}

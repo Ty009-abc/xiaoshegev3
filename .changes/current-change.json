@@ -1,37 +1,52 @@
 {
-  "taskId": "RC8.8_AI_CHAT_TOP_LAYOUT_COMPRESSION",
-  "baseCommit": "ad2bafb",
+  "taskId": "RC8.8_ONBOARDING_UI_FINAL_REBUILD",
+  "baseCommit": "548e560",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "On the real device the 「直接问小事哥」 tab page (pages/ai-chat) showed a duplicated/over-tall white header stack that pushed the first chat bubble far down. Root cause: env(safe-area-inset-top) was applied TWICE — once (correctly) by the xsg-navbar component, and again by the .msg-list content container (.msg-list { padding-top: calc(24rpx + env(safe-area-inset-top)) }). On a notched device that stacked a second ~44–59rpx inset between the compact title row and the first bubble. Fix: drop the duplicate inset so the top inset is owned ONCE by the navbar; the chat list keeps a plain 24rpx top gap. Chat bubbles, bottom input bar, tabBar and AI logic are untouched.",
+  "problem": "The onboarding guide (pages/onboarding) still used the dark legacy theme (indicator-dots swiper, dark tokens background, gold CTA) inconsistent with the light gradient product shell. Owner froze all copy and asked for a UI/interaction-only rebuild: native 4-slide swiper with real left/right swipe, light vertical gradient background with one subtle radial glow per page, per-page accent colours (blue/orange/red/green), emoji hero with soft glow + translucent circular support + subtle shadow, 42rpx accent-colour titles / 32rpx #101828 body, a fixed upgraded pagination (8rpx #D0D5DD circles -> 28x8rpx pill in the current page accent), entry animation (emoji fade+scale .92->1, title fade+16rpx rise, body fade+12rpx rise, no bounce/rotation), a light ghost-pill 跳过 that jumps to page 4 (never straight into the questionnaire), and a full-width purple/blue gradient primary CTA 开始认知诊断 → on page 4. No page count, copy, diagnostic logic, questionnaire, backend, AI, navigation destination, payment, or env change.",
   "forensics": {
-    "NATIVE_NAV_USED": false,
-    "CUSTOM_NAV_USED": true,
-    "custom_nav_component": "xsg-navbar title=\"直接问小事哥\" light",
-    "HEADER_HEIGHT": "~76rpx + env(safe-area-inset-top) (unchanged by this task)",
-    "TOP_SPACER_HEIGHT": "0 at top (the 200rpx view is a BOTTOM scroll-clearance spacer)",
-    "CHAT_TOP_PADDING_before": "calc(24rpx + env(safe-area-inset-top))  <-- duplicate inset",
-    "CHAT_TOP_PADDING_after": "24rpx"
+    "NATIVE_SWIPER": true,
+    "swiper_duration": 320,
+    "swiper_circular": false,
+    "swiper_autoplay": false,
+    "swiper_indicator_dots": "REMOVED (replaced by custom fixed pagination)",
+    "PAGE_COUNT": 4,
+    "PAGE_ACCENTS": ["#2583FF", "#F2A93B", "#FF5B68", "#31C978"],
+    "BG_GRADIENT": "linear-gradient(180deg,#FFFFFF 0%,#F8FAFD 45%,#F3F7FC 72%,#EEF4FF 100%)",
+    "SKIP_BEHAVIOUR": "onSkip -> setData({current:3}) (jump to Page4, NOT questionnaire)",
+    "CTA_GRADIENT": "linear-gradient(120deg,#6941C6 0%,#7F56D9 52%,#2583FF 100%)",
+    "CTA_HEIGHT_rpx": 104,
+    "CTA_RADIUS_rpx": 52,
+    "SAFE_AREA_TOP_COUNT": 1,
+    "SAFE_AREA_BOTTOM_COUNT": 1,
+    "SAFE_AREA_NOTE": "app.wxss applies a global page{padding-bottom:env(safe-area-inset-bottom)}; this page nulls it locally (page{padding-bottom:0}) and re-applies it exactly ONCE on .footer, so the inset is not duplicated. The top inset is applied ONCE on .top-brand.",
+    "CAPSULE_AVOIDANCE": "top content starts at calc(20rpx + env(safe-area-inset-top)); no element intrudes into the WeChat capsule zone",
+    "RESPONSIVE": "flex layout only; no absolute fixed vertical coordinates; verified SMALL_IPHONE(320) / STANDARD_IPHONE(390) / PRO_MAX(430)"
   },
   "allowedFiles": [
-    "pages/ai-chat/ai-chat.wxss",
+    "pages/onboarding/onboarding.wxml",
+    "pages/onboarding/onboarding.wxss",
+    "pages/onboarding/onboarding.js",
+    "pages/onboarding/onboarding.json",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
-    "pages/ai-chat/ai-chat.js",
-    "pages/ai-chat/ai-chat.wxml",
-    "pages/ai-chat/ai-chat.json",
-    "components/xsg-navbar/**",
     "cloudfunctions/**",
     "services/**",
     "app.json",
     "app.wxss",
     "styles/**",
-    "pages/legacy6q-report/**",
-    "pages/legacy6q-thinking/**",
-    "pages/turnaround-6q-*/**"
+    "pages/home/**",
+    "pages/splash/**",
+    "pages/turnaround-*/**",
+    "pages/legacy6q-*/**",
+    "components/**"
   ],
   "contractsAffected": [],
-  "safeAreaOwnership": "env(safe-area-inset-top) now applied exactly ONCE on this page (xsg-navbar). env(safe-area-inset-bottom) unchanged on the input bar.",
+  "copyFreeze": {
+    "COPY_DIFF_COUNT": 0,
+    "tool": "/tmp/r88b/copy_snapshot.js (extracts emoji/title/body from onboarding.js + 跳过/开始认知诊断 → from onboarding.wxml, normalizes escapes, diffs)",
+    "frozen": ["emoji x4", "title x4", "body x4", "跳过", "开始认知诊断 →"]
+  },
   "requiredTests": [
     "node tests/legacy6q/legacy6q-revival.test.js",
     "node tests/legacy6q/legacy6q-route-entry.test.js",
@@ -39,6 +54,6 @@
     "node tests/legacy6q/legacy6q-thinking-page.test.js",
     "node tests/turnaround6q/run.js"
   ],
-  "note": "tests/ui/part-b/*.test.js cannot run in this worktree (missing tests/ui/helpers/pageShim) — pre-existing at base commit ad2bafb, unrelated to this CSS-only change.",
-  "rollbackPlan": "git checkout ad2bafb -- pages/ai-chat/ai-chat.wxss"
+  "note": "UI-only. No questionnaire/backend/AI/payment/env change. Navigation destination untouched (onStart still switchTab /pages/home/home with reLaunch fallback; CTA enters the existing questionnaire flow via that same destination).",
+  "rollbackPlan": "git checkout 548e560 -- pages/onboarding/onboarding.wxml pages/onboarding/onboarding.wxss pages/onboarding/onboarding.js pages/onboarding/onboarding.json"
 }
