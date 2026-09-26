@@ -22,6 +22,7 @@
 'use strict'
 
 const app = getApp()
+const cognitionEntry = require('../../utils/cognitionEntry.js')
 const QUESTIONNAIRE_ROUTE = '/pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire'
 const REVEAL_DELAYS = [300, 700, 1100, 1500, 1900]
 
@@ -54,6 +55,9 @@ Page({
       this.setData({ error: '报告数据丢失，请重新推演' })
       return
     }
+    // P0 — mirror the home page's feed-driven `_strikeId` so the「每日认知」entry
+    // opens the SAME 今日认知暴击 as home. Non-blocking: never delays the reveal.
+    try { cognitionEntry.primeStrikeContext(this) } catch (_) {}
     this._progressiveReveal(report)
   },
 
@@ -109,22 +113,18 @@ Page({
   },
 
   goWorldRules () {
-    this._safeNavigate('/pages/world-rules/world-rules')
+    cognitionEntry.openWorldRules()
   },
 
+  // 每日认知 — 复用首页「今日认知暴击」同一导航权限
+  // （旧 /pages/cognition-daily 已降级为兜底，不再作为主路径）
   goCognitionDaily () {
-    this._safeNavigate('/pages/cognition-daily/cognition-daily')
+    cognitionEntry.openDailyCognition(this)
   },
 
   // ai-chat 是 tabBar 页，必须用 switchTab
   goAskXiaoshige () {
-    wx.switchTab({
-      url: '/pages/ai-chat/ai-chat',
-      fail: (err) => {
-        console.warn('[legacy6q-report] switchTab 失败:', err)
-        this._safeNavigate('/pages/ai-chat/ai-chat')
-      },
-    })
+    cognitionEntry.openAskXiaoshige()
   },
 
   /* ═══════════════════════════════════

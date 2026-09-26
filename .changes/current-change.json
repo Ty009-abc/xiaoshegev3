@@ -1,30 +1,29 @@
 {
-  "taskId": "RC8.8_ONBOARDING_VISUAL_POLISH_FINAL",
-  "baseCommit": "4f57174",
+  "taskId": "RC8.8_RESULT_FOOTER_DAILY_COGNITION_ROUTE_P0",
+  "baseCommit": "4357426",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Final visual polish (CSS-only), no copy/swiper/interaction/animation changes: Page2 orbit arcs scaled down ~12% (520/640x430 -> 458/563x378) and opacity lowered 0.07->0.05 so they recede into the background; emoji support disk size unified on all 4 pages (single .visual-halo rule = 188rpx, no per-page override); title baseline + body start unified on all 4 pages (verified identical geometry: visual.t=252.9, title.t=417.2, body.t=456.9 on all pages); skip button width/position unified across P1-P3 with a lighter white block (bg rgba(255,255,255,.72)->.58, border rgba(16,24,40,.08)->.05); Page4 CTA shadow reduced ~15% (rgba(105,65,198,.18)->.15); top brand contrast raised (#98A2B3 -> #7F8A9A, no weight/size change); per-page main-visual vertical position unified (flex-centered, identical across pages); animation untouched.",
+  "problem": "Routing-only P0. The result-page footer entry「每日认知」opened the OLD /pages/cognition-daily/cognition-daily experience. Expected: open the SAME latest「今日认知暴击」experience that the current home page uses. No UI / copy / backend change; no new cognition page.",
   "forensics": {
-    "ROOT_CAUSE": "ANIMATION_VISIBILITY_STATE",
-    "BEFORE_base": ".slide .visual-emoji{opacity:0;transform:scale(.92)} / .slide .slide-title{opacity:0;transform:translateY(16rpx)} / .slide .slide-body{opacity:0;transform:translateY(12rpx)}; visibility gated on .slide.is-active animation ... both with var(--ease-out)",
-    "AFTER_base": ".slide .visual-emoji, .slide .slide-title, .slide .slide-body { opacity:1; visibility:visible; transform:none }  (safe default; animation only augments)",
-    "var_in_animation": "var(--ease-out) -> explicit ease-out on all animation/transition declarations in this page",
-    "z_index_contract": "bg-glow/deco 0 (pointer-events:none) < visual-emoji 2 < title/body 3 < footer 4",
-    "evidence": "CDP probe: animations running -> opacity 1; animations stripped -> opacity 0 (BEFORE fix) / opacity 1 (AFTER fix). Animation-stripped screenshots show real ink on all 4 pages after fix.",
-    "fail_safe": "Even if the is-active binding or the animation never fires, base state keeps content visible.",
-    "ORBIT_P2": "458rpx/563x378rpx, opacity 0.05",
-    "BRAND_COLOR": "#7F8A9A",
-    "SKIP_BG": "rgba(255,255,255,0.58), border rgba(16,24,40,0.05)",
-    "CTA_SHADOW": "rgba(105,65,198,0.15)",
-    "UNIFIED_GEOMETRY_STD": {
-      "visual.t": 252.9,
-      "visual.cy": 325.7,
-      "title.t": 417.2,
-      "body.t": 456.9,
-      "pages": "p1=p2=p3=p4"
-    }
+    "RESULT_ENTRY_HANDLER": "goCognitionDaily",
+    "RESULT_CURRENT_ROUTE": "/pages/cognition-daily/cognition-daily",
+    "RESULT_CURRENT_PARAMS": "none",
+    "RESULT_TARGET_VERSION": "OLD legacy daily-cognition page (deprecated primary path)",
+    "OLD_ROUTE": "/pages/cognition-daily/cognition-daily",
+    "HOME_COGNITION_HANDLER": "onStrikeTap (pages/home/home.js)",
+    "HOME_COGNITION_ROUTE": "/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail",
+    "HOME_COGNITION_PARAMS": "?sid=<personalizedId> when feed personalized, else ?id=<today's date-anchored id>",
+    "HOME_COGNITION_MODE": "E. standalone page in subpackage subpkg-ai (navigateTo)",
+    "HOME_COGNITION_SOURCE_FILE": "pages/home/home.js",
+    "ROOT_CAUSE": "RESULT_ENTRY_ROUTE_DRIFT — the rebuilt footer hard-coded the legacy /pages/cognition-daily route while the current homepage authority is /subpkg-ai/cognitive-shock-detail. The two pages had independent hard-coded routes, so they drifted.",
+    "FIX": "Extract ONE shared navigation authority utils/cognitionEntry.js (openCognitionStrike/openDailyCognition/openWorldRules/openAskXiaoshige); route BOTH home and the result page through it. Result「每日认知」now targets the exact home authority; old cognition-daily is DEMOTED to a resilient fallback only.",
+    "HOME_RESULT_NAV_AUTHORITY_SHARED": "YES",
+    "DUPLICATE_ROUTES_CREATED": 0,
+    "double_tap_guard": "per-url 600ms lock in the shared helper (no duplicate navigation)"
   },
   "allowedFiles": [
-    "pages/onboarding/onboarding.wxss",
+    "pages/legacy6q-report/legacy6q-report.js",
+    "pages/home/home.js",
+    "utils/cognitionEntry.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
@@ -33,40 +32,38 @@
     "app.json",
     "app.wxss",
     "styles/**",
-    "pages/home/**",
-    "pages/splash/**",
-    "pages/turnaround-*/**",
-    "pages/legacy6q-*/**",
+    "pages/onboarding/**",
+    "pages/cognition-daily/**",
     "components/**"
   ],
-  "contractsAffected": [],
+  "contractsAffected": [
+    "utils/cognitionEntry.js (new shared nav authority)",
+    "pages/home onStrikeTap / goWorldRules (delegate to shared authority)",
+    "pages/legacy6q-report goCognitionDaily / goWorldRules / goAskXiaoshige (delegate to shared authority)"
+  ],
   "copyFreeze": {
     "COPY_DIFF_COUNT": 0,
-    "frozen": [
-      "emoji x4",
-      "title x4",
-      "body x4",
-      "跳过",
-      "开始认知诊断 →"
-    ],
-    "note": "对比基线 548e560（改动前）。本页无文案改动。"
+    "note": "No visible copy changed. Routing only."
   },
   "noUnintendedChange": {
-    "LAYOUT_DIFF": "none (content center 44.5-45.3%, unchanged)",
-    "COLOR_DIFF": "none (per-page glow + accents unchanged; P4 ratio 1.17 unchanged)",
-    "SWIPER": "unchanged (current/duration/circular/autoplay untouched)",
-    "CTA": "unchanged",
-    "SPACING": "unchanged",
-    "BACKEND": "unchanged"
+    "UI_CHANGED": "NO",
+    "COPY_CHANGED": "NO",
+    "BACKEND_CHANGED": "NO",
+    "OLD_COGNITION_PAGE_REMOVED": "NO (kept as fallback)"
+  },
+  "otherEntriesCheck": {
+    "WORLD_RULE_ROUTE_CORRECT": "YES",
+    "ASK_XIAOSHIGE_ROUTE_CORRECT": "YES",
+    "note": "Both already point at live routes and match the home authority; unchanged."
   },
   "requiredTests": [
-    "node --test tests/ui/part-b/onboarding-content-visibility.test.js",
+    "node utils/cognitionEntry.js (syntax)",
     "node tests/legacy6q/legacy6q-revival.test.js",
     "node tests/legacy6q/legacy6q-route-entry.test.js",
     "node tests/legacy6q/legacy6q-input-visibility.test.js",
     "node tests/legacy6q/legacy6q-thinking-page.test.js",
-    "node tests/turnaround6q/run.js"
+    "node tests/turnaround6q/run.js",
+    "routine: ROUTE_TEST pass=12 fail=0 (home==result target, no legacy primary, fallback, double-tap)"
   ],
-  "note": "Visibility fix only. No new dependencies (test uses node:test/node:assert/fs/path). Failed-command forensics: the earlier ad-hoc NODE_PATH to ~/xiaoshige-v3/node_modules was for the CI QR upload (active worktree has no node_modules), not required by these tests.",
-  "rollbackPlan": "git checkout ce5d189 -- pages/onboarding/onboarding.wxss"
+  "rollbackPlan": "git checkout 4357426 -- pages/home/home.js pages/legacy6q-report/legacy6q-report.js && git rm utils/cognitionEntry.js"
 }

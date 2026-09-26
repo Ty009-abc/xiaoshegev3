@@ -5,6 +5,7 @@ const analytics = require('../../utils/analytics.js')
 const { getTodayStrike } = require('../../utils/cognitionStrike.js')
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
 const personalizedContent = require('../../services/personalizedContentService.js')
+const cognitionEntry = require('../../utils/cognitionEntry.js')
 const app = getApp()
 
 // R78.2 — concise strike preview (visible product text only; never ids/codes).
@@ -82,7 +83,7 @@ Page({
   },
 
   goChallenge()   { analytics.track('challenge_start'); wx.switchTab({ url:'/pages/challenge-start/challenge-start' }) },
-  goWorldRules()  { wx.navigateTo({ url:'/pages/world-rules/world-rules' }) },
+  goWorldRules()  { cognitionEntry.openWorldRules() },
   goMembership()  { analytics.track('membership_visit'); wx.navigateTo({ url:'/pages/membership/membership' }) },
   goProfile()     { wx.switchTab({ url:'/pages/profile/profile' }) },
   goReports()     { wx.navigateTo({ url:'/pages/report-preview/report-preview' }) },
@@ -104,24 +105,13 @@ Page({
   },
 
   // ════════════════════════════════════════
-  //  每日认知暴击 — navigateTo 独立详情页
+  //  每日认知暴击 — 共享导航权限（utils/cognitionEntry.js）
+  //  结果页「每日认知」复用同一 handler，杜繝路由再次分叉
   // ════════════════════════════════════════
 
   onStrikeTap() {
     analytics.track('strike_tap')
-    const personalizedId = this.data._strikeId || ''
-    const strike = getTodayStrike()
-    const dateId = strike.id || ''
-    // R78.2 §5 — when personalized, carry the canonical pool id so the detail
-    // page renders the SAME recommended strike (resolved locally, no 2nd call).
-    const url = personalizedId
-      ? `/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail?sid=${personalizedId}`
-      : `/subpkg-ai/cognitive-shock-detail/cognitive-shock-detail?id=${dateId}`
-    wx.navigateTo({ url })
-    // R78.2 §7/§14 — SEEN = explicit open. Fire-and-forget; NEVER blocks nav.
-    if (personalizedId) {
-      try { personalizedContent.markSeen('strike', personalizedId) } catch (_) {}
-    }
+    cognitionEntry.openCognitionStrike(this)
   },
 
   // ═══ 其他 ═══
