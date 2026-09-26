@@ -4,6 +4,7 @@
     "pages/onboarding/onboarding",
     "pages/home/home",
     "pages/challenge-start/challenge-start",
+    "pages/challenge-records/challenge-records",
     "pages/challenge-play/challenge-play",
     "pages/challenge-result/challenge-result",
     "pages/ai-analysis/ai-analysis",

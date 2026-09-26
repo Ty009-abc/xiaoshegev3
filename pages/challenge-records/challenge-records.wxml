@@ -1,0 +1,36 @@
+<!-- pages/challenge-records — 挑战记录列表 -->
+<view class="page">
+  <xsg-navbar title="挑战记录" light />
+
+  <view class="content">
+    <block wx:if="{{records.length}}">
+      <view class="record-list">
+        <view
+          class="record-card"
+          wx:for="{{records}}"
+          wx:key="recordId"
+          data-id="{{item.recordId}}"
+          bindtap="onTapRecord"
+          hover-class="record-card-hover"
+          hover-stay-time="80"
+        >
+          <view class="record-top">
+            <text class="record-date">{{item.dateText}}</text>
+            <text class="record-status {{item.statusCls}}">{{item.statusText}}</text>
+          </view>
+          <view class="record-bottom">
+            <text class="record-day" wx:if="{{item.dayText}}">{{item.dayText}}</text>
+            <text class="record-type" wx:if="{{item.typeText}}">· {{item.typeText}}</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <xsg-empty
+      wx:elif="{{!loading}}"
+      icon="🎯"
+      title="暂无挑战记录"
+      desc="完成一次认知挑战后会出现在这里"
+    />
+  </view>
+</view>

@@ -45,7 +45,7 @@ Page({
 
   goDaily()       { wx.navigateTo({ url: '/pages/cognition-strike-records/cognition-strike-records' }) },
   goRules()       { wx.navigateTo({ url: '/pages/world-rules/world-rules?favorites=1' }) },
-  goChallenges()  { wx.switchTab({ url: '/pages/challenge-start/challenge-start' }) },
+  goChallenges()  { wx.navigateTo({ url: '/pages/challenge-records/challenge-records' }) },
   goReports()     { wx.navigateTo({ url: '/pages/report-preview/report-preview' }) },
   goMembership()  { wx.navigateTo({ url: '/pages/membership/membership' }) },
   goInvite()      { wx.navigateTo({ url: '/pages/invite/invite' }) },

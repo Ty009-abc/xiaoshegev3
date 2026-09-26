@@ -1,19 +1,20 @@
 {
-  "taskId": "RC8.8_MY_PAGE_FUNCTION_RECOVERY_B_STRIKE_RECORDS",
-  "baseCommit": "54181c6",
+  "taskId": "RC8.8_MY_PAGE_FUNCTION_RECOVERY_C_CHALLENGE_RECORDS",
+  "baseCommit": "d523b0d",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "「认知暴击记录」in 我的 routed to the OLD /pages/cognition-daily (a daily-insight page, not a strike record list), and the strike collection written to strike_collection had no reader.",
+  "problem": "「挑战记录」opened /pages/challenge-start (the START page), not a records list. challenge_records is valid and actively written but had no list surface.",
   "forensics": {
-    "PROFILE_ROUTE_BEFORE": "/pages/cognition-daily/cognition-daily",
-    "PROFILE_ROUTE_AFTER": "/pages/cognition-strike-records/cognition-strike-records",
-    "CANONICAL_KEY": "strike_collection",
-    "LEGACY_KEY": "strikecollection (compat migration only)",
-    "SCHEMA": "Array<{ id, title, time }>",
-    "PRODUCT_MEANING": "user-saved/favorited cognition strikes (NOT view history; no view tracking added)",
-    "NEW_PAGE": "pages/cognition-strike-records/cognition-strike-records.{js,wxml,wxss,json}"
+    "PROFILE_ROUTE_BEFORE": "/pages/challenge-start/challenge-start (switchTab)",
+    "PROFILE_ROUTE_AFTER": "/pages/challenge-records/challenge-records (navigateTo)",
+    "DATA_SOURCE": "challenge_records where openid (client-direct read, same as challenge-ranking)",
+    "SCHEMA_FIELDS": "recordId, status(processing|finished), currentDay, startedAt/createdAt, finalType",
+    "TAP_TARGET": "/pages/challenge-result/challenge-result?recordId=",
+    "CHALLENGE_START_PRESERVED": "YES (tabBar page; home/payment-result callers intact)",
+    "COUNT_SOURCE": "challenge_records count (unchanged)",
+    "NEW_PAGE": "pages/challenge-records/challenge-records.{js,wxml,wxss,json}"
   },
   "allowedFiles": [
-    "pages/cognition-strike-records/**",
+    "pages/challenge-records/**",
     "pages/profile/profile.js",
     "app.json",
     ".changes/current-change.json"
@@ -23,29 +24,30 @@
     "services/**",
     "app.wxss",
     "styles/**",
+    "pages/challenge-start/**",
+    "pages/challenge-play/**",
+    "pages/challenge-result/**",
     "pages/turnaround-*/**",
-    "pages/legacy6q-report/**",
-    "pages/home/**",
-    "subpkg-ai/**"
+    "pages/legacy6q-report/**"
   ],
   "contractsAffected": [
-    "profile goDaily route",
+    "profile goChallenges route",
     "new page registration (app.json)"
   ],
-  "copyFreeze": { "COPY_DIFF_COUNT": 0, "note": "label 认知暴击记录 unchanged; only empty-state text added on the new page" },
+  "copyFreeze": { "COPY_DIFF_COUNT": 0, "note": "label 挑战记录 unchanged; empty-state text added on the new page" },
   "noUnintendedChange": {
     "UI_CHANGED": "NO (profile UI untouched)",
     "BACKEND_CHANGED": "NO",
     "PAYMENT_CHANGED": "NO",
     "ENV_CHANGED": "NO",
-    "LEGACY_DAILY_ROUTE_REMOVED_FROM_PROFILE": "YES",
-    "LEGACY_KEY_DELETED": "NO"
+    "CHALLENGE_START_ROUTE_PRESERVED": "YES",
+    "LEGACY_DATA_DELETED": "NO"
   },
   "requiredTests": [
-    "node /tmp/r88c/strike-records.test.js",
+    "node /tmp/r88c/challenge-records.test.js",
     "node tests/legacy6q/legacy6q-revival.test.js",
     "node tests/turnaround6q/rc8.8-6q-runtime-stabilization.test.js",
     "node tests/v6/rc8.4-v6-integration.test.js"
   ],
-  "rollbackPlan": "git checkout 54181c6 -- pages/profile/profile.js app.json && rm -rf pages/cognition-strike-records"
+  "rollbackPlan": "git checkout d523b0d -- pages/profile/profile.js app.json && rm -rf pages/challenge-records"
 }
