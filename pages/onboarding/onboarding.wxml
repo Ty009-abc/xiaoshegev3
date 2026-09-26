@@ -1,11 +1,21 @@
-<!-- onboarding - 4页引导（UI 重建 · 文案冻结） -->
-<view class="page">
-  <!-- 每页一枚细微径向光晕（随当前页强调色） -->
-  <view class="bg-glow" style="--accent:{{pages[current].color}}"></view>
+<!-- onboarding - 4页引导（UI 规格对齐 · 文案冻结） -->
+<view class="page page-p{{current + 1}}">
+  <!-- 每页一层极淡径向光晕（仅换 glow 色，不换底色） -->
+  <view class="bg-glow"></view>
 
-  <!-- 顶部安全区 / 轻品牌 -->
+  <!-- 页面专属极淡装饰（P2 轨道弧 / P3 放大镜晕染） -->
+  <view class="deco deco-2">
+    <view class="orbit arc-a"></view>
+    <view class="orbit arc-b"></view>
+  </view>
+  <view class="deco deco-3">
+    <view class="lens-tint"></view>
+  </view>
+
+  <!-- 顶部安全区 / 极轻品牌（顶部安全区仅此一处应用；右侧 180rpx 胶囊避让） -->
   <view class="top-brand">
-    <view class="brand-orb" style="--accent:{{pages[current].color}}"></view>
+    <view class="brand-symbol"></view>
+    <text class="brand-name">珠澳小事哥</text>
   </view>
 
   <swiper
@@ -20,17 +30,19 @@
       <view class="slide {{current === index ? 'is-active' : ''}}" style="--accent:{{item.color}}">
         <view class="visual">
           <view class="visual-glow"></view>
-          <view class="visual-shadow"></view>
           <view class="visual-halo"></view>
+          <view class="visual-shadow"></view>
           <view class="visual-emoji">{{item.emoji}}</view>
         </view>
         <view class="slide-title">{{item.title}}</view>
-        <view class="slide-body">{{item.body}}</view>
+        <view class="slide-body">
+          <view class="para" wx:for="{{item.paras}}" wx:for-item="para" wx:key="*this">{{para}}</view>
+        </view>
       </view>
     </swiper-item>
   </swiper>
 
-  <!-- 固定分页 + 次级/主要 CTA -->
+  <!-- 固定分页 + 次级/主要 CTA（底部操作区整体入场淡入） -->
   <view class="footer">
     <view class="pager">
       <view

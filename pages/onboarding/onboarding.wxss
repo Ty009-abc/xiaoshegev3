@@ -1,8 +1,7 @@
 @import '../../styles/tokens.wxss';
 /* ═══════════════════════════════════════════════════
-   pages/onboarding — UI 重建（文案冻结 / 仅视觉与交互）
-   SAFE TOP / LIGHT BRAND → CENTER VISUAL → TITLE → BODY
-   → FIXED PAGINATION → SECONDARY / PRIMARY CTA
+   pages/onboarding — UI 规格对齐（文案冻结 / 仅视觉与交互）
+   顶部品牌 → 主视觉+文案 → 分页器+跳过/CTA
    ═══════════════════════════════════════════════════ */
 
 /* ── 安全区归属：本页自行持有底部安全区，抵消 app.wxss 全局 page 的一次应用 ── */
@@ -10,13 +9,14 @@ page {
   padding-bottom: 0;
 }
 
-/* ── 全局背景：浅色纵向渐变（无暗底） ── */
+/* ── 全局背景：浅色纵向渐变（无暗底，非纯白） ── */
 .page {
   height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
   background: linear-gradient(
     180deg,
     #FFFFFF 0%,
@@ -26,37 +26,102 @@ page {
   );
 }
 
-/* ── 每页一枚细微径向光晕（随当前页强调色，仅颜色变化） ── */
+/* ── 每页一层极淡径向光晕：只换 glow 色，不换底色 ── */
 .bg-glow {
   position: absolute;
-  left: 50%;
-  top: 28%;
-  width: 720rpx;
-  height: 720rpx;
-  margin-left: -360rpx;
-  margin-top: -360rpx;
-  border-radius: 50%;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   pointer-events: none;
-  background: radial-gradient(circle, var(--accent) 0%, rgba(255, 255, 255, 0) 68%);
-  opacity: 0.08;
-  transition: background 320ms var(--ease-out);
+}
+.page-p1 .bg-glow {
+  background: radial-gradient(circle at 50% 42%, rgba(64, 145, 255, 0.10) 0%, rgba(64, 145, 255, 0) 60%);
+}
+.page-p2 .bg-glow {
+  background: radial-gradient(circle at 50% 42%, rgba(255, 178, 71, 0.11) 0%, rgba(255, 178, 71, 0) 60%);
+}
+.page-p3 .bg-glow {
+  background: radial-gradient(circle at 50% 42%, rgba(255, 91, 108, 0.09) 0%, rgba(255, 91, 108, 0) 60%);
+}
+.page-p4 .bg-glow {
+  background: radial-gradient(circle at 50% 42%, rgba(42, 201, 116, 0.10) 0%, rgba(42, 201, 116, 0) 60%);
 }
 
-/* ── 安全顶区 / 轻品牌（顶部安全区仅此一处应用） ── */
+/* ── 页面专属极淡装饰（默认隐藏，仅对应页显示） ── */
+.deco {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 320ms var(--ease-out);
+}
+.page-p2 .deco-2,
+.page-p3 .deco-3 {
+  opacity: 1;
+}
+/* P2 — 两条极淡轨道圆弧（强化“世界模型”，无地图/网格） */
+.orbit {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  border-radius: 50%;
+  border: 2rpx solid #F2A93B;
+  opacity: 0.07;
+}
+.arc-a {
+  width: 520rpx;
+  height: 520rpx;
+  margin-left: -260rpx;
+  margin-top: -260rpx;
+}
+.arc-b {
+  width: 640rpx;
+  height: 430rpx;
+  margin-left: -320rpx;
+  margin-top: -215rpx;
+  transform: rotate(-18deg);
+}
+/* P3 — 放大镜后一圈极淡红色晕染 */
+.lens-tint {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 340rpx;
+  height: 340rpx;
+  margin-left: -170rpx;
+  margin-top: -170rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 91, 108, 0.16) 0%, rgba(255, 91, 108, 0) 70%);
+  opacity: 0.09;
+}
+
+/* ── 顶部安全区 / 极轻品牌（顶部安全区仅此一处；右侧 228rpx 胶囊避让） ── */
 .top-brand {
   flex: none;
   display: flex;
   align-items: center;
-  padding: calc(20rpx + env(safe-area-inset-top)) 48rpx 0;
-}
-.brand-orb {
-  width: 56rpx;
   height: 56rpx;
+  box-sizing: content-box;
+  padding: calc(32rpx + env(safe-area-inset-top)) 228rpx 0 48rpx;
+}
+.brand-symbol {
+  width: 30rpx;
+  height: 30rpx;
   border-radius: 50%;
-  background: radial-gradient(circle at 34% 30%, #FFFFFF 0%, var(--accent) 72%);
-  opacity: 0.9;
-  box-shadow: 0 6rpx 20rpx rgba(16, 24, 40, 0.08);
+  margin-right: 12rpx;
+  background: radial-gradient(circle at 34% 30%, #FFFFFF 0%, var(--accent) 78%);
+  box-shadow: 0 4rpx 14rpx rgba(16, 24, 40, 0.08);
   transition: background 320ms var(--ease-out);
+}
+.brand-name {
+  font-size: 26rpx;
+  font-weight: 500;
+  color: #98A2B3;
+  letter-spacing: 1rpx;
 }
 
 /* ── 原生 swiper（左/右滑动） ── */
@@ -65,18 +130,19 @@ page {
   min-height: 0;
 }
 
-/* ── 单页：flex 居中，无绝对纵向坐标 ── */
+/* ── 单页：flex 居中（视觉中心略高于屏幕正中） ── */
 .slide {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 56rpx;
+  padding: 0 48rpx;
   box-sizing: border-box;
+  transform: translateY(-1vh);
 }
 
-/* ── 中央主视觉：柔光 + 半透明圆形承托 + 细微阴影 ── */
+/* ── 中央主视觉：外层柔光 + 中层半透明圆盘 + 内层 emoji ── */
 .visual {
   position: relative;
   width: 280rpx;
@@ -84,35 +150,41 @@ page {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 52rpx;
-}
-.visual-halo {
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle, var(--accent) 0%, rgba(255, 255, 255, 0) 70%);
-  opacity: 0.14;
+  margin-bottom: 36rpx;
 }
 .visual-glow {
   position: absolute;
-  width: 210rpx;
-  height: 210rpx;
+  width: 280rpx;
+  height: 280rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, var(--accent) 0%, rgba(255, 255, 255, 0) 72%);
-  opacity: 0.26;
-  filter: blur(8rpx);
+  filter: blur(18rpx);
+  opacity: 0.45;
+  background: radial-gradient(circle, var(--accent) 0%, rgba(255, 255, 255, 0) 70%);
+}
+/* 收束页光晕略强 ~15% */
+.page-p4 .visual-glow {
+  opacity: 0.52;
+}
+.visual-halo {
+  position: absolute;
+  width: 188rpx;
+  height: 188rpx;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.34) 72%,
+    rgba(255, 255, 255, 0) 100%
+  );
 }
 .visual-shadow {
   position: absolute;
-  bottom: 6rpx;
-  width: 150rpx;
-  height: 26rpx;
+  bottom: 4rpx;
+  width: 152rpx;
+  height: 24rpx;
   border-radius: 50%;
-  background: rgba(16, 24, 40, 0.10);
-  filter: blur(16rpx);
+  background: rgba(16, 24, 40, 0.16);
+  filter: blur(14rpx);
 }
 .visual-emoji {
   position: relative;
@@ -121,38 +193,41 @@ page {
   filter: drop-shadow(0 10rpx 26rpx rgba(16, 24, 40, 0.16));
 }
 
-/* ── 文案排版 ── */
+/* ── 字体层级 ── */
 .slide-title {
   font-size: 42rpx;
-  font-weight: 700;
-  line-height: 1.35;
+  font-weight: 600;
+  line-height: 1.25;
   text-align: center;
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
   color: var(--accent);
   transition: color 320ms var(--ease-out);
 }
 .slide-body {
+  width: 100%;
+  max-width: 600rpx;
+  text-align: center;
+  color: #101828;
   font-size: 32rpx;
   line-height: 1.65;
-  color: #101828;
-  text-align: center;
-  white-space: pre-line;
-  max-width: 560rpx;
+}
+.para {
+  display: block;
 }
 
-/* ── 进场动画（仅活跃页）：淡入 + 位移，无回弹无旋转 ── */
+/* ── 入场动画（仅活跃页，每页播放一次；平静、稳定、克制） ── */
 .slide .visual-emoji { opacity: 0; transform: scale(0.92); }
 .slide .slide-title  { opacity: 0; transform: translateY(16rpx); }
 .slide .slide-body   { opacity: 0; transform: translateY(12rpx); }
 
 .slide.is-active .visual-emoji {
-  animation: obEmoji 460ms var(--ease-out) both;
+  animation: obEmoji 280ms var(--ease-out) 0ms both;
 }
 .slide.is-active .slide-title {
-  animation: obTitle 460ms var(--ease-out) 60ms both;
+  animation: obTitle 260ms var(--ease-out) 80ms both;
 }
 .slide.is-active .slide-body {
-  animation: obBody 460ms var(--ease-out) 120ms both;
+  animation: obBody 280ms var(--ease-out) 160ms both;
 }
 
 @keyframes obEmoji {
@@ -171,16 +246,21 @@ page {
 /* ── 固定底部：分页 + 次级/主要 CTA（底部安全区仅此一处应用） ── */
 .footer {
   flex: none;
-  padding: 0 48rpx calc(28rpx + env(safe-area-inset-bottom));
+  padding: 0 48rpx calc(32rpx + env(safe-area-inset-bottom));
+  animation: obFooter 220ms var(--ease-out) 220ms both;
+}
+@keyframes obFooter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-/* 分页：跨页固定 */
+/* 分页器：跨页固定 */
 .pager {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 40rpx;
-  margin-bottom: 28rpx;
+  margin-bottom: 32rpx;
 }
 .dot {
   width: 8rpx;
@@ -208,17 +288,24 @@ page {
 
 /* 跳过 — 轻幽灵胶囊（文案冻结） */
 .skip {
-  padding: 16rpx 44rpx;
-  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  min-width: 140rpx;
+  box-sizing: border-box;
+  padding: 0 32rpx;
+  border-radius: 36rpx;
   background: rgba(255, 255, 255, 0.72);
   border: 1rpx solid rgba(16, 24, 40, 0.08);
-  color: #475467;
+  color: #344054;
   font-size: 30rpx;
   font-weight: 500;
-  line-height: 1.2;
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
 }
 .skip:active {
-  background: rgba(16, 24, 40, 0.05);
+  transform: scale(0.98);
+  opacity: 0.75;
 }
 
 /* 最终主 CTA — 全宽渐变胶囊（文案冻结） */
@@ -228,15 +315,15 @@ page {
   line-height: 104rpx;
   border-radius: 52rpx;
   font-size: 34rpx;
-  font-weight: 700;
+  font-weight: 600;
   color: #FFFFFF;
   border: none;
-  background: linear-gradient(120deg, #6941C6 0%, #7F56D9 52%, #2583FF 100%);
-  box-shadow: 0 16rpx 36rpx rgba(105, 65, 198, 0.28);
+  background: linear-gradient(135deg, #6941C6 0%, #7F56D9 48%, #2583FF 100%);
+  box-shadow: 0 16rpx 36rpx rgba(105, 65, 198, 0.18);
 }
 .cta-btn::after {
   border: none;
 }
 .cta-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.985);
 }

@@ -1,26 +1,34 @@
 {
-  "taskId": "RC8.8_ONBOARDING_UI_FINAL_REBUILD",
-  "baseCommit": "548e560",
+  "taskId": "RC8.8_ONBOARDING_UI_SPEC_ALIGNMENT",
+  "baseCommit": "0589b18",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "The onboarding guide (pages/onboarding) still used the dark legacy theme (indicator-dots swiper, dark tokens background, gold CTA) inconsistent with the light gradient product shell. Owner froze all copy and asked for a UI/interaction-only rebuild: native 4-slide swiper with real left/right swipe, light vertical gradient background with one subtle radial glow per page, per-page accent colours (blue/orange/red/green), emoji hero with soft glow + translucent circular support + subtle shadow, 42rpx accent-colour titles / 32rpx #101828 body, a fixed upgraded pagination (8rpx #D0D5DD circles -> 28x8rpx pill in the current page accent), entry animation (emoji fade+scale .92->1, title fade+16rpx rise, body fade+12rpx rise, no bounce/rotation), a light ghost-pill 跳过 that jumps to page 4 (never straight into the questionnaire), and a full-width purple/blue gradient primary CTA 开始认知诊断 → on page 4. No page count, copy, diagnostic logic, questionnaire, backend, AI, navigation destination, payment, or env change.",
+  "problem": "The first onboarding rebuild (0589b18) matched the original task sheet but not every precise value in the owner's final spec 《RC8.8 开屏展示页 UI 重构最终规格》. This pass aligns the remaining items: a light brand line (珠澳小事哥) in the top zone with capsule clearance; per-page absolute radial glow colours (P1 rgba(64,145,255,.10) / P2 rgba(255,178,71,.11) / P3 rgba(255,91,108,.09) / P4 rgba(42,201,116,.10)); a Page-2 pair of very faint orbit arcs (opacity<0.08, no map/grid) and a Page-3 faint red lens tint behind the magnifier; a Page-4 glow ~15% stronger than the other pages; spec spacing (emoji->title 36rpx, title->body 24rpx, body paragraphs as two blocks, content width ~600rpx, title line-height 1.25); exact animation timings (emoji 280ms/0ms, title 260ms/80ms, body 280ms/160ms) plus a bottom action-area fade-in (220ms/220ms); skip pill exactly 72rpx high / min 140rpx / radius 36rpx / colour #344054 with press scale(0.98)+opacity(0.75); CTA gradient 135deg / #7F56D9 at 48% / weight 600 / shadow 0.18 / press scale(0.985); bottom paddings 28rpx (pager->action) and 32rpx (action->safe area); and light haptic feedback (wx.vibrateShort type:'light') on manual swipe and the final CTA. Copy, page count, navigation destination, questionnaire, backend, AI, payment and env are unchanged.",
   "forensics": {
-    "NATIVE_SWIPER": true,
-    "swiper_duration": 320,
-    "swiper_circular": false,
-    "swiper_autoplay": false,
-    "swiper_indicator_dots": "REMOVED (replaced by custom fixed pagination)",
     "PAGE_COUNT": 4,
     "PAGE_ACCENTS": ["#2583FF", "#F2A93B", "#FF5B68", "#31C978"],
     "BG_GRADIENT": "linear-gradient(180deg,#FFFFFF 0%,#F8FAFD 45%,#F3F7FC 72%,#EEF4FF 100%)",
-    "SKIP_BEHAVIOUR": "onSkip -> setData({current:3}) (jump to Page4, NOT questionnaire)",
-    "CTA_GRADIENT": "linear-gradient(120deg,#6941C6 0%,#7F56D9 52%,#2583FF 100%)",
-    "CTA_HEIGHT_rpx": 104,
-    "CTA_RADIUS_rpx": 52,
+    "PAGE_GLOW": {
+      "P1": "rgba(64,145,255,0.10)",
+      "P2": "rgba(255,178,71,0.11)",
+      "P3": "rgba(255,91,108,0.09)",
+      "P4": "rgba(42,201,116,0.10)"
+    },
+    "P2_DECOR": "two faint orbit arcs, opacity 0.07 (<0.08), no map/grid/complex tech lines",
+    "P3_DECOR": "faint red lens tint behind magnifier, opacity 0.09",
+    "P4_GLOW_STRENGTH_RATIO_MEASURED": 1.17,
+    "visual_layers": "outer glow(280rpx,blur18rpx,opacity .45/.52 P4) + inner translucent disk(188rpx) + emoji(140rpx) + soft shadow",
+    "spacing": "emoji->title 36rpx, title->body 24rpx, body = 2 para blocks, body width 600rpx, title lh 1.25",
+    "anim": "emoji 280ms@0ms, title 260ms@80ms, body 280ms@160ms, footer 220ms@220ms; no bounce/rotate",
+    "content_center_measured_pct": { "small": 44.5, "std": 45.3, "promax": 45.3 },
+    "skip": "h72rpx minw140rpx r36rpx #344054 bg rgba(255,255,255,.72) border rgba(16,24,40,.08); press scale .98/opacity .75",
+    "cta": "100% / h104rpx / r52rpx / gradient 135deg #6941C6 0% #7F56D9 48% #2583FF 100% / 34rpx 600 / shadow rgba(105,65,198,.18) / press scale .985",
+    "bottom_paddings": "pager->action 28rpx, action->safe-area 32rpx",
+    "haptics": "wx.vibrateShort({type:'light'}) on manual swipe (detail.source==='touch') and on CTA tap; guarded/try-catch",
     "SAFE_AREA_TOP_COUNT": 1,
     "SAFE_AREA_BOTTOM_COUNT": 1,
-    "SAFE_AREA_NOTE": "app.wxss applies a global page{padding-bottom:env(safe-area-inset-bottom)}; this page nulls it locally (page{padding-bottom:0}) and re-applies it exactly ONCE on .footer, so the inset is not duplicated. The top inset is applied ONCE on .top-brand.",
-    "CAPSULE_AVOIDANCE": "top content starts at calc(20rpx + env(safe-area-inset-top)); no element intrudes into the WeChat capsule zone",
-    "RESPONSIVE": "flex layout only; no absolute fixed vertical coordinates; verified SMALL_IPHONE(320) / STANDARD_IPHONE(390) / PRO_MAX(430)"
+    "SAFE_AREA_NOTE": "app.wxss global page{padding-bottom:env(safe-area-inset-bottom)} is nulled locally (page{padding-bottom:0}); bottom inset re-applied exactly ONCE on .footer, top inset exactly ONCE on .top-brand.",
+    "CAPSULE_CLEARANCE": "top-brand right padding 228rpx; capsule zone ink measured 0px",
+    "RESPONSIVE": "flex layout; .page height:100vh (definite) so .slide height:100% centers; content center verified 44.5-45.3% across SMALL/STD/PRO_MAX"
   },
   "allowedFiles": [
     "pages/onboarding/onboarding.wxml",
@@ -44,8 +52,8 @@
   "contractsAffected": [],
   "copyFreeze": {
     "COPY_DIFF_COUNT": 0,
-    "tool": "/tmp/r88b/copy_snapshot.js (extracts emoji/title/body from onboarding.js + 跳过/开始认知诊断 → from onboarding.wxml, normalizes escapes, diffs)",
-    "frozen": ["emoji x4", "title x4", "body x4", "跳过", "开始认知诊断 →"]
+    "frozen": ["emoji x4", "title x4", "body x4", "跳过", "开始认知诊断 →"],
+    "note": "对比基线 548e560（改动前）。新增的品牌字「珠澳小事哥」属非冻结 chrome，从未出现在冻结项中。"
   },
   "requiredTests": [
     "node tests/legacy6q/legacy6q-revival.test.js",
@@ -54,6 +62,6 @@
     "node tests/legacy6q/legacy6q-thinking-page.test.js",
     "node tests/turnaround6q/run.js"
   ],
-  "note": "UI-only. No questionnaire/backend/AI/payment/env change. Navigation destination untouched (onStart still switchTab /pages/home/home with reLaunch fallback; CTA enters the existing questionnaire flow via that same destination).",
-  "rollbackPlan": "git checkout 548e560 -- pages/onboarding/onboarding.wxml pages/onboarding/onboarding.wxss pages/onboarding/onboarding.js pages/onboarding/onboarding.json"
+  "note": "UI-only. Navigation destination untouched (onStart -> switchTab /pages/home/home with reLaunch fallback). Haptics guarded (no-op where unsupported).",
+  "rollbackPlan": "git checkout 0589b18 -- pages/onboarding/onboarding.wxml pages/onboarding/onboarding.wxss pages/onboarding/onboarding.js pages/onboarding/onboarding.json"
 }
