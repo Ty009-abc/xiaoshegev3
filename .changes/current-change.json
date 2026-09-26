@@ -1,40 +1,20 @@
 {
-  "taskId": "RC8.8_ONBOARDING_UI_SPEC_ALIGNMENT",
-  "baseCommit": "0589b18",
+  "taskId": "RC8.8_ONBOARDING_P0_CONTENT_VISIBILITY_RECOVERY",
+  "baseCommit": "ce5d189",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "The first onboarding rebuild (0589b18) matched the original task sheet but not every precise value in the owner's final spec 《RC8.8 开屏展示页 UI 重构最终规格》. This pass aligns the remaining items: a light brand line (珠澳小事哥) in the top zone with capsule clearance; per-page absolute radial glow colours (P1 rgba(64,145,255,.10) / P2 rgba(255,178,71,.11) / P3 rgba(255,91,108,.09) / P4 rgba(42,201,116,.10)); a Page-2 pair of very faint orbit arcs (opacity<0.08, no map/grid) and a Page-3 faint red lens tint behind the magnifier; a Page-4 glow ~15% stronger than the other pages; spec spacing (emoji->title 36rpx, title->body 24rpx, body paragraphs as two blocks, content width ~600rpx, title line-height 1.25); exact animation timings (emoji 280ms/0ms, title 260ms/80ms, body 280ms/160ms) plus a bottom action-area fade-in (220ms/220ms); skip pill exactly 72rpx high / min 140rpx / radius 36rpx / colour #344054 with press scale(0.98)+opacity(0.75); CTA gradient 135deg / #7F56D9 at 48% / weight 600 / shadow 0.18 / press scale(0.985); bottom paddings 28rpx (pager->action) and 32rpx (action->safe area); and light haptic feedback (wx.vibrateShort type:'light') on manual swipe and the final CTA. Copy, page count, navigation destination, questionnaire, backend, AI, payment and env are unchanged.",
+  "problem": "On a real device the onboarding guide (ce5d189) rendered the brand, page glow, P2 orbit, pagination, skip and final CTA — but the emoji, title and body were INVISIBLE on all 4 pages. Root cause = ANIMATION_VISIBILITY_STATE: content base state was `opacity:0` and visibility depended entirely on the `.is-active` entry animation executing with `animation-fill-mode:both`. The animation shorthand also embedded the token variable `var(--ease-out)`. If the animation is dropped/fails on device, content stays at base opacity:0 forever, while `.footer` (no base opacity:0) remains visible — exactly the reported symptom. Fix restores a safe visible base state so content is visible WITHOUT animation; animation is now enhancement-only.",
   "forensics": {
-    "PAGE_COUNT": 4,
-    "PAGE_ACCENTS": ["#2583FF", "#F2A93B", "#FF5B68", "#31C978"],
-    "BG_GRADIENT": "linear-gradient(180deg,#FFFFFF 0%,#F8FAFD 45%,#F3F7FC 72%,#EEF4FF 100%)",
-    "PAGE_GLOW": {
-      "P1": "rgba(64,145,255,0.10)",
-      "P2": "rgba(255,178,71,0.11)",
-      "P3": "rgba(255,91,108,0.09)",
-      "P4": "rgba(42,201,116,0.10)"
-    },
-    "P2_DECOR": "two faint orbit arcs, opacity 0.07 (<0.08), no map/grid/complex tech lines",
-    "P3_DECOR": "faint red lens tint behind magnifier, opacity 0.09",
-    "P4_GLOW_STRENGTH_RATIO_MEASURED": 1.17,
-    "visual_layers": "outer glow(280rpx,blur18rpx,opacity .45/.52 P4) + inner translucent disk(188rpx) + emoji(140rpx) + soft shadow",
-    "spacing": "emoji->title 36rpx, title->body 24rpx, body = 2 para blocks, body width 600rpx, title lh 1.25",
-    "anim": "emoji 280ms@0ms, title 260ms@80ms, body 280ms@160ms, footer 220ms@220ms; no bounce/rotate",
-    "content_center_measured_pct": { "small": 44.5, "std": 45.3, "promax": 45.3 },
-    "skip": "h72rpx minw140rpx r36rpx #344054 bg rgba(255,255,255,.72) border rgba(16,24,40,.08); press scale .98/opacity .75",
-    "cta": "100% / h104rpx / r52rpx / gradient 135deg #6941C6 0% #7F56D9 48% #2583FF 100% / 34rpx 600 / shadow rgba(105,65,198,.18) / press scale .985",
-    "bottom_paddings": "pager->action 28rpx, action->safe-area 32rpx",
-    "haptics": "wx.vibrateShort({type:'light'}) on manual swipe (detail.source==='touch') and on CTA tap; guarded/try-catch",
-    "SAFE_AREA_TOP_COUNT": 1,
-    "SAFE_AREA_BOTTOM_COUNT": 1,
-    "SAFE_AREA_NOTE": "app.wxss global page{padding-bottom:env(safe-area-inset-bottom)} is nulled locally (page{padding-bottom:0}); bottom inset re-applied exactly ONCE on .footer, top inset exactly ONCE on .top-brand.",
-    "CAPSULE_CLEARANCE": "top-brand right padding 228rpx; capsule zone ink measured 0px",
-    "RESPONSIVE": "flex layout; .page height:100vh (definite) so .slide height:100% centers; content center verified 44.5-45.3% across SMALL/STD/PRO_MAX"
+    "ROOT_CAUSE": "ANIMATION_VISIBILITY_STATE",
+    "BEFORE_base": ".slide .visual-emoji{opacity:0;transform:scale(.92)} / .slide .slide-title{opacity:0;transform:translateY(16rpx)} / .slide .slide-body{opacity:0;transform:translateY(12rpx)}; visibility gated on .slide.is-active animation ... both with var(--ease-out)",
+    "AFTER_base": ".slide .visual-emoji, .slide .slide-title, .slide .slide-body { opacity:1; visibility:visible; transform:none }  (safe default; animation only augments)",
+    "var_in_animation": "var(--ease-out) -> explicit ease-out on all animation/transition declarations in this page",
+    "z_index_contract": "bg-glow/deco 0 (pointer-events:none) < visual-emoji 2 < title/body 3 < footer 4",
+    "evidence": "CDP probe: animations running -> opacity 1; animations stripped -> opacity 0 (BEFORE fix) / opacity 1 (AFTER fix). Animation-stripped screenshots show real ink on all 4 pages after fix.",
+    "fail_safe": "Even if the is-active binding or the animation never fires, base state keeps content visible."
   },
   "allowedFiles": [
-    "pages/onboarding/onboarding.wxml",
     "pages/onboarding/onboarding.wxss",
-    "pages/onboarding/onboarding.js",
-    "pages/onboarding/onboarding.json",
+    "tests/ui/part-b/onboarding-content-visibility.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
@@ -53,15 +33,24 @@
   "copyFreeze": {
     "COPY_DIFF_COUNT": 0,
     "frozen": ["emoji x4", "title x4", "body x4", "跳过", "开始认知诊断 →"],
-    "note": "对比基线 548e560（改动前）。新增的品牌字「珠澳小事哥」属非冻结 chrome，从未出现在冻结项中。"
+    "note": "对比基线 548e560（改动前）。本页无文案改动。"
+  },
+  "noUnintendedChange": {
+    "LAYOUT_DIFF": "none (content center 44.5-45.3%, unchanged)",
+    "COLOR_DIFF": "none (per-page glow + accents unchanged; P4 ratio 1.17 unchanged)",
+    "SWIPER": "unchanged (current/duration/circular/autoplay untouched)",
+    "CTA": "unchanged",
+    "SPACING": "unchanged",
+    "BACKEND": "unchanged"
   },
   "requiredTests": [
+    "node --test tests/ui/part-b/onboarding-content-visibility.test.js",
     "node tests/legacy6q/legacy6q-revival.test.js",
     "node tests/legacy6q/legacy6q-route-entry.test.js",
     "node tests/legacy6q/legacy6q-input-visibility.test.js",
     "node tests/legacy6q/legacy6q-thinking-page.test.js",
     "node tests/turnaround6q/run.js"
   ],
-  "note": "UI-only. Navigation destination untouched (onStart -> switchTab /pages/home/home with reLaunch fallback). Haptics guarded (no-op where unsupported).",
-  "rollbackPlan": "git checkout 0589b18 -- pages/onboarding/onboarding.wxml pages/onboarding/onboarding.wxss pages/onboarding/onboarding.js pages/onboarding/onboarding.json"
+  "note": "Visibility fix only. No new dependencies (test uses node:test/node:assert/fs/path). Failed-command forensics: the earlier ad-hoc NODE_PATH to ~/xiaoshige-v3/node_modules was for the CI QR upload (active worktree has no node_modules), not required by these tests.",
+  "rollbackPlan": "git checkout ce5d189 -- pages/onboarding/onboarding.wxss"
 }

@@ -57,7 +57,7 @@ page {
   bottom: 0;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 320ms var(--ease-out);
+  transition: opacity 320ms ease-out;
 }
 .page-p2 .deco-2,
 .page-p3 .deco-3 {
@@ -115,7 +115,7 @@ page {
   margin-right: 12rpx;
   background: radial-gradient(circle at 34% 30%, #FFFFFF 0%, var(--accent) 78%);
   box-shadow: 0 4rpx 14rpx rgba(16, 24, 40, 0.08);
-  transition: background 320ms var(--ease-out);
+  transition: background 320ms ease-out;
 }
 .brand-name {
   font-size: 26rpx;
@@ -193,6 +193,23 @@ page {
   filter: drop-shadow(0 10rpx 26rpx rgba(16, 24, 40, 0.16));
 }
 
+/* ── z-index 契约（装饰在下，内容在中，底部控件在上） ── */
+.bg-glow { z-index: 0; }
+.deco { z-index: 0; }
+.visual-emoji { z-index: 2; }
+.slide-title { position: relative; z-index: 3; }
+.slide-body { position: relative; z-index: 3; }
+.footer { position: relative; z-index: 4; }
+
+/* ── 安全默认：内容基线态必须可见（不依赖动画） ── */
+.slide .visual-emoji,
+.slide .slide-title,
+.slide .slide-body {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
 /* ── 字体层级 ── */
 .slide-title {
   font-size: 42rpx;
@@ -201,7 +218,7 @@ page {
   text-align: center;
   margin-bottom: 24rpx;
   color: var(--accent);
-  transition: color 320ms var(--ease-out);
+  transition: color 320ms ease-out;
 }
 .slide-body {
   width: 100%;
@@ -215,19 +232,17 @@ page {
   display: block;
 }
 
-/* ── 入场动画（仅活跃页，每页播放一次；平静、稳定、克制） ── */
-.slide .visual-emoji { opacity: 0; transform: scale(0.92); }
-.slide .slide-title  { opacity: 0; transform: translateY(16rpx); }
-.slide .slide-body   { opacity: 0; transform: translateY(12rpx); }
-
+/* ── 入场动画（仅活跃页，每页播放一次；平静、稳定、克制）
+   安全默认：内容默认可见（不设 base opacity:0）。
+   动画仅在 is-active 时叠加一次性入场；即使动画被丢弃，内容仍可见。 ── */
 .slide.is-active .visual-emoji {
-  animation: obEmoji 280ms var(--ease-out) 0ms both;
+  animation: obEmoji 280ms ease-out 0ms both;
 }
 .slide.is-active .slide-title {
-  animation: obTitle 260ms var(--ease-out) 80ms both;
+  animation: obTitle 260ms ease-out 80ms both;
 }
 .slide.is-active .slide-body {
-  animation: obBody 280ms var(--ease-out) 160ms both;
+  animation: obBody 280ms ease-out 160ms both;
 }
 
 @keyframes obEmoji {
@@ -247,7 +262,7 @@ page {
 .footer {
   flex: none;
   padding: 0 48rpx calc(32rpx + env(safe-area-inset-bottom));
-  animation: obFooter 220ms var(--ease-out) 220ms both;
+  animation: obFooter 220ms ease-out 220ms both;
 }
 @keyframes obFooter {
   from { opacity: 0; }
@@ -268,8 +283,8 @@ page {
   border-radius: 50%;
   background: #D0D5DD;
   margin: 0 6rpx;
-  transition: width 300ms var(--ease-out), background 300ms var(--ease-out),
-    border-radius 300ms var(--ease-out);
+  transition: width 300ms ease-out, background 300ms ease-out,
+    border-radius 300ms ease-out;
 }
 .dot-active {
   width: 28rpx;
@@ -301,7 +316,7 @@ page {
   color: #344054;
   font-size: 30rpx;
   font-weight: 500;
-  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
 }
 .skip:active {
   transform: scale(0.98);
