@@ -1,8 +1,8 @@
 {
-  "taskId": "RC8.8_ONBOARDING_P0_CONTENT_VISIBILITY_RECOVERY",
-  "baseCommit": "ce5d189",
+  "taskId": "RC8.8_ONBOARDING_VISUAL_POLISH_FINAL",
+  "baseCommit": "4f57174",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "On a real device the onboarding guide (ce5d189) rendered the brand, page glow, P2 orbit, pagination, skip and final CTA — but the emoji, title and body were INVISIBLE on all 4 pages. Root cause = ANIMATION_VISIBILITY_STATE: content base state was `opacity:0` and visibility depended entirely on the `.is-active` entry animation executing with `animation-fill-mode:both`. The animation shorthand also embedded the token variable `var(--ease-out)`. If the animation is dropped/fails on device, content stays at base opacity:0 forever, while `.footer` (no base opacity:0) remains visible — exactly the reported symptom. Fix restores a safe visible base state so content is visible WITHOUT animation; animation is now enhancement-only.",
+  "problem": "Final visual polish (CSS-only), no copy/swiper/interaction/animation changes: Page2 orbit arcs scaled down ~12% (520/640x430 -> 458/563x378) and opacity lowered 0.07->0.05 so they recede into the background; emoji support disk size unified on all 4 pages (single .visual-halo rule = 188rpx, no per-page override); title baseline + body start unified on all 4 pages (verified identical geometry: visual.t=252.9, title.t=417.2, body.t=456.9 on all pages); skip button width/position unified across P1-P3 with a lighter white block (bg rgba(255,255,255,.72)->.58, border rgba(16,24,40,.08)->.05); Page4 CTA shadow reduced ~15% (rgba(105,65,198,.18)->.15); top brand contrast raised (#98A2B3 -> #7F8A9A, no weight/size change); per-page main-visual vertical position unified (flex-centered, identical across pages); animation untouched.",
   "forensics": {
     "ROOT_CAUSE": "ANIMATION_VISIBILITY_STATE",
     "BEFORE_base": ".slide .visual-emoji{opacity:0;transform:scale(.92)} / .slide .slide-title{opacity:0;transform:translateY(16rpx)} / .slide .slide-body{opacity:0;transform:translateY(12rpx)}; visibility gated on .slide.is-active animation ... both with var(--ease-out)",
@@ -10,11 +10,21 @@
     "var_in_animation": "var(--ease-out) -> explicit ease-out on all animation/transition declarations in this page",
     "z_index_contract": "bg-glow/deco 0 (pointer-events:none) < visual-emoji 2 < title/body 3 < footer 4",
     "evidence": "CDP probe: animations running -> opacity 1; animations stripped -> opacity 0 (BEFORE fix) / opacity 1 (AFTER fix). Animation-stripped screenshots show real ink on all 4 pages after fix.",
-    "fail_safe": "Even if the is-active binding or the animation never fires, base state keeps content visible."
+    "fail_safe": "Even if the is-active binding or the animation never fires, base state keeps content visible.",
+    "ORBIT_P2": "458rpx/563x378rpx, opacity 0.05",
+    "BRAND_COLOR": "#7F8A9A",
+    "SKIP_BG": "rgba(255,255,255,0.58), border rgba(16,24,40,0.05)",
+    "CTA_SHADOW": "rgba(105,65,198,0.15)",
+    "UNIFIED_GEOMETRY_STD": {
+      "visual.t": 252.9,
+      "visual.cy": 325.7,
+      "title.t": 417.2,
+      "body.t": 456.9,
+      "pages": "p1=p2=p3=p4"
+    }
   },
   "allowedFiles": [
     "pages/onboarding/onboarding.wxss",
-    "tests/ui/part-b/onboarding-content-visibility.test.js",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
@@ -32,7 +42,13 @@
   "contractsAffected": [],
   "copyFreeze": {
     "COPY_DIFF_COUNT": 0,
-    "frozen": ["emoji x4", "title x4", "body x4", "跳过", "开始认知诊断 →"],
+    "frozen": [
+      "emoji x4",
+      "title x4",
+      "body x4",
+      "跳过",
+      "开始认知诊断 →"
+    ],
     "note": "对比基线 548e560（改动前）。本页无文案改动。"
   },
   "noUnintendedChange": {

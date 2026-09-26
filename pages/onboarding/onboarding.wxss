@@ -63,26 +63,26 @@ page {
 .page-p3 .deco-3 {
   opacity: 1;
 }
-/* P2 — 两条极淡轨道圆弧（强化“世界模型”，无地图/网格） */
+/* P2 — 两条极淡轨道圆弧（强化“世界模型”，无地图/网格；整体缩小并进一步退入背景） */
 .orbit {
   position: absolute;
   left: 50%;
   top: 40%;
   border-radius: 50%;
   border: 2rpx solid #F2A93B;
-  opacity: 0.07;
+  opacity: 0.05;
 }
 .arc-a {
-  width: 520rpx;
-  height: 520rpx;
-  margin-left: -260rpx;
-  margin-top: -260rpx;
+  width: 458rpx;
+  height: 458rpx;
+  margin-left: -229rpx;
+  margin-top: -229rpx;
 }
 .arc-b {
-  width: 640rpx;
-  height: 430rpx;
-  margin-left: -320rpx;
-  margin-top: -215rpx;
+  width: 563rpx;
+  height: 378rpx;
+  margin-left: -282rpx;
+  margin-top: -189rpx;
   transform: rotate(-18deg);
 }
 /* P3 — 放大镜后一圈极淡红色晕染 */
@@ -120,7 +120,7 @@ page {
 .brand-name {
   font-size: 26rpx;
   font-weight: 500;
-  color: #98A2B3;
+  color: #7F8A9A;
   letter-spacing: 1rpx;
 }
 
@@ -311,8 +311,8 @@ page {
   box-sizing: border-box;
   padding: 0 32rpx;
   border-radius: 36rpx;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
+  background: rgba(255, 255, 255, 0.58);
+  border: 1rpx solid rgba(16, 24, 40, 0.05);
   color: #344054;
   font-size: 30rpx;
   font-weight: 500;
@@ -334,7 +334,7 @@ page {
   color: #FFFFFF;
   border: none;
   background: linear-gradient(135deg, #6941C6 0%, #7F56D9 48%, #2583FF 100%);
-  box-shadow: 0 16rpx 36rpx rgba(105, 65, 198, 0.18);
+  box-shadow: 0 16rpx 36rpx rgba(105, 65, 198, 0.15);
 }
 .cta-btn::after {
   border: none;
