@@ -1,0 +1,9 @@
+{
+  "navigationStyle": "custom",
+  "backgroundColor": "#F7F8FC",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "xsg-navbar": "/components/xsg-navbar/xsg-navbar",
+    "xsg-empty": "/components/xsg-empty/xsg-empty"
+  }
+}

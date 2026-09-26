@@ -23,6 +23,7 @@
 'use strict'
 
 const legacy6q = require('../../services/legacy6qReportService.js')
+const reportHistory = require('../../utils/reportHistory.js')
 
 const app = getApp()
 const QUESTIONNAIRE_ROUTE = '/pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire'
@@ -208,6 +209,9 @@ Page({
     this._done = true
     this._clearTimers()
     releaseInFlight(this._requestId)
+    // P0 D2 — persist ONE report-history item for ONE successful submission.
+    // Never stores fallback/error results (reportHistory.record ignores empties).
+    try { reportHistory.record(this._report, this._handoff) } catch (_) {}
     app.globalData._legacy6qReport = this._report
     app.globalData._legacy6qReportRequestId = this._requestId
     app.globalData._legacy6qReportAt = Date.now()

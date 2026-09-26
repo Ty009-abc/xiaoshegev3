@@ -1,0 +1,34 @@
+<!-- pages/report-history — 我的报告列表（本地历史） -->
+<view class="page">
+  <xsg-navbar title="我的报告" light />
+
+  <view class="content">
+    <block wx:if="{{reports.length}}">
+      <view class="report-list">
+        <view
+          class="report-card"
+          wx:for="{{reports}}"
+          wx:key="id"
+          data-id="{{item.id}}"
+          bindtap="onTapReport"
+          hover-class="report-card-hover"
+          hover-stay-time="80"
+        >
+          <view class="report-head">
+            <text class="report-date">{{item.dateText}}</text>
+            <text class="report-persona" wx:if="{{item.persona}}">{{item.persona}}</text>
+          </view>
+          <text class="report-preview">{{item.preview || '认知翻身报告'}}</text>
+          <text class="report-summary" wx:if="{{item.summary}}">{{item.summary}}</text>
+        </view>
+      </view>
+    </block>
+
+    <xsg-empty
+      wx:elif="{{!loading}}"
+      icon="📄"
+      title="暂无报告"
+      desc="完成一次认知诊断后会出现在这里"
+    />
+  </view>
+</view>

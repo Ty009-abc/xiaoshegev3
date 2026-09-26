@@ -3,6 +3,7 @@
  */
 const app = getApp()
 const analytics = require('../../utils/analytics.js')
+const reportHistory = require('../../utils/reportHistory.js')
 
 Page({
   data: {
@@ -31,22 +32,24 @@ Page({
     try {
       const db = wx.cloud.database()
       const openid = gd.openid || ''
-      const [cRes, rRes, bRes] = await Promise.all([
+      const [cRes, bRes] = await Promise.all([
         db.collection('challenge_records').where({ openid }).count(),
-        db.collection('ai_reports').where({ openid }).count(),
         db.collection('badges').limit(10).get(),
       ])
       const badgeDefs = bRes.data || []
       const earned = gd.profile?.badges || []
       const badges = badgeDefs.map(b => ({ ...b, unlocked: earned.includes(b.id || b._id) }))
-      this.setData({ challengeCount: cRes.total, reportCount: rRes.total, badges })
+      // D4 — 报告计数改用 canonical 本地历史（不再读 ai_reports）
+      let reportCount = 0
+      try { reportCount = reportHistory.count() } catch (_) { reportCount = 0 }
+      this.setData({ challengeCount: cRes.total, reportCount, badges })
     } catch (_) {}
   },
 
   goDaily()       { wx.navigateTo({ url: '/pages/cognition-strike-records/cognition-strike-records' }) },
   goRules()       { wx.navigateTo({ url: '/pages/world-rules/world-rules?favorites=1' }) },
   goChallenges()  { wx.navigateTo({ url: '/pages/challenge-records/challenge-records' }) },
-  goReports()     { wx.navigateTo({ url: '/pages/report-preview/report-preview' }) },
+  goReports()     { wx.navigateTo({ url: '/pages/report-history/report-history' }) },
   goMembership()  { wx.navigateTo({ url: '/pages/membership/membership' }) },
   goInvite()      { wx.navigateTo({ url: '/pages/invite/invite' }) },
   goRanking()     { wx.navigateTo({ url: '/pages/growth-ranking/growth-ranking' }) },

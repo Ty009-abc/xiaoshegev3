@@ -15,6 +15,7 @@
     "pages/world-rules/world-rules",
     "pages/world-rule-detail/world-rule-detail",
     "pages/report-preview/report-preview",
+    "pages/report-history/report-history",
     "pages/report-detail/report-detail",
     "pages/v2-shadow-test/v2-shadow-test",
     "pages/v21-smoke-test/v21-smoke-test",
