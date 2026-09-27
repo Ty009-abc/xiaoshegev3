@@ -33,8 +33,8 @@
           <text class="adm-kpi-label">用户总数</text>
         </view>
         <view class="adm-kpi adm-kpi--accent">
-          <text class="adm-kpi-val">{{stats.aiCalls}}</text>
-          <text class="adm-kpi-label">AI调用</text>
+          <text class="adm-kpi-val">{{stats.todayAiCalls}}</text>
+          <text class="adm-kpi-label">今日AI调用</text>
         </view>
         <view class="adm-kpi adm-kpi--ok" data-page="orders" bindtap="navTo">
           <text class="adm-kpi-val">{{stats.paidOrders}}</text>
@@ -91,29 +91,36 @@
     <view class="adm-section">
       <view class="adm-section-head">
         <text class="adm-section-title">AI 运行状态</text>
-        <text class="adm-section-meta">累计</text>
+        <text class="adm-section-meta">累计 · {{stats.businessTimezone}}</text>
       </view>
       <view class="adm-kpi-grid">
         <view class="adm-kpi">
-          <text class="adm-kpi-val">{{stats.aiCalls}}</text>
-          <text class="adm-kpi-label">AI调用</text>
+          <text class="adm-kpi-val">{{stats.cumulativeAiCalls}}</text>
+          <text class="adm-kpi-label">累计AI调用</text>
         </view>
         <view class="adm-kpi">
-          <text class="adm-kpi-val">¥{{stats.aiCost}}</text>
-          <text class="adm-kpi-label">估算成本</text>
+          <text class="adm-kpi-val">{{stats.costText}}</text>
+          <text class="adm-kpi-label">估算成本{{stats.costNote ? ' (' + stats.costNote + ')' : ''}}</text>
         </view>
         <view class="adm-kpi">
-          <text class="adm-kpi-val">{{stats.errorRate}}</text>
+          <text class="adm-kpi-val">{{stats.errorRateText}}</text>
           <text class="adm-kpi-label">AI错误率</text>
         </view>
         <view class="adm-kpi adm-kpi--warn">
-          <text class="adm-kpi-val">{{stats.aiErrors}}</text>
+          <text class="adm-kpi-val">{{stats.failuresText}}</text>
           <text class="adm-kpi-label">失败次数</text>
         </view>
         <view class="adm-kpi adm-kpi--warn">
           <text class="adm-kpi-val">{{stats.aiFallbacks}}</text>
           <text class="adm-kpi-label">规则兜底 ({{stats.fallbackRate}})</text>
         </view>
+        <view class="adm-kpi">
+          <text class="adm-kpi-val">{{stats.avgLatencyText}}</text>
+          <text class="adm-kpi-label">平均延迟</text>
+        </view>
+      </view>
+      <view class="adm-section-foot" wx:if="{{stats.failuresText > 0}}">
+        <text class="adm-section-meta">失败构成：供应商 {{stats.breakdown.providerErrors || 0}} · 超时 {{stats.breakdown.timeouts || 0}} · 无效响应 {{stats.breakdown.invalidResponses || 0}} · 校验 {{stats.breakdown.validationErrors || 0}}</text>
       </view>
     </view>
 

@@ -51,7 +51,14 @@ function run(name, kind, beh) {
   if (name === 'system_configs') {
     return Promise.resolve({ data: [{ key: 'admin_users', status: 'active', value: { openids: [OWNER] } }] })
   }
-  if (kind === 'count') return Promise.resolve({ total: b.count != null ? b.count : 0 })
+  if (kind === 'count') {
+    // RC8.9C R1B: support an ordered queue (today-count, legacy-count, ...)
+    if (Array.isArray(b.counts) && b.counts.length) {
+      const v = b.counts.length > 1 ? b.counts.shift() : b.counts[0]
+      return Promise.resolve({ total: v })
+    }
+    return Promise.resolve({ total: b.count != null ? b.count : 0 })
+  }
   return Promise.resolve({ data: b.docs || [] })
 }
 
@@ -115,15 +122,24 @@ const wait = () => new Promise((r) => setTimeout(r, 20))
 ;(async () => {
   console.log('RC8.8 admin dashboard recovery — resilience contract')
 
-  // ── A: ai_logs exists -> success with real telemetry ────────────────────
+  // ── A: v2 model_call telemetry exists -> success with real telemetry ────
   {
-    const beh = { ai_logs: { count: 3, docs: [{ tokens: 1000, success: true }, { tokens: 500, success: false }, { tokens: 0, success: true }] } }
+    const v2 = [
+      { telemetryVersion: 2, operation: 'model_call', status: 'SUCCESS', estimatedCostCny: 0.001668, latencyMs: 2644 },
+      { telemetryVersion: 2, operation: 'model_call', status: 'SUCCESS', estimatedCostCny: 0.0005, latencyMs: 1200 },
+      { telemetryVersion: 2, operation: 'model_call', status: 'PROVIDER_ERROR', estimatedCostCny: null, latencyMs: 40 },
+    ]
+    // get → cumulative rows; counts queue → [today, legacy]
+    const beh = { ai_logs: { docs: v2, counts: [2, 1] } }
     const main = loadFn(beh)
     const r = await main({}, {})
     ok(r.code === 0, `A: code=0 (${r.code})`)
-    ok(r.data.aiCalls === 3, `A: aiCalls=3 (${r.data.aiCalls})`)
-    ok(r.data.aiErrors === 1, `A: aiErrors=1 (${r.data.aiErrors})`)
-    ok(r.data.errorRate === '33.3%', `A: errorRate=33.3% (${r.data.errorRate})`)
+    ok(r.data.aiRuntime.totalCalls === 3, `A: cumulative=3 (${r.data.aiRuntime.totalCalls})`)
+    ok(r.data.today.aiCalls === 2, `A: today=2 (${r.data.today.aiCalls})`)
+    ok(r.data.aiRuntime.failedCalls === 1, `A: failedCalls=1 (${r.data.aiRuntime.failedCalls})`)
+    ok(r.data.aiRuntime.errorRate === '33.3%', `A: errorRate=33.3% (${r.data.aiRuntime.errorRate})`)
+    ok(r.data.aiRuntime.pricedCallCount === 2 && r.data.aiRuntime.unpricedCallCount === 1, 'A: priced/unpriced counts')
+    ok(r.data.aiRuntime.estimatedCostCny === 0.002168, `A: cost sum (${r.data.aiRuntime.estimatedCostCny})`)
   }
 
   // ── B: ai_logs unavailable -> STILL success + safe defaults ─────────────
@@ -132,8 +148,10 @@ const wait = () => new Promise((r) => setTimeout(r, 20))
     const main = loadFn(beh)
     const r = await main({}, {})
     ok(r.code === 0, `B: code=0 despite ai_logs failure (${r.code})`)
-    ok(r.data.aiCalls === 0 && r.data.aiCost === 0 && r.data.aiErrors === 0, 'B: telemetry defaults 0')
-    ok(r.data.errorRate === '0%', `B: errorRate=0% (${r.data.errorRate})`)
+    ok(r.data.aiRuntime.totalCalls === 0 && r.data.today.aiCalls === 0, 'B: telemetry defaults 0')
+    ok(r.data.aiRuntime.estimatedCostCny === null, 'B: no telemetry → cost null (not ¥0)')
+    ok(r.data.aiRuntime.errorRate === null, `B: 0 samples → errorRate null / UI -- (${r.data.aiRuntime.errorRate})`)
+    ok(r.data.aiRuntime.available === false, 'B: telemetry marked unavailable')
     ok(r.data.totalUsers === 7, `B: core users still present (${r.data.totalUsers})`)
   }
 

@@ -40,6 +40,15 @@ async function checkAdmin(db, openid) {
 const now = () => Date.now()
 function startOfDay(ts) { const d = new Date(ts); d.setHours(0,0,0,0); return d.getTime() }
 const DAY = 86400000
+// RC8.9C R1B — 显式业务时区 Asia/Shanghai(+8h，无 DST)。
+// 服务器为 UTC，绝不能拿本地/UTC 午夜当“今日”边界。
+const BEIJING_OFFSET = 8 * 3600 * 1000
+function startOfBeijingDay(ts) { return Math.floor((ts + BEIJING_OFFSET) / DAY) * DAY - BEIJING_OFFSET }
+function pctStr(failed, total) { return (total > 0) ? ((failed / total) * 100).toFixed(1) + '%' : null }
+
+// RC8.9C R1B — 规范 AI 计量口径：仅 telemetryVersion=2 且 operation='model_call' 的行。
+// legacy ai_logs（无 telemetryVersion 的历史行）不计入任何主指标，仅做诊断计数。
+const V2_MODEL_CALL = { telemetryVersion: 2, operation: 'model_call' }
 // Asia/Shanghai (+8h) → HH:MM
 function hhmm(ts) {
   const d = new Date((ts || 0) + 8 * 3600 * 1000)
@@ -146,28 +155,70 @@ exports.main = async (event, context) => {
     const todayOrders = (allOrdersRes.data || []).filter(o => o.paidAt && o.paidAt >= todayStart)
     const todayRevenue = todayOrders.reduce((s, o) => s + (o.totalAmount || 0), 0)
 
-    // ── OPTIONAL 遥测（fail-soft）：ai_logs 缺失/查询失败不阻断仪表盘，回退安全默认值 ──
-    let aiCalls = 0
-    let aiCost = 0
-    let aiErrors = 0
+    // ── OPTIONAL AI 遥测（fail-soft）：规范口径 = telemetryVersion 2 + operation 'model_call'。
+    //      旧 ai_logs（无 telemetryVersion）不计入任何主指标，仅作诊断计数。
+    //      查询失败绝不阻断 dashboard（回退安全默认，显式标注 available=false）。
+    let todayAiCalls = 0
+    let cumulativeCalls = 0
+    let estimatedCostCnyTotal = null   // null → UI 显示 --（无已计价调用）
+    let pricedCallCount = 0
+    let unpricedCallCount = 0
+    let failedCalls = 0
+    let errorRate = null               // null → UI 显示 --（0 样本）
+    let providerErrors = 0
+    let timeouts = 0
+    let invalidResponses = 0
+    let validationErrors = 0
+    let avgLatencyMs = null
+    let p95LatencyMs = null
+    let legacyTelemetryRows = 0
     let aiFallbacks = 0
-    let errorRate = '0%'
+    let telemetryAvailable = false
     try {
-      const [aiLogsCount, aiLogsRes] = await Promise.all([
-        db.collection('ai_logs').count(),
-        db.collection('ai_logs').field({ tokens: true, createdAt: true, success: true, isFallback: true, renderSource: true }).get(),
+      const todayStartBeijing = startOfBeijingDay(ts)
+      const [cumRes, todayCount, legacyCount] = await Promise.all([
+        db.collection('ai_logs').where(V2_MODEL_CALL)
+          .field({ status: true, estimatedCostCny: true, latencyMs: true, isFallback: true, renderSource: true }).get(),
+        db.collection('ai_logs').where(Object.assign({}, V2_MODEL_CALL, { createdAt: _.gte(todayStartBeijing) })).count(),
+        db.collection('ai_logs').where({ telemetryVersion: _.neq(2) }).count(),
       ])
-      const aiLogs = aiLogsRes.data || []
-      aiCalls = aiLogsCount.total
-      const totalTokens = aiLogs.reduce((s, l) => s + (l.tokens || 0), 0)
-      aiCost = Math.round(totalTokens * 0.000002) // 约 ¥0.002 / 1K tokens 估算
-      aiErrors = aiLogs.filter(l => !l.success).length
-      // RC8.9B_P0 — 规则兜底（reportState=FALLBACK）不再被静默当作健康成功。
-      // 单独计数并显式暴露，便于运维区分「AI 健康」与「规则兜底」。
-      aiFallbacks = aiLogs.filter(l => l.isFallback === true || l.renderSource === 'deterministic_fallback').length
-      errorRate = aiCalls > 0 ? ((aiErrors / aiCalls) * 100).toFixed(1) + '%' : '0%'
+      const rows = cumRes.data || []
+      cumulativeCalls = rows.length
+      todayAiCalls = todayCount.total || 0
+      legacyTelemetryRows = legacyCount.total || 0
+
+      let costSum = 0
+      const latencies = []
+      rows.forEach(l => {
+        // 失败 = 真实外部模型尝试且 status != SUCCESS（不含规则兜底/入库失败/追踪失败）
+        const st = l.status
+        if (st !== 'SUCCESS') {
+          failedCalls++
+          if (st === 'TIMEOUT') timeouts++
+          else if (st === 'INVALID_RESPONSE') invalidResponses++
+          else if (st === 'VALIDATION_ERROR') validationErrors++
+          else providerErrors++
+        }
+        if (typeof l.estimatedCostCny === 'number' && isFinite(l.estimatedCostCny) && l.estimatedCostCny >= 0) {
+          costSum += l.estimatedCostCny
+          pricedCallCount++
+        } else {
+          unpricedCallCount++
+        }
+        if (typeof l.latencyMs === 'number' && isFinite(l.latencyMs) && l.latencyMs >= 0) latencies.push(l.latencyMs)
+        if (l.isFallback === true || l.renderSource === 'deterministic_fallback') aiFallbacks++
+      })
+      // UNKNOWN ≠ 0：无任何已计价调用 → null（UI 显示 --），绝不伪造 ¥0。
+      estimatedCostCnyTotal = pricedCallCount > 0 ? Number(costSum.toFixed(6)) : null
+      if (latencies.length) {
+        avgLatencyMs = Math.round(latencies.reduce((a, b) => a + b, 0) / latencies.length)
+        const sorted = latencies.slice().sort((a, b) => a - b)
+        p95LatencyMs = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]
+      }
+      errorRate = pctStr(failedCalls, cumulativeCalls)
+      telemetryAvailable = true
     } catch (aiErr) {
-      console.warn('[adminGetDashboard] optional ai_logs unavailable — telemetry defaults applied:', aiErr && aiErr.message)
+      console.warn('[adminGetDashboard] ai telemetry unavailable — defaults applied:', aiErr && aiErr.message)
     }
 
     // ── OPTIONAL 运营聚合（fail-soft）：funnel / trend / recentUsers ──
@@ -187,11 +238,23 @@ exports.main = async (event, context) => {
       paidOrders: paidOrders.total,
       totalRevenue,
       todayRevenue,
-      aiCalls,
-      aiCost,
-      aiErrors,
-      aiFallbacks,
-      errorRate,
+      // RC8.9C R1B — 今日 与 累计 严格分离（修复二者同绑 stats.aiCalls 的 bug）。
+      today: { aiCalls: todayAiCalls },
+      aiRuntime: {
+        totalCalls: cumulativeCalls,
+        pricedCallCount,
+        unpricedCallCount,
+        estimatedCostCny: estimatedCostCnyTotal,   // null = 无定价数据（UI --），非 ¥0
+        avgLatencyMs,
+        p95LatencyMs,
+        failedCalls,
+        errorRate,                                  // null = 0 样本（UI --），非 0.0%
+        breakdown: { providerErrors, timeouts, invalidResponses, validationErrors },
+        fallbacks: aiFallbacks,
+        legacyTelemetryRows,
+        available: telemetryAvailable,
+      },
+      businessTimezone: 'Asia/Shanghai',
       paidRate,
       vipUsers: vipUsers.total,
       funnel,

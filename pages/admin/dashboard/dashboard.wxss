@@ -5,3 +5,6 @@
 .adm-trend-bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
 .adm-trend-fill { width: 100%; min-height: 4rpx; background: #E5484D; border-radius: 6rpx 6rpx 0 0; }
 .adm-trend-label { font-size: 18rpx; color: #98A2B3; margin-top: 8rpx; }
+
+/* RC8.9C R1B — 失败构成脚注 */
+.adm-section-foot { margin-top: 12rpx; padding: 0 4rpx; }

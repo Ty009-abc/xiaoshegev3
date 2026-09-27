@@ -1,24 +1,25 @@
 {
-  "taskId": "RC8.9C_R1A_AI_TELEMETRY_CORE",
-  "baseCommit": "c9d1f20",
+  "taskId": "RC8.9C_R1B_ADMIN_AI_METRICS",
+  "baseCommit": "034fa68",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Admin Dashboard AI metrics were backed by a bare presence log: ai_logs carried no model/provider/tokens/cost, cost was hardcoded Math.round(totalTokens*0.000002) → ¥0 for the (token-less) 6Q path, and '失败次数' was a literal duplicate of the error-rate numerator. No canonical telemetry existed at the real provider-call boundary.",
+  "problem": "Admin Dashboard AI metrics were not canonical: 今日AI调用 and 累计AI调用 both bound the SAME stats.aiCalls; 估算成本 used a fabricated Math.round(totalTokens*0.000002) → ¥0; AI错误率 showed '0%' for 0 samples; 失败次数 was a duplicate of the error-rate numerator; legacy ai_logs were mixed with v2 telemetry.",
   "changes": {
-    "BOUNDARY": "lib/ai.js callAI — captures provider usage + provider-call latencyMs (NOT report duration) on every real outbound attempt",
-    "TELEMETRY_CORE": "lib/aiTelemetry.js — v2 schema (telemetryVersion:2, operation:'model_call'), status enum (SUCCESS/PROVIDER_ERROR/TIMEOUT/INVALID_RESPONSE/VALIDATION_ERROR), tokens from provider usage (null-not-zero), requestId/reportId correlation, non-blocking + observable writes (TELEMETRY_WRITE_FAILED, 3 retries)",
-    "PRICING": "lib/aiPricing.js — shared provider+model price table (CNY/1M, peak/off-peak Beijing) sourced from DeepSeek docs (verified 2026-09-27); unknown model/usage ⇒ estimatedCostCny=null (never 0); 6-decimal DB precision",
-    "EMISSION_6Q": "generateAiReport 6q branch — one v2 row per REAL provider attempt via emitAttempts(m.attempts); pure rule fallback (no provider call) ⇒ ZERO rows",
-    "EMISSION_OTHER": "coaching / diagnostic_v3 / v4 / challenge_final callsites emit one v2 row each",
-    "RUNTIME": "legacy6qRuntime attempt results carry provider/model/usage/requestAttempted/timeout (kept inside _meta; never sent to client)",
-    "NO_NEW_COLLECTION": "reuses ai_logs",
-    "INDEX": "ai_logs: created telemetryVersion_1_operation_1_createdAt_-1 (only necessary index)"
+    "AUTHORITY": "canonical metrics = ai_logs where telemetryVersion=2 AND operation='model_call' (constant V2_MODEL_CALL)",
+    "TODAY": "stats.today.aiCalls — count within Asia/Shanghai business day via startOfBeijingDay (explicit +08:00 boundary, NOT server UTC/local)",
+    "CUMULATIVE": "stats.aiRuntime.totalCalls — all v2 model_call rows (no createdAt bound)",
+    "SEPARATION": "today and cumulative are now distinct response fields (twin-binding bug fixed)",
+    "COST": "SUM(estimatedCostCny) for priced rows only; pricedCallCount/unpricedCallCount exposed; null (UI --) when no priced rows — never ¥0; partial pricing flagged",
+    "ERROR_RATE": "failedCalls/totalCalls; null (UI --) at 0 samples — never 0.0%",
+    "FAILURES": "status != SUCCESS on real v2 model_call rows only (excludes rule fallback, report-persist failure, tracking/admin failure); breakdown {providerErrors,timeouts,invalidResponses,validationErrors}",
+    "LATENCY": "avgLatencyMs + p95LatencyMs",
+    "LEGACY": "legacyTelemetryRows counted for diagnostics only; excluded from every canonical metric; NO backfill",
+    "CLIENT": "dashboard.js formats cost (<¥1 → 4dp, ≥¥1 → 2dp, tiny not ¥0, no-priced → --), error rate --, today vs cumulative, avg latency; dashboard.wxml adds 今日AI调用 / 累计AI调用 / 失败构成 footer",
+    "INDEX": "none added — reused ai_logs telemetryVersion_1_operation_1_createdAt_-1 (created in R1A)"
   },
   "boundaries": {
-    "6Q_QUESTIONS_INFERENCE": "NO", "PROMPT": "NO", "REPORT_WORDING_CARD_SEMANTICS": "NO",
-    "RETRY_POLICY": "NO", "MODEL_ROUTING": "NO", "PAYMENT_VERIFYPAYMENT_ENTITLEMENT": "NO",
-    "RBAC": "NO", "USER_FACING_REPORT_UI": "NO"
+    "6Q_QUESTIONS_INFERENCE": "NO", "PROMPT": "NO", "REPORT_WORDING": "NO",
+    "MODEL_ROUTING": "NO", "PAYMENT": "NO", "RBAC": "NO", "6Q_OUTPUT": "NO"
   },
-  "adminDashboard": "NOT modified in R1A (R1B will bind metrics to canonical v2)",
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; legacy ai_logs rows untouched; v2 rows are append-only and harmless."
+  "rollbackPlan": "git revert <this-commit>; v2 telemetry rows untouched; legacy rows never modified."
 }

@@ -27,16 +27,39 @@ Page({
   },
   _formatStats(s) {
     if (!s) return s
-    const aiCalls = s.aiCalls || 0
-    const aiFallbacks = s.aiFallbacks || 0
+    const rt = s.aiRuntime || {}
+    const today = s.today || {}
+    const totalCalls = rt.totalCalls || 0
+    const fallbacks = rt.fallbacks || 0
+    const priced = rt.pricedCallCount || 0
+    const unpriced = rt.unpricedCallCount || 0
     return {
       ...s,
       totalRevenueYuan: ((s.totalRevenue || 0) / 100).toFixed(0),
       todayRevenueYuan: ((s.todayRevenue || 0) / 100).toFixed(0),
-      // RC8.9B_P0 — 规则兜底显式展示/占比，避免被静默当作健康 AI 成功
-      aiFallbacks,
-      fallbackRate: aiCalls > 0 ? ((aiFallbacks / aiCalls) * 100).toFixed(1) + '%' : '0%',
+      // RC8.9C R1B — 今日 与 累计 严格分离
+      todayAiCalls: today.aiCalls || 0,
+      cumulativeAiCalls: totalCalls,
+      // 估算成本：仅已计价 v2 调用求和；无任何定价数据 → '--'（绝不伪造 ¥0）
+      costText: this._fmtCost(rt.estimatedCostCny, priced),
+      costNote: (priced > 0 && unpriced > 0) ? '部分调用未计价' : '',
+      // 错误率：0 样本 → '--'（绝不显示 0.0%）
+      errorRateText: rt.errorRate || '--',
+      failuresText: rt.failedCalls || 0,
+      breakdown: rt.breakdown || {},
+      avgLatencyMs: rt.avgLatencyMs,
+      avgLatencyText: (typeof rt.avgLatencyMs === 'number' && isFinite(rt.avgLatencyMs)) ? (rt.avgLatencyMs + 'ms') : '--',
+      // RC8.9B_P0 — 规则兜底显式展示/占比
+      aiFallbacks: fallbacks,
+      fallbackRate: totalCalls > 0 ? ((fallbacks / totalCalls) * 100).toFixed(1) + '%' : '0%',
     }
+  },
+  _fmtCost(v, priced) {
+    if (!priced || typeof v !== 'number' || !isFinite(v) || v < 0) return '--'
+    if (v === 0) return '¥0.00'
+    const s = v >= 1 ? v.toFixed(2) : v.toFixed(4)
+    if (v > 0 && Number(s) === 0) return '¥' + v.toFixed(6) // 极小但有价值 → 不显示为 ¥0
+    return '¥' + s
   },
   navTo(e) {
     const p = e.currentTarget.dataset.page
