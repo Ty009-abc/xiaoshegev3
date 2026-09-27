@@ -99,11 +99,13 @@ async function runLegacy6QReport (args) {
     const r = await withTimeout(callAI(callOpts), attemptTimeoutMs)
     const ok = !!(r && r.success && r.content)
     const parsed = ok ? parseLegacy6QReport(r.content) : null
+    const timedOut = !!(r && r.timeout)
+    const trace = (r && r.providerTrace) || null
 
     attemptResults.push({
       attempt: i + 1,
       success: ok,
-      latencyMs: (r && r.latencyMs) || 0,
+      latencyMs: (r && r.latencyMs) || (timedOut ? attemptTimeoutMs : 0),
       finishReason: (r && r.finishReason) || null,
       truncated: !!(r && r.truncated),
       hadReasoning: !!(r && r.hasReasoning),
@@ -111,6 +113,13 @@ async function runLegacy6QReport (args) {
       providerErrorCode: (r && r.providerErrorCode) || null,
       parsePath: parsed ? parsed.parsePath : 'NO_CONTENT',
       fallbackFields: parsed ? parsed.fallbackFields : [],
+      // RC8.9C_R1A — canonical v2 telemetry inputs (provider-side facts only;
+      // no prompt/raw response). Kept inside _meta (never sent to the client).
+      provider: (trace && trace.provider) || (timedOut ? 'DeepSeek' : null),
+      model: (trace && trace.model) || (timedOut ? (callOpts.forceModel || model || null) : null),
+      usage: (r && r.usage) || null,
+      requestAttempted: timedOut ? true : !!(trace && trace.requestAttempted),
+      timeout: timedOut,
     })
 
     if (parsed && parsed.parsePath !== 'TOTAL_FAILURE') {

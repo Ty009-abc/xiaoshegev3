@@ -75,6 +75,8 @@ function loadGenAiReport(db, canned) {
     if (id === 'wx-server-sdk') return cloud
     if (id === './lib/response.js') return require(path.join(CF, 'generateAiReport', 'lib', 'response.js'))
     if (id === './lib/reportStore6q.js') return require(path.join(CF, 'generateAiReport', 'lib', 'reportStore6q.js'))
+    if (id === './lib/aiTelemetry.js') return require(path.join(CF, 'generateAiReport', 'lib', 'aiTelemetry.js'))
+    if (id === './lib/aiPricing.js') return require(path.join(CF, 'generateAiReport', 'lib', 'aiPricing.js'))
     if (id === './lib/permission.js') return { checkVip: async () => true }
     if (id === './lib/ai.js') return { callAI: async () => ({ success: true, content: '{}', tokens: 1 }), buildReportPrompt: () => ({}), buildCoachingPrompt: () => ({}) }
     if (id === './lib/order.js') return { generateReportId: () => 'AR_TEST', now: () => Date.now() }

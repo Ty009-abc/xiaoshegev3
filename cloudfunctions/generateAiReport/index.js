@@ -14,6 +14,7 @@ const { ok, fail, CODES } = require('./lib/response.js')
 const { checkVip } = require('./lib/permission.js')
 const { callAI, buildReportPrompt, buildCoachingPrompt } = require('./lib/ai.js')
 const { generateReportId, now } = require('./lib/order.js')
+const aiTelemetry = require('./lib/aiTelemetry.js')
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -54,6 +55,13 @@ exports.main = async (event, context) => {
         errorMessage: aiResult.error || '', createdAt: ts,
         personality: pMeta?.name || 'unknown',
       }}).catch(() => {})
+
+      // RC8.9C_R1A — canonical v2 model_call telemetry (one REAL provider attempt)
+      await aiTelemetry.emitModelCall(db, aiResult, {
+        requestId: event.requestId || recordId || '', reportId: null,
+        productLine: 'coaching', diagnosticVersion: null, openid, ts,
+        latencyMs: aiResult.latencyMs,
+      }).catch(() => {})
 
       return ok({
         content: replyText,
@@ -228,6 +236,16 @@ exports.main = async (event, context) => {
           fallbackFieldCount: Array.isArray(m.fallbackFields) ? m.fallbackFields.length : 0,
           latencyMs: m.latencyMs || 0, createdAt: ts,
         } }).catch(() => {})
+        // RC8.9C_R1A — canonical v2 model_call telemetry: ONE row per REAL
+        // provider attempt. Pure rule fallback (no provider call) ⇒ ZERO rows.
+        // Non-blocking + observable; never alters the report or user flow.
+        aiTelemetry.emitAttempts(db, m.attempts, {
+          requestId: event.requestId || event.recordId || '',
+          reportId: reportId || null,
+          productLine: 'turnaround_6q',
+          diagnosticVersion: rep.diagnosticVersion || 'turnaround_strategy_6q_v1',
+          openid, renderSource: m.renderSource, ts,
+        }).catch(() => {})
         return ok({ ...publicRep, reportId, reportPersistence })
       }
 
@@ -237,6 +255,12 @@ exports.main = async (event, context) => {
       const { systemPrompt, userMessage, personality: usedPersonality, engineResult } = buildDiagnosticPrompt(answers, dPersonality, dStyle)
       const diagModel = process.env.AI_MODEL_PRO || 'v4-pro'
       const diagResult = await callAI({ systemPrompt, userMessage, forceModel: diagModel, maxTokens: 2048, temperature: 0.65 })
+      // RC8.9C_R1A — canonical v2 model_call telemetry (one REAL provider attempt)
+      aiTelemetry.emitModelCall(db, diagResult, {
+        requestId: event.requestId || event.recordId || '', reportId: null,
+        productLine: 'diagnostic_v3', diagnosticVersion: 'v3', openid, ts,
+        latencyMs: diagResult.latencyMs,
+      }).catch(() => {})
 
       if (!diagResult.success) {
         // AI 失败时返回规则引擎的冷数据
@@ -376,6 +400,12 @@ exports.main = async (event, context) => {
     const { systemPrompt, userMessage } = buildReportPrompt(scores, tags, choicesSummary)
     const reportModel = process.env.AI_MODEL_PRO || 'v4-pro'
     const aiResult = await callAI({ systemPrompt, userMessage, forceModel: reportModel })
+    // RC8.9C_R1A — canonical v2 model_call telemetry (one REAL provider attempt)
+    aiTelemetry.emitModelCall(db, aiResult, {
+      requestId: event.requestId || recordId || '', reportId: null,
+      productLine: 'challenge_final', diagnosticVersion: null, openid, ts,
+      latencyMs: aiResult.latencyMs,
+    }).catch(() => {})
 
     // 5. 解析 AI 结果 — 强容错清洗
     let aiContent = aiResult.content || ''
@@ -1698,12 +1728,19 @@ async function runDiagnosticV4Branch({ event, openid, ts, db }) {
       userContext: { openid, recordId },
       diagnosis: acceptedDiagnosis,
       callAI: async (opts) => {
-        return await callAI({
+        const _r = await callAI({
           systemPrompt: opts.systemPrompt,
           userMessage: opts.userMessage,
           maxTokens: 2048,
           temperature: 0.65,
         })
+        // RC8.9C_R1A — canonical v2 model_call telemetry (one REAL provider attempt)
+        aiTelemetry.emitModelCall(db, _r, {
+          requestId: event.requestId || recordId || '', reportId: null,
+          productLine: 'diagnostic_v4', diagnosticVersion: 'v4', openid, ts,
+          latencyMs: _r && _r.latencyMs,
+        }).catch(() => {})
+        return _r
       },
     })
     var _res = pipelineResult

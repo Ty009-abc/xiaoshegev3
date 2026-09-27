@@ -191,6 +191,7 @@ async function callAI(options) {
   })
 
   var requestAttempted = false
+  var __aiStart = Date.now() // RC8.9C_R1A: provider-call latency (this call only)
 
   if (!apiKey) {
     var traceNoKey = buildProviderTrace(apiKey, model, null, false, 'AI_API_KEY not configured')
@@ -243,6 +244,7 @@ async function callAI(options) {
         error: redactedMsg,
         providerErrorCode: errorCode,
         httpStatus: httpStatus,
+        latencyMs: Date.now() - __aiStart,
         providerTrace: httpTrace,
       }
     }
@@ -255,6 +257,7 @@ async function callAI(options) {
         error: 'AI 返回空内容',
         providerErrorCode: 'AI_PROVIDER_EMPTY_RESPONSE',
         httpStatus: httpStatus,
+        latencyMs: Date.now() - __aiStart,
         providerTrace: emptyTrace,
       }
     }
@@ -267,6 +270,9 @@ async function callAI(options) {
       success: true,
       content: choice.message?.content || '',
       tokens: response.data.usage?.total_tokens || 0,
+      // RC8.9C_R1A: raw provider usage for canonical v2 telemetry (may be absent).
+      usage: response.data.usage || null,
+      latencyMs: Date.now() - __aiStart,
       finishReason: finishReason,
       truncated: truncated,
       maxTokens: maxTokens,
@@ -313,6 +319,7 @@ async function callAI(options) {
       error: redactedErr,
       providerErrorCode: errorCode,
       httpStatus: errorHttpStatus,
+      latencyMs: Date.now() - __aiStart,
       providerTrace: exceptionTrace,
     }
   }
