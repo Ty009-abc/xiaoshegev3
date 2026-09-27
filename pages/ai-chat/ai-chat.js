@@ -6,6 +6,7 @@
  */
 const app = getApp()
 const { pickQuestions } = require('../../data/aiChatSuggestions.js')
+const userTrack = require('../../utils/userTrack.js')
 
 Page({
   data: {
@@ -19,6 +20,8 @@ Page({
 
   onLoad() {
     this._firstLoad = true
+    // RC8.9B — 打开 AI 问答（best-effort）
+    userTrack.event('qa_open')
     this.setData({
       messages: [{
         role: 'assistant',
@@ -119,6 +122,8 @@ Page({
 
     const msgs = [...this.data.messages, { role: 'user', content: text }]
     this.setData({ messages: msgs, inputValue: '', sending: true, scrollTop: 99999 })
+    // RC8.9B — 发送 AI 提问（best-effort，不含提问内容）
+    userTrack.event('qa_send')
 
     try {
       const personality = this._pendingPersonality

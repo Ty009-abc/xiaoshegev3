@@ -1,0 +1,69 @@
+<!-- pages/admin/user-detail — RC8.9B 用户详情 + 行为时间线 -->
+<scroll-view scroll-y class="adm-page">
+  <view class="adm-hero">
+    <text class="adm-hero-title">{{detail.label || '用户详情'}}</text>
+    <text class="adm-hero-sub">{{detail.basic.status || ''}} · 最近活跃 {{fmt(detail.basic.lastActiveAt)}}</text>
+  </view>
+
+  <view class="adm-skeleton" wx:if="{{loading}}">
+    <view class="adm-skel-block" wx:for="{{[1,2,3]}}" wx:key="*this"></view>
+  </view>
+
+  <view class="adm-error" wx:if="{{error && !loading}}">
+    <text>{{error}}</text>
+    <view class="adm-error-retry" bindtap="retry">重新加载</view>
+  </view>
+
+  <block wx:if="{{!loading && !error}}">
+    <!-- Basic -->
+    <view class="adm-section">
+      <view class="adm-section-head"><text class="adm-section-title">基本信息</text></view>
+      <view class="adm-card">
+        <view class="adm-kv"><text class="adm-kv-k">用户</text><text class="adm-kv-v">{{detail.label}}</text></view>
+        <view class="adm-kv"><text class="adm-kv-k">OpenID</text><text class="adm-kv-v adm-mono">{{showRaw ? detail.openid : detail.maskedOpenid}}</text></view>
+        <view class="adm-kv" wx:if="{{canReveal}}">
+          <text class="adm-kv-k">完整 ID</text>
+          <text class="adm-kv-v"><text class="adm-error-retry" bindtap="toggleRaw">{{showRaw ? '隐藏' : '显示完整 OpenID'}}</text></text>
+        </view>
+        <view class="adm-kv"><text class="adm-kv-k">首次访问</text><text class="adm-kv-v">{{fmt(detail.basic.firstSeenAt)}}</text></view>
+        <view class="adm-kv"><text class="adm-kv-k">最近活跃</text><text class="adm-kv-v">{{fmt(detail.basic.lastActiveAt)}}</text></view>
+      </view>
+    </view>
+
+    <!-- Usage -->
+    <view class="adm-section">
+      <view class="adm-section-head"><text class="adm-section-title">使用情况</text></view>
+      <view class="adm-kpi-grid">
+        <view class="adm-kpi"><text class="adm-kpi-val">{{detail.usage.eventCount}}</text><text class="adm-kpi-label">事件数</text></view>
+        <view class="adm-kpi"><text class="adm-kpi-val">{{detail.usage.reportCount}}</text><text class="adm-kpi-label">报告数</text></view>
+        <view class="adm-kpi"><text class="adm-kpi-val">{{detail.usage.qaCount}}</text><text class="adm-kpi-label">AI问答</text></view>
+        <view class="adm-kpi"><text class="adm-kpi-val">{{detail.usage.activeDays}}</text><text class="adm-kpi-label">活跃天数</text></view>
+      </view>
+    </view>
+
+    <!-- Monetization（只读） -->
+    <view class="adm-section">
+      <view class="adm-section-head"><text class="adm-section-title">商业</text><text class="adm-section-meta">只读</text></view>
+      <view class="adm-card">
+        <view class="adm-kv"><text class="adm-kv-k">会员等级</text><text class="adm-kv-v">{{detail.monetization.membershipLevel}}</text></view>
+        <view class="adm-kv"><text class="adm-kv-k">订单数</text><text class="adm-kv-v">{{detail.monetization.orderCount}}</text></view>
+        <view class="adm-kv"><text class="adm-kv-k">已支付</text><text class="adm-kv-v">¥{{paidYuan}}</text></view>
+      </view>
+    </view>
+
+    <!-- Timeline -->
+    <view class="adm-section">
+      <view class="adm-section-head"><text class="adm-section-title">User Journey</text><text class="adm-section-meta">最近 {{detail.timeline.length}} 条</text></view>
+      <view class="adm-card" style="padding:28rpx 24rpx;">
+        <view class="adm-timeline" wx:if="{{detail.timeline.length}}">
+          <view class="adm-tl-item" wx:for="{{detail.timeline}}" wx:key="index">
+            <view class="adm-tl-dot adm-tl-dot--{{item.dot}}"></view>
+            <text class="adm-tl-time">{{item.timeText}}</text>
+            <text class="adm-tl-text">{{item.text}}</text>
+          </view>
+        </view>
+        <view class="adm-empty" wx:else style="border:none;">暂无行为记录</view>
+      </view>
+    </view>
+  </block>
+</scroll-view>

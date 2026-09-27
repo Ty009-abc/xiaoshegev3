@@ -24,6 +24,7 @@
 
 const legacy6q = require('../../services/legacy6qReportService.js')
 const reportHistory = require('../../utils/reportHistory.js')
+const userTrack = require('../../utils/userTrack.js')
 
 const app = getApp()
 const QUESTIONNAIRE_ROUTE = '/pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire'
@@ -157,6 +158,8 @@ Page({
     const self = this
     const h = this._handoff || {}
     const p = h.personality || {}
+    // RC8.9B — 报告请求（best-effort）
+    userTrack.event('report_request', { version: DIAGNOSTIC_VERSION })
     legacy6q.generateLegacy6QReport({
       answers: h.answers,
       personality: (p && p.name) || '',
@@ -167,14 +170,20 @@ Page({
       if (r && r.code === 0 && r.data) {
         self._aiState = 'ok'
         self._report = r.data
+        // RC8.9B — 报告成功（best-effort）
+        userTrack.event('report_success', { version: DIAGNOSTIC_VERSION })
       } else {
         self._aiState = 'fail'
+        // RC8.9B — 报告降级到规则兜底（best-effort）
+        userTrack.event('report_fallback', { version: DIAGNOSTIC_VERSION })
       }
       self._maybeFinish()
     }).catch(function (e) {
       console.error('[6q-thinking] AI 生成失败:', e)
       if (self._unloaded || self._done) return
       self._aiState = 'fail'
+      // RC8.9B — 报告生成失败（best-effort）
+      userTrack.event('report_fail', { version: DIAGNOSTIC_VERSION })
       self._maybeFinish()
     })
   },

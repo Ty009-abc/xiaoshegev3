@@ -2,6 +2,7 @@
  * pages/home — v3.12 cognition-strike + personality injection
  */
 const analytics = require('../../utils/analytics.js')
+const userTrack = require('../../utils/userTrack.js')
 const { getTodayStrike } = require('../../utils/cognitionStrike.js')
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
 const personalizedContent = require('../../services/personalizedContentService.js')
@@ -26,8 +27,10 @@ Page({
   onShow() {
     this.loadAll()
     analytics.track('home_visit')
+    // RC8.9B — user_events 时间线（best-effort）
+    userTrack.event('home_view')
   },
-  onUnload() { clearTimeout(this.data.adminTimer); analytics.flush() },
+  onUnload() { clearTimeout(this.data.adminTimer); analytics.flush(); userTrack.flush() },
 
   async loadAll() {
     try {

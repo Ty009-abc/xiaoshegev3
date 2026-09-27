@@ -429,6 +429,20 @@
       "timeout": 30,
       "handler": "index.main",
       "installDependency": true
+    },
+    {
+      "name": "trackEvent",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": true
+    },
+    {
+      "name": "adminGetUserDetail",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": true
     }
   ]
 }

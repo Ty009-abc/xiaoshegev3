@@ -10,6 +10,9 @@
  *   5. 拉取系统配置
  */
 
+// RC8.9B — 用户行为埋点（best-effort，绝不阻塞主流程）
+const userTrack = require('./utils/userTrack.js')
+
 App({
   globalData: {
     openid: '',
@@ -102,6 +105,8 @@ App({
       }
 
       this.globalData.ready = true
+      // RC8.9B — app_open（best-effort，登录成功后）
+      try { userTrack.event('app_open', { isNewUser: !!isNewUser, membershipLevel: user.membershipLevel || 'free' }) } catch (_) {}
       if (this._onReadyCallback) this._onReadyCallback()
     } catch (err) {
       console.error('[app] 启动流程异常:', err)

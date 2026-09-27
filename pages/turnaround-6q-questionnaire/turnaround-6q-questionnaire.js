@@ -20,6 +20,7 @@
 
 const { getRandomPersonality } = require('../../utils/personalityModes.js')
 const legacy6q = require('../../services/legacy6qReportService.js')
+const userTrack = require('../../utils/userTrack.js')
 
 const app = getApp()
 // RC8.8_STAGE2_R5 — Q6 submit now routes through the dedicated LIGHT thinking
@@ -44,6 +45,8 @@ Page({
 
   onLoad () {
     this._initDiagnostic()
+    // RC8.9B — 问卷开始（best-effort）
+    userTrack.event('questionnaire_start', { version: DIAGNOSTIC_VERSION })
   },
 
   _initDiagnostic () {
@@ -78,6 +81,8 @@ Page({
       this._submitDiagnostic()
       return
     }
+    // RC8.9B — 作答一题（不含答案内容）
+    userTrack.event('question_answered', { index: idx })
     const next = idx + 1
     const nextVal = answers[next] || ''
     this.setData({
@@ -130,6 +135,8 @@ Page({
     // §3/§11 — validate six answers, save raw answers to TEMP request state, then
     // hand off to the thinking page with ONE stable requestId (ONE model call).
     const requestId = 'r6q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+    // RC8.9B — 完成问卷（best-effort）
+    userTrack.event('questionnaire_complete', { version: DIAGNOSTIC_VERSION })
     app.globalData._legacy6qThinkingRequest = {
       requestId,
       answers,

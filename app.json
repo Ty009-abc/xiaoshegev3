@@ -35,6 +35,7 @@
     "pages/payment-result/payment-result",
     "pages/profile/profile",
     "pages/admin/dashboard/dashboard",
+    "pages/admin/user-detail/user-detail",
     "pages/admin/users/users",
     "pages/admin/orders/orders",
     "pages/admin/content/content",

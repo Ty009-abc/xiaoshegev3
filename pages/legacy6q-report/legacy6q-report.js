@@ -23,6 +23,7 @@
 
 const app = getApp()
 const cognitionEntry = require('../../utils/cognitionEntry.js')
+const userTrack = require('../../utils/userTrack.js')
 const QUESTIONNAIRE_ROUTE = '/pages/turnaround-6q-questionnaire/turnaround-6q-questionnaire'
 const REVEAL_DELAYS = [300, 700, 1100, 1500, 1900]
 
@@ -55,6 +56,8 @@ Page({
       this.setData({ error: '报告数据丢失，请重新推演' })
       return
     }
+    // RC8.9B — 查看报告（best-effort）
+    userTrack.event('report_view', { version: 'turnaround_strategy_6q_v1' })
     // P0 — mirror the home page's feed-driven `_strikeId` so the「每日认知」entry
     // opens the SAME 今日认知暴击 as home. Non-blocking: never delays the reveal.
     try { cognitionEntry.primeStrikeContext(this) } catch (_) {}

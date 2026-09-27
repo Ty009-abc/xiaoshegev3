@@ -1,23 +1,23 @@
 {
-  "taskId": "RC8.9A_ADMIN_CONSOLE_UI",
-  "baseCommit": "108fb14",
+  "taskId": "RC8.9B_USER_ACTIVITY_ANALYTICS",
+  "baseCommit": "bbca77b",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Admin console used a black engineering/debug theme unsuitable for operations. Rebuild as a light, high-density SaaS/BI console. UI only — no authority, tracking, payment, 6Q, report, or user-app changes.",
+  "problem": "Admin could only see aggregate counts, not what a specific user actually did. Add per-user activity tracking (user_events), user detail timeline, and a dashboard funnel — all best-effort so tracking can never block the report/payment/user flow.",
   "changes": {
-    "SHARED_THEME": "styles/admin.wxss — light design system (#F5F7FA page, #FFFFFF cards, #111827/#667085 text, #E5484D accent, semantic success/warn/error/info, skeletons, timeline, funnel, KV)",
-    "DASHBOARD": "pages/admin/dashboard/* — IA: 今日概览 / 用户趋势 / 核心漏斗 / AI运行状态 / 商业 / 最近用户; loading skeleton + error+retry; loading always clears; pull-refresh always stops",
-    "PAGES": "users, orders, ai-logs, content, settings rebuilt light; masked OpenID default",
-    "ANALYTICS_DASHBOARDS": "revenue/growth/acquisition/scale dashboards remapped dark->light; nav bars white; light var aliases added"
+    "COLLECTION": "user_events { eventId, userId, openid, eventName, eventVersion, timestamp, page, source, sessionId, metadata, createdAt }",
+    "COLLECTOR": "cloudfunctions/trackEvent — whitelist, eventId idempotency, always code 0 (soft-fail)",
+    "CLIENT": "utils/userTrack.js — fire-and-forget queue, never throws; instrumented app_open/home_view/strategy_start/questionnaire_*/report_*/qa_*/payment_*/membership_view/poster_*",
+    "AGGREGATION": "adminGetDashboard + fail-soft funnel/trend/recentUsers",
+    "DETAIL": "cloudfunctions/adminGetUserDetail + pages/admin/user-detail (Basic/Usage/Monetization/User Journey); masked OpenID default",
+    "ROUTES": "app.json admin/user-detail; cloudbaserc.json trackEvent + adminGetUserDetail (installDependency:true)"
   },
   "noUnintendedChange": {
-    "AUTHORITY_CHANGED": "NO",
-    "TRACKING_CHANGED": "NO",
-    "PAYMENT_CHANGED": "NO",
-    "SIXQ_CHANGED": "NO",
+    "PAYMENT_CHANGED": "NO (read-only: payment events recorded, no write authority)",
+    "SIXQ_CHANGED": "NO (only best-effort event emission added)",
     "REPORT_ENGINE_CHANGED": "NO",
     "USER_APP_UI_CHANGED": "NO",
-    "CLOUD_FUNCTIONS_CHANGED": "NO"
+    "ADMIN_AUTH_CHANGED": "NO (still system_configs.admin_users)"
   },
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>"
+  "rollbackPlan": "git revert <this-commit>; optionally drop user_events"
 }

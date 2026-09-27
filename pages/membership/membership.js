@@ -3,6 +3,7 @@
  * 来源：challenge-play 锁定卡 → 支付解锁 → 返回继续挑战
  */
 const paymentService = require('../../services/paymentService.js')
+const userTrack = require('../../utils/userTrack.js')
 
 Page({
   data: {
@@ -19,6 +20,8 @@ Page({
     const recordId = opt.recordId || ''
     const productId = opt.productId || 'challenge_39_9'
     this.setData({ source, recordId, productId })
+    // RC8.9B — 进入付款页（best-effort）
+    userTrack.event('payment_view', { productId, source: source || '' })
     this.loadProduct(productId)
   },
 
@@ -79,6 +82,8 @@ Page({
 
       const order = r.data
       console.log('[ChallengeUnlock] order created', { orderId: order.orderId })
+      // RC8.9B — 创建订单（best-effort）
+      userTrack.event('payment_create', { productId: this.data.productId })
 
       // 2. 调微信支付
       if (order.paymentParams && !order.paymentParams._mock) {
@@ -87,6 +92,7 @@ Page({
         if (!paymentResult.success) {
           // 用户取消 — 不写 paid
           wx.showToast({ title: '支付已取消', icon: 'none' })
+          userTrack.event('payment_fail', { reason: 'cancel' })
           return
         }
       } else if (order.paymentParams && order.paymentParams._mock) {
@@ -100,12 +106,14 @@ Page({
 
       if (verifyRes.code === 0 && verifyRes.data && verifyRes.data.status === 'paid') {
         wx.showToast({ title: '解锁成功！', icon: 'success' })
+        userTrack.event('payment_success', { productId: this.data.productId })
         this._navTimer = setTimeout(() => { wx.navigateBack() }, 800)
       } else {
         wx.showToast({ title: '支付确认中，请稍后重试', icon: 'none' })
       }
     } catch (err) {
       console.error('[ChallengeUnlock] pay fail', err)
+      userTrack.event('payment_fail', { reason: 'error' })
       wx.showToast({ title: '支付未完成，请重试', icon: 'none' })
     } finally {
       this.setData({ paying: false })

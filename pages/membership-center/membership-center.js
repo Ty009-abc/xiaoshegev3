@@ -10,6 +10,7 @@
  */
 const app = getApp()
 const analytics = require('../../utils/analytics.js')
+const userTrack = require('../../utils/userTrack.js')
 
 Page({
   data: {
@@ -24,7 +25,7 @@ Page({
 
   onLoad() { this.data._app = app; this.loadAll() },
   onShow() { this.loadAll() },
-  onUnload() { analytics.flush() },
+  onUnload() { analytics.flush(); userTrack.flush() },
 
   async loadAll() {
     wx.showLoading({ title: '加载中' })
@@ -105,6 +106,7 @@ Page({
 
   goMembership() {
     analytics.track('membership_view')
+    userTrack.event('membership_view')
     wx.navigateTo({ url: '/pages/membership/membership' })
   },
 

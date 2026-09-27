@@ -2,6 +2,7 @@
  * pages/share-poster — 分享海报生成
  */
 const analytics = require('../../utils/analytics.js')
+const userTrack = require('../../utils/userTrack.js')
 Page({
   data: { recordId:'', result:null, posterPath:'', generating:false },
   onLoad(opt) { this.setData({ recordId:opt.recordId||'' }); this.loadResult() },
@@ -14,6 +15,8 @@ Page({
   async generatePoster() {
     if(this.data.generating) return
     this.setData({ generating:true })
+    // RC8.9B — 生成海报（best-effort）
+    userTrack.event('poster_generate')
     const { result } = this.data
     if(!result) { wx.showToast({ title:'系统暂时看不清这个世界，请稍后再试', icon:'none' }); this.setData({ generating:false }); return }
 
@@ -96,7 +99,7 @@ Page({
     if(!this.data.posterPath) return
     wx.saveImageToPhotosAlbum({
       filePath:this.data.posterPath,
-      success:()=>{ wx.showToast({ title:'海报已保存到相册', icon:'success' }) },
+      success:()=>{ wx.showToast({ title:'海报已保存到相册', icon:'success' }); userTrack.event('poster_save') },
       fail:()=>{ wx.showToast({ title:'请允许保存相册权限', icon:'none' }) }
     })
   },
@@ -108,6 +111,6 @@ Page({
       imageUrl:this.data.posterPath||'',
     }
   },
-  onUnload() { analytics.flush() },
+  onUnload() { analytics.flush(); userTrack.flush() },
   goRanking() { wx.navigateTo({ url:'/pages/growth-ranking/growth-ranking' }) },
 })
