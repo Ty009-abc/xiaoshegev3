@@ -66,22 +66,28 @@
       <view class="adm-empty" wx:else>暂无数据</view>
     </view>
 
-    <!-- 核心漏斗（RC8.9B 接入） -->
+    <!-- 核心漏斗（RC8.9D_R1 规范口径：独立用户 · 北京日 · 服务端权威支付） -->
     <view class="adm-section">
       <view class="adm-section-head">
         <text class="adm-section-title">核心漏斗</text>
-        <text class="adm-section-meta">今日</text>
+        <text class="adm-section-meta">今日 · {{stats.funnelCountUnitNote}} · {{stats.funnelTimezone}}</text>
+      </view>
+      <view class="adm-funnel-warn" wx:if="{{stats.funnelWarn}}">
+        <text>数据口径异常（阶段非单调递减），已按原始计数展示，未做任何修正</text>
       </view>
       <view class="adm-card" style="padding:24rpx;" wx:if="{{stats.funnel}}">
         <view class="adm-funnel-step" wx:for="{{stats.funnel}}" wx:key="key">
           <view class="adm-funnel-top">
             <text class="adm-funnel-name">{{item.name}}</text>
-            <text class="adm-funnel-count">{{item.count}} · {{item.rate}}</text>
+            <text class="adm-funnel-count">{{item.count}}{{item.rate ? ' · ' + item.rate : ''}}</text>
           </view>
           <view class="adm-funnel-bar-bg">
             <view class="adm-funnel-bar" style="width:{{item.w}}%"></view>
           </view>
           <text class="adm-funnel-drop" wx:if="{{item.drop}}">流失 {{item.drop}}</text>
+        </view>
+        <view class="adm-funnel-note" wx:if="{{stats.paymentNeutral}}">
+          <text>{{stats.paymentNeutralNote}}</text>
         </view>
       </view>
       <view class="adm-empty" wx:else>暂无数据</view>

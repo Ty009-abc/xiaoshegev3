@@ -33,8 +33,22 @@ Page({
     const fallbacks = rt.fallbacks || 0
     const priced = rt.pricedCallCount || 0
     const unpriced = rt.unpricedCallCount || 0
+    // RC8.9D_R1 — 规范漏斗（canonical）：独立用户计数 + 北京日 + 完整性标记。
+    const fn = s.funnel || {}
+    const fst = fn.stages || {}
+    const pv = (fst.paymentView && fst.paymentView.count) || 0
     return {
       ...s,
+      // wxml 消费的数组形态（向后兼容别名 s.funnelStages）
+      funnel: s.funnelStages || s.funnel,
+      funnelCountUnitNote: fn.countUnit === 'unique_users' ? '去重用户' : '',
+      funnelTimezone: fn.timezone || 'Asia/Shanghai',
+      funnelIntegrity: s.funnelIntegrity,
+      funnelWarn: s.funnelIntegrity === false,
+      funnelViolations: s.funnelViolations || [],
+      // 6Q 当前路径无付款入口 → 阶段 5/6 为 0 属正常，显式中性说明（不伪造转化）
+      paymentNeutral: pv === 0,
+      paymentNeutralNote: '当前路径暂无付款入口',
       totalRevenueYuan: ((s.totalRevenue || 0) / 100).toFixed(0),
       todayRevenueYuan: ((s.todayRevenue || 0) / 100).toFixed(0),
       // RC8.9C R1B — 今日 与 累计 严格分离

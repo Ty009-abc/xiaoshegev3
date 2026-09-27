@@ -12,15 +12,20 @@ const _ = db.command
 const { ok, fail, CODES } = require('./lib/response.js')
 const adminAuth = require('./lib/adminAuth.js')
 
-// RC8.9B — user_events 事件元数据（内联，避免额外模块依赖）
-const FUNNEL_STEPS = [
-  { key: 'home_view', name: '打开首页' },
-  { key: 'strategy_start', name: '开始测试' },
-  { key: 'questionnaire_complete', name: '完成问卷' },
-  { key: 'report_success', name: '报告成功' },
-  { key: 'payment_view', name: '进入付款' },
-  { key: 'payment_success', name: '支付成功' },
+// RC8.9D_R1 — 规范漏斗授权（canonical funnel authority）。
+//   阶段 1-5 = user_events 事件按【独立 openid】去重计数；
+//   阶段 6   = orders.status='paid' 的【独立 openid】去重计数（服务端权威）。
+//   注意：stage 2 的权威事件是 questionnaire_start —— 绝不使用/伪造 strategy_start。
+const FUNNEL_EVENT_STAGES = [
+  { key: 'home', name: '打开首页', event: 'home_view' },
+  { key: 'start', name: '开始测试', event: 'questionnaire_start' },
+  { key: 'complete', name: '完成问卷', event: 'questionnaire_complete' },
+  { key: 'report', name: '报告成功', event: 'report_success' },
+  { key: 'paymentView', name: '进入付款', event: 'payment_view' },
 ]
+// 阶段 6 —— 服务端权威（orders），非 user_events.payment_success。
+const FUNNEL_PAID_STAGE = { key: 'paid', name: '支付成功' }
+const FUNNEL_ORDER = ['home', 'start', 'complete', 'report', 'paymentView', 'paid']
 const EVENT_TEXT = {
   app_open: '打开小程序', home_view: '打开首页', strategy_start: '开始翻身策略',
   questionnaire_start: '开始问卷', question_answered: '作答一题', questionnaire_complete: '完成问卷',
@@ -38,12 +43,17 @@ async function checkAdmin(db, openid) {
 }
 
 const now = () => Date.now()
-function startOfDay(ts) { const d = new Date(ts); d.setHours(0,0,0,0); return d.getTime() }
 const DAY = 86400000
-// RC8.9C R1B — 显式业务时区 Asia/Shanghai(+8h，无 DST)。
+// RC8.9C R1B / RC8.9D_R1 — 显式业务时区 Asia/Shanghai(+8h，无 DST)。
 // 服务器为 UTC，绝不能拿本地/UTC 午夜当“今日”边界。
+// RC8.9D_R1 — 全 dashbord（漏斗 / KPI / 趋势）统一使用北京日，已移除 server-local startOfDay()。
 const BEIJING_OFFSET = 8 * 3600 * 1000
 function startOfBeijingDay(ts) { return Math.floor((ts + BEIJING_OFFSET) / DAY) * DAY - BEIJING_OFFSET }
+// 北京日键：YYYY-MM-DD（用于趋势分桶，绝不使用本地 getHours/getDate）。
+function beijingDayKey(ts) {
+  const d = new Date((ts || 0) + BEIJING_OFFSET)
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
 function pctStr(failed, total) { return (total > 0) ? ((failed / total) * 100).toFixed(1) + '%' : null }
 
 // RC8.9C R1B — 规范 AI 计量口径：仅 telemetryVersion=2 且 operation='model_call' 的行。
@@ -58,28 +68,83 @@ function hhmm(ts) {
 }
 
 // ── OPTIONAL 运营聚合（fail-soft）──
-async function buildFunnel(todayStart) {
+// RC8.9D_R1 — 独立用户计数：聚合 group by openid 后 count，绝不使用 raw event .count()。
+async function countDistinctUsers(collection, match) {
+  const r = await db.collection(collection).aggregate()
+    .match(match)
+    .group({ _id: '$openid' })
+    .count('n')
+    .end()
+  const list = (r && r.list) || []
+  return (list[0] && list[0].n) || 0
+}
+
+async function buildFunnel(dayStartBeijing) {
   try {
-    const counts = await Promise.all(FUNNEL_STEPS.map(s =>
-      db.collection('user_events').where({ eventName: s.key, timestamp: _.gte(todayStart) }).count()
+    // 阶段 1-5：user_events 独立 openid（北京日窗口）
+    const eventCounts = await Promise.all(FUNNEL_EVENT_STAGES.map(s =>
+      countDistinctUsers('user_events', { eventName: s.event, timestamp: _.gte(dayStartBeijing) })
     ))
-    const raw = FUNNEL_STEPS.map((s, i) => ({ key: s.key, name: s.name, count: counts[i].total || 0 }))
-    const base = raw[0] ? raw[0].count : 0
-    return raw.map((r, i) => {
-      const prev = i > 0 ? raw[i - 1].count : r.count
-      return {
-        key: r.key,
-        name: r.name,
-        count: r.count,
-        rate: base > 0 ? ((r.count / base) * 100).toFixed(0) + '%' : '0%',
-        w: base > 0 ? Math.round((r.count / base) * 100) : 0,
-        drop: i > 0 && prev > 0 ? (((prev - r.count) / prev) * 100).toFixed(0) + '%' : '',
-      }
+    // 阶段 6：服务端权威 = orders.status='paid' 独立 openid（按 paidAt 北京日窗口）
+    const paidCount = await countDistinctUsers('orders', { status: 'paid', paidAt: _.gte(dayStartBeijing) })
+
+    const stages = {}
+    FUNNEL_EVENT_STAGES.forEach((s, i) => {
+      stages[s.key] = { key: s.key, name: s.name, event: s.event, count: eventCounts[i] || 0, conversion: null, dropoff: null }
     })
+    stages[FUNNEL_PAID_STAGE.key] = {
+      key: FUNNEL_PAID_STAGE.key, name: FUNNEL_PAID_STAGE.name,
+      event: "orders.status='paid'", count: paidCount || 0, conversion: null, dropoff: null,
+    }
+
+    // 转化率 / 流失率：上一阶段为 0 → null（UI 显示 --），绝不显示“100%流失”。
+    FUNNEL_ORDER.forEach((key, i) => {
+      if (i === 0) return
+      const prev = stages[FUNNEL_ORDER[i - 1]].count
+      const cur = stages[key].count
+      stages[key].conversion = prev > 0 ? (cur / prev) : null
+      stages[key].dropoff = prev > 0 ? (1 - cur / prev) : null
+    })
+
+    // 完整性不变式：后一阶段不得大于前一阶段。绝不 clamp / 伪造降序。
+    const violations = []
+    for (let i = 1; i < FUNNEL_ORDER.length; i++) {
+      const from = FUNNEL_ORDER[i - 1]
+      const to = FUNNEL_ORDER[i]
+      if (stages[to].count > stages[from].count) {
+        violations.push({ from, to, fromCount: stages[from].count, toCount: stages[to].count })
+      }
+    }
+
+    return {
+      scope: 'today',
+      timezone: 'Asia/Shanghai',
+      countUnit: 'unique_users',
+      stages,
+      integrity: { valid: violations.length === 0, violations },
+    }
   } catch (e) {
     console.warn('[adminGetDashboard] funnel unavailable:', e && e.message)
     return null
   }
+}
+
+// RC8.9D_R1 — 向后兼容：把 canonical funnel 展开为 6 阶段数组（旧 UI / 旧消费方）。
+// 不再产出会误导的 '0%' / '100%流失'；分母为 0 → rate/drop 为空字符串。
+function funnelToLegacyArray(funnel) {
+  if (!funnel || !funnel.stages) return null
+  const base = (funnel.stages.home && funnel.stages.home.count) || 0
+  return FUNNEL_ORDER.map(key => {
+    const st = funnel.stages[key] || { key, name: key, count: 0, conversion: null, dropoff: null }
+    return {
+      key, name: st.name, count: st.count,
+      rate: base > 0 ? Math.round((st.count / base) * 100) + '%' : '',
+      w: base > 0 ? Math.round((st.count / base) * 100) : 0,
+      conversion: st.conversion,
+      dropoff: st.dropoff,
+      drop: (typeof st.dropoff === 'number') ? Math.round(st.dropoff * 100) + '%' : '',
+    }
+  })
 }
 
 async function buildTrend(todayStart) {
@@ -89,14 +154,11 @@ async function buildTrend(todayStart) {
     const days = []
     const counts = {}
     for (let i = 0; i < 7; i++) {
-      const d = new Date(new Date(todayStart - (6 - i) * DAY).getTime())
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const key = beijingDayKey(todayStart - (6 - i) * DAY)
       days.push(key); counts[key] = 0
     }
     ;(res.data || []).forEach(u => {
-      const k = u.createdAt || 0
-      const d = new Date(k)
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const key = beijingDayKey(u.createdAt || 0)
       if (counts[key] != null) counts[key]++
     })
     const max = Math.max(1, ...days.map(k => counts[k]))
@@ -136,7 +198,8 @@ exports.main = async (event, context) => {
   try {
     if (!(await checkAdmin(db, openid))) return fail(CODES.PERMISSION_DENIED)
 
-    const todayStart = startOfDay(ts)
+    // RC8.9D_R1 — 全 dashboard 统一北京日边界（原先 server-local startOfDay 已移除）。
+    const todayStart = startOfBeijingDay(ts)
 
     // ── CORE 指标（hard-required）：users / orders。任一失败 → 由外层 catch 返回 DB_ERROR ──
     const [
@@ -175,7 +238,7 @@ exports.main = async (event, context) => {
     let aiFallbacks = 0
     let telemetryAvailable = false
     try {
-      const todayStartBeijing = startOfBeijingDay(ts)
+      const todayStartBeijing = todayStart
       const [cumRes, todayCount, legacyCount] = await Promise.all([
         db.collection('ai_logs').where(V2_MODEL_CALL)
           .field({ status: true, estimatedCostCny: true, latencyMs: true, isFallback: true, renderSource: true }).get(),
@@ -257,7 +320,11 @@ exports.main = async (event, context) => {
       businessTimezone: 'Asia/Shanghai',
       paidRate,
       vipUsers: vipUsers.total,
+      // RC8.9D_R1 — 规范漏斗（canonical）+ 向后兼容数组别名。
       funnel,
+      funnelStages: funnelToLegacyArray(funnel),
+      funnelIntegrity: funnel ? funnel.integrity.valid : null,
+      funnelViolations: funnel ? funnel.integrity.violations : [],
       trend,
       recentUsers,
     })

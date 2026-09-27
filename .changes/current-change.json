@@ -1,25 +1,26 @@
 {
-  "taskId": "RC8.9C_R1B_ADMIN_AI_METRICS",
-  "baseCommit": "034fa68",
-  "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Admin Dashboard AI metrics were not canonical: 今日AI调用 and 累计AI调用 both bound the SAME stats.aiCalls; 估算成本 used a fabricated Math.round(totalTokens*0.000002) → ¥0; AI错误率 showed '0%' for 0 samples; 失败次数 was a duplicate of the error-rate numerator; legacy ai_logs were mixed with v2 telemetry.",
+  "taskId": "RC8.9D_R1_FUNNEL_AUTHORITY_MINIMAL_FIX",
+  "baseCommit": "6cdcd09",
+  "branch": "feature/rc8.9d-funnel-authority",
+  "problem": "Admin 核心漏斗 was not a valid funnel: stage 2 「开始测试」bound user_events.eventName='strategy_start' — an event that is NEVER written to user_events (home only calls legacy analytics.track('strategy_start'); analytics_logs is empty). Result: 开始测试=0 while 完成问卷=6 → non-monotonic, untrustworthy. Additionally: (a) stages counted RAW EVENTS via .count() (not users); (b) funnel/KPI/trend used server-local startOfDay() while AI metrics used startOfBeijingDay() — inconsistent time boundary despite declared businessTimezone; (c) stage 6 used client payment_success instead of the server payment authority (orders.status='paid'); (d) zero-denominator transitions rendered '0%' / '100%流失'.",
   "changes": {
-    "AUTHORITY": "canonical metrics = ai_logs where telemetryVersion=2 AND operation='model_call' (constant V2_MODEL_CALL)",
-    "TODAY": "stats.today.aiCalls — count within Asia/Shanghai business day via startOfBeijingDay (explicit +08:00 boundary, NOT server UTC/local)",
-    "CUMULATIVE": "stats.aiRuntime.totalCalls — all v2 model_call rows (no createdAt bound)",
-    "SEPARATION": "today and cumulative are now distinct response fields (twin-binding bug fixed)",
-    "COST": "SUM(estimatedCostCny) for priced rows only; pricedCallCount/unpricedCallCount exposed; null (UI --) when no priced rows — never ¥0; partial pricing flagged",
-    "ERROR_RATE": "failedCalls/totalCalls; null (UI --) at 0 samples — never 0.0%",
-    "FAILURES": "status != SUCCESS on real v2 model_call rows only (excludes rule fallback, report-persist failure, tracking/admin failure); breakdown {providerErrors,timeouts,invalidResponses,validationErrors}",
-    "LATENCY": "avgLatencyMs + p95LatencyMs",
-    "LEGACY": "legacyTelemetryRows counted for diagnostics only; excluded from every canonical metric; NO backfill",
-    "CLIENT": "dashboard.js formats cost (<¥1 → 4dp, ≥¥1 → 2dp, tiny not ¥0, no-priced → --), error rate --, today vs cumulative, avg latency; dashboard.wxml adds 今日AI调用 / 累计AI调用 / 失败构成 footer",
-    "INDEX": "none added — reused ai_logs telemetryVersion_1_operation_1_createdAt_-1 (created in R1A)"
+    "STAGE2_AUTHORITY": "user_events.questionnaire_start (the real start signal; emitted at questionnaire onLoad). strategy_start is NOT added and NOT bound anywhere — no fabrication.",
+    "STAGES_1_5": "user_events { home_view, questionnaire_start, questionnaire_complete, report_success, payment_view } within the Beijing-day window",
+    "STAGE6_AUTHORITY": "orders where status='paid' (aggregate by openid, paidAt >= Beijing-day start) — server-authoritative; client payment_success is NOT the authority",
+    "COUNT_UNIT": "COUNT(DISTINCT openid) for ALL stages via aggregate().match().group({_id:'$openid'}).count('n').end(); raw event .count() removed",
+    "TIMEZONE": "entire dashboard (funnel + KPI + trend) uses startOfBeijingDay(ts) — Asia/Shanghai; server-local startOfDay() removed; trend buckets via beijingDayKey() (UTC-based, no local getHours/getDate)",
+    "CONVERSION": "conversion = cur/prev, dropoff = 1 - conversion; prev=0 → both null; alias array emits '' (UI --) — never '100%流失'",
+    "INTEGRITY": "monotonic invariant per stage; violation → integrity.valid=false + violations[]; counts NEVER clamped or faked; UI shows 数据口径异常 warning",
+    "API_SHAPE": "funnel: { scope:'today', timezone:'Asia/Shanghai', countUnit:'unique_users', stages:{home,start,complete,report,paymentView,paid}, integrity:{valid,violations} } + backward-compat aliases funnelStages[] (6-stage array), funnelIntegrity, funnelViolations",
+    "CLIENT": "dashboard.js consumes funnelStages (alias) + adds funnelCountUnitNote/funnelTimezone/funnelWarn/paymentNeutral; dashboard.wxml adds integrity warning, suppresses empty rate, and shows neutral note 「当前路径暂无付款入口」 when paymentView=0",
+    "PAYMENT_NEUTRAL": "legacy 6Q path has NO payment step → stages 5/6 legitimately 0; no fabricated conversion, no payment page built in this task"
   },
   "boundaries": {
-    "6Q_QUESTIONS_INFERENCE": "NO", "PROMPT": "NO", "REPORT_WORDING": "NO",
-    "MODEL_ROUTING": "NO", "PAYMENT": "NO", "RBAC": "NO", "6Q_OUTPUT": "NO"
+    "userTrack_QUEUE": "NO", "6Q_QUESTIONS": "NO", "REPORT_GENERATION": "NO",
+    "AI_TELEMETRY": "NO", "PROMPTS": "NO", "PAYMENT_PROCESSING": "NO",
+    "verifyPayment": "NO", "ENTITLEMENT": "NO", "RBAC": "NO",
+    "REPORT_PERSISTENCE": "NO", "MEMBERSHIP": "NO", "DB_MUTATION": "NO"
   },
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; v2 telemetry rows untouched; legacy rows never modified."
+  "rollbackPlan": "git revert <this-commit>; funnel is read-only aggregation — no data was mutated; no index added or removed."
 }

@@ -8,3 +8,8 @@
 
 /* RC8.9C R1B — 失败构成脚注 */
 .adm-section-foot { margin-top: 12rpx; padding: 0 4rpx; }
+
+/* RC8.9D_R1 — 漏斗完整性警告（数据口径异常时不伪造修正） */
+.adm-funnel-warn { margin: 0 0 16rpx; padding: 14rpx 18rpx; background: #FFF4E5; border: 1rpx solid #F5C27A; border-radius: 12rpx; font-size: 22rpx; color: #8A5A00; }
+/* RC8.9D_R1 — 付款阶段中性说明（当前 6Q 路径无付款入口） */
+.adm-funnel-note { margin-top: 10rpx; font-size: 20rpx; color: #98A2B3; }

@@ -38,8 +38,31 @@ function loadFn(fnDir, beh, wxOpenid) {
       field: () => q, limit: () => q, orderBy: () => q, skip: () => q,
       count: () => run(name, 'count'),
       get: () => run(name, 'get'),
+      // RC8.9D_R1 — canonical funnel uses aggregate() distinct-openid
+      aggregate: () => makeAgg(name),
     }
     return q
+  }
+  function makeAgg(name) {
+    let m = {}
+    const a = {
+      match: (x) => { m = x || {}; return a }, group: () => a, count: () => a,
+      sort: () => a, limit: () => a, project: () => a,
+      end: () => {
+        const b = beh[name] || {}
+        if (b.reject) return Promise.reject(new Error('simulated ' + name + ' unavailable'))
+        const docs = (b.docs || []).filter((d) => {
+          const ts = d.timestamp != null ? d.timestamp : d.paidAt
+          if (m.eventName && d.eventName !== m.eventName) return false
+          if (m.status && d.status !== m.status) return false
+          const g = m.timestamp || m.paidAt
+          if (g && typeof g.$gte === 'number' && !(ts >= g.$gte)) return false
+          return true
+        })
+        return Promise.resolve({ list: [{ n: new Set(docs.map((d) => d.openid)).size }] })
+      },
+    }
+    return a
   }
   function run(name, kind) {
     const b = beh[name] || {}
@@ -154,7 +177,10 @@ function loadModule(file, globals) {
     }
     const { main: main2 } = loadFn('cloudfunctions/adminGetDashboard', beh, OWNER)
     const r2 = await main2({}, {})
-    ok(r2.code === 0 && Array.isArray(r2.data.funnel) && r2.data.funnel.length === 6, 'E: 6-stage funnel')
+    // RC8.9D_R1 — canonical funnel is an object with 6 canonical stages;
+    // the legacy array alias (funnelStages) is preserved for the old UI.
+    ok(Array.isArray(r2.data.funnelStages) && r2.data.funnelStages.length === 6, 'E: 6-stage funnel (canonical + alias)')
+    ok(r2.data.funnel && r2.data.funnel.countUnit === 'unique_users' && r2.data.funnel.stages.report.count === 1, 'E: canonical funnel distinct-user counting')
     ok(Array.isArray(r2.data.trend) && r2.data.trend.length === 7, 'E: 7-day trend')
     ok(Array.isArray(r2.data.recentUsers) && r2.data.recentUsers.length === 2, 'E: recentUsers list')
     ok(/^User #[0-9A-Z]{4}$/.test(r2.data.recentUsers[0].label), 'E: recentUser label masked')
