@@ -39,6 +39,10 @@ function getUserDetail(openid, includeRawOpenid) {
   return call('adminGetUserDetail', { openid, includeRawOpenid: !!includeRawOpenid })
 }
 
+function getReportDetail(reportId) {
+  return call('adminGetReportDetail', { reportId })
+}
+
 function manageContent(collection, action, data, docId) {
   return call('adminManageContent', { collection, action, data, docId })
 }
@@ -71,5 +75,6 @@ function migrateAdmins() {
 module.exports = {
   checkAccess, getDashboard, getUsers, updateUser, getOrders,
   getAiLogs, getReports, manageContent, getAnalytics, updateSystemConfig, getUserDetail,
+  getReportDetail,
   listAdmins, upsertAdmin, getAuditLogs, migrateAdmins,
 }

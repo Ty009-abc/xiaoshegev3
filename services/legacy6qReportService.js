@@ -43,6 +43,8 @@ function adaptLegacy6QReport (result) {
     reportState: d.reportState || '',
     reportType: d.reportType || '',
     diagnosticVersion: d.diagnosticVersion || QUESTIONNAIRE_VERSION,
+    // RC8.9B — 服务端签发的稳定报告 ID（向后兼容地透传，供 report_success 关联）
+    reportId: String(d.reportId || ''),
     // ── 07/11 UI field names ──
     // backend `strategy_path` is surfaced to the old UI as `turnaround_path`.
     fatal_sentence: String(d.fatal_sentence || ''),
@@ -69,6 +71,8 @@ function generateLegacy6QReport (p) {
     personality: args.personality,
     personalityEmoji: args.personalityEmoji,
     personalityStyle: args.personalityStyle,
+    // RC8.9B — 幂等键透传到服务端（持久化去重的稳定标识）
+    requestId: args.requestId || '',
   }).then(function (result) {
     if (!result) return { code: -1, message: '分析失败', data: null }
     if (result.code !== 0) return { code: result.code, message: result.message || '分析失败', data: null }

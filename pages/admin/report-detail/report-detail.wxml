@@ -1,0 +1,37 @@
+<!-- pages/admin/report-detail — RC8.9B 报告详情（历史快照，只读） -->
+<scroll-view scroll-y class="adm-page">
+  <view class="adm-hero">
+    <text class="adm-hero-title">翻身策略报告</text>
+    <text class="adm-hero-sub">历史快照 · 只读</text>
+  </view>
+
+  <view class="adm-skeleton" wx:if="{{loading}}">
+    <view class="adm-skel-block" wx:for="{{[1,2,3]}}" wx:key="*this"></view>
+  </view>
+
+  <view class="adm-error" wx:if="{{error && !loading}}">
+    <text>{{error}}</text>
+    <view class="adm-error-retry" bindtap="fetch">重新加载</view>
+  </view>
+
+  <block wx:if="{{!loading && !error}}">
+    <view class="adm-section">
+      <view class="adm-section-head"><text class="adm-section-title">报告信息</text></view>
+      <view class="adm-card">
+        <view class="adm-kv"><text class="adm-kv-k">报告ID</text><text class="adm-kv-v adm-mono">{{detail.reportId}}</text></view>
+        <view class="adm-kv"><text class="adm-kv-k">生成时间</text><text class="adm-kv-v">{{createdAtText}}</text></view>
+        <view class="adm-kv"><text class="adm-kv-k">报告类型</text><text class="adm-kv-v">{{detail.reportType}}</text></view>
+        <view class="adm-kv"><text class="adm-kv-k">版本</text><text class="adm-kv-v">{{detail.diagnosticVersion}}</text></view>
+        <view class="adm-kv" wx:if="{{detail.renderSource}}"><text class="adm-kv-k">渲染来源</text><text class="adm-kv-v">{{detail.renderSource}}</text></view>
+      </view>
+    </view>
+
+    <view class="adm-section">
+      <view class="adm-section-head"><text class="adm-section-title">报告内容（用户实际收到）</text></view>
+      <view class="adm-card rd-card" wx:for="{{sections}}" wx:key="key">
+        <text class="rd-card-label">{{item.label}}</text>
+        <text class="rd-card-text" user-select="true">{{item.text}}</text>
+      </view>
+    </view>
+  </block>
+</scroll-view>

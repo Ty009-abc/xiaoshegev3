@@ -51,6 +51,24 @@
       </view>
     </view>
 
+    <!-- 最近报告（云端已保存） -->
+    <view class="adm-section">
+      <view class="adm-section-head"><text class="adm-section-title">最近报告</text><text class="adm-section-meta">共 {{detail.usage.reportCount}} 份</text></view>
+      <view class="adm-card" style="padding:12rpx 24rpx;">
+        <view class="adm-row" wx:for="{{detail.reports}}" wx:key="reportId" data-reportid="{{item.reportId}}" bindtap="navToReport" style="border-bottom:1rpx solid #EAECF0;">
+          <view style="display:flex;justify-content:space-between;align-items:center;">
+            <text class="adm-row-title">翻身策略报告</text>
+            <text class="adm-row-meta">{{fmt(item.createdAt)}}</text>
+          </view>
+          <view style="display:flex;justify-content:space-between;align-items:center;margin-top:6rpx;">
+            <text class="adm-badge adm-badge--info">{{item.reportType}}</text>
+            <text class="adm-row-meta">查看报告 ›</text>
+          </view>
+        </view>
+        <view class="adm-empty" wx:if="{{!detail.reports.length}}" style="border:none;">云端暂无已保存报告</view>
+      </view>
+    </view>
+
     <!-- Timeline -->
     <view class="adm-section">
       <view class="adm-section-head"><text class="adm-section-title">User Journey</text><text class="adm-section-meta">最近 {{detail.timeline.length}} 条</text></view>

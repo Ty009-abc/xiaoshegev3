@@ -471,6 +471,13 @@
       "timeout": 10,
       "handler": "index.main",
       "installDependency": true
+    },
+    {
+      "name": "adminGetReportDetail",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": true
     }
   ]
 }

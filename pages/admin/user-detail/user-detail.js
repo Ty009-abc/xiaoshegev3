@@ -33,6 +33,10 @@ Page({
   },
   onPullDownRefresh() { this.fetch().finally(() => wx.stopPullDownRefresh()) },
   retry() { this.fetch() },
+  navToReport(e) {
+    const reportId = e.currentTarget.dataset.reportid
+    if (reportId) wx.navigateTo({ url: '/pages/admin/report-detail/report-detail?reportId=' + encodeURIComponent(reportId) })
+  },
   async fetch() {
     if (!this._openid) { this.setData({ loading: false, error: '缺少用户标识' }); return }
     this.setData({ loading: true, error: '' })

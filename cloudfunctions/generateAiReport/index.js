@@ -203,7 +203,23 @@ exports.main = async (event, context) => {
           latencyMs: m.latencyMs || 0, createdAt: ts,
         } }).catch(() => {})
         const { _meta, ...publicRep } = rep
-        return ok(publicRep)
+        // RC8.9B — 将最终 5 卡片快照持久化到既有 ai_reports（复用，不新建集合）。
+        // 幂等：同一 requestId 复用同一 reportId。持久化失败 → 不返回成功。
+        const store6q = require('./lib/reportStore6q.js')
+        let reportId
+        try {
+          reportId = await store6q.persist6qReport(db, {
+            openid,
+            requestId: event.requestId || event.recordId || '',
+            publicRep,
+            meta: m,
+            ts,
+          })
+        } catch (persistErr) {
+          console.error('[generateAiReport] 6q persist failed:', persistErr && persistErr.message)
+          return fail(CODES.DB_ERROR, '报告保存失败，请重试')
+        }
+        return ok({ ...publicRep, reportId })
       }
 
       // ═══ V3 原有链路（不变）═══

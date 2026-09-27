@@ -87,17 +87,22 @@ exports.main = async (event, context) => {
     userId: targetOid,
     maskedOpenid: maskOpenid(targetOid),
     label: userLabel(targetOid),
-    basic: {}, usage: {}, monetization: {}, timeline: [],
+    basic: {}, usage: {}, monetization: {}, timeline: [], reports: [],
   }
   if (includeRaw) detail.openid = targetOid
 
   // ── Basic / Usage / Monetization：users + user_events + orders + memberships ──
   try {
-    const [userRes, evCountRes, ordersRes, memRes] = await Promise.all([
+    const [userRes, evCountRes, ordersRes, memRes, repCountRes, repListRes] = await Promise.all([
       db.collection('users').where({ openid: targetOid }).limit(1).get(),
       db.collection('user_events').where({ openid: targetOid }).count(),
       db.collection('orders').where({ openid: targetOid }).get(),
       db.collection('memberships').where({ openid: targetOid, status: 'active' }).limit(1).get(),
+      // RC8.9B — 报告计数权威：ai_reports 实体（turnaround_6q），不再读 users.reportCount
+      db.collection('ai_reports').where({ openid: targetOid, reportType: 'turnaround_6q' }).count(),
+      db.collection('ai_reports').where({ openid: targetOid, reportType: 'turnaround_6q' })
+        .orderBy('createdAt', 'desc').limit(20)
+        .field({ reportId: true, reportType: true, diagnosticVersion: true, createdAt: true, renderSource: true }).get(),
     ])
     const u = (userRes.data && userRes.data[0]) || {}
     const orders = ordersRes.data || []
@@ -117,13 +122,17 @@ exports.main = async (event, context) => {
 
     detail.usage = {
       eventCount: evCountRes.total || 0,
-      reportCount: u.reportCount || 0,
+      // 权威：已持久化的 6Q 报告实体数（不再读 users.reportCount）
+      reportCount: (repCountRes && repCountRes.total) || 0,
+      turnaround6qReportCount: (repCountRes && repCountRes.total) || 0,
       qaCount: u.qaCount || 0,
       activeDays: u.activeDays || 0,
-      lastReportAt: u.lastReportAt || 0,
+      lastReportAt: (repListRes && repListRes.data && repListRes.data[0] && repListRes.data[0].createdAt) || 0,
       membershipLevel: u.membershipLevel || 'free',
       cv: u.cv || 0,
     }
+    // RC8.9B — 最近持久化报告列表（仅轻量字段，不含完整内容）
+    detail.reports = (repListRes && repListRes.data) || []
     detail.monetization = {
       membershipLevel: u.membershipLevel || 'free',
       membershipExpiredAt: u.membershipExpiredAt || 0,

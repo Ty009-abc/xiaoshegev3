@@ -10,6 +10,7 @@
  *   A  admin console light UI
  *   B  user activity tracking (user_events) + detail + funnel
  *   C  role based access control (server authority, audit, last-super-admin)
+ *   D  legacy 6Q report entity persistence + linkage
  */
 
 const { spawnSync } = require('child_process')
@@ -20,6 +21,7 @@ const ALL = [
   'admin-ui.test.js',
   'user-tracking.test.js',
   'admin-rbac.test.js',
+  'report-entity.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)
 const TESTS = ALL.filter((t) => fs.existsSync(path.join(__dirname, t)))

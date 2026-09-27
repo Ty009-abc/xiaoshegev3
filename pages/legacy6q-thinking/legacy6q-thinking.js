@@ -165,13 +165,15 @@ Page({
       personality: (p && p.name) || '',
       personalityEmoji: (p && p.emoji) || '',
       personalityStyle: (p && p.style) || '',
+      // RC8.9B — 稳定幂等键：同一提交重试不产生重复报告实体
+      requestId: this._requestId || '',
     }).then(function (r) {
       if (self._unloaded || self._done) return
       if (r && r.code === 0 && r.data) {
         self._aiState = 'ok'
         self._report = r.data
-        // RC8.9B — 报告成功（best-effort）
-        userTrack.event('report_success', { version: DIAGNOSTIC_VERSION })
+        // RC8.9B — 报告成功（best-effort），携带服务端签发的 reportId 关联实体
+        userTrack.event('report_success', { version: DIAGNOSTIC_VERSION, reportId: (r.data && r.data.reportId) || '' })
       } else {
         self._aiState = 'fail'
         // RC8.9B — 报告降级到规则兜底（best-effort）

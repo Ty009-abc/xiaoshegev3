@@ -36,6 +36,7 @@
     "pages/profile/profile",
     "pages/admin/dashboard/dashboard",
     "pages/admin/user-detail/user-detail",
+    "pages/admin/report-detail/report-detail",
     "pages/admin/admins/admins",
     "pages/admin/users/users",
     "pages/admin/orders/orders",

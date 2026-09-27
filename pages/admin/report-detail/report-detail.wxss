@@ -1,0 +1,5 @@
+@import '../../../styles/admin.wxss';
+
+.rd-card { margin-bottom: 16rpx; }
+.rd-card-label { display: block; font-size: 28rpx; font-weight: 600; color: #111827; margin-bottom: 12rpx; }
+.rd-card-text { display: block; font-size: 27rpx; line-height: 1.65; color: #344054; white-space: pre-wrap; }
