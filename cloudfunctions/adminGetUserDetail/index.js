@@ -13,11 +13,11 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 const { ok, fail, CODES } = require('./lib/response.js')
+const adminAuth = require('./lib/adminAuth.js')
 
-function checkAdmin(db, openid) {
-  return db.collection('system_configs').where({ key: 'admin_users', status: 'active' }).limit(1).get()
-    .then(r => { const c = r.data[0]; return c && c.value && c.value.openids && c.value.openids.includes(openid) })
-    .catch(() => false)
+async function checkAdmin(db, openid) {
+  const admin = await adminAuth.resolveAdmin(db, openid)
+  return !!(admin && adminAuth.hasPermission(admin, 'users:detail'))
 }
 
 function maskOpenid(oid) {
@@ -65,7 +65,10 @@ exports.main = async (event, context) => {
   if (!targetOid) return fail(CODES.PARAM_ERROR, '缺少 openid')
 
   try {
-    if (!(await checkAdmin(db, adminOpenid))) return fail(CODES.PERMISSION_DENIED)
+    const admin = await adminAuth.resolveAdmin(db, adminOpenid)
+    if (!admin || !adminAuth.hasPermission(admin, 'users:detail')) return fail(CODES.PERMISSION_DENIED)
+    // 隐私门（§13）：完整 OpenID 仅 SUPER_ADMIN/OPERATOR 可揭示（服务端权威）
+    if (includeRaw && !adminAuth.canSeeRawOpenid(admin)) return fail(CODES.PERMISSION_DENIED, '无查看完整 ID 权限')
   } catch (err) {
     return fail(CODES.DB_ERROR, err.message)
   }

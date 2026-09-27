@@ -1,0 +1,47 @@
+<!-- pages/admin/admins — RC8.9C 管理员管理（RBAC） -->
+<scroll-view scroll-y class="adm-page">
+  <view class="adm-hero">
+    <text class="adm-hero-title">管理员管理</text>
+    <text class="adm-hero-sub">当前角色：{{callerRole}} · 共 {{list.length}} 人</text>
+  </view>
+
+  <view class="adm-skeleton" wx:if="{{loading}}">
+    <view class="adm-skel-block" wx:for="{{[1,2,3]}}" wx:key="*this"></view>
+  </view>
+
+  <view class="adm-error" wx:if="{{error && !loading}}">
+    <text>{{error}}</text>
+    <view class="adm-error-retry" bindtap="fetch">重新加载</view>
+  </view>
+
+  <block wx:if="{{!loading && !error}}">
+    <button class="adm-btn" bindtap="onCreate" style="width:100%;margin-bottom:20rpx;" wx:if="{{canManage}}">+ 新增管理员</button>
+
+    <view class="adm-row" wx:for="{{list}}" wx:key="maskedOpenid">
+      <view style="display:flex;justify-content:space-between;align-items:center;">
+        <text class="adm-row-title adm-mono">{{item.openid || item.maskedOpenid}}</text>
+        <text class="adm-badge adm-badge--{{item.status === 'ACTIVE' ? 'success' : 'error'}}">{{item.status === 'ACTIVE' ? '启用' : '停用'}}</text>
+      </view>
+      <view style="display:flex;justify-content:space-between;align-items:center;margin-top:8rpx;">
+        <text class="adm-badge adm-badge--info">{{roleName[item.role] || item.role}}</text>
+        <text class="adm-row-meta" wx:if="{{canManage}}" data-openid="{{item.openid}}" data-role="{{item.role}}" data-status="{{item.status}}" bindtap="onManage">管理 ›</text>
+      </view>
+      <text class="adm-row-meta">最后登录 {{fmt(item.lastLoginAt)}}</text>
+    </view>
+
+    <view class="adm-empty" wx:if="{{list.length===0}}">暂无管理员（可执行迁移）</view>
+
+    <view class="adm-section-head" style="padding-top:24rpx;">
+      <text class="adm-section-title">审计日志</text>
+      <text class="adm-section-meta">最近 {{audit.length}} 条</text>
+    </view>
+    <view class="adm-row" wx:for="{{audit}}" wx:key="index">
+      <view style="display:flex;justify-content:space-between;">
+        <text class="adm-row-title">{{auditLabel[item.action] || item.action}}</text>
+        <text class="adm-row-meta">{{fmt(item.timestamp)}}</text>
+      </view>
+      <text class="adm-row-sub adm-mono" wx:if="{{item.targetId}}">目标 {{item.targetId}}</text>
+    </view>
+    <view class="adm-empty" wx:if="{{audit.length===0}}">暂无审计记录</view>
+  </block>
+</scroll-view>

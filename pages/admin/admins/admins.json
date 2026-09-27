@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "管理员管理",
+  "backgroundColor": "#F5F7FA",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": true
+}

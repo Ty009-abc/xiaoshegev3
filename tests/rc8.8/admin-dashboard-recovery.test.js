@@ -70,7 +70,7 @@ function loadFn(beh) {
   }
   const fakeRequire = (id) => {
     if (id === 'wx-server-sdk') return cloud
-    if (id === './lib/response.js') return require(path.join(ROOT, 'cloudfunctions', 'adminGetDashboard', 'lib', 'response.js'))
+    if (id.startsWith('./lib/')) return require(path.join(ROOT, 'cloudfunctions', 'adminGetDashboard', id))
     return require(id)
   }
   const ctx = { module: mod, exports: mod.exports, require: fakeRequire, console, process, setTimeout, Promise, Object, Date, Math, JSON, Array }

@@ -1,23 +1,27 @@
 {
-  "taskId": "RC8.9B_USER_ACTIVITY_ANALYTICS",
-  "baseCommit": "bbca77b",
+  "taskId": "RC8.9C_RBAC",
+  "baseCommit": "8d39599",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Admin could only see aggregate counts, not what a specific user actually did. Add per-user activity tracking (user_events), user detail timeline, and a dashboard funnel — all best-effort so tracking can never block the report/payment/user flow.",
+  "problem": "Admin authority was binary (admin / non-admin) via system_configs.admin_users.value.openids — no roles, no least privilege, no audit trail, UI-only gating.",
   "changes": {
-    "COLLECTION": "user_events { eventId, userId, openid, eventName, eventVersion, timestamp, page, source, sessionId, metadata, createdAt }",
-    "COLLECTOR": "cloudfunctions/trackEvent — whitelist, eventId idempotency, always code 0 (soft-fail)",
-    "CLIENT": "utils/userTrack.js — fire-and-forget queue, never throws; instrumented app_open/home_view/strategy_start/questionnaire_*/report_*/qa_*/payment_*/membership_view/poster_*",
-    "AGGREGATION": "adminGetDashboard + fail-soft funnel/trend/recentUsers",
-    "DETAIL": "cloudfunctions/adminGetUserDetail + pages/admin/user-detail (Basic/Usage/Monetization/User Journey); masked OpenID default",
-    "ROUTES": "app.json admin/user-detail; cloudbaserc.json trackEvent + adminGetUserDetail (installDependency:true)"
+    "AUTHORITY": "admin_users collection becomes the single server-side authority (role/permissions/status). Legacy bootstrap ONLY while admin_users is empty (one-way explicit migration via adminMigrate); once any admin_users doc exists, legacy is ignored — no dual-track.",
+    "LIB": "cloudfunctions/<fn>/lib/adminAuth.js — ROLE_PERMISSIONS/ROLE_RANK/ALL_ROLES, resolveAdmin, hasPermission, canSeeRawOpenid, audit, countActiveSuperAdmins",
+    "FUNCTIONS": "adminMigrate, adminListAdmins, adminUpsertAdmin (create/update/disable/enable), adminGetAuditLogs",
+    "ENFORCEMENT": "all admin* functions re-check permission server-side (dashboard:view users:view payments:view analytics:view content:manage config:manage users:manage users:detail)",
+    "FUNCTIONS_LIST": "adminGetDashboard=bbca77b; adminCheckAccess entry returns role/permissions",
+    "GUARDS": "last-super-admin lockout BLOCK (disable + downgrade); self-downgrade when last super BLOCK",
+    "AUDIT": "admin_audit_logs { adminOpenid, action, targetType, targetId, before, after, timestamp }",
+    "PRIVACY": "masked OpenID default; raw OpenID only SUPER_ADMIN/OPERATOR (server-enforced)",
+    "UI": "pages/admin/admins — list + role管理 + audit log; canManage only for SUPER_ADMIN",
+    "ROUTES": "app.json admin/admins; cloudbaserc.json +4 fns (installDependency:true)"
   },
   "noUnintendedChange": {
-    "PAYMENT_CHANGED": "NO (read-only: payment events recorded, no write authority)",
-    "SIXQ_CHANGED": "NO (only best-effort event emission added)",
+    "PAYMENT_CHANGED": "NO",
+    "SIXQ_CHANGED": "NO",
     "REPORT_ENGINE_CHANGED": "NO",
     "USER_APP_UI_CHANGED": "NO",
-    "ADMIN_AUTH_CHANGED": "NO (still system_configs.admin_users)"
+    "RC88_DEPLOY_GUARD_CHANGED": "NO"
   },
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; optionally drop user_events"
+  "rollbackPlan": "git revert <this-commit>; admin_users/admin_audit_logs remain (read-only)"
 }

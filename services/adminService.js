@@ -51,7 +51,25 @@ function updateSystemConfig(key, value) {
   return call('adminUpdateSystemConfig', { key, value })
 }
 
+// ── RC8.9C RBAC ──
+function listAdmins() {
+  return call('adminListAdmins', {})
+}
+
+function upsertAdmin(action, openid, role) {
+  return call('adminUpsertAdmin', { action, openid, role })
+}
+
+function getAuditLogs(params) {
+  return call('adminGetAuditLogs', params || {})
+}
+
+function migrateAdmins() {
+  return call('adminMigrate', {})
+}
+
 module.exports = {
   checkAccess, getDashboard, getUsers, updateUser, getOrders,
   getAiLogs, getReports, manageContent, getAnalytics, updateSystemConfig, getUserDetail,
+  listAdmins, upsertAdmin, getAuditLogs, migrateAdmins,
 }

@@ -6,11 +6,11 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 const _ = db.command
 const { ok, fail, CODES } = require('./lib/response.js')
+const adminAuth = require('./lib/adminAuth.js')
 
-function checkAdmin(db, openid) {
-  return db.collection('system_configs').where({ key: 'admin_users', status: 'active' }).limit(1).get()
-    .then(r => { const c = r.data[0]; return c && c.value && c.value.openids && c.value.openids.includes(openid) })
-    .catch(() => false)
+async function checkAdmin(db, openid) {
+  const admin = await adminAuth.resolveAdmin(db, openid)
+  return !!(admin && adminAuth.hasPermission(admin, 'users:view'))
 }
 
 const now = () => Date.now()
