@@ -194,19 +194,14 @@ exports.main = async (event, context) => {
           model: process.env.AI_MODEL_6Q || process.env.AI_MODEL_PRO || undefined,
         })
         const m = rep._meta || {}
-        // ai_logs: presence-only metadata, never raw answers / report body / openid.
-        db.collection('ai_logs').add({ data: {
-          openid, action: 'generate_report_6q', type: 'diagnostic',
-          reportType: 'turnaround_6q', success: rep.reportState === 'PRIMARY',
-          parsePath: m.parsePath || '', renderSource: m.renderSource || '',
-          fallbackFieldCount: Array.isArray(m.fallbackFields) ? m.fallbackFields.length : 0,
-          latencyMs: m.latencyMs || 0, createdAt: ts,
-        } }).catch(() => {})
         const { _meta, ...publicRep } = rep
-        // RC8.9B — 将最终 5 卡片快照持久化到既有 ai_reports（复用，不新建集合）。
-        // 幂等：同一 requestId 复用同一 reportId。持久化失败 → 不返回成功。
+        // RC8.9B_P0 — 交付与持久化解耦：报告已成功生成，持久化失败绝不能销毁
+        // 一份有效的用户报告。持久化结果通过 reportPersistence 显式暴露，并对
+        // ai_logs 记录（可观测）。幂等：同一 requestId 复用同一 reportId。
         const store6q = require('./lib/reportStore6q.js')
-        let reportId
+        let reportId = ''
+        let reportPersistence = 'PERSISTED'
+        let persistErrorMessage = ''
         try {
           reportId = await store6q.persist6qReport(db, {
             openid,
@@ -216,10 +211,24 @@ exports.main = async (event, context) => {
             ts,
           })
         } catch (persistErr) {
-          console.error('[generateAiReport] 6q persist failed:', persistErr && persistErr.message)
-          return fail(CODES.DB_ERROR, '报告保存失败，请重试')
+          reportPersistence = 'FAILED'
+          persistErrorMessage = (persistErr && persistErr.message) || String(persistErr)
+          console.error('[generateAiReport] 6q persist failed (non-blocking):', persistErrorMessage)
         }
-        return ok({ ...publicRep, reportId })
+        // ai_logs: presence-only metadata, never raw answers / report body / openid.
+        // reportState / renderSource 显式落库，使 FALLBACK 不再被静默当作健康成功。
+        db.collection('ai_logs').add({ data: {
+          openid, action: 'generate_report_6q', type: 'diagnostic',
+          reportType: 'turnaround_6q', success: rep.reportState === 'PRIMARY',
+          reportState: rep.reportState || '',
+          isFallback: rep.reportState === 'FALLBACK',
+          reportPersistence,
+          reportId,
+          parsePath: m.parsePath || '', renderSource: m.renderSource || '',
+          fallbackFieldCount: Array.isArray(m.fallbackFields) ? m.fallbackFields.length : 0,
+          latencyMs: m.latencyMs || 0, createdAt: ts,
+        } }).catch(() => {})
+        return ok({ ...publicRep, reportId, reportPersistence })
       }
 
       // ═══ V3 原有链路（不变）═══

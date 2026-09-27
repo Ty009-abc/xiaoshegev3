@@ -172,8 +172,16 @@ Page({
       if (r && r.code === 0 && r.data) {
         self._aiState = 'ok'
         self._report = r.data
-        // RC8.9B — 报告成功（best-effort），携带服务端签发的 reportId 关联实体
-        userTrack.event('report_success', { version: DIAGNOSTIC_VERSION, reportId: (r.data && r.data.reportId) || '' })
+        // RC8.9B_P0 — 显式区分 AI 健康成功 vs 规则兜底（reportState=FALLBACK）。
+        // 用户侧仍照常展示兜底报告（行为不变），但遥测不再把 FALLBACK 静默
+        // 当作健康成功：FALLBACK 记入 report_fallback，并携带 reportState。
+        const isFallback = r.data.reportState === 'FALLBACK'
+        if (isFallback) {
+          userTrack.event('report_fallback', { version: DIAGNOSTIC_VERSION, reportState: 'FALLBACK', reportId: (r.data && r.data.reportId) || '' })
+        } else {
+          // RC8.9B — 报告成功（best-effort），携带服务端签发的 reportId 关联实体
+          userTrack.event('report_success', { version: DIAGNOSTIC_VERSION, reportId: (r.data && r.data.reportId) || '' })
+        }
       } else {
         self._aiState = 'fail'
         // RC8.9B — 报告降级到规则兜底（best-effort）

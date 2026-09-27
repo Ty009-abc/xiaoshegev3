@@ -30,6 +30,8 @@
     </view>
     <view class="l-bot">
       <text class="adm-row-meta">{{item.createdAt}}</text>
+      <text class="adm-badge adm-badge--warn" wx:if="{{item.isFallback}}">兜底</text>
+      <text class="adm-badge adm-badge--error" wx:if="{{item.reportPersistence==='FAILED'}}">未入库</text>
       <text class="adm-badge adm-badge--{{item.success ? 'success' : 'error'}}">{{item.success ? '成功' : '失败'}}</text>
     </view>
   </view>

@@ -45,6 +45,9 @@ function adaptLegacy6QReport (result) {
     diagnosticVersion: d.diagnosticVersion || QUESTIONNAIRE_VERSION,
     // RC8.9B — 服务端签发的稳定报告 ID（向后兼容地透传，供 report_success 关联）
     reportId: String(d.reportId || ''),
+    // RC8.9B_P0 — 持久化状态显式透传（PERSISTED | FAILED）。
+    // 交付与持久化解耦：持久化失败时报告仍照常交付，状态可观测。
+    reportPersistence: String(d.reportPersistence || ''),
     // ── 07/11 UI field names ──
     // backend `strategy_path` is surfaced to the old UI as `turnaround_path`.
     fatal_sentence: String(d.fatal_sentence || ''),

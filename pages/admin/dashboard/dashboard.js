@@ -27,10 +27,15 @@ Page({
   },
   _formatStats(s) {
     if (!s) return s
+    const aiCalls = s.aiCalls || 0
+    const aiFallbacks = s.aiFallbacks || 0
     return {
       ...s,
       totalRevenueYuan: ((s.totalRevenue || 0) / 100).toFixed(0),
       todayRevenueYuan: ((s.todayRevenue || 0) / 100).toFixed(0),
+      // RC8.9B_P0 — 规则兜底显式展示/占比，避免被静默当作健康 AI 成功
+      aiFallbacks,
+      fallbackRate: aiCalls > 0 ? ((aiFallbacks / aiCalls) * 100).toFixed(1) + '%' : '0%',
     }
   },
   navTo(e) {

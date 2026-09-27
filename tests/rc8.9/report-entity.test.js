@@ -207,14 +207,25 @@ const SUPER = { openid: 'oSUPER', role: 'SUPER_ADMIN', status: 'ACTIVE', permiss
     ok(!threw, '12: tracking failure does not throw')
   }
 
-  // ── 13: DB persistence failure → NO success (no reportId) ──
+  // ── 13: DB persistence failure → report STILL delivered (non-blocking) ──
   {
     const db = makeDB({ users: [{ openid: OWNER }] }, { ai_reports: { reject: true } })
     const main = loadGenAiReport(db)
     const r = await main({ type: 'diagnostic', diagnosticVersion: 'turnaround_strategy_6q_v1', answers: {}, requestId: 'req-p' }, {})
-    ok(r.code !== 0, `13: persist fail → not success (${r.code})`)
-    ok(!(r.data && r.data.reportId), '13: no reportId on persist failure')
+    ok(r.code === 0, `13: persist fail → report STILL delivered (${r.code})`)
+    ok(r.data && r.data.reportPersistence === 'FAILED', `13: persistence state observable = FAILED (${r.data && r.data.reportPersistence})`)
+    ok(r.data && r.data.fatal_sentence === 'FATAL' && Array.isArray(r.data.advice), '13: valid report body preserved on persist failure')
+    ok(!(r.data && r.data.reportId), '13: no reportId when nothing persisted')
     ok((db._store.ai_reports || []).length === 0, '13: no phantom entity')
+  }
+
+  // ── 13b: persistence success → reportPersistence=PERSISTED + reportId ──
+  {
+    const db = makeDB({ users: [{ openid: OWNER }] })
+    const main = loadGenAiReport(db)
+    const r = await main({ type: 'diagnostic', diagnosticVersion: 'turnaround_strategy_6q_v1', answers: {}, requestId: 'req-okp' }, {})
+    ok(r.code === 0 && r.data.reportPersistence === 'PERSISTED', `13b: persistence state = PERSISTED (${r.data && r.data.reportPersistence})`)
+    ok(typeof r.data.reportId === 'string' && r.data.reportId.startsWith('rpt_6q_'), '13b: reportId linkage intact on success')
   }
 
   // ── 17: retry duplicate guard (same requestId → one entity) ──

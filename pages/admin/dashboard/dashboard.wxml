@@ -110,6 +110,10 @@
           <text class="adm-kpi-val">{{stats.aiErrors}}</text>
           <text class="adm-kpi-label">失败次数</text>
         </view>
+        <view class="adm-kpi adm-kpi--warn">
+          <text class="adm-kpi-val">{{stats.aiFallbacks}}</text>
+          <text class="adm-kpi-label">规则兜底 ({{stats.fallbackRate}})</text>
+        </view>
       </view>
     </view>
 

@@ -43,24 +43,14 @@
       "runtime": "Nodejs18.15",
       "timeout": 15,
       "handler": "index.main",
-      "installDependency": true,
-      "envVariables": {
-        "AI_API_KEY": "<YOUR_AI_API_KEY>",
-        "AI_API_URL": "<YOUR_AI_API_URL>",
-        "AI_MODEL_FLASH": "v4-flash"
-      }
+      "installDependency": true
     },
     {
       "name": "submitChallengeChoice",
       "runtime": "Nodejs18.15",
       "timeout": 30,
       "handler": "index.main",
-      "installDependency": true,
-      "envVariables": {
-        "AI_API_KEY": "<YOUR_AI_API_KEY>",
-        "AI_API_URL": "<YOUR_AI_API_URL>",
-        "AI_MODEL_FLASH": "v4-flash"
-      }
+      "installDependency": true
     },
     {
       "name": "getChallengeEvent",
@@ -81,12 +71,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 10,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "AI_API_KEY": "<YOUR_AI_API_KEY>",
-        "AI_API_URL": "<YOUR_AI_API_URL>",
-        "AI_MODEL_FLASH": "v4-flash"
-      }
+      "installDependency": false
     },
     {
       "name": "getInsightList",
@@ -121,15 +106,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 60,
       "handler": "index.main",
-      "installDependency": true,
-      "envVariables": {
-        "AI_API_KEY": "<YOUR_AI_API_KEY>",
-        "AI_API_BASE_URL": "https://api.deepseek.com/v1",
-        "AI_MODEL_FLASH": "deepseek-chat",
-        "AI_MODEL_PRO": "deepseek-chat",
-        "RC83_WORLD_MODEL_MODE": "SELECTIVE_PRIMARY",
-        "RC83_WORLD_MODEL_ALLOWLIST": ""
-      }
+      "installDependency": true
     },
     {
       "name": "getAiReport",
@@ -171,12 +148,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 30,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "AI_API_KEY": "<YOUR_AI_API_KEY>",
-        "AI_API_URL": "<YOUR_AI_API_URL>",
-        "AI_MODEL_FLASH": "v4-flash"
-      }
+      "installDependency": false
     },
     {
       "name": "submitFeedback",
@@ -190,52 +162,28 @@
       "runtime": "Nodejs18.15",
       "timeout": 120,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "AI_API_KEY": "<YOUR_AI_API_KEY>",
-        "AI_API_URL": "<YOUR_AI_API_URL>",
-        "AI_MODEL_FLASH": "v4-flash"
-      }
+      "installDependency": false
     },
     {
       "name": "createOrder",
       "runtime": "Nodejs18.15",
       "timeout": 15,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "WXPAY_MCHID": "1747400090",
-        "WXPAY_APPID": "wxd441fbf3b9f10aa3",
-        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
-        "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
-        "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>",
-        "WXPAY_NOTIFY_URL": "<FILL_ME>"
-      }
+      "installDependency": false
     },
     {
       "name": "payCallback",
       "runtime": "Nodejs18.15",
       "timeout": 15,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
-        "WXPAY_APPID": "wxd441fbf3b9f10aa3"
-      }
+      "installDependency": false
     },
     {
       "name": "verifyPayment",
       "runtime": "Nodejs18.15",
       "timeout": 15,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "WXPAY_MCHID": "1747400090",
-        "WXPAY_APPID": "wxd441fbf3b9f10aa3",
-        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
-        "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
-        "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>"
-      }
+      "installDependency": false
     },
     {
       "name": "getPaymentResult",
@@ -249,14 +197,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 15,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "WXPAY_MCHID": "1747400090",
-        "WXPAY_APPID": "wxd441fbf3b9f10aa3",
-        "WXPAY_API_V3_KEY": "<YOUR_WXPAY_API_V3_KEY>",
-        "WXPAY_SERIAL_NO": "PUB_KEY_ID_0117474000902026062900381622000800",
-        "WXPAY_PRIVATE_KEY": "<NEED_PRIVATE_KEY>"
-      }
+      "installDependency": false
     },
     {
       "name": "getProductList",
@@ -305,20 +246,14 @@
       "runtime": "Nodejs18.15",
       "timeout": 10,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "ADMIN_OPENIDS": "<YOUR_ADMIN_OPENID_LIST_COMMA_SEPARATED>"
-      }
+      "installDependency": false
     },
     {
       "name": "adminCheckAccess",
       "runtime": "Nodejs18.15",
       "timeout": 10,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "ADMIN_OPENIDS": "<YOUR_ADMIN_OPENID_LIST_COMMA_SEPARATED>"
-      }
+      "installDependency": false
     },
     {
       "name": "adminGetDashboard",
@@ -402,12 +337,7 @@
       "runtime": "Nodejs18.15",
       "timeout": 120,
       "handler": "index.main",
-      "installDependency": false,
-      "envVariables": {
-        "EMBEDDING_API_KEY": "<YOUR_EMBEDDING_API_KEY>",
-        "EMBEDDING_MODEL": "deepseek-embedding",
-        "EMBEDDING_API_BASE": "https://api.deepseek.com/v1"
-      }
+      "installDependency": false
     },
     {
       "name": "restoreWorldRules",

@@ -22,6 +22,7 @@ const ALL = [
   'user-tracking.test.js',
   'admin-rbac.test.js',
   'report-entity.test.js',
+  'secret-clobber-guard.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)
 const TESTS = ALL.filter((t) => fs.existsSync(path.join(__dirname, t)))

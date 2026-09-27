@@ -54,6 +54,11 @@ exports.main = async (event, context) => {
         reportId: l.reportId || '',
         tokens: l.tokens || 0,
         success: l.success,
+        // RC8.9B_P0 — 显式暴露规则兜底 / 持久化状态，不再静默等同于健康 AI 成功
+        reportState: l.reportState || '',
+        isFallback: l.isFallback === true || l.renderSource === 'deterministic_fallback',
+        reportPersistence: l.reportPersistence || '',
+        renderSource: l.renderSource || '',
         errorMessage: l.errorMessage || '',
         createdAt: l.createdAt,
       })),

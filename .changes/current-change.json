@@ -1,25 +1,21 @@
 {
-  "taskId": "RC8.9B_REPORT_ENTITY_PERSISTENCE_MINIMAL_FIX",
-  "baseCommit": "2cfeb0f",
+  "taskId": "RC8.9B_P0_SECRET_CLOBBER_GUARD",
+  "baseCommit": "e8fb091",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Legacy 6Q final report was not persisted to cloud DB; report_success event had no reportId; adminGetUserDetail.reportCount read users.reportCount which has no writer → admin saw reportCount=0.",
+  "problem": "cloudbaserc.json shipped placeholder secrets in ~13 functions[].envVariables. `tcb fn deploy` materializes that map into the cloud and SCF replaces Environment.Variables WHOLESALE, so the 11:04 generateAiReport redeploy overwrote the live AI_API_KEY with `<YOUR_AI_API_KEY>` → all 6Q model calls 401. Separately, 6Q report delivery was gated on ai_reports.add success (persistence failure destroyed a valid user report) and reportState=FALLBACK was silently counted as a healthy success in telemetry.",
   "changes": {
-    "SERVER_PERSIST": "generateAiReport 6q_v1 branch → persist final 5-card snapshot to EXISTING ai_reports via lib/reportStore6q.js; returns reportId; persist failure → fail(DB_ERROR), no success",
-    "IDEMPOTENCY": "requestId (client) → ai_reports.requestId; same requestId reuses reportId, no duplicate entity",
-    "REPORT_ID": "rpt_6q_<ts>_<rand> (consistent with existing rpt_v4_ convention, 6Q namespace)",
-    "RESPONSE": "ok({ ...publicRep, reportId }) — backward compatible; adapter passes reportId through",
-    "CLIENT": "legacy6q-thinking emits report_success {version, reportId} using ONLY server-issued id (best-effort)",
-    "ADMIN_COUNT": "adminGetUserDetail.usage.reportCount/turnaround6qReportCount now from ai_reports {openid, reportType:'turnaround_6q'}; users.reportCount removed as authority",
-    "ADMIN_LIST": "adminGetUserDetail returns detail.reports (reportId/reportType/diagnosticVersion/createdAt/renderSource, no content)",
-    "ADMIN_READ": "adminGetReportDetail(reportId) — auth-gated (users:detail|analytics:view|payments:view), snapshot-only, audited, no AI regen",
-    "ADMIN_UI": "user-detail 最近报告 section + pages/admin/report-detail (5 cards from persisted snapshot)"
+    "SECRET_GUARD_LIB": "scripts/lib/secret-guard.js — pure scanner: placeholder (<...>, YOUR_*, placeholder, changeme, empty...), committed real secret, and PARTIAL secret env block (would delete a live secret under wholesale replace)",
+    "SECRET_GUARD_CLI": "scripts/check-secrets.js — fail-closed deploy gate, exit 1 on violation, prints KEY NAMES + reason only (never values)",
+    "DEPLOY_WRAPPER": "scripts/deploy-generateAiReport.sh — runs guard BEFORE `tcb fn deploy`; --verify-only mode",
+    "CONFIG_NEUTRALIZED": "cloudbaserc.json — removed all 13 envVariables blocks (production secrets stay cloud-side/runtime-managed; no placeholder, no real values committed)",
+    "PERSISTENCE_DECOUPLED": "generateAiReport 6q_v1 — persistence failure no longer aborts: report is still returned (ok code 0) with reportPersistence='FAILED'; success → 'PERSISTED' + reportId",
+    "PERSISTENCE_OBSERVABLE": "reportPersistence surfaced in response, ai_logs row, adapter, client; server console.error on failure",
+    "FALLBACK_EXPLICIT": "ai_logs now records reportState + isFallback; adminGetDashboard exposes aiFallbacks + fallbackRate; adminGetAiLogs maps isFallback/reportPersistence; dashboard + ai-logs UIs show 规则兜底 / 未入库 badges; client emits report_fallback (not report_success) when reportState=FALLBACK"
   },
   "boundaries": {
-    "6Q_QUESTIONS": "NO", "6Q_INFERENCE": "NO", "PROMPT": "NO", "REPORT_WORDING": "NO",
-    "CARD_SEMANTICS": "NO", "PAYMENT_VERIFYPAYMENT_ENTITLEMENT": "NO", "MEMBERSHIP": "NO",
-    "ADMIN_RBAC": "NO", "DIAGNOSTIC_V4_WORLD_MODEL": "NO", "NEW_COLLECTION_CREATED": "NO"
+    "6Q_INFERENCE": "NO", "PROMPT": "NO", "REPORT_WORDING": "NO", "MODEL_ROUTING": "NO",
+    "PAYMENT": "NO", "RBAC": "NO", "USER_FALLBACK_BEHAVIOR": "UNCHANGED"
   },
-  "indexStatus": "ai_reports has _id_ + _openid_1 only; required: reportId (unique) + openid_1_reportType_1_createdAt_-1 — to be created (config task, not in this commit's code)",
-  "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; AI reports written by this change remain (append-only, harmless)"
+  "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js", "bash scripts/deploy-generateAiReport.sh --verify-only"],
+  "rollbackPlan": "git revert <this-commit>. Restoring envVariables blocks would re-introduce the clobber vector; do NOT revert. Live AI_API_KEY is cloud-side (fp cfde28202b91)."
 }

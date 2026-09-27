@@ -150,17 +150,21 @@ exports.main = async (event, context) => {
     let aiCalls = 0
     let aiCost = 0
     let aiErrors = 0
+    let aiFallbacks = 0
     let errorRate = '0%'
     try {
       const [aiLogsCount, aiLogsRes] = await Promise.all([
         db.collection('ai_logs').count(),
-        db.collection('ai_logs').field({ tokens: true, createdAt: true, success: true }).get(),
+        db.collection('ai_logs').field({ tokens: true, createdAt: true, success: true, isFallback: true, renderSource: true }).get(),
       ])
       const aiLogs = aiLogsRes.data || []
       aiCalls = aiLogsCount.total
       const totalTokens = aiLogs.reduce((s, l) => s + (l.tokens || 0), 0)
       aiCost = Math.round(totalTokens * 0.000002) // 约 ¥0.002 / 1K tokens 估算
       aiErrors = aiLogs.filter(l => !l.success).length
+      // RC8.9B_P0 — 规则兜底（reportState=FALLBACK）不再被静默当作健康成功。
+      // 单独计数并显式暴露，便于运维区分「AI 健康」与「规则兜底」。
+      aiFallbacks = aiLogs.filter(l => l.isFallback === true || l.renderSource === 'deterministic_fallback').length
       errorRate = aiCalls > 0 ? ((aiErrors / aiCalls) * 100).toFixed(1) + '%' : '0%'
     } catch (aiErr) {
       console.warn('[adminGetDashboard] optional ai_logs unavailable — telemetry defaults applied:', aiErr && aiErr.message)
@@ -186,6 +190,7 @@ exports.main = async (event, context) => {
       aiCalls,
       aiCost,
       aiErrors,
+      aiFallbacks,
       errorRate,
       paidRate,
       vipUsers: vipUsers.total,
