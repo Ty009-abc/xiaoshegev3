@@ -1,50 +1,54 @@
 {
-  "taskId": "RC8.8_ADMIN_DASHBOARD_RECOVERY",
-  "baseCommit": "57345cf",
+  "taskId": "RC8.8_ADMIN_DASHBOARD_RUNTIME_ACCEPTANCE_AND_DEPLOY_GUARD",
+  "baseCommit": "8249a11",
   "branch": "feature/rc8.8-legacy-ui-recovery",
-  "problem": "Admin dashboard opened (auth PASS) but data load failed: adminGetDashboard ran 8 queries in one Promise.all; the optional ai_logs collection did not exist in env fanshex-d2g0adgv7dfbc9bdc, so `collection.count` rejected -502005 and the whole response returned DB_ERROR. The client then showed a toast and never cleared loading because the `r.code !== 0` branch returned before setData({loading:false}), leaving the page stuck on 加载中.",
+  "problem": "Incident class: adminGetDashboard was once deployed source-only (no node_modules), so `require('wx-server-sdk')` threw in InitFunction before main() ran (HTTP 443). This commit adds reproducibility so a dependency-bearing cloud function cannot be posted without its modules again. No product runtime logic changes.",
   "forensics": {
-    "FAILING_COLLECTION": "ai_logs",
-    "ROOT_CAUSE": "COLLECTION_MISSING (A)",
-    "SERVER_ROOT_CAUSE_FILE": "cloudfunctions/adminGetDashboard/index.js",
-    "SERVER_ROOT_CAUSE_CALLSITE": "db.collection('ai_logs').count() inside Promise.all",
-    "CLIENT_ROOT_CAUSE_FILE": "pages/admin/dashboard/dashboard.js",
-    "CLIENT_ROOT_CAUSE": "return before setData({loading:false}); onPullDownRefresh used .then (not .finally)"
+    "ROOT_CAUSE": "F — deploy artifact omitted wx-server-sdk (source-only packaging)",
+    "A_B_C_CHANGES_APPLIED": "NO",
+    "SIBLING_LOCKFILE_PRECEDENT": [
+      "cloudfunctions/generateAiReport/package-lock.json (tracked)",
+      "cloudfunctions/initDatabase/package-lock.json (tracked)",
+      "cloudfunctions/login/package-lock.json (tracked)"
+    ],
+    "ROOT_POLICY_FORBIDS_FUNCTION_LOCKS": "NO",
+    "NODE_MODULES_GITIGNORED": "YES"
   },
   "changes": {
-    "AI_LOGS_COLLECTION_CREATED": "YES (env fanshex-d2g0adgv7dfbc9bdc, 0 docs, no seed)",
-    "SERVER_FAIL_SOFT": "CORE (users/orders/system_configs) remain hard-required via Promise.all -> DB_ERROR; OPTIONAL ai_logs wrapped in its own try/catch -> safe defaults {aiCalls:0, aiCost:0, aiErrors:0, errorRate:'0%'} + console.warn '[adminGetDashboard] optional ai_logs unavailable'",
-    "CLIENT_LOADING": "try/catch/finally; finally always setData({loading:false}); success path unchanged; error path still toasts",
-    "CLIENT_PULL_REFRESH": "ddonPullDownRefresh -> fetch().finally(() => wx.stopPullDownRefresh())"
+    "PACKAGE_LOCK_VERSIONED": "cloudfunctions/adminGetDashboard/package-lock.json (lockfileVersion 3, pins wx-server-sdk@4.0.2)",
+    "DEPLOY_GUARD": "scripts/deploy-admin-dashboard.sh — npm ci --omit=dev → require.resolve('wx-server-sdk') → node_modules/wx-server-sdk presence → deploy",
+    "TEST": "tests/rc8.8/admin-dashboard-deploy-guard.test.js (read-only, 10 checks)",
+    "RUNNER": "tests/rc8.8/run.js (+1 entry)",
+    "DOCS": "MANUAL_DEPLOY.md — dependency-bearing deploy guidance"
   },
   "allowedFiles": [
-    "cloudfunctions/adminGetDashboard/index.js",
-    "pages/admin/dashboard/dashboard.js",
-    "tests/rc8.8/admin-dashboard-recovery.test.js",
+    "cloudfunctions/adminGetDashboard/package-lock.json",
+    "scripts/deploy-admin-dashboard.sh",
+    "tests/rc8.8/admin-dashboard-deploy-guard.test.js",
     "tests/rc8.8/run.js",
+    "MANUAL_DEPLOY.md",
     ".changes/current-change.json"
   ],
   "forbiddenFiles": [
+    "cloudfunctions/adminGetDashboard/index.js",
+    "cloudfunctions/adminGetDashboard/lib/**",
+    "pages/admin/dashboard/**",
     "cloudfunctions/adminCheckAccess/**",
     "cloudfunctions/verifyPayment/**",
-    "cloudfunctions/payCallback/**",
-    "services/**",
-    "pages/admin/dashboard/dashboard.wxml",
-    "pages/admin/dashboard/dashboard.wxss",
-    "system_configs"
+    "services/**"
   ],
   "noUnintendedChange": {
-    "UI_REDESIGN": "NO",
-    "ADMIN_AUTH_CHANGED": "NO",
+    "PRODUCT_RUNTIME_LOGIC_CHANGED": "NO",
+    "DASHBOARD_WXML_WXSS_CHANGED": "NO",
+    "AUTH_CHANGED": "NO",
     "PAYMENT_CHANGED": "NO",
     "ENV_CHANGED": "NO",
-    "SIXQ_OR_REPORT_LOGIC_CHANGED": "NO",
-    "OTHER_FUNCTIONS_DEPLOYED": "NO",
-    "WRITER_SCHEMA_CHANGED": "NO"
+    "SIXQ_CHANGED": "NO",
+    "REDEPLOY_ON_THIS_COMMIT": "NO (deploy already correct; commit is future-reproducibility only)"
   },
   "requiredTests": [
     "node tests/rc8.8/run.js",
-    "node tests/rc8.8/admin-dashboard-recovery.test.js"
+    "bash scripts/deploy-admin-dashboard.sh --verify-only"
   ],
-  "rollbackPlan": "git checkout 57345cf -- cloudfunctions/adminGetDashboard/index.js pages/admin/dashboard/dashboard.js && tcb fn code update adminGetDashboard"
+  "rollbackPlan": "git revert <this-commit>; rm -f scripts/deploy-admin-dashboard.sh"
 }

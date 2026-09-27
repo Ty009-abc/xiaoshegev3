@@ -24,6 +24,7 @@ const TESTS = [
   'report-history.test.js',
   'cognition-route.test.js',
   'admin-dashboard-recovery.test.js',
+  'admin-dashboard-deploy-guard.test.js',
 ]
 
 const results = []
