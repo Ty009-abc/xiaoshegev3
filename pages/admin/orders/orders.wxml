@@ -1,24 +1,38 @@
-<!-- pages/admin/orders -->
-<scroll-view scroll-y class="page" bindscrolltolower="loadMore">
-  <view class="filters">
-    <view class="filter-tag {{status===''?'active':''}}" data-s="" bindtap="onFilterStatus">全部</view>
-    <view class="filter-tag {{status==='paid'?'active':''}}" data-s="paid" bindtap="onFilterStatus">已支付</view>
-    <view class="filter-tag {{status==='pending_payment'?'active':''}}" data-s="pending_payment" bindtap="onFilterStatus">待支付</view>
-    <view class="filter-tag {{status==='created'?'active':''}}" data-s="created" bindtap="onFilterStatus">已创建</view>
+<!-- pages/admin/orders — RC8.9 浅色 -->
+<scroll-view scroll-y class="adm-page" bindscrolltolower="loadMore">
+  <view class="adm-hero">
+    <text class="adm-hero-title">订单管理</text>
+    <text class="adm-hero-sub">共 {{total}} 条 · 只读</text>
   </view>
-  <view class="order-row" wx:for="{{list}}" wx:key="orderId">
+
+  <view class="adm-tags">
+    <view class="adm-tag {{status===''?'adm-tag--active':''}}" data-s="" bindtap="onFilterStatus">全部</view>
+    <view class="adm-tag {{status==='paid'?'adm-tag--active':''}}" data-s="paid" bindtap="onFilterStatus">已支付</view>
+    <view class="adm-tag {{status==='pending_payment'?'adm-tag--active':''}}" data-s="pending_payment" bindtap="onFilterStatus">待支付</view>
+    <view class="adm-tag {{status==='created'?'adm-tag--active':''}}" data-s="created" bindtap="onFilterStatus">已创建</view>
+  </view>
+
+  <block wx:if="{{loading && list.length===0}}">
+    <view class="adm-skeleton">
+      <view class="adm-skel-block" wx:for="{{[1,2,3,4,5]}}" wx:key="*this"></view>
+    </view>
+  </block>
+
+  <view class="adm-row" wx:for="{{list}}" wx:key="orderId">
     <view class="o-top">
-      <text class="o-product">{{item.productName}}</text>
+      <text class="adm-row-title">{{item.productName}}</text>
       <text class="o-price">¥{{item.totalAmount / 100}}</text>
     </view>
     <view class="o-mid">
-      <text class="o-id">{{item.orderId}}</text>
-      <text class="o-status {{item.status}}">{{item.status}}</text>
+      <text class="adm-row-meta adm-mono">{{item.orderId}}</text>
+      <text class="adm-badge adm-badge--{{item.status}}">{{item.status}}</text>
     </view>
     <view class="o-bot">
-      <text class="o-time">{{item.createdAt}}</text>
-      <text class="o-openid">{{item.openid}}</text>
+      <text class="adm-row-meta">{{item.createdAt}}</text>
+      <text class="adm-row-meta adm-mono">{{item.maskedOpenid}}</text>
     </view>
   </view>
-  <view class="total">共 {{total}} 条</view>
+
+  <view class="adm-empty" wx:if="{{!loading && list.length===0}}">暂无订单</view>
+  <view class="adm-loading" wx:if="{{loading && list.length>0}}">加载中…</view>
 </scroll-view>

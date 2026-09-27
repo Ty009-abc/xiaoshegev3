@@ -1,28 +1,41 @@
-<!-- pages/admin/users -->
-<scroll-view scroll-y class="page" bindscrolltolower="loadMore">
-  <view class="search-bar">
-    <input class="search-input" placeholder="搜索昵称" bindinput="onInput" value="{{keyword}}" />
-    <button class="search-btn" bindtap="onSearch">搜索</button>
+<!-- pages/admin/users — RC8.9 浅色 -->
+<scroll-view scroll-y class="adm-page" bindscrolltolower="loadMore">
+  <view class="adm-hero">
+    <text class="adm-hero-title">用户管理</text>
+    <text class="adm-hero-sub">共 {{total}} 位用户</text>
   </view>
-  <view class="filters">
-    <view class="filter-tag {{level===''?'active':''}}" data-l="" bindtap="onFilterLevel">全部</view>
-    <view class="filter-tag {{level==='vip_month'?'active':''}}" data-l="vip_month" bindtap="onFilterLevel">月卡</view>
-    <view class="filter-tag {{level==='vip_year'?'active':''}}" data-l="vip_year" bindtap="onFilterLevel">年卡</view>
-    <view class="filter-tag {{level==='free'?'active':''}}" data-l="free" bindtap="onFilterLevel">免费</view>
-    <view class="filter-tag {{filterStatus==='blocked'?'active':''}}" data-s="blocked" bindtap="onFilterStatus">已封禁</view>
+
+  <view class="adm-toolbar">
+    <input class="adm-input" placeholder="搜索昵称" bindinput="onInput" value="{{keyword}}" />
+    <button class="adm-btn" bindtap="onSearch">搜索</button>
   </view>
-  <view class="user-list">
-    <view class="user-row" wx:for="{{list}}" wx:key="openid" data-user="{{item}}" bindtap="onTapUser">
-      <view class="u-info">
-        <text class="u-name">{{item.nickname || '未设置'}}</text>
-        <text class="u-openid">{{item.openid}}</text>
-      </view>
-      <view class="u-meta">
-        <text class="u-cv">CV:{{item.cv}}</text>
-        <text class="u-level {{item.membershipLevel}}">{{item.membershipLevel}}</text>
-        <text class="u-status {{item.status}}">{{item.status}}</text>
-      </view>
+
+  <view class="adm-tags">
+    <view class="adm-tag {{level===''?'adm-tag--active':''}}" data-l="" bindtap="onFilterLevel">全部</view>
+    <view class="adm-tag {{level==='vip_month'?'adm-tag--active':''}}" data-l="vip_month" bindtap="onFilterLevel">月卡</view>
+    <view class="adm-tag {{level==='vip_year'?'adm-tag--active':''}}" data-l="vip_year" bindtap="onFilterLevel">年卡</view>
+    <view class="adm-tag {{level==='free'?'adm-tag--active':''}}" data-l="free" bindtap="onFilterLevel">免费</view>
+    <view class="adm-tag {{filterStatus==='blocked'?'adm-tag--active':''}}" data-s="blocked" bindtap="onFilterStatus">已封禁</view>
+  </view>
+
+  <block wx:if="{{loading && list.length===0}}">
+    <view class="adm-skeleton">
+      <view class="adm-skel-block" wx:for="{{[1,2,3,4,5]}}" wx:key="*this"></view>
+    </view>
+  </block>
+
+  <view class="adm-row" wx:for="{{list}}" wx:key="openid" data-user="{{item}}" bindtap="onTapUser">
+    <view class="u-info">
+      <text class="adm-row-title">{{item.nickname || '未设置'}}</text>
+      <text class="adm-row-meta adm-mono">{{item.maskedOpenid}}</text>
+    </view>
+    <view class="u-meta">
+      <text class="u-cv">CV:{{item.cv}}</text>
+      <text class="adm-badge adm-badge--{{item.membershipLevel}}">{{item.membershipLevel}}</text>
+      <text class="adm-badge adm-badge--{{item.status}}">{{item.status}}</text>
     </view>
   </view>
-  <view class="total">共 {{total}} 人</view>
+
+  <view class="adm-empty" wx:if="{{!loading && list.length===0}}">暂无用户</view>
+  <view class="adm-loading" wx:if="{{loading && list.length>0}}">加载中…</view>
 </scroll-view>

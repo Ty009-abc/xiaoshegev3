@@ -1,13 +1,20 @@
-<!-- pages/admin/content -->
-<scroll-view scroll-y class="page">
-  <view class="tabs">
-    <view class="tab {{activeCol === item.key ? 'active' : ''}}" wx:for="{{collections}}" wx:key="key" data-col="{{item.key}}" bindtap="onTab">{{item.label}}</view>
+<!-- pages/admin/content — RC8.9 浅色 -->
+<scroll-view scroll-y class="adm-page">
+  <view class="adm-hero">
+    <text class="adm-hero-title">内容管理</text>
+    <text class="adm-hero-sub">认知暴击 / 世界规则 / 挑战题库</text>
   </view>
-  <button class="add-btn" bindtap="onAdd">+ 新增</button>
-  <view class="item-row {{item.status === 'inactive' ? 'disabled' : ''}}" wx:for="{{list}}" wx:key="_id">
+
+  <view class="adm-tags">
+    <view class="adm-tag {{activeCol === item.key ? 'adm-tag--active' : ''}}" wx:for="{{collections}}" wx:key="key" data-col="{{item.key}}" bindtap="onTab">{{item.label}}</view>
+  </view>
+
+  <button class="adm-btn" bindtap="onAdd" style="width:100%;margin-bottom:20rpx;">+ 新增</button>
+
+  <view class="adm-row {{item.status === 'inactive' ? 'disabled' : ''}}" wx:for="{{list}}" wx:key="_id">
     <view class="i-header">
-      <text class="i-title">{{item.title || item.rule || item.description || '(无标题)'}}</text>
-      <text class="i-status {{item.status}}">{{item.status}}</text>
+      <text class="adm-row-title">{{item.title || item.rule || item.description || '(无标题)'}}</text>
+      <text class="adm-badge adm-badge--{{item.status === 'active' ? 'success' : 'muted'}}">{{item.status}}</text>
     </view>
     <view class="i-actions">
       <text class="i-act" data-doc="{{item}}" bindtap="onEdit">编辑</text>
@@ -15,19 +22,20 @@
       <text class="i-act" wx:else data-id="{{item._id}}" bindtap="onEnable">启用</text>
     </view>
   </view>
-  <view class="empty" wx:if="{{!loading && list.length === 0}}">暂无内容</view>
+
+  <view class="adm-empty" wx:if="{{!loading && list.length === 0}}">暂无内容</view>
 </scroll-view>
 
 <!-- 编辑弹窗 -->
-<view class="modal" wx:if="{{showForm}}">
-  <view class="modal-mask" bindtap="onCancel"></view>
-  <view class="modal-body">
+<view class="adm-modal" wx:if="{{showForm}}">
+  <view class="adm-modal-mask" bindtap="onCancel"></view>
+  <view class="adm-modal-body">
     <form bindsubmit="onSave">
-      <view class="form-title">{{editingDoc ? '编辑' : '新增'}} - {{activeCol}}</view>
-      <input name="title" class="f-input" placeholder="标题" value="{{editingDoc.title || ''}}" />
+      <view class="adm-modal-title">{{editingDoc ? '编辑' : '新增'}} · {{activeCol}}</view>
+      <input name="title" class="adm-input f-input" placeholder="标题" value="{{editingDoc.title || ''}}" />
       <textarea name="content" class="f-textarea" placeholder="内容" value="{{editingDoc.content || editingDoc.description || ''}}" />
-      <button class="f-btn" formType="submit">保存</button>
-      <button class="f-btn cancel" bindtap="onCancel">取消</button>
+      <button class="adm-btn" formType="submit">保存</button>
+      <button class="adm-btn adm-btn--ghost" bindtap="onCancel" style="margin-top:12rpx;">取消</button>
     </form>
   </view>
 </view>

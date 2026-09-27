@@ -2,14 +2,14 @@
 
 .dashboard-scroll {
   padding-bottom: 40rpx;
-  background: #0a0a14;
+  background: #F5F7FA;
   min-height: 100vh;
 }
 
 /* Tab */
 .tab-bar {
   display: flex;
-  background: #12122a;
+  background: #FFFFFF;
   padding: 12rpx 16rpx;
   position: sticky;
   top: 0;
@@ -20,7 +20,7 @@
   text-align: center;
   padding: 12rpx 0;
   font-size: 24rpx;
-  color: #666;
+  color: #98A2B3;
   border-radius: 12rpx;
   transition: all 0.2s;
 }
@@ -46,7 +46,7 @@
 .progress-label {
   text-align: center;
   font-size: 20rpx;
-  color: #888;
+  color: #98A2B3;
   margin-top: 8rpx;
 }
 
@@ -70,9 +70,9 @@
   flex-direction: column;
   gap: 4rpx;
 }
-.timeline-phase { color: #fff; font-size: 26rpx; font-weight: bold; }
+.timeline-phase { color: #111827; font-size: 26rpx; font-weight: bold; }
 .timeline-duration { color: #f39c12; font-size: 20rpx; }
-.timeline-method { color: #aaa; font-size: 20rpx; }
+.timeline-method { color: #667085; font-size: 20rpx; }
 
 /* Layers */
 .layer-row {
@@ -80,7 +80,7 @@
   align-items: center;
   gap: 12rpx;
   padding: 8rpx 0;
-  color: #ccc;
+  color: #344054;
   font-size: 24rpx;
 }
 .pipeline-title {
@@ -90,7 +90,7 @@
 }
 .pipeline-step {
   padding: 6rpx 0;
-  color: #aaa;
+  color: #667085;
   font-size: 22rpx;
 }
 
@@ -104,7 +104,7 @@
 .kpi-card {
   flex: 1 1 calc(33% - 12rpx);
   min-width: 180rpx;
-  background: #1a1a2e;
+  background: #FFFFFF;
   border-radius: 16rpx;
   padding: 20rpx 16rpx;
   display: flex;
@@ -118,18 +118,18 @@
 .kpi-value {
   font-size: 40rpx;
   font-weight: bold;
-  color: #fff;
+  color: #111827;
 }
 .kpi-label {
   font-size: 20rpx;
-  color: #888;
+  color: #98A2B3;
   margin-top: 6rpx;
 }
 
 .metric-row {
   padding: 12rpx 0;
   font-size: 26rpx;
-  color: #ccc;
+  color: #344054;
   border-bottom: 1rpx solid rgba(255,255,255,0.03);
 }
 .metric-row:last-child { border-bottom: none; }
@@ -156,12 +156,12 @@
   align-items: center;
   gap: 12rpx;
   font-size: 24rpx;
-  color: #bbb;
+  color: #475467;
 }
 
 /* Scenarios */
 .scenario-card {
-  background: #12122a;
+  background: #FFFFFF;
   border-radius: 12rpx;
   padding: 16rpx;
   margin-bottom: 12rpx;
@@ -172,13 +172,13 @@
   align-items: center;
   margin-bottom: 8rpx;
 }
-.scenario-label { color: #fff; font-size: 26rpx; font-weight: bold; }
+.scenario-label { color: #111827; font-size: 26rpx; font-weight: bold; }
 .scenario-dau { color: #f39c12; font-size: 28rpx; font-weight: bold; }
 .scenario-stats {
   display: flex;
   gap: 24rpx;
   font-size: 22rpx;
-  color: #888;
+  color: #98A2B3;
 }
 
 .milestone-row {
@@ -186,7 +186,7 @@
   justify-content: space-between;
   padding: 10rpx 0;
   font-size: 24rpx;
-  color: #ccc;
+  color: #344054;
   border-bottom: 1rpx solid rgba(255,255,255,0.03);
 }
 
@@ -208,14 +208,14 @@
   border-bottom: 1rpx solid rgba(255,255,255,0.03);
 }
 .bn-left { display: flex; align-items: center; gap: 8rpx; }
-.bn-type { color: #fff; font-size: 24rpx; }
+.bn-type { color: #111827; font-size: 24rpx; }
 .bn-right { display: flex; gap: 16rpx; }
 .bn-score { color: #f39c12; font-size: 22rpx; }
-.bn-weight { color: #888; font-size: 20rpx; }
+.bn-weight { color: #98A2B3; font-size: 20rpx; }
 
 /* Recommendations */
 .rec-card {
-  background: #12122a;
+  background: #FFFFFF;
   border-radius: 12rpx;
   padding: 16rpx;
   margin-bottom: 12rpx;
@@ -234,15 +234,15 @@
   padding: 4rpx 10rpx;
   border-radius: 8rpx;
 }
-.rec-action-text { color: #fff; font-size: 26rpx; flex: 1; }
-.rec-detail { color: #888; font-size: 22rpx; line-height: 1.5; }
+.rec-action-text { color: #111827; font-size: 26rpx; flex: 1; }
+.rec-detail { color: #98A2B3; font-size: 22rpx; line-height: 1.5; }
 
 .budget-row {
   display: flex;
   gap: 12rpx;
   padding: 8rpx 0;
   font-size: 24rpx;
-  color: #ccc;
+  color: #344054;
 }
 .budget-tier { font-size: 20rpx; }
 
@@ -251,5 +251,5 @@
   gap: 12rpx;
   padding: 8rpx 0;
   font-size: 24rpx;
-  color: #ccc;
+  color: #344054;
 }

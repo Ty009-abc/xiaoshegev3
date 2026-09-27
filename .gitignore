@@ -35,6 +35,8 @@ tests/**
 # RC8.8 maintained regression coverage (explicit, narrow exceptions only)
 !tests/rc8.8/
 !tests/rc8.8/**
+!tests/rc8.9/
+!tests/rc8.9/**
 !tests/legacy6q/
 !tests/legacy6q/**
 !tests/turnaround6q/

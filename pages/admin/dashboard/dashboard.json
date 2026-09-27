@@ -1,7 +1,7 @@
 {
-  "navigationBarTitleText": "后台管理",
-  "backgroundColor": "#0a0a14",
-  "navigationBarBackgroundColor": "#0a0a14",
-  "navigationBarTextStyle": "white",
+  "navigationBarTitleText": "运营后台",
+  "backgroundColor": "#F5F7FA",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true
 }

@@ -24,7 +24,7 @@
 }
 .metric-item {
   flex: 0 0 calc(50% - 7px);
-  padding: 24px 20px; background: #0f1120;
+  padding: 24px 20px; background: #FFFFFF;
   border-radius: 16px; border: 1px solid rgba(255,255,255,0.04);
 }
 .metric-value { font-size: 32px; font-weight: 800; color: var(--accent); display: block; }
@@ -35,7 +35,7 @@
 .product-row {
   display: flex; align-items: center; gap: 14px;
   padding: 20px; margin-bottom: 8px;
-  background: #0c0e18; border-radius: 14px;
+  background: #FFFFFF; border-radius: 14px;
 }
 .product-rank { font-size: 28px; font-weight: 800; color: var(--text-tertiary); min-width: 40px; }
 .product-info { flex: 1; display: flex; flex-direction: column; }
@@ -43,11 +43,11 @@
 .product-count { font-size: 20px; color: var(--text-tertiary); }
 .product-rev { text-align: right; }
 .product-rev-val { font-size: 28px; font-weight: 700; color: var(--accent); display: block; }
-.product-bar-bg { width: 80px; height: 4px; background: #181f33; border-radius: 2px; margin-top: 6px; margin-left: auto; }
+.product-bar-bg { width: 80px; height: 4px; background: #F2F4F7; border-radius: 2px; margin-top: 6px; margin-left: auto; }
 .product-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; }
 
 /* ── 收入结构 ── */
-.structure-card { margin-top: 12px; padding: 28px; background: #0c0e18; border-radius: 18px; }
+.structure-card { margin-top: 12px; padding: 28px; background: #FFFFFF; border-radius: 18px; }
 .structure-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; }
 .struct-seg.first { background: #4ecdc4; }
 .struct-seg.renew { background: #a084dc; }
@@ -95,7 +95,7 @@
 .pricing-conf { font-size: 20px; padding: 4px 12px; border-radius: 8px; }
 .pricing-conf.high { background: rgba(78,205,196,0.15); color: #4ecdc4; }
 .pricing-conf.medium { background: rgba(160,132,220,0.15); color: #a084dc; }
-.pricing-conf.low { background: #15172e; color: var(--text-tertiary); }
+.pricing-conf.low { background: #F2F4F7; color: var(--text-tertiary); }
 .pricing-product { font-size: 26px; font-weight: 600; color: var(--text); }
 .pricing-change { font-size: 30px; font-weight: 700; color: var(--accent); display: block; margin-bottom: 6px; }
 .pricing-reason { font-size: 24px; color: var(--text-secondary); display: block; line-height: 1.4; }

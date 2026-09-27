@@ -1,22 +1,31 @@
-<!-- pages/admin/settings -->
-<scroll-view scroll-y class="page">
-  <view class="header">⚙️ 系统配置</view>
-  <view class="config-list" wx:if="{{!loading}}">
-    <block wx:for="{{configs}}" wx:key="key">
-      <view class="cfg-row" wx:if="{{item.type === 'bool'}}">
-        <text class="cfg-label">{{item.label}}</text>
-        <switch checked="{{config[item.key]}}" data-key="{{item.key}}" bindchange="onToggle" color="#0a84ff" />
-      </view>
-      <view class="cfg-row" wx:elif="{{item.type === 'number'}}">
-        <text class="cfg-label">{{item.label}}</text>
-        <input class="cfg-input" type="number" value="{{config[item.key]}}" data-key="{{item.key}}" bindblur="onSaveNumber" />
-      </view>
-      <view class="cfg-row" wx:elif="{{item.type === 'text'}}">
-        <text class="cfg-label">{{item.label}}</text>
-        <input class="cfg-input" value="{{config[item.key]}}" data-key="{{item.key}}" bindblur="onSaveText" />
-      </view>
-    </block>
+<!-- pages/admin/settings — RC8.9 浅色 -->
+<scroll-view scroll-y class="adm-page">
+  <view class="adm-hero">
+    <text class="adm-hero-title">系统配置</text>
+    <text class="adm-hero-sub">功能开关与参数</text>
   </view>
-  <view class="refresh" bindtap="fetchConfig">刷新配置</view>
-  <view class="loading" wx:if="{{loading}}">加载中...</view>
+
+  <block wx:if="{{!loading}}">
+    <view class="adm-card">
+      <block wx:for="{{configs}}" wx:key="key">
+        <view class="cfg-row" wx:if="{{item.type === 'bool'}}">
+          <text class="adm-kv-k">{{item.label}}</text>
+          <switch checked="{{config[item.key]}}" data-key="{{item.key}}" bindchange="onToggle" color="#E5484D" />
+        </view>
+        <view class="cfg-row" wx:elif="{{item.type === 'number'}}">
+          <text class="adm-kv-k">{{item.label}}</text>
+          <input class="adm-input cfg-input" type="number" value="{{config[item.key]}}" data-key="{{item.key}}" bindblur="onSaveNumber" />
+        </view>
+        <view class="cfg-row" wx:elif="{{item.type === 'text'}}">
+          <text class="adm-kv-k">{{item.label}}</text>
+          <input class="adm-input cfg-input" value="{{config[item.key]}}" data-key="{{item.key}}" bindblur="onSaveText" />
+        </view>
+      </block>
+    </view>
+    <view class="refresh" bindtap="fetchConfig">刷新配置</view>
+  </block>
+
+  <view class="adm-skeleton" wx:if="{{loading}}">
+    <view class="adm-skel-block" wx:for="{{[1,2,3,4]}}" wx:key="*this"></view>
+  </view>
 </scroll-view>

@@ -1,0 +1,171 @@
+/* ═══════════════════════════════════════════════════════════════
+ * styles/admin.wxss — RC8.9 Admin Console · 浅色运营后台设计系统
+ *
+ * 仅被 pages/admin/** 的 wxss `@import` 引用，不影响用户端页面。
+ * 方向：高信息密度、SaaS / BI 风格、浅色。
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* ── 浅色变量别名 ── 供 admin 子页面的 var(--bg)/var(--text)/var(--accent) 使用 ── */
+page,
+.page-container,
+.dashboard-scroll {
+  --bg: #F5F7FA;
+  --text: #111827;
+  --text-secondary: #475467;
+  --text-tertiary: #98A2B3;
+  --accent: #E5484D;
+  --bg-secondary: #FFFFFF;
+  --bg-card-hover: #FAFBFC;
+  --bg-input: #FFFFFF;
+}
+
+/* ── 页面容器 ── */
+.adm-page {
+  min-height: 100vh;
+  background: #F5F7FA;
+  padding: 24rpx 24rpx calc(48rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+/* ── 顶部标题 ── */
+.adm-hero { padding: 16rpx 4rpx 24rpx; }
+.adm-hero-title { display: block; font-size: 40rpx; font-weight: 700; color: #111827; letter-spacing: 0.5rpx; }
+.adm-hero-sub { display: block; font-size: 24rpx; color: #667085; margin-top: 8rpx; }
+
+/* ── 卡片 / 区块 ── */
+.adm-section { margin-bottom: 24rpx; }
+.adm-card {
+  background: #FFFFFF;
+  border: 1rpx solid rgba(0, 0, 0, 0.06);
+  border-radius: 16rpx;
+  box-shadow: 0 1rpx 4rpx rgba(16, 24, 40, 0.04);
+}
+.adm-section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding: 8rpx 4rpx 16rpx;
+}
+.adm-section-title { font-size: 30rpx; font-weight: 600; color: #111827; }
+.adm-section-meta { font-size: 22rpx; color: #98A2B3; }
+
+/* ── KPI 网格 ── */
+.adm-kpi-grid { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.adm-kpi {
+  flex: 1 1 calc(50% - 8rpx);
+  min-width: calc(50% - 8rpx);
+  background: #FFFFFF;
+  border: 1rpx solid rgba(0, 0, 0, 0.06);
+  border-radius: 16rpx;
+  padding: 28rpx 20rpx;
+  box-shadow: 0 1rpx 4rpx rgba(16, 24, 40, 0.04);
+  box-sizing: border-box;
+}
+.adm-kpi-val { display: block; font-size: 40rpx; font-weight: 700; color: #111827; line-height: 1.15; }
+.adm-kpi-label { display: block; font-size: 22rpx; color: #667085; margin-top: 8rpx; }
+.adm-kpi--accent .adm-kpi-val { color: #E5484D; }
+.adm-kpi--ok .adm-kpi-val { color: #12B76A; }
+.adm-kpi--warn .adm-kpi-val { color: #F79009; }
+.adm-kpi--info .adm-kpi-val { color: #2E90FA; }
+.adm-kpi--tap:active { background: #FAFBFC; }
+
+/* ── 列表行 ── */
+.adm-row {
+  background: #FFFFFF;
+  border: 1rpx solid rgba(0, 0, 0, 0.06);
+  border-radius: 14rpx;
+  padding: 24rpx;
+  margin-bottom: 12rpx;
+  box-shadow: 0 1rpx 4rpx rgba(16, 24, 40, 0.04);
+}
+.adm-row-title { font-size: 28rpx; color: #111827; font-weight: 600; }
+.adm-row-sub { font-size: 22rpx; color: #667085; }
+.adm-row-meta { font-size: 22rpx; color: #98A2B3; }
+
+/* ── 状态徽标 ── */
+.adm-badge { font-size: 20rpx; padding: 3rpx 12rpx; border-radius: 8rpx; font-weight: 500; }
+.adm-badge--success, .adm-badge--active, .adm-badge--paid { color: #027A48; background: #ECFDF3; }
+.adm-badge--warning, .adm-badge--pending_payment { color: #B54708; background: #FFFAEB; }
+.adm-badge--error, .adm-badge--blocked, .adm-badge--fail { color: #B42318; background: #FEF3F2; }
+.adm-badge--info, .adm-badge--created { color: #175CD3; background: #EFF8FF; }
+.adm-badge--muted, .adm-badge--free { color: #475467; background: #F2F4F7; }
+.adm-badge--vip, .adm-badge--vip_month, .adm-badge--vip_year { color: #B54708; background: #FFFAEB; }
+
+/* ── 标签 / 筛选 ── */
+.adm-tags { display: flex; gap: 12rpx; flex-wrap: wrap; margin-bottom: 20rpx; }
+.adm-tag {
+  font-size: 22rpx; color: #475467; background: #FFFFFF;
+  border: 1rpx solid rgba(0,0,0,0.06); padding: 10rpx 24rpx; border-radius: 999rpx;
+}
+.adm-tag--active { color: #FFFFFF; background: #E5484D; border-color: #E5484D; }
+
+/* ── 按钮 / 输入 ── */
+.adm-btn {
+  height: 76rpx; line-height: 76rpx; background: #E5484D; color: #FFFFFF;
+  font-size: 26rpx; border-radius: 14rpx; border: none; padding: 0 24rpx;
+}
+.adm-btn::after { border: none; }
+.adm-btn--ghost { background: #FFFFFF; color: #475467; border: 1rpx solid rgba(0,0,0,0.08); }
+.adm-input {
+  height: 76rpx; background: #FFFFFF; border: 1rpx solid rgba(0,0,0,0.08);
+  border-radius: 12rpx; padding: 0 20rpx; font-size: 26rpx; color: #111827;
+}
+
+/* ── 状态占位：加载 / 空 / 错误 ── */
+.adm-loading {
+  text-align: center; color: #98A2B3; font-size: 26rpx; padding: 56rpx 0;
+}
+.adm-empty {
+  text-align: center; color: #98A2B3; font-size: 26rpx;
+  padding: 56rpx 0; background: #FFFFFF; border-radius: 16rpx;
+  border: 1rpx dashed rgba(0,0,0,0.08);
+}
+.adm-error {
+  text-align: center; color: #B42318; font-size: 26rpx;
+  padding: 40rpx 24rpx; background: #FFFFFF; border-radius: 16rpx;
+  border: 1rpx solid rgba(240,68,56,0.2);
+}
+.adm-error-retry {
+  display: inline-block; margin-top: 20rpx; color: #E5484D; font-size: 26rpx;
+}
+/* 骨架屏 */
+.adm-skeleton { padding: 8rpx 0; }
+.adm-skel-block {
+  height: 96rpx; border-radius: 14rpx; margin-bottom: 12rpx;
+  background: linear-gradient(90deg, #F2F4F7 25%, #E9ECF2 37%, #F2F4F7 63%);
+  background-size: 400% 100%; animation: adm-skel 1.4s ease infinite;
+}
+@keyframes adm-skel { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+/* ── 时间线（用户详情） ── */
+.adm-timeline { padding-left: 12rpx; }
+.adm-tl-item { position: relative; padding: 0 0 28rpx 32rpx; border-left: 2rpx solid #E4E7EC; }
+.adm-tl-item:last-child { border-left-color: transparent; padding-bottom: 0; }
+.adm-tl-dot {
+  position: absolute; left: -9rpx; top: 4rpx; width: 16rpx; height: 16rpx;
+  border-radius: 50%; background: #98A2B3; border: 2rpx solid #FFFFFF;
+}
+.adm-tl-dot--ok { background: #12B76A; }
+.adm-tl-dot--warn { background: #F79009; }
+.adm-tl-dot--err { background: #F04438; }
+.adm-tl-dot--info { background: #2E90FA; }
+.adm-tl-time { font-size: 22rpx; color: #98A2B3; }
+.adm-tl-text { font-size: 26rpx; color: #111827; margin-top: 2rpx; }
+
+/* ── 漏斗 ── */
+.adm-funnel-step { margin-bottom: 18rpx; }
+.adm-funnel-top { display: flex; justify-content: space-between; margin-bottom: 8rpx; }
+.adm-funnel-name { font-size: 24rpx; color: #475467; }
+.adm-funnel-count { font-size: 24rpx; color: #111827; font-weight: 600; }
+.adm-funnel-bar-bg { height: 14rpx; background: #F2F4F7; border-radius: 7rpx; overflow: hidden; }
+.adm-funnel-bar { height: 100%; background: #E5484D; border-radius: 7rpx; }
+.adm-funnel-drop { font-size: 20rpx; color: #98A2B3; margin-top: 4rpx; }
+
+/* ── 工具条 ── */
+.adm-toolbar { display: flex; gap: 12rpx; margin-bottom: 20rpx; }
+.adm-toolbar .adm-input { flex: 1; }
+
+/* ── 详情：键值行 ── */
+.adm-kv { display: flex; justify-content: space-between; padding: 20rpx 24rpx; border-bottom: 1rpx solid #F2F4F7; }
+.adm-kv:last-child { border-bottom: none; }
+.adm-kv-k { font-size: 24rpx; color: #667085; }
+.adm-kv-v { font-size: 24rpx; color: #111827; font-weight: 500; max-width: 60%; text-align: right; word-break: break-all; }
+.adm-mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 22rpx; }

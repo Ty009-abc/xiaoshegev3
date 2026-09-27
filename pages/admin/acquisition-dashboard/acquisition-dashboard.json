@@ -8,6 +8,8 @@
     "xsg-progress": "/components/xsg-progress/xsg-progress"
   },
   "navigationBarTitleText": "获客分析",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,
-  "backgroundColor": "#0a0a14"
+  "backgroundColor": "#F5F7FA"
 }

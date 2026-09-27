@@ -30,7 +30,7 @@
 }
 .metric-item {
   flex: 0 0 calc(50% - 7px);
-  padding: 24px 20px; background: #0f1120;
+  padding: 24px 20px; background: #FFFFFF;
   border-radius: 16px; border: 1px solid rgba(255,255,255,0.04);
 }
 .metric-item.highlight { background: rgba(74,144,226,0.06); border-color: rgba(74,144,226,0.15); }
@@ -41,12 +41,12 @@
 /* ── 健康度 ── */
 .health-card {
   margin-top: 12px; padding: 28px;
-  border-radius: 18px; background: #0c0e18;
+  border-radius: 18px; background: #FFFFFF;
 }
 .health-score-wrap { display: flex; align-items: baseline; gap: 4px; margin-bottom: 14px; }
 .health-score { font-size: 56px; font-weight: 800; color: var(--text); }
 .health-max { font-size: 26px; color: var(--text-tertiary); }
-.health-bar-bg { height: 10px; background: #181f33; border-radius: 5px; overflow: hidden; }
+.health-bar-bg { height: 10px; background: #F2F4F7; border-radius: 5px; overflow: hidden; }
 .health-bar-fill { height: 100%; border-radius: 5px; transition: width 0.6s; }
 .health-bar-fill.excellent { background: #4ecdc4; }
 .health-bar-fill.good { background: #4a90e2; }
@@ -80,11 +80,11 @@
 .trend-date { font-size: 18px; color: var(--text-tertiary); margin-top: 6px; }
 
 /* ── 渠道归因 ── */
-.channel-item { margin-top: 12px; padding: 20px; background: #0c0e18; border-radius: 14px; }
+.channel-item { margin-top: 12px; padding: 20px; background: #FFFFFF; border-radius: 14px; }
 .channel-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
 .channel-name { font-size: 26px; font-weight: 600; color: var(--text); }
 .channel-users { font-size: 22px; color: var(--accent); }
-.channel-bar-bg { height: 6px; background: #181f33; border-radius: 3px; margin-bottom: 8px; }
+.channel-bar-bg { height: 6px; background: #F2F4F7; border-radius: 3px; margin-bottom: 8px; }
 .channel-bar-fill { height: 100%; background: #4a90e2; border-radius: 3px; transition: width 0.6s; }
 .channel-meta { display: flex; justify-content: space-between; }
 .channel-rev { font-size: 22px; color: var(--accent); }
