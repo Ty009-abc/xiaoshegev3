@@ -1,64 +1,327 @@
 /**
- * cloudfunctions/verifyPayment/lib/paymentAuthority.js
+ * lib/paymentAuthority.js — 微信支付回调验签权威路由（纯函数模块）
  *
- * 服务端支付权威守卫 (Stage21 Batch4 R1 — PAYMENT_MOCK_AUTHORITY_GUARD).
+ * 设计目标：
+ *   - 纯函数：无 wx-server-sdk、无 DB、无网络、无环境变量写入、不打印任何密钥内容。
+ *   - 双权威（可共存）：微信支付公钥（SPKI）与微信支付平台证书（X509）。
+ *   - Wechatpay-Serial 为强制选择器，全程 fail-closed。
  *
- * 唯一职责：在 verifyPayment 的权威 SUCCESS 状态转换之前，识别并拒绝
- * mock 支付结果，保证 mock 结果永远无法进入：
- *   - order.status = paid
- *   - grantEntitlements(...)
- *   - membership / entitlement 激活
- *   - 权威支付成功
+ * 权威配置（环境变量，只读）：
  *
- * 这是纯函数模块（无 wx-server-sdk / 无 DB / 无网络），可被单测直接验证。
+ *   A. 公钥模式（PUBLIC KEY / SPKI）
+ *        WXPAY_PUBLIC_KEY_ID   公钥 ID，必须以 PUB_KEY_ID_ 开头
+ *        WXPAY_PUBLIC_KEY      微信平台公钥 PEM（-----BEGIN PUBLIC KEY-----）
  *
- * 安全语义：
- *   - 前端 paymentService.js 的 `_mock` 短路仅为 UX 行为，非安全权威。
- *   - 本模块的判定基于服务端派生的 mock 标记（MOCK_TXN_ 前缀由服务端
- *     common/payment.js 的 mock queryOrder 分支写入，非客户端可控）。
- *   - `_mock` 字段当前未在 queryOrder 服务端结果中传播（仅在 jsapiOrder 的
- *     paymentParams 中出现），这里仍做防御性检查，未来若被传播亦可拦截。
+ *   B. 平台证书模式（X509 CERTIFICATE）
+ *        WXPAY_PLATFORM_CERT             平台证书 PEM（-----BEGIN CERTIFICATE-----）
+ *        WXPAY_PLATFORM_CERT_SERIAL      可选；缺省时从证书本体解析序列号
+ *        （兼容旧式精确多证书：WXPAY_PLATFORM_CERT_SERIAL_<SERIAL>=<PEM>）
+ *
+ *   ⚠️ 若 WXPAY_PLATFORM_CERT 内容为 SPKI 公钥（或任何非 X509 输入），
+ *      拒绝该证书权威配置，绝不静默重解释为公钥模式（SMUGGLE 防护）。
+ *
+ * 路由语义（Wechatpay-Serial 强制）：
+ *   - 以 PUB_KEY_ID_ 开头 → 公钥模式，要求与 WXPAY_PUBLIC_KEY_ID 完全相等，
+ *     仅使用 WXPAY_PUBLIC_KEY，绝不尝试证书权威；不匹配 → fail closed。
+ *   - 其余（证书序列号形式）→ 证书模式，十六进制大小写不敏感精确匹配，
+ *     仅使用命中的 X509 证书，绝不尝试公钥权威；不匹配 → fail closed。
+ *   - 缺失 / 未知 / 不匹配 → fail closed。
+ *
+ *   ❌ 禁止：try-all-keys、first-authority fallback、单权威 fallback、
+ *           跨权威替换、选择器绕过。
  */
 
-'use strict'
+const crypto = require('crypto')
 
-/**
- * mock 交易号命名空间前缀（服务端 payment.js mock 分支写入）。
- * 真实微信支付交易号不会以此前缀开头。
- */
+// 稳定内部错误分类
+const REASONS = {
+  CERT_OR_KEY_NOT_FOUND: 'CERT_OR_KEY_NOT_FOUND', // 选择器缺失/未知/不匹配/无可用权威
+  SIGNATURE_ERROR: 'SIGNATURE_ERROR', // 权威已路由，但 RSA-SHA256 验签失败
+  AUTHORITY_CONFIG_ERROR: 'AUTHORITY_CONFIG_ERROR', // 权威配置非法（如 SPKI 入证书槽）
+  MISSING_HEADERS: 'MISSING_HEADERS', // 应答缺少 Wechatpay-* 签名头
+}
+
+// mock 交易号命名空间前缀（服务端 payment.js mock 分支写入；真实交易号不会以此开头）
 const MOCK_TXN_PREFIX = 'MOCK_TXN_'
 
+// 权威类型
+const AUTHORITY_TYPE = {
+  PUBLIC_KEY: 'PUBLIC_KEY',
+  CERTIFICATE: 'CERTIFICATE',
+}
+
+// 规范化 PEM：把转义的 \\n 还原为真实换行并去首尾空白
+function normalizePem(s) {
+  if (!s) return ''
+  return s.replace(/\\n/g, '\n').trim()
+}
+
+// 是否为 SPKI 公钥 PEM
+function isSpkiPem(pem) {
+  return /-----BEGIN PUBLIC KEY-----/.test(pem) && /-----END PUBLIC KEY-----/.test(pem)
+}
+
+// 是否为 X509 证书 PEM
+function isX509Pem(pem) {
+  return /-----BEGIN CERTIFICATE-----/.test(pem) && /-----END CERTIFICATE-----/.test(pem)
+}
+
+// 公钥 PEM 是否为可用的 RSA 验签公钥（SPKI）
+function isRsaPublicKey(pem) {
+  if (!isSpkiPem(pem)) return false
+  try {
+    const key = crypto.createPublicKey(pem)
+    return key.asymmetricKeyType === 'rsa'
+  } catch (err) {
+    return false
+  }
+}
+
+// 证书 PEM 是否为可用的 RSA X509 证书
+function isRsaCertificate(pem) {
+  if (!isX509Pem(pem)) return false
+  try {
+    const cert = new crypto.X509Certificate(pem)
+    return cert.publicKey && cert.publicKey.asymmetricKeyType === 'rsa'
+  } catch (err) {
+    return false
+  }
+}
+
+// 从 X509 证书提取序列号（大写十六进制，无冒号）；失败返回空串
+function extractCertSerial(pem) {
+  try {
+    const cert = new crypto.X509Certificate(pem)
+    return (cert.serialNumber || '').trim().toUpperCase()
+  } catch (err) {
+    return ''
+  }
+}
+
 /**
- * 判断交易号是否为 mock 命名空间。
- * @param {string|undefined} txnId
+ * buildAuthorities — 从环境变量构建权威列表（+ 配置错误）
+ *
+ * @param {object} [env] 环境变量对象（默认 process.env，便于测试注入）
+ * @returns {{
+ *   authorities: Array<{type: 'PUBLIC_KEY'|'CERTIFICATE', id: string, key: string}>,
+ *   errors: string[]
+ * }}
+ */
+function buildAuthorities(env) {
+  env = env || process.env
+  const authorities = []
+  const errors = []
+
+  // ── A. 公钥模式 ──
+  const pubKeyId = (env.WXPAY_PUBLIC_KEY_ID || '').trim()
+  const pubKey = normalizePem(env.WXPAY_PUBLIC_KEY || '')
+  if (pubKeyId || pubKey) {
+    if (isRsaPublicKey(pubKey)) {
+      if (!pubKeyId) {
+        errors.push('WXPAY_PUBLIC_KEY 已配置但缺少 WXPAY_PUBLIC_KEY_ID')
+      } else if (!pubKeyId.startsWith('PUB_KEY_ID_')) {
+        errors.push('WXPAY_PUBLIC_KEY_ID 必须以 PUB_KEY_ID_ 开头')
+      } else {
+        authorities.push({ type: AUTHORITY_TYPE.PUBLIC_KEY, id: pubKeyId, key: pubKey })
+      }
+    } else if (pubKey) {
+      errors.push('WXPAY_PUBLIC_KEY 非合法 RSA PUBLIC KEY PEM（SPKI required）')
+    } else {
+      errors.push('WXPAY_PUBLIC_KEY_ID 已配置但缺少 WXPAY_PUBLIC_KEY')
+    }
+  }
+
+  // ── B. 证书模式 ──
+  // B1. 旧式精确多证书：WXPAY_PLATFORM_CERT_SERIAL_<SERIAL>=<PEM>
+  const legacyCertKeyRe = /^WXPAY_PLATFORM_CERT_SERIAL_[0-9A-Fa-f]+$/
+  for (const k of Object.keys(env)) {
+    if (!legacyCertKeyRe.test(k)) continue
+    const pem = normalizePem(env[k] || '')
+    if (!pem) continue
+    if (isSpkiPem(pem)) {
+      errors.push(`证书槽被写入 SPKI 公钥（已拒绝）: ${k}`)
+      continue
+    }
+    if (isRsaCertificate(pem)) {
+      const serial = k.slice('WXPAY_PLATFORM_CERT_SERIAL_'.length).toUpperCase()
+      authorities.push({ type: AUTHORITY_TYPE.CERTIFICATE, id: serial, key: pem })
+    } else {
+      errors.push(`证书槽含非 X509 输入（已拒绝）: ${k}`)
+    }
+  }
+
+  // B2. 默认单证书：WXPAY_PLATFORM_CERT（可选 WXPAY_PLATFORM_CERT_SERIAL）
+  const defaultCert = normalizePem(env.WXPAY_PLATFORM_CERT || '')
+  if (defaultCert) {
+    if (isSpkiPem(defaultCert)) {
+      // SMUGGLE 防护：严禁把 SPKI 公钥放进证书槽，绝不重解释为公钥模式
+      errors.push('WXPAY_PLATFORM_CERT 含 SPKI 公钥（已拒绝，不重解释为公钥模式）')
+    } else if (isRsaCertificate(defaultCert)) {
+      const declared = (env.WXPAY_PLATFORM_CERT_SERIAL || '').trim()
+      const serial = declared ? declared.toUpperCase() : extractCertSerial(defaultCert)
+      if (!serial) {
+        errors.push('WXPAY_PLATFORM_CERT 无法解析证书序列号')
+      } else {
+        authorities.push({ type: AUTHORITY_TYPE.CERTIFICATE, id: serial, key: defaultCert })
+      }
+    } else {
+      errors.push('WXPAY_PLATFORM_CERT 非合法 X509 CERTIFICATE PEM（已拒绝）')
+    }
+  }
+
+  return { authorities, errors }
+}
+
+/**
+ * routeAuthority — 按 Wechatpay-Serial 精确路由到唯一权威（fail-closed）
+ *
+ * @param {string} wechatpaySerial Wechatpay-Serial 头
+ * @param {Array} authorities buildAuthorities 的产物
+ * @returns {object|null} 匹配的权威；无匹配返回 null（调用方 FAIL CLOSED）
+ */
+function routeAuthority(wechatpaySerial, authorities) {
+  if (!wechatpaySerial || !Array.isArray(authorities)) return null
+  const serial = String(wechatpaySerial).trim()
+  if (serial.startsWith('PUB_KEY_ID_')) {
+    // 公钥模式：精确相等；证书权威绝不参与
+    return authorities.find((a) => a.type === AUTHORITY_TYPE.PUBLIC_KEY && a.id === serial) || null
+  }
+  // 证书模式：十六进制大小写不敏感精确匹配；公钥权威绝不参与
+  const wanted = serial.toUpperCase()
+  return authorities.find((a) => a.type === AUTHORITY_TYPE.CERTIFICATE && a.id === wanted) || null
+}
+
+/**
+ * verifySignature — RSA-SHA256 验签（仅使用 routeAuthority 返回的权威）
+ *
+ * @param {object} authority routeAuthority 的匹配结果
+ * @param {string} message timestamp\nnonce\nrawBody\n
+ * @param {string} signatureBase64 Wechatpay-Signature
  * @returns {boolean}
+ */
+function verifySignature(authority, message, signatureBase64) {
+  if (!authority || !authority.key || !signatureBase64) return false
+  try {
+    const verifier = crypto.createVerify('RSA-SHA256')
+    verifier.update(message)
+    verifier.end()
+    return verifier.verify(authority.key, signatureBase64, 'base64')
+  } catch (err) {
+    return false
+  }
+}
+
+/**
+ * verifyCallback — 权威路由 + 验签编排（纯函数，fail-closed）
+ *
+ * @param {string} wechatpaySerial
+ * @param {Array} authorities
+ * @param {string} message
+ * @param {string} signatureBase64
+ * @returns {{valid: boolean, reason?: string, authorityType?: string}}
+ */
+function verifyCallback(wechatpaySerial, authorities, message, signatureBase64) {
+  const authority = routeAuthority(wechatpaySerial, authorities)
+  if (!authority) {
+    return { valid: false, reason: REASONS.CERT_OR_KEY_NOT_FOUND }
+  }
+  if (!verifySignature(authority, message, signatureBase64)) {
+    return { valid: false, reason: REASONS.SIGNATURE_ERROR }
+  }
+  return { valid: true, authorityType: authority.type }
+}
+
+/**
+ * isMockTransactionId — 交易号是否为 mock 命名空间
  */
 function isMockTransactionId(txnId) {
   return typeof txnId === 'string' && txnId.indexOf(MOCK_TXN_PREFIX) === 0
 }
 
 /**
- * 判断查询结果是否为 mock 支付结果（应被权威路径拒绝）。
- *
- * 仅识别已知 mock 标记，不扩大范围：
- *   - queryResult._mock === true（若被传播）
- *   - transactionId 匹配 ^MOCK_TXN_
- *
- * 返回 false 表示“非已知 mock”，由现有 SUCCESS / 非 SUCCESS 逻辑继续处理，
- * 不改变真实支付路径与未支付状态的既有行为。
- *
- * @param {object|undefined} queryResult — queryOrder 的返回值
- * @returns {boolean} true = mock 结果（必须拒绝）
+ * isMockPaymentResult — 查询结果是否为 mock（严禁进入 paid / entitlement 权威转换）
  */
 function isMockPaymentResult(queryResult) {
   if (!queryResult || typeof queryResult !== 'object') return false
   if (queryResult._mock === true) return true
-  if (isMockTransactionId(queryResult.transactionId)) return true
-  return false
+  return isMockTransactionId(queryResult.transactionId)
+}
+
+/**
+ * verifyResponseSignature — 微信 API 应答/通知 的 RSA-SHA256 权威验签（与 payCallback 同一模型）
+ *
+ * 复用 buildAuthorities / routeAuthority / routeAuthority / verifySignature，语义不与回调漂移。
+ * fail-closed：任一必需头缺失、权威未路由、验签失败 → valid:false。
+ * 严禁在未验证前把应答当作支付权威（不得标记 paid / 发放权益）。
+ *
+ * @param {object} headers  响应头（含 Wechatpay-Timestamp/Nonce/Signature/Serial）
+ * @param {string} rawBody  原始响应体字符串（不得重新序列化）
+ * @param {object} [env]    环境变量对象（默认 process.env）
+ * @returns {{valid:boolean, reason?:string, authorityType?:string}}
+ */
+function verifyResponseSignature(headers, rawBody, env) {
+  const h = headers || {}
+  const ts = h['Wechatpay-Timestamp'] || h['wechatpay-timestamp'] || ''
+  const nonce = h['Wechatpay-Nonce'] || h['wechatpay-nonce'] || ''
+  const signature = h['Wechatpay-Signature'] || h['wechatpay-signature'] || ''
+  const serial = h['Wechatpay-Serial'] || h['wechatpay-serial'] || ''
+  if (!ts || !nonce || !signature || !serial) {
+    return { valid: false, reason: REASONS.MISSING_HEADERS }
+  }
+  const { authorities } = buildAuthorities(env || process.env)
+  const message = ts + '\n' + nonce + '\n' + (typeof rawBody === 'string' ? rawBody : '') + '\n'
+  return verifyCallback(serial, authorities, message, signature)
+}
+
+/**
+ * decryptResource — AEAD_AES_256_GCM 通知资源解密（微信 v3 规范：ciphertext 为 Base64）
+ *
+ * 认证标签为解码后末 16 字节；必须调用 final() 以完成 GCM 认证。
+ * 解密/认证失败 → null（调用方 fail-closed）。
+ *
+ * @param {object} resource  {algorithm, ciphertext, nonce, associated_data}
+ * @param {string} apiV3Key  APIv3 对称密钥（32 字节）
+ * @returns {object|null}
+ */
+function decryptResource(resource, apiV3Key) {
+  if (!resource || !apiV3Key) return null
+  try {
+    const { algorithm, ciphertext, nonce, associated_data } = resource
+    if (algorithm !== 'AEAD_AES_256_GCM') return null
+    const buf = Buffer.from(ciphertext || '', 'base64')
+    const authTag = buf.slice(buf.length - 16)
+    const data = buf.slice(0, buf.length - 16)
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      Buffer.from(apiV3Key, 'utf8'),
+      Buffer.from(nonce || '', 'utf8')
+    )
+    decipher.setAuthTag(authTag)
+    decipher.setAAD(Buffer.from(associated_data || '', 'utf8'))
+    const raw = Buffer.concat([decipher.update(data), decipher.final()])
+    return JSON.parse(raw.toString('utf8'))
+  } catch (err) {
+    return null
+  }
 }
 
 module.exports = {
+  REASONS,
   MOCK_TXN_PREFIX,
+  REASONS,
+  AUTHORITY_TYPE,
+  normalizePem,
+  isSpkiPem,
+  isX509Pem,
+  isRsaPublicKey,
+  isRsaCertificate,
+  extractCertSerial,
+  buildAuthorities,
+  routeAuthority,
+  verifySignature,
+  verifyCallback,
   isMockTransactionId,
   isMockPaymentResult,
+  verifyResponseSignature,
+  decryptResource,
 }

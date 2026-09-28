@@ -90,14 +90,29 @@ exports.main = async (event) => {
   }
 }
 
+/**
+ * _processRefund — 真实微信退款 API 尚未实现。
+ *
+ * SAFETY (PAYMENT_STAGE2): 在真实退款 API 接入并拿到微信权威应答之前，
+ * 本函数一律 fail-closed，绝不返回伪造的「退款成功」。
+ * 生产路径不得出现 fake success（否则会出现「记录已退款、钱未退」资金风险）。
+ *
+ * 测试可用内部开关 __WXPAY_REFUND_IMPLEMENTED=true 模拟「已实现」路径，
+ * 但生产环境不设置该开关，因此始终 fail-closed。
+ *
+ * @returns {{success:boolean, error?:string, refundId?:string}}
+ */
 async function _processRefund(order) {
-  // Mock 模式 — 跳过真实退款 API
-  if (!process.env.WXPAY_MCHID) {
-    console.warn('[refund] Mock 模式退款')
-    return { success: true, refundId: `MOCK_REFUND_${order.orderId}` }
+  const implemented = process.env.__WXPAY_REFUND_IMPLEMENTED === 'true'
+  if (!implemented) {
+    console.error('[refund] 退款 API 未实现 — fail-closed，拒绝伪造退款成功')
+    return { success: false, error: 'REFUND_NOT_IMPLEMENTED', failClosed: true }
   }
-  // TODO: 接入微信退款 API
-  return { success: true, refundId: `REFUND_${order.orderId}` }
+  // ── 真实退款 API 接入点（尚未实现）──
+  // 必须：商户私钥+商户证书序列号签名 → 调用 /v3/refund/domestic/refunds
+  //       → 校验微信应答签名（verifyResponseSignature）→ 仅在权威接受时返回 success:true
+  console.error('[refund] 退款 API 未实现（已实现开关开启但缺少真实实现）')
+  return { success: false, error: 'REFUND_NOT_IMPLEMENTED', failClosed: true }
 }
 
 async function _revokeEntitlements(db, order) {

@@ -34,6 +34,7 @@ const {
   buildAuthorities,
   routeAuthority,
   verifySignature,
+  decryptResource,
   REASONS,
 } = require('./lib/paymentAuthority.js')
 
@@ -219,38 +220,23 @@ exports.main = async (event) => {
 
 /**
  * _decryptResource — AEAD_AES_256_GCM 解密
+ *
+ * 复用共享权威模块 paymentAuthority.decryptResource，与验证/回调语义一致：
+ *   - 微信 v3 的 resource.ciphertext 为 Base64（非 hex）
+ *   - 认证标签为解码后末 16 字节，并调用 final() 完成 GCM 认证
+ * 解密/认证失败 → null（fail-closed，不发放权益）。
  */
 function _decryptResource(resource) {
-  if (!resource) return null
-
-  try {
-    const apiV3Key = process.env.WXPAY_API_V3_KEY || ''
-    if (!apiV3Key) {
-      console.warn('[payCallback] 未配置 WXPAY_API_V3_KEY')
-      return null
-    }
-
-    const { algorithm, ciphertext, nonce, associated_data } = resource
-    if (algorithm !== 'AEAD_AES_256_GCM') {
-      console.error(`[payCallback] 不支持的算法: ${algorithm}`)
-      return null
-    }
-
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      Buffer.from(apiV3Key, 'utf8'),
-      Buffer.from(nonce || '', 'utf8')
-    )
-    decipher.setAuthTag(Buffer.from(ciphertext.slice(-32), 'hex'))
-    decipher.setAAD(Buffer.from(associated_data || '', 'utf8'))
-
-    const raw = decipher.update(Buffer.from(ciphertext.slice(0, -32), 'hex'))
-    const decrypted = JSON.parse(raw.toString('utf8'))
-    return decrypted
-  } catch (err) {
-    console.error('[payCallback] 解密异常:', err.message)
+  const apiV3Key = process.env.WXPAY_API_V3_KEY || ''
+  if (!apiV3Key) {
+    console.warn('[payCallback] 未配置 WXPAY_API_V3_KEY')
     return null
   }
+  const decrypted = decryptResource(resource, apiV3Key)
+  if (!decrypted && resource) {
+    console.error('[payCallback] 解密失败（算法/密钥/认证标签不匹配）')
+  }
+  return decrypted
 }
 
 // ═══════════════════════════════════════

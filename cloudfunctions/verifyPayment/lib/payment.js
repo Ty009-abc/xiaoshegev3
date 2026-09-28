@@ -4,7 +4,7 @@
  * ⚠️ 部署前必须配置以下环境变量或安全配置：
  *   - WXPAY_MCHID           商户号
  *   - WXPAY_APPID           小程序 AppID
- *   - WXPAY_SERIAL_NO       证书序列号
+ *   - WXPAY_SERIAL_NO       证书序列号（商户 API 证书序列号，40 位十六进制）
  *   - WXPAY_PRIVATE_KEY     商户私钥 (PEM 格式，换行用 \n)
  *     - 或 WXPAY_PRIVATE_KEY_PATH 私钥文件路径（二选一）
  *   - WXPAY_API_V3_KEY      APIv3 密钥
@@ -17,11 +17,18 @@
  *
  * 生产环境必须配置 WXPAY_MCHID，否则所有支付操作失败。
  * 不再静默 fallback 到 mock 模式。
+ *
+ * ⚠️ 应答验签（PAYMENT_STAGE2）：商户出站请求用「商户 API 私钥 + 商户证书序列号」
+ *    签名；微信应答/通知用「微信支付公钥（+公钥 ID）或平台证书」验签。两者角色不同，
+ *    绝不可混用。凡作为支付权威使用的微信应答，必须先通过 verifyResponseSignature
+ *    （与 payCallback 共享同一权威模块，语义不漂移）；未通过 → fail-closed，
+ *    绝不标记 paid / 发放权益。
  */
 
 const crypto = require('crypto')
 const fs = require('fs')
 const now = () => Date.now()
+const { verifyResponseSignature } = require('./paymentAuthority.js')
 
 // ======================== 配置读取 ========================
 function getConfig() {
@@ -70,6 +77,75 @@ function sign(method, path, body, mchid, serialNo, privateKey) {
   }
 }
 
+// ======================== 底层 HTTP（保留原始 body 与响应头以验签） ========================
+function _headersToObj(h) {
+  const o = {}
+  if (!h) return o
+  if (typeof h.forEach === 'function') {
+    h.forEach((v, k) => { o[String(k).toLowerCase()] = v })
+  } else {
+    Object.keys(h).forEach((k) => { o[String(k).toLowerCase()] = h[k] })
+  }
+  return o
+}
+
+/**
+ * 发请求并返回 { status, headers, rawBody }。保留原始响应体字符串，
+ * 以便对微信应答做 RSA-SHA256 验签（重新序列化会导致验签失败）。
+ */
+async function _request(method, path, headers, body) {
+  const url = 'https://api.mch.weixin.qq.com' + path
+  try {
+    const axios = require('axios')
+    const r = await axios({
+      method,
+      url,
+      headers,
+      data: body,
+      timeout: 15000,
+      // 保留原始字符串，稍后自行 JSON.parse（验签必须以原文为准）
+      transformResponse: [(d) => d],
+      validateStatus: () => true,
+    })
+    return {
+      status: r.status,
+      headers: _headersToObj(r.headers),
+      rawBody: typeof r.data === 'string' ? r.data : JSON.stringify(r.data),
+    }
+  } catch (e) {
+    // axios 抛错但携带响应（如 4xx）时仍取回用于验签
+    if (e && e.response && e.response.headers) {
+      const d = e.response.data
+      return {
+        status: e.response.status,
+        headers: _headersToObj(e.response.headers),
+        rawBody: typeof d === 'string' ? d : JSON.stringify(d),
+      }
+    }
+    // 回退 node-fetch
+    const fetch = require('node-fetch')
+    const r2 = await fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    const raw = await r2.text()
+    return { status: r2.status, headers: _headersToObj(r2.headers), rawBody: raw }
+  }
+}
+
+/**
+ * 对微信应答验签（fail-closed）。返回 { verified, reason, data }。
+ * 未通过验签时 `verified=false`，调用方绝不可将其当作支付权威。
+ */
+function _verifyAndParse(resp) {
+  const v = verifyResponseSignature(resp.headers, resp.rawBody)
+  if (!v.valid) return { verified: false, reason: v.reason, data: null }
+  let data = {}
+  try { data = JSON.parse(resp.rawBody) } catch (_) { data = {} }
+  return { verified: true, reason: null, data }
+}
+
 // ======================== JSAPI 下单 ========================
 /**
  * JSAPI 下单
@@ -77,7 +153,7 @@ function sign(method, path, body, mchid, serialNo, privateKey) {
  * @returns {{ success, prepay_id, paymentParams }}
  */
 async function jsapiOrder(params) {
-  const { appid, mchid, serialNo, privateKey, privateKeyMissing, apiV3Key, notifyUrl, isMock } = getConfig()
+  const { appid, mchid, serialNo, privateKey, privateKeyMissing, notifyUrl, isMock } = getConfig()
   const { orderId, productName, totalAmount, openid } = params
 
   // 生产环境：私钥缺失 → 明确失败
@@ -124,30 +200,18 @@ async function jsapiOrder(params) {
   headers['Content-Type'] = 'application/json'
 
   try {
-    let response
-    if (typeof require === 'function') {
-      try {
-        const axios = require('axios')
-        response = await axios({
-          method: 'POST',
-          url: 'https://api.mch.weixin.qq.com' + path,
-          headers,
-          data: body,
-          timeout: 15000,
-        })
-      } catch (_) {
-        const fetch = require('node-fetch')
-        response = await fetch('https://api.mch.weixin.qq.com' + path, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body),
-        })
-        response = { data: await response.json(), status: response.status }
-      }
+    const resp = await _request('POST', path, headers, body)
+
+    // 应答验签（fail-closed）：未验证的应答不得作为下单权威
+    const parsed = _verifyAndParse(resp)
+    if (!parsed.verified) {
+      console.error('[WXPAY] 下单应答验签失败:', parsed.reason)
+      return { success: false, error: 'RESPONSE_SIGNATURE_INVALID', reason: parsed.reason }
     }
 
-    if (response.data && response.data.prepay_id) {
-      const prepayId = response.data.prepay_id
+    const data = parsed.data
+    if (data && data.prepay_id) {
+      const prepayId = data.prepay_id
       const timeStamp = Math.floor(now() / 1000).toString()
       const nonceStr = crypto.randomBytes(16).toString('hex')
       const pkg = 'prepay_id=' + prepayId
@@ -164,8 +228,8 @@ async function jsapiOrder(params) {
       }
     }
 
-    console.error('[WXPAY] 下单失败:', JSON.stringify(response.data))
-    return { success: false, error: response.data?.message || '下单失败' }
+    console.error('[WXPAY] 下单失败:', JSON.stringify(data))
+    return { success: false, error: (data && data.message) || '下单失败' }
   } catch (err) {
     console.error('[WXPAY] 下单异常:', err.message)
     return { success: false, error: err.message }
@@ -196,26 +260,27 @@ async function queryOrder(orderId) {
   const headers = sign('GET', path, '', mchid, serialNo, privateKey)
   headers['Content-Type'] = 'application/json'
 
+  let resp
   try {
-    let response
-    try {
-      const axios = require('axios')
-      response = await axios({ method: 'GET', url: 'https://api.mch.weixin.qq.com' + path, headers, timeout: 10000 })
-    } catch (_) {
-      const fetch = require('node-fetch')
-      response = await fetch('https://api.mch.weixin.qq.com' + path, { headers })
-      response = { data: await response.json(), status: response.status }
-    }
-
-    return {
-      success: true,
-      tradeState: response.data?.trade_state || 'UNKNOWN',
-      transactionId: response.data?.transaction_id || '',
-      tradeStateDesc: response.data?.trade_state_desc || '',
-    }
+    resp = await _request('GET', path, headers)
   } catch (err) {
     console.error('[WXPAY] 查单异常:', err.message)
     return { success: false, tradeState: 'ERROR', error: err.message }
+  }
+
+  // 应答验签（fail-closed）：未经权威验签的应答绝不可标记 paid / 发放权益
+  const parsed = _verifyAndParse(resp)
+  if (!parsed.verified) {
+    console.error('[WXPAY] 查单应答验签失败:', parsed.reason)
+    return { success: false, tradeState: 'UNVERIFIED', error: 'RESPONSE_SIGNATURE_INVALID', reason: parsed.reason }
+  }
+
+  const data = parsed.data || {}
+  return {
+    success: true,
+    tradeState: data.trade_state || 'UNKNOWN',
+    transactionId: data.transaction_id || '',
+    tradeStateDesc: data.trade_state_desc || '',
   }
 }
 

@@ -118,6 +118,59 @@ function scanFunction (fn) {
         issues.push({ function: name, key: missing.join('+'), reason: 'PARTIAL_SECRET_ENV' })
       }
     }
+    // PAYMENT SIGNING GUARD: value-shape validation for merchant signing material.
+    issues.push(...scanPaymentSigning(name, env))
+  }
+  return issues
+}
+
+// ── PAYMENT SIGNING GUARD (PAYMENT_STAGE2) ───────────────────────────────
+// 商户出站请求签名需要「有效商户私钥 + 商户证书序列号」。部署/配置写入前必须
+// 硬失败，若：
+//   - WXPAY_PRIVATE_KEY 为占位/非 PEM/缺失
+//   - WXPAY_SERIAL_NO 非 40 位十六进制
+// 绝不在仓库内持久化真实私钥（config 层由 scanFunction 的 COMMITTED_SECRET_VALUE
+// 与 PARTIAL_SECRET_ENV 负责）。这两个函数只做「值形态」校验，绝不返回值内容。
+const PAYMENT_SIGNING = {
+  createOrder: { privateKeyKey: 'WXPAY_PRIVATE_KEY', serialKey: 'WXPAY_SERIAL_NO' },
+  verifyPayment: { privateKeyKey: 'WXPAY_PRIVATE_KEY', serialKey: 'WXPAY_SERIAL_NO' },
+  refundOrder: { privateKeyKey: 'WXPAY_PRIVATE_KEY', serialKey: 'WXPAY_SERIAL_NO' },
+}
+
+const MERCHANT_SERIAL_RE = /^[0-9A-Fa-f]{40}$/
+
+/** 是否为合法 PEM 私钥（含 BEGIN/END PRIVATE KEY 标记，且非占位）。 */
+function isValidPrivateKeyPem (value) {
+  if (value === undefined || value === null) return false
+  const s = String(value).trim()
+  if (s === '' || isPlaceholderValue(s)) return false
+  return /-----BEGIN (RSA )?PRIVATE KEY-----/.test(s) && /-----END (RSA )?PRIVATE KEY-----/.test(s)
+}
+
+/** 是否为合法商户证书序列号（40 位十六进制）。 */
+function isValidMerchantSerial (value) {
+  if (value === undefined || value === null) return false
+  return MERCHANT_SERIAL_RE.test(String(value).trim())
+}
+
+/**
+ * scanPaymentSigning — 校验某支付签名函数的 env 值形态（pure，仅返回值无关的原因 token）。
+ * Reasons: PAYMENT_PRIVATE_KEY_MISSING | PAYMENT_PRIVATE_KEY_NOT_PEM | PAYMENT_SERIAL_INVALID
+ */
+function scanPaymentSigning (name, env) {
+  const issues = []
+  const spec = PAYMENT_SIGNING[name]
+  if (!spec) return issues
+  const e = env && typeof env === 'object' ? env : {}
+  const pk = e[spec.privateKeyKey]
+  if (pk === undefined || pk === null || String(pk).trim() === '') {
+    issues.push({ function: name, key: spec.privateKeyKey, reason: 'PAYMENT_PRIVATE_KEY_MISSING' })
+  } else if (!isValidPrivateKeyPem(pk)) {
+    issues.push({ function: name, key: spec.privateKeyKey, reason: 'PAYMENT_PRIVATE_KEY_NOT_PEM' })
+  }
+  const serial = e[spec.serialKey]
+  if (serial !== undefined && serial !== null && String(serial).trim() !== '' && !isValidMerchantSerial(serial)) {
+    issues.push({ function: name, key: spec.serialKey, reason: 'PAYMENT_SERIAL_INVALID' })
   }
   return issues
 }
@@ -135,8 +188,13 @@ module.exports = {
   SECRET_KEY_RE,
   NON_SECRET_ALLOW_RE,
   SECRET_BEARING,
+  PAYMENT_SIGNING,
+  MERCHANT_SERIAL_RE,
   isSecretKey,
   isPlaceholderValue,
+  isValidPrivateKeyPem,
+  isValidMerchantSerial,
+  scanPaymentSigning,
   scanFunction,
   scanConfig,
 }
