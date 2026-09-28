@@ -375,25 +375,17 @@ exports.main = async (event, context) => {
 
     let rawScoresRef = null;
     let scoringVer = 'legacy_v1';
+
+    // ═══ PAYMENT_STAGE5C: challenge_final idempotent generation ═══
+    // One logical report per (openid, recordId, type='challenge_final').
+    // Delegated to a dedicated state machine: ownership/eligibility checked on
+    // the TRUSTED identity, atomic claim via a deterministic _id (built-in
+    // unique _id_ index), generating/ready/failed state with conditional
+    // transitions, and the AI call kept OUTSIDE any DB transaction.
+    // Generation never writes `isPaid` (owned by the payment finalizer).
     if (type === 'challenge_final' && recordId) {
-      const recRes = await db.collection('challenge_records').where({ recordId, openid }).limit(1).get()
-      const record = recRes.data[0]
-      if (record) {
-        scores = record.scores || {}
-        rawScoresRef = record.rawScores || null;
-        scoringVer = record.scoringVersion || 'legacy_v1';
-        tags = record.tags || []
-        if (record.choices && record.choices.length) {
-          choicesSummary = record.choices.map((c, i) => `${i + 1}. [${c.choice}] ${c.choiceText || ''}`).join('\n')
-        }
-        // 如有 rawScores，重新计算 normalized scores
-        if (rawScoresRef) {
-          try {
-            const { normalizeScores } = require('./lib/scoring.js')
-            scores = normalizeScores(rawScoresRef)
-          } catch (_) { /* fallback to record.scores */ }
-        }
-      }
+      const { runChallengeFinalReport } = require('./lib/challengeReportIdempotency.js')
+      return await runChallengeFinalReport({ db, openid, event, ts })
     }
 
     // 4. 构造 Prompt & 调 AI（报告必须走 Pro tier）
