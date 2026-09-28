@@ -1,5 +1,5 @@
 /**
- * common/errorCodes.js - 统一错误码
+ * common/errorCodes.js - 统一错误码（第五册 Part 1 升级版）
  * @module common/errorCodes
  */
 
@@ -19,6 +19,13 @@ const CODES = {
   DUPLICATE_ORDER: 10012,
   ORDER_NOT_PAID: 10013,
   CONFIG_ERROR: 10014,
+  PRICE_ERROR: 10015,
+  ORDER_EXPIRED: 10016,
+  ORDER_CLOSED: 10017,
+  ORDER_REFUNDED: 10018,
+  FORBIDDEN: 10019,
+  DUPLICATE: 10020,
+  RATE_LIMITED: 10021,
 }
 
 module.exports = { CODES }

@@ -20,6 +20,7 @@ const { isMockPaymentResult } = require('./lib/paymentAuthority.js')
 const { checkOrderExpired } = require('./lib/antiFraud.js')
 const { grantEntitlements } = require('./lib/entitlementService.js')
 const { finalizePaidOrder, REASONS } = require('./lib/paymentFinalizer.js')
+const { safeWritePaymentLog } = require('./lib/paymentLog.js')
 
 // finalizer 原因 → 对外错误码（fail-closed，绝不返回 paid）
 const REASON_TO_CODE = {
@@ -89,16 +90,15 @@ exports.main = async (event) => {
       return fail(CODES.PAYMENT_ERROR, '模拟支付结果不可作为真实支付')
     }
 
-    // ═══ 6. 审计日志（非权威）═══
-    await db.collection('payment_logs').add({
-      data: {
-        openid, orderId,
-        action: 'verify_payment',
-        status: q.tradeState === 'SUCCESS' ? 'success' : 'pending',
-        request: { orderId },
-        response: q,
-        createdAt: ts,
-      },
+    // ═══ 6. 审计日志（非权威，尽力而为；写入失败绝不影响支付权威结果）═══
+    await safeWritePaymentLog(db, {
+      openid, orderId,
+      action: 'verify_payment',
+      status: q.tradeState === 'SUCCESS' ? 'success' : 'pending',
+      tradeState: q.tradeState || null,
+      source: 'query',
+      request: { orderId },
+      ts,
     })
 
     if (q.tradeState !== 'SUCCESS') {

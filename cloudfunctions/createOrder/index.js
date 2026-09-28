@@ -17,6 +17,7 @@ const { now } = require('./lib/permission.js')
 const { jsapiOrder, selfCheckSigning } = require('./lib/payment.js')
 const { generateOrderId } = require('./lib/order.js')
 const { checkDuplicateOrder, checkPrice, expirePendingOrders } = require('./lib/antiFraud.js')
+const { safeWritePaymentLog } = require('./lib/paymentLog.js')
 
 exports.main = async (event) => {
   // ═══ 部署/运行时签名自查（PAYMENT_STAGE4B）═══
@@ -99,7 +100,7 @@ exports.main = async (event) => {
 
     const addRes = await db.collection('orders').add({ data: orderData })
 
-    // ═══ 7. 调微信支付 JSAPI ═══
+    // ═══ 7. 调微信支付 JSAPI（已认证的预支付应答）═══
     const payResult = await jsapiOrder({
       orderId,
       productName: product.name,
@@ -107,33 +108,36 @@ exports.main = async (event) => {
       openid,
     })
 
-    // ═══ 8. 写 payment_logs ═══
-    await db.collection('payment_logs').add({
-      data: {
-        openid, orderId,
-        action: 'create_order',
-        status: payResult.success ? 'success' : 'failed',
-        request: { productId, relatedId, totalAmount },
-        response: payResult,
-        errorMessage: payResult.error || '',
-        createdAt: ts,
-      },
-    })
-
+    // ═══ 8. 支付失败：先落失败态（业务关键），审计日志尽力而为（非致命）═══
     if (!payResult.success) {
       await db.collection('orders').doc(addRes._id).update({
         data: { status: 'failed', updatedAt: ts },
       })
+      await safeWritePaymentLog(db, {
+        action: 'create_order', orderId, productId, openid,
+        stage: 'prepay', status: 'failed', source: 'jsapi',
+        errorCode: payResult.error || null,
+        request: { productId, relatedId, totalAmount },
+        ts,
+      })
       return fail(CODES.PAYMENT_ERROR, payResult.error || '创建支付订单失败')
     }
 
-    // ═══ 9. 更新 orders → pending_payment ═══
+    // ═══ 9. 支付成功：先持久化订单 → pending_payment（业务关键，绝不因日志失败而中断）═══
     await db.collection('orders').where({ orderId }).update({
       data: {
         status: 'pending_payment',
         paymentParams: payResult.paymentParams,
         updatedAt: ts,
       },
+    })
+
+    // ═══ 9.1 审计日志（尽力而为，非权威；失败不影响业务结果）═══
+    await safeWritePaymentLog(db, {
+      action: 'create_order', orderId, productId, openid,
+      stage: 'prepay', status: 'success', source: 'jsapi',
+      request: { productId, relatedId, totalAmount },
+      ts,
     })
 
     // ═══ 10. 返回 ═══

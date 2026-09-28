@@ -1,22 +1,24 @@
 {
-  "taskId": "PAYMENT_STAGE4B_PEM_NORMALIZATION_RUNTIME_FIX",
-  "baseCommit": "fdfd0bd",
+  "taskId": "PAYMENT_STAGE4D_PAYMENT_LOG_RESILIENCE",
+  "baseCommit": "d323ca1",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "WXPAY_PRIVATE_KEY held the correct 3AF9 key material but CloudBase stored it as a single-line PEM with spaces instead of real LF. The runtime transform `replace(/\\\\n/g,'\\n')` was a no-op on that string, so crypto.createSign threw ERR_OSSL_UNSUPPORTED inside jsapiOrder (before its try/catch) -> createOrder returned PAYMENT_ERROR (10009) with no order status update and no payment_logs row. Stage2_7 verification masked this because verify_binding.py normalized the PEM before parsing.",
+  "problem": "createOrder obtained a genuine WeChat JSAPI prepay, then crashed: `db.collection('payment_logs').add` threw -502005 because the `payment_logs` collection did not exist in env fanshex-d2g0adgv7dfbc9bdc. The audit-log write sat as a FATAL gate between the authenticated prepay and the order→pending_payment transition, so the order stayed `created` and 10009 was returned to the client. Also: verifyPayment referenced CODES.ORDER_CLOSED/ORDER_REFUNDED/ORDER_EXPIRED/FORBIDDEN which were undefined in the per-function errorCodes copies (degraded to UNKNOWN 10001); createOrder referenced CODES.DUPLICATE/CODES.PRICE_ERROR, equally undefined.",
   "changes": {
-    "CANONICAL_NORMALIZER": "Upgraded `normalizePem` in paymentAuthority.js (the shared merchant/callback authority module) to a robust canonical normalizer: handles proper multiline, literal \\\\n, space-flattened, and CRLF PEM; preserves the label exactly; strips whitespace ONLY from the base64 body; re-wraps at 64 cols; returns trailing newline; FAIL-CLOSED on missing input / BEGIN-END label mismatch / malformed structure / non-base64 body (never coerces arbitrary text).",
-    "PRIVATE_KEY_TYPE_GUARD": "Added `normalizePrivateKeyPem(raw)`: normalizes then REQUIRES the label to be PRIVATE KEY / RSA PRIVATE KEY and crypto.createPrivateKey to succeed with asymmetricKeyType==='rsa'. PUBLIC KEY / CERTIFICATE / non-RSA / unparseable -> '' (fail-closed).",
-    "FINGERPRINT_HELPER": "Added `derivePrivateKeyFingerprint(pem)` = sha256 of the key's public SPKI (DER). Never touches/exposes the private scalar.",
-    "SINGLE_RUNTIME_AUTHORITY": "getConfig() in payment.js now reads WXPAY_PRIVATE_KEY (env or file) through normalizePrivateKeyPem(); the previous naive replace was removed so createOrder + verifyPayment share the exact same normalization+guard. paymentAuthority.js is byte-identical across createOrder/verifyPayment/payCallback; payment.js byte-identical across createOrder/verifyPayment.",
-    "PRODUCTION_SELF_CHECK": "Exported `selfCheckSigning(env)` from payment.js: raw env -> normalizePrivateKeyPem (authority) -> sign() (the SAME production signing helper) -> verify the signature with the key's own public half. Returns {ok, fingerprint, signatureLen, verified} + reason token; never prints the key. Exposed through createOrder.index and verifyPayment.index ONLY when event.__selfcheck===true (no order created, no payment, no entitlement, no DB write).",
-    "REAL_SIGNING_GUARD": "The self-check exercises the production sign() path (not a parallel signer), preventing another Stage2_7-style false positive.",
-    "TESTS": "tests/rc8.9/payment-pem-normalization.test.js (A-L, 29 assertions): multiline / literal-\\n / space-flattened / CRLF PASS; PUBLIC KEY, CERTIFICATE, label-mismatch, invalid-base64, empty/missing FAIL CLOSED; authoritative fp anchor 624437be…; production sign verifies with own public half and NOT with a different key; live cloud-env shape normalizes."
+    "COLLECTION_CREATED": "Created `payment_logs` in fanshex-d2g0adgv7dfbc9bdc (verified absent beforehand; writability verified with a temporary marker doc that was deleted; count back to 0). No existing collection/document mutated.",
+    "SAFE_LOG_HELPER": "New shared module cloudfunctions/common/paymentLog.js :: safeWritePaymentLog(db, entry) — whitelisted safe fields only; catches ALL errors, logs safe metadata, returns {logged:false}; NEVER throws into the payment flow. Mirrored byte-identical to createOrder/lib + verifyPayment/lib.",
+    "CREATEORDER_ORDERING": "Reordered so the business-critical sequence is: (1) authenticated WeChat prepay success → (2) persist order → pending_payment + paymentParams → (3) return; the payment_logs write is now best-effort (safeWritePaymentLog) AFTER the order state transition. On prepay failure: order→failed BEFORE the (best-effort) log write. A log failure can no longer produce PAYMENT_ERROR or block paymentParams.",
+    "VERIFYPAYMENT_LOGGING": "The non-authoritative audit write (step 6) now uses safeWritePaymentLog (was a fatal raw add). Authoritative finalizePaidOrder path unchanged.",
+    "PAYCALLBACK_LOGGING": "Audited: payCallback writes only to evolution_logs via _log(), already try/catch non-fatal; it has no payment_logs write. No change needed (not redeployed).",
+    "FINALIZER_LOGGING": "Audited: paymentFinalizer._audit() is already try/catch non-fatal; authoritative state writes (orders paid transition, payments row, entitlement_grants marker) are NOT weakened. No change (Stage3 semantics preserved).",
+    "ERROR_CODES_SYNCED": "Synced createOrder/lib/errorCodes.js + verifyPayment/lib/errorCodes.js to the canonical superset common/errorCodes.js (byte-identical, sha1 5d3b0d8b4a09). Adds ORDER_EXPIRED:10016, ORDER_CLOSED:10017, ORDER_REFUNDED:10018, FORBIDDEN:10019, DUPLICATE:10020, PRICE_ERROR:10015, RATE_LIMITED:10021. NO existing public code renumbered.",
+    "TESTS": "tests/rc8.9/payment-log-resilience.test.js (A–H, 35 assertions) using the REAL handlers with stubbed wx-server-sdk + network: A log OK; B log collection missing; C log throws; D prepay fails + log missing not converted to success; E verify authoritative failure → no paid; F callback invalid signature → no paid; G finalizer _audit failure → invariants unchanged; H error-code regression (no UNKNOWN degrade)."
   },
   "boundaries": {
-    "ENV_CHANGED": "NO", "CREDENTIAL_CHANGED": "NO", "REAL_PAYMENT_PERFORMED": "NO",
-    "PAYMENT_AUTHORITY_SEMANTICS_CHANGED": "NO", "PRICES_SKU_UI_CHANGED": "NO",
-    "DEV_PROBE_RETAINED": "YES (pages/dev-prepay-probe kept for re-run)"
+    "REAL_PAYMENT_PERFORMED": "NO", "ENV_CHANGED": "NO", "CREDENTIAL_CHANGED": "NO",
+    "PRICES_SKU_UI_CHANGED": "NO", "REFUND_BEHAVIOR_CHANGED": "NO",
+    "STAGE3_FINALIZER_SEMANTICS_CHANGED": "NO", "DEV_PROBE_RETAINED": "YES"
   },
+  "deployTargets": ["createOrder", "verifyPayment"],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; redeploy createOrder/verifyPayment at prior commit. No env/DB changes involved."
+  "rollbackPlan": "git revert <this-commit>; redeploy createOrder/verifyPayment at prior commit. Collection creation is additive (harmless if left)."
 }
