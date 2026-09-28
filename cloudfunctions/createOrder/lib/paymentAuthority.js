@@ -50,10 +50,83 @@ const AUTHORITY_TYPE = {
   CERTIFICATE: 'CERTIFICATE',
 }
 
-// 规范化 PEM：把转义的 \\n 还原为真实换行并去首尾空白
-function normalizePem(s) {
-  if (!s) return ''
-  return s.replace(/\\n/g, '\n').trim()
+/**
+ * normalizePem — CANONICAL PEM normalizer (single runtime authority).
+ *
+ * Robust to how CloudBase may store a PEM env value:
+ *   - normal multiline PEM
+ *   - literal "\\n" (escaped) form
+ *   - PEM flattened into SPACES (newlines replaced by spaces — the Stage4A defect)
+ *   - CRLF line endings
+ *
+ * Preserves the PEM label exactly, strips whitespace ONLY from the base64 body,
+ * re-wraps the body at 64 columns, and returns a valid trailing newline.
+ * FAIL-CLOSED: returns '' on missing input, BEGIN/END label mismatch, malformed
+ * structure, or a non-base64 body. NEVER coerces arbitrary text into a "key".
+ *
+ * @param {string} raw
+ * @returns {string} normalized PEM or '' (fail-closed)
+ */
+function normalizePem(raw) {
+  if (!raw || typeof raw !== 'string') return ''
+
+  const s = raw.replace(/\\n/g, '\n').trim()
+
+  // Whole string must be a single BEGIN…END block with a MATCHING label (\1).
+  const m = s.match(/^-----BEGIN ([A-Z0-9 ]+)-----([\s\S]*?)-----END \1-----$/)
+  if (!m) return ''
+
+  const label = m[1]
+  const body = m[2].replace(/\s+/g, '')
+
+  // Body must be non-empty, well-formed base64 (no silence-coercion of junk).
+  if (!body || !/^[A-Za-z0-9+/=]+$/.test(body)) return ''
+
+  const lines = body.match(/.{1,64}/g) || []
+  return `-----BEGIN ${label}-----\n${lines.join('\n')}\n-----END ${label}-----\n`
+}
+
+/**
+ * normalizePrivateKeyPem — PEM normalization + PRIVATE KEY type guard (fail-closed).
+ *
+ * Requirements:
+ *   - label MUST be a supported private-key label ("PRIVATE KEY" / "RSA PRIVATE KEY").
+ *   - crypto.createPrivateKey(normalized) MUST succeed and be RSA.
+ * Rejects PUBLIC KEY / CERTIFICATE / any non-private-key PEM → ''.
+ *
+ * @param {string} raw
+ * @returns {string} normalized PRIVATE KEY PEM or '' (fail-closed)
+ */
+function normalizePrivateKeyPem(raw) {
+  const pem = normalizePem(raw)
+  if (!pem) return ''
+  if (!/^-----BEGIN (RSA )?PRIVATE KEY-----/.test(pem)) return ''
+  try {
+    const key = crypto.createPrivateKey(pem)
+    if (key.asymmetricKeyType !== 'rsa') return ''
+    return pem
+  } catch (err) {
+    return ''
+  }
+}
+
+/**
+ * derivePrivateKeyFingerprint — sha256 of the private key's public SPKI (DER).
+ * NEVER derives from / exposes the private scalar. Fail-closed → ''.
+ *
+ * @param {string} pem normalized PEM (any key/cert)
+ * @returns {string} lowercase hex sha256 of SPKI DER, or ''
+ */
+function derivePrivateKeyFingerprint(pem) {
+  if (!pem) return ''
+  try {
+    let key = null
+    try { key = crypto.createPrivateKey(pem) } catch (_) { key = crypto.createPublicKey(pem) }
+    const spki = key.export({ type: 'spki', format: 'der' })
+    return crypto.createHash('sha256').update(spki).digest('hex')
+  } catch (err) {
+    return ''
+  }
 }
 
 // 是否为 SPKI 公钥 PEM
@@ -311,6 +384,8 @@ module.exports = {
   REASONS,
   AUTHORITY_TYPE,
   normalizePem,
+  normalizePrivateKeyPem,
+  derivePrivateKeyFingerprint,
   isSpkiPem,
   isX509Pem,
   isRsaPublicKey,

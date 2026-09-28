@@ -28,19 +28,23 @@
 const crypto = require('crypto')
 const fs = require('fs')
 const now = () => Date.now()
-const { verifyResponseSignature } = require('./paymentAuthority.js')
+const { verifyResponseSignature, normalizePrivateKeyPem, derivePrivateKeyFingerprint } = require('./paymentAuthority.js')
 
 // ======================== 配置读取 ========================
 function getConfig() {
   const mchid = process.env.WXPAY_MCHID || ''
 
   // 私钥读取：优先环境变量 → 文件路径 → 明确失败
+  // ⚠️ PAYMENT_STAGE4B：统一走 paymentAuthority.normalizePrivateKeyPem（单一权威）。
+  //    兼容多行 PEM / 字面量 \\n / 空格压平 PEM / CRLF，并做强类型校验：
+  //    归一化后必须能 crypto.createPrivateKey 且为 RSA 私钥，否则 fail-closed（视为缺失）。
+  //    绝不在此处再做任何独立/简化处理（避免与权威模块语义漂移，重蹈 Stage2_7 假阳性）。
   let privateKey = ''
   if (process.env.WXPAY_PRIVATE_KEY) {
-    privateKey = process.env.WXPAY_PRIVATE_KEY.replace(/\\n/g, '\n')
+    privateKey = normalizePrivateKeyPem(process.env.WXPAY_PRIVATE_KEY)
   } else if (process.env.WXPAY_PRIVATE_KEY_PATH) {
     try {
-      privateKey = fs.readFileSync(process.env.WXPAY_PRIVATE_KEY_PATH, 'utf8')
+      privateKey = normalizePrivateKeyPem(fs.readFileSync(process.env.WXPAY_PRIVATE_KEY_PATH, 'utf8'))
     } catch (err) {
       console.error('[WXPAY] 读取私钥文件失败:', err.message)
       privateKey = ''
@@ -295,4 +299,56 @@ async function queryOrder(orderId) {
   }
 }
 
-module.exports = { getConfig, jsapiOrder, queryOrder, now }
+/**
+ * selfCheckSigning — 部署/运行时守卫入口（与 jsapiOrder 走完全相同的归一化 + 签名路径）。
+ *
+ * 流程：raw env → normalizePrivateKeyPem（权威）→ sign()（生产签名函数）→
+ *       用规范化私钥派生的公钥验证签名 → 返回结构事实 + 公钥 SPKI 指纹。
+ *
+ * 只返回结构与指纹；绝不返回私钥内容。
+ * @param {object} [env] 环境变量对象（默认 process.env）
+ * @returns {{ok:boolean, reason?:string, fingerprint?:string, signatureLen?:number, verified?:boolean}}
+ */
+function selfCheckSigning(env) {
+  const e = env || process.env
+  const raw = e.WXPAY_PRIVATE_KEY || ''
+  const normalized = normalizePrivateKeyPem(raw)
+  if (!normalized) {
+    return { ok: false, reason: 'PRIVATE_KEY_UNPARSEABLE_OR_NOT_PRIVATE' }
+  }
+  const fingerprint = derivePrivateKeyFingerprint(normalized)
+
+  const path = '/v3/pay/transactions/jsapi'
+  const body = { probe: 'stage4b-selfcheck' }
+  let authHeader = ''
+  try {
+    const headers = sign('POST', path, body, e.WXPAY_MCHID || '0', e.WXPAY_SERIAL_NO || '0', normalized)
+    authHeader = headers.Authorization || ''
+  } catch (err) {
+    return { ok: false, reason: 'SIGN_THREW', message: String((err && err.message) || err).slice(0, 100), fingerprint }
+  }
+
+  const pick = (k) => { const m = new RegExp(k + '="([^"]+)"').exec(authHeader); return m ? m[1] : '' }
+  const timestamp = pick('timestamp')
+  const nonce = pick('nonce_str')
+  const signature = pick('signature')
+  if (!timestamp || !nonce || !signature) {
+    return { ok: false, reason: 'SIGNATURE_HEADER_MALFORMED', fingerprint }
+  }
+
+  let verified = false
+  try {
+    const bodyStr = typeof body === 'string' ? body : JSON.stringify(body || {})
+    const message = ['POST', path, timestamp, nonce, bodyStr + '\n'].join('\n')
+    const verifier = crypto.createVerify('RSA-SHA256')
+    verifier.update(message)
+    verifier.end()
+    verified = verifier.verify(crypto.createPublicKey(normalized), signature, 'base64')
+  } catch (err) {
+    return { ok: false, reason: 'VERIFY_THREW', message: String((err && err.message) || err).slice(0, 100), fingerprint }
+  }
+
+  return { ok: verified === true, fingerprint, signatureLen: signature.length, verified }
+}
+
+module.exports = { getConfig, jsapiOrder, queryOrder, now, sign, selfCheckSigning }

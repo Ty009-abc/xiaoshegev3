@@ -1,21 +1,22 @@
 {
-  "taskId": "PAYMENT_STAGE4A_REAL_MINIPROGRAM_PREPAY_ONLY",
-  "baseCommit": "305a2f0",
+  "taskId": "PAYMENT_STAGE4B_PEM_NORMALIZATION_RUNTIME_FIX",
+  "baseCommit": "fdfd0bd",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "The live JSAPI prepay probe (Stage 4) could not run from CLI: createOrder gates on cloud.getWXContext().OPENID, which is only populated when invoked through the mini-program cloud SDK. A real mini-program user context (genuine payer OPENID) is required; tcb fn invoke yields AUTH_FAILED and createOrder has no HTTP route.",
-  "change": "TEMPORARY DEVELOPMENT-ONLY mini-program probe page pages/dev-prepay-probe/* + registration in app.json. It calls createOrder ONCE via wx.cloud.callFunction({name:'createOrder',data:{productId:'report_9_9'}}) and displays SAFE metadata only (result.code, orderId, whether paymentParams/prepay_id exist, masked package prefix/length, signType, nonceStr/paySign lengths, safe error). It NEVER imports services/paymentService.js and NEVER calls wx.requestPayment/verifyPayment — no payment-invocation path exists on the page.",
-  "devOnlySafety": {
-    "PREPAY_ONLY": true,
-    "NO_PAYMENT_INVOCATION": true,
-    "structurallyUnreachable": "page requires no paymentService; executable-code scan shows 0 occurrences of requestPayment/verifyPayment/paymentService; exactly 1 wx.cloud.callFunction",
-    "notLinkedFromUX": "registered in app.json but referenced by no other page; reachable only by direct pagePath",
-    "cleanup": "MUST be removed in a separate cleanup commit after evidence collection"
+  "problem": "WXPAY_PRIVATE_KEY held the correct 3AF9 key material but CloudBase stored it as a single-line PEM with spaces instead of real LF. The runtime transform `replace(/\\\\n/g,'\\n')` was a no-op on that string, so crypto.createSign threw ERR_OSSL_UNSUPPORTED inside jsapiOrder (before its try/catch) -> createOrder returned PAYMENT_ERROR (10009) with no order status update and no payment_logs row. Stage2_7 verification masked this because verify_binding.py normalized the PEM before parsing.",
+  "changes": {
+    "CANONICAL_NORMALIZER": "Upgraded `normalizePem` in paymentAuthority.js (the shared merchant/callback authority module) to a robust canonical normalizer: handles proper multiline, literal \\\\n, space-flattened, and CRLF PEM; preserves the label exactly; strips whitespace ONLY from the base64 body; re-wraps at 64 cols; returns trailing newline; FAIL-CLOSED on missing input / BEGIN-END label mismatch / malformed structure / non-base64 body (never coerces arbitrary text).",
+    "PRIVATE_KEY_TYPE_GUARD": "Added `normalizePrivateKeyPem(raw)`: normalizes then REQUIRES the label to be PRIVATE KEY / RSA PRIVATE KEY and crypto.createPrivateKey to succeed with asymmetricKeyType==='rsa'. PUBLIC KEY / CERTIFICATE / non-RSA / unparseable -> '' (fail-closed).",
+    "FINGERPRINT_HELPER": "Added `derivePrivateKeyFingerprint(pem)` = sha256 of the key's public SPKI (DER). Never touches/exposes the private scalar.",
+    "SINGLE_RUNTIME_AUTHORITY": "getConfig() in payment.js now reads WXPAY_PRIVATE_KEY (env or file) through normalizePrivateKeyPem(); the previous naive replace was removed so createOrder + verifyPayment share the exact same normalization+guard. paymentAuthority.js is byte-identical across createOrder/verifyPayment/payCallback; payment.js byte-identical across createOrder/verifyPayment.",
+    "PRODUCTION_SELF_CHECK": "Exported `selfCheckSigning(env)` from payment.js: raw env -> normalizePrivateKeyPem (authority) -> sign() (the SAME production signing helper) -> verify the signature with the key's own public half. Returns {ok, fingerprint, signatureLen, verified} + reason token; never prints the key. Exposed through createOrder.index and verifyPayment.index ONLY when event.__selfcheck===true (no order created, no payment, no entitlement, no DB write).",
+    "REAL_SIGNING_GUARD": "The self-check exercises the production sign() path (not a parallel signer), preventing another Stage2_7-style false positive.",
+    "TESTS": "tests/rc8.9/payment-pem-normalization.test.js (A-L, 29 assertions): multiline / literal-\\n / space-flattened / CRLF PASS; PUBLIC KEY, CERTIFICATE, label-mismatch, invalid-base64, empty/missing FAIL CLOSED; authoritative fp anchor 624437be…; production sign verifies with own public half and NOT with a different key; live cloud-env shape normalizes."
   },
   "boundaries": {
-    "HTTP_ROUTE_ADDED": "NO", "OPENID_OVERRIDE_ADDED": "NO", "CLOUD_FN_CHANGED": "NO",
-    "PRODUCTION_PRICE_SKU_CHANGED": "NO", "PAYMENT_AUTHORITY_CHANGED": "NO", "SECRETS_EXPOSED": "NO",
-    "WX_REQUEST_PAYMENT_CALLED": "NO"
+    "ENV_CHANGED": "NO", "CREDENTIAL_CHANGED": "NO", "REAL_PAYMENT_PERFORMED": "NO",
+    "PAYMENT_AUTHORITY_SEMANTICS_CHANGED": "NO", "PRICES_SKU_UI_CHANGED": "NO",
+    "DEV_PROBE_RETAINED": "YES (pages/dev-prepay-probe kept for re-run)"
   },
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit> (removes the dev-only page). Separate cleanup commit required after probe evidence."
+  "rollbackPlan": "git revert <this-commit>; redeploy createOrder/verifyPayment at prior commit. No env/DB changes involved."
 }

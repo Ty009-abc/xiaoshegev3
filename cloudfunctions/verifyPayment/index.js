@@ -15,7 +15,7 @@ const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
 const { now } = require('./lib/permission.js')
-const { queryOrder } = require('./lib/payment.js')
+const { queryOrder, selfCheckSigning } = require('./lib/payment.js')
 const { isMockPaymentResult } = require('./lib/paymentAuthority.js')
 const { checkOrderExpired } = require('./lib/antiFraud.js')
 const { grantEntitlements } = require('./lib/entitlementService.js')
@@ -38,6 +38,13 @@ const REASON_TO_CODE = {
 }
 
 exports.main = async (event) => {
+  // ═══ 部署/运行时签名自查（PAYMENT_STAGE4B）═══
+  // 仅显式 __selfcheck=true 时触发，走与下单/查单完全相同的归一化+签名路径；
+  // 不创建订单、不触支付、不发权益、不写库，只返回结构事实 + 公钥指纹。
+  if (event && event.__selfcheck === true) {
+    return ok({ selfCheck: selfCheckSigning(process.env) })
+  }
+
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
   if (!openid) return fail(CODES.AUTH_FAILED)

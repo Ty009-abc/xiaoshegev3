@@ -14,11 +14,18 @@ const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
 const { now } = require('./lib/permission.js')
-const { jsapiOrder } = require('./lib/payment.js')
+const { jsapiOrder, selfCheckSigning } = require('./lib/payment.js')
 const { generateOrderId } = require('./lib/order.js')
 const { checkDuplicateOrder, checkPrice, expirePendingOrders } = require('./lib/antiFraud.js')
 
 exports.main = async (event) => {
+  // ═══ 部署/运行时签名自查（PAYMENT_STAGE4B）═══
+  // 仅显式 __selfcheck=true 时触发，走与下单完全相同的归一化+签名路径；
+  // 不创建订单、不触支付、不发权益、不写库，只返回结构事实 + 公钥指纹。
+  if (event && event.__selfcheck === true) {
+    return ok({ selfCheck: selfCheckSigning(process.env) })
+  }
+
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
   if (!openid) return fail(CODES.AUTH_FAILED)
