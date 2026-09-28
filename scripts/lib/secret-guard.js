@@ -161,7 +161,10 @@ function scanPaymentSigning (name, env) {
   const issues = []
   const spec = PAYMENT_SIGNING[name]
   if (!spec) return issues
-  const e = env && typeof env === 'object' ? env : {}
+  // No env block at all => secret-managed / cloud-side; deploying preserves the
+  // live secrets, so there is nothing to validate (and nothing to clobber).
+  if (!env || typeof env !== 'object') return issues
+  const e = env
   const pk = e[spec.privateKeyKey]
   if (pk === undefined || pk === null || String(pk).trim() === '') {
     issues.push({ function: name, key: spec.privateKeyKey, reason: 'PAYMENT_PRIVATE_KEY_MISSING' })
