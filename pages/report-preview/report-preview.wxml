@@ -87,29 +87,48 @@
     <canvas canvas-id="posterCanvas" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></canvas>
   </block>
 
-  <!-- ═══════ challenge_final 报告（原有收费链路，不变） ═══════ -->
+  <!-- ═══════ challenge_final 报告（Stage5B：服务端权威状态机） ═══════ -->
   <block wx:else>
     <xsg-navbar title="AI诊断报告" showBack />
-    <xsg-loading text="正在加载报告..." wx:if="{{loading}}" />
 
-    <block wx:elif="{{report}}">
+    <!-- loading -->
+    <xsg-loading text="正在加载报告..." wx:if="{{cfState==='loading'}}" />
+
+    <!-- generating：生成中，有界重查 -->
+    <block wx:elif="{{cfState==='generating'}}">
       <xsg-card type="ai" class="anim-fade-in">
         <xsg-tag text="AI诊断" type="ai" />
-        <view class="main-title mt-16">{{report.summary||report.oneSentence||'你的认知画像已生成'}}</view>
-        <view class="sub-title mt-8" wx:if="{{report.type}}">{{report.type}}</view>
+        <view class="main-title mt-16">报告正在生成中…</view>
+        <view class="sub-title mt-8">小事哥正在拆解你的世界模型，请稍候</view>
+      </xsg-card>
+      <xsg-loading text="正在生成，已查询 {{cfPollCount}}/{{cfMaxPolls}} 次…" />
+    </block>
+
+    <!-- failed：明确失败 + 受控重试 -->
+    <block wx:elif="{{cfState==='failed'}}">
+      <xsg-empty icon="⚠️" title="报告生成失败" desc="{{cfMsg||'请重试'}}" btnText="重试" bind:action="onRetryReport" />
+    </block>
+
+    <!-- error：缺少记录ID等 -->
+    <block wx:elif="{{cfState==='error'}}">
+      <xsg-empty icon="📄" title="无法加载报告" desc="{{cfMsg||'先完成一次认知挑战'}}" btnText="去挑战" bind:action="onGoChallenge" />
+    </block>
+
+    <!-- ready：服务端已确认，locked 完全依据服务端 -->
+    <block wx:elif="{{cfState==='ready'}}">
+      <xsg-card type="ai" class="anim-fade-in">
+        <xsg-tag text="AI诊断" type="ai" />
+        <view class="main-title mt-16">{{cfSummaryText||'你的认知画像已生成'}}</view>
+        <view class="sub-title mt-8">世界模型深度报告</view>
       </xsg-card>
 
       <report-lock-card wx:if="{{locked}}" title="完整AI诊断报告已生成"
         benefits="{{['世界模型深度评分','翻身概率预测','最大认知漏洞分析','未来3年风险预警','30天定制行动建议','小事哥的最终认知暴击']}}"
         bind:unlock="onUnlock" />
 
-      <xsg-button wx:if="{{locked}}" type="ai" text="9.9元生成完整报告" bind:tapbutton="onGenerate" class="anim-fade-in anim-delay-2" />
+      <xsg-button wx:if="{{locked}}" type="ai" text="9.9元解锁完整报告" bind:tapbutton="onGenerate" class="anim-fade-in anim-delay-2" />
       <xsg-button wx:if="{{!locked}}" type="gold" text="查看完整报告" bind:tapbutton="goFull" class="anim-fade-in" />
     </block>
-
-    <xsg-empty icon="📄" title="暂无报告" desc="先完成一次认知挑战" btnText="去挑战" wx:elif="{{!loading&&!report}}" />
-
-    <ai-generating id="aiGen" visible="{{showGenerating}}" bind:done="onGenerateDone" />
 
     <view class="upgrade-mask" wx:if="{{showUpgradeModal}}">
       <view class="upgrade-modal anim-fade-in">

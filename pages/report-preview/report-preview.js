@@ -13,6 +13,11 @@ const app = getApp()
 // ALL_PERMISSIONS / PRODUCT_PERMISSIONS / entitlementService). NOT 'report_full'.
 const FULL_REPORT_PERMISSION_KEY = 'full_report'
 
+// Stage5B — bounded re-check while the server reports status='generating'.
+// 6 attempts × 5s = 30s cap; polling stops on unload and on any terminal state.
+const CF_POLL_INTERVAL = 5000
+const CF_MAX_POLLS = 6
+
 Page({
   data: {
     recordId:'', reportType:'',
@@ -22,6 +27,14 @@ Page({
     qrcodePath: '/images/gh_qrcode.png',
     titlesReady: false,
     contentVisible: true,
+    // ── Stage5B: challenge_final server-authoritative state machine ──
+    // cfState: 'loading' | 'generating' | 'ready' | 'failed' | 'error'
+    cfState: 'loading',
+    cfMsg: '',
+    cfSummaryText: '',
+    cfReportId: '',
+    cfPollCount: 0,
+    cfMaxPolls: 0,
     reportData: {
       basicInsight: '',     // 1: 位置定位
       mechanism: '',        // 2: 困住因素
@@ -33,43 +46,60 @@ Page({
 
   onLoad(opt){
     const isDiagnostic = opt.type === 'diagnostic'
-    this.setData({ recordId:opt.recordId||'diag', reportType:opt.type||'challenge_final' })
+    const reportType = opt.type || 'challenge_final'
+    this.setData({ recordId: opt.recordId || (isDiagnostic ? 'diag' : ''), reportType })
 
-    if (isDiagnostic && app.globalData._diagnosticAnswers) {
-      this._loadDiagnostic()
+    if (isDiagnostic) {
+      if (app.globalData._diagnosticAnswers) {
+        this._loadDiagnostic()
+        return
+      }
+      if (app.globalData._diagnosticReport) {
+        const r = app.globalData._diagnosticReport
+        const p = app.globalData._diagnosticPersonality
+        app.globalData._diagnosticReport = null
+        app.globalData._diagnosticPersonality = null
+        this.setData({
+          report: {
+            system_trap: r.trapped_by || r.system_trap || '',
+            core_problem: r.position || r.core_problem || '',
+            fatal_sentence: Array.isArray(r.forbidden) ? r.forbidden.join('\n') : (r.fatal_sentence || ''),
+            strategy_path: r.path || r.strategy_path || '',
+            advice: Array.isArray(r.next90days) ? r.next90days : (Array.isArray(r.advice) ? r.advice : []),
+            personality: p || null,
+          },
+          locked: false,
+          loading: false,
+        })
+        this._syncReportToReportData()
+        analytics.track('diagnostic_report_view')
+        return
+      }
+      // 🚀 四重保险：全管道捕获诊断报告数据
+      this._loadReportFromFallback(opt)
       return
     }
-    if (isDiagnostic && app.globalData._diagnosticReport) {
-      const r = app.globalData._diagnosticReport
-      const p = app.globalData._diagnosticPersonality
-      app.globalData._diagnosticReport = null
-      app.globalData._diagnosticPersonality = null
-      this.setData({
-        report: {
-          system_trap: r.trapped_by || r.system_trap || '',
-          core_problem: r.position || r.core_problem || '',
-          fatal_sentence: Array.isArray(r.forbidden) ? r.forbidden.join('\n') : (r.fatal_sentence || ''),
-          strategy_path: r.path || r.strategy_path || '',
-          advice: Array.isArray(r.next90days) ? r.next90days : (Array.isArray(r.advice) ? r.advice : []),
-          personality: p || null,
-        },
-        locked: false,
-        loading: false,
-      })
-      this._syncReportToReportData()
-      analytics.track('diagnostic_report_view')
-      return
-    }
 
-    // 🚀 四重保险：全管道捕获诊断报告数据
-    this._loadReportFromFallback(opt)
+    // ── challenge_final: server-authoritative load (Stage5B) ──
+    this._startChallengeFinal()
+  },
+
+  onShow(){
+    // Returning from the payment page → re-read authoritative report state.
+    if (this._cfReturnFromPay) {
+      this._cfReturnFromPay = false
+      if (this.data.reportType === 'challenge_final') this._startChallengeFinal()
+    }
   },
 
   /* 从 report 对象同步到 reportData（WXML 统一绑定） */
 
   /* ═══ challenge_final 专用适配器 ═══ */
   normalizeChallengeFinalReport(raw) {
-    const c = raw.content || raw;
+    // Locked payloads carry only `summary` (a subset). Deep fields are
+    // intentionally absent there — do not treat them as a parse failure.
+    const locked = !!(raw && raw.locked === true && !raw.content);
+    const c = raw.content || raw.summary || raw || {};
     const missing = [];
     const pick = (key) => {
       if (c[key] !== undefined && c[key] !== null) return c[key];
@@ -94,10 +124,10 @@ Page({
       worldModelType:   pick('worldModelType'),
       turnaroundProbability: c.turnaroundProbability !== undefined ? c.turnaroundProbability : 0,
       threeYearRisk:    pick('threeYearRisk'),
-      _missingFields: missing,
+      _missingFields: locked ? [] : missing,
       _reportType: 'challenge_final',
     };
-    if (missing.length) {
+    if (!locked && missing.length) {
       console.error('[CONTRACT_MISSING_FIELDS] challenge_final:', missing);
     }
     return result;
@@ -285,70 +315,130 @@ Page({
     }
   },
 
-  onUnload(){ analytics.flush() },
-
-  onGenerate(){
-    analytics.track('report_view')
-    this.setData({ showGenerating:true })
-    this.selectComponent('#aiGen').start()
-
-    // ⏰ v3.17.1 超时守卫 (90s)
-    let resolved = false
-    const GENERATE_TIMEOUT = 90000
-    const timeoutTimer = setTimeout(() => {
-      if (resolved) return
-      resolved = true
-      this.selectComponent('#aiGen').finish()
-      this.setData({ showGenerating:false })
-      wx.showModal({
-        title: '报告生成超时',
-        content: '你的30天挑战数据已保存，不会丢失。请稍后重试。',
-        confirmText: '重新生成',
-        cancelText: '返回诊断结果',
-        success: (res) => {
-          if (res.confirm) this.onGenerate()
-          else wx.navigateBack()
-        }
-      })
-      console.error('[report-preview] ⏰ 报告生成超时 (90s)')
-    }, GENERATE_TIMEOUT)
-
-    setTimeout(async () => {
-      if (resolved) return
-      try {
-        const r = await aiReportService.generateAiReport('challenge_final', this.data.recordId)
-        if (resolved) return
-        if (r.code === 0) {
-          const report = r.data || {}
-          console.log('[ChallengeReportPreview]', {
-            reportType: report.reportType || 'n/a',
-            rawKeys: Object.keys(report),
-            contentKeys: report.content ? Object.keys(report.content) : 'n/a',
-            hasReportType: !!report.reportType,
-            hasContent: !!report.content,
-          })
-          // FIX A: fail-closed. Only an explicit server `locked:false` unlocks.
-          // Missing/unknown locked state must NOT authorize protected navigation.
-          this.setData({ report: report, locked: report.locked !== false });
-          this._syncReportToReportData()
-        } else {
-          console.error('[report-preview] 生成报告失败:', r.message)
-          this.setData({ report: null })
-          wx.showToast({ title: '报告生成失败，请检查网络后重试', icon: 'none' })
-        }
-      } catch (e) {
-        if (resolved) return
-        console.error('[report-preview] 报告生成异常:', e.message)
-        this.setData({ report: null })
-        wx.showToast({ title: '系统暂时看不清这个世界，请稍后再试', icon: 'none' })
-      }
-      clearTimeout(timeoutTimer)
-      this.selectComponent('#aiGen').finish()
-      setTimeout(() => this.setData({ showGenerating:false }), 500)
-    }, 2000)
+  onUnload(){
+    // Stop any in-flight generating re-check when leaving the page.
+    this._cfUnloaded = true
+    this._cfPollTimer && clearTimeout(this._cfPollTimer)
+    this._cfPollTimer = null
+    analytics.flush()
   },
 
-  onUnlock(){ wx.navigateTo({ url:'/pages/membership/membership' }) },
+  /* ═══════════════════════════════════════════════════════════════════
+     Stage5B — challenge_final server-authoritative load
+     ───────────────────────────────────────────────────────────────────
+     Contract (verified against cloudfunctions):
+       • generateAiReport({ type:'challenge_final', recordId })  ← recordId = 挑战记录ID
+         returns { reportId, status?, locked, summary?|content? }
+       • reportId (server-issued) is the ONLY id used to purchase the report.
+       • getAiReport({ reportId }) reads it back.
+     No client-side report-id computation. State + lock + body all come from
+     the server payload.
+     ═══════════════════════════════════════════════════════════════════ */
+  _startChallengeFinal(){
+    this._cfUnloaded = false
+    const recordId = this.data.recordId
+    if (!recordId){
+      this.setData({ cfState:'error', cfMsg:'缺少挑战记录ID，请先完成一次认知挑战', loading:false })
+      return
+    }
+    this._cfPollTimer && clearTimeout(this._cfPollTimer)
+    this._cfPollCount = 0
+    this.setData({ cfState:'loading', cfMsg:'', loading:true, report:null, locked:true, cfSummaryText:'', cfReportId:'' })
+    this._requestChallengeReport()
+  },
+
+  async _requestChallengeReport(){
+    const recordId = this.data.recordId
+    try {
+      const r = await aiReportService.generateAiReport('challenge_final', recordId)
+      if (this._cfUnloaded) return
+      if (!r || r.code !== 0){
+        console.error('[report-preview] challenge_final failed:', r && r.code, r && r.message)
+        this.setData({ cfState:'failed', cfMsg:(r && r.message) || '报告生成失败，请重试', loading:false })
+        return
+      }
+      const d = r.data || {}
+      this._cfReportId = d.reportId || ''
+
+      // generating → bounded, spaced re-check; leave page stops it
+      if (d.status === 'generating'){
+        this.setData({ cfState:'generating', loading:false, report:null, cfReportId: this._cfReportId })
+        this._schedulePoll()
+        return
+      }
+
+      // ready (locked may be true/false, both authoritative from server)
+      const summaryText = (d.summary && d.summary.oneSentence)
+        || (d.content && d.content.oneSentence)
+        || '你的认知画像已生成'
+      this.setData({
+        report: d,
+        locked: d.locked !== false,   // fail-closed: only explicit false unlocks
+        cfState: 'ready',
+        cfMsg: '',
+        loading: false,
+        cfSummaryText: summaryText,
+        cfReportId: this._cfReportId,
+      })
+      this._syncReportToReportData()
+    } catch (e) {
+      if (this._cfUnloaded) return
+      console.error('[report-preview] challenge_final exception:', e && e.message)
+      this.setData({ cfState:'failed', cfMsg:'网络异常，请重试', loading:false })
+    }
+  },
+
+  _schedulePoll(){
+    const MAX = CF_MAX_POLLS
+    if (typeof this._cfPollCount !== 'number') this._cfPollCount = 0
+    if (this._cfPollCount >= MAX){
+      this.setData({ cfState:'failed', cfMsg:'生成超时，请重试' })
+      return
+    }
+    this._cfPollCount += 1
+    this.setData({ cfPollCount: this._cfPollCount, cfMaxPolls: MAX })
+    this._cfPollTimer = setTimeout(() => {
+      if (this._cfUnloaded) return
+      this._requestChallengeReport()
+    }, CF_POLL_INTERVAL)
+  },
+
+  // Controlled retry (failed → re-request). Never creates a second entity:
+  // the server reuses the same deterministic report entity.
+  onRetryReport(){
+    this._cfPollTimer && clearTimeout(this._cfPollTimer)
+    this._cfPollCount = 0
+    this.setData({ cfState:'loading', cfMsg:'', loading:true, cfPollCount:0 })
+    this._requestChallengeReport()
+  },
+
+  // 9.9 report unlock entry — ONLY reachable when the report is server-confirmed
+  // ready. Passes the SERVER reportId as relatedId (never a client-computed id).
+  onGenerate(){
+    const reportId = this._cfReportId || (this.data.report && this.data.report.reportId)
+    if (this.data.cfState !== 'ready'){
+      wx.showToast({ title:'报告正在生成中，请稍候', icon:'none' })
+      return
+    }
+    if (!reportId){
+      wx.showToast({ title:'报告信息缺失，请重试', icon:'none' })
+      return
+    }
+    analytics.track('report_unlock_click')
+    this._cfReturnFromPay = true
+    wx.navigateTo({
+      url: '/pages/membership/membership?source=report&productId=report_9_9&recordId='
+        + encodeURIComponent(reportId),
+    })
+  },
+
+  onUnlock(){ return this.onGenerate() },
+
+  onGenerateDone(){ /* ai-generating completion hook (visual only) */ },
+
+  onGoChallenge(){
+    wx.redirectTo({ url:'/pages/challenge-play/challenge-play' })
+  },
 
   // ── FIX A: single shared full-report navigation authority path ──
   // Both goFull() and onCloseUpgrade() MUST route through here before any

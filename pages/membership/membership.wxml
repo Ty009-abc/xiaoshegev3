@@ -4,6 +4,13 @@
 
   <xsg-loading text="加载方案..." wx:if="{{loading}}" />
 
+  <block wx:elif="{{blockedNoRecord}}">
+    <view class="error-card">
+      <text class="error-text">报告信息缺失，无法创建订单。请返回报告页重新生成后再试。</text>
+      <xsg-button type="primary" text="返回" bind:tapbutton="onCancelUnlock" />
+    </view>
+  </block>
+
   <block wx:elif="{{loadError}}">
     <view class="error-card">
       <text class="error-text">{{loadError}}</text>
@@ -47,7 +54,7 @@
 
     <!-- 支付按钮 -->
     <view class="pay-section">
-      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (priceDisplay || '39.90')}}" loading="{{paying}}" disabled="{{paying||!product}}" bind:tapbutton="onPay" />
+      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (priceDisplay || '')}}" loading="{{paying}}" disabled="{{paying||!product}}" bind:tapbutton="onPay" />
 
       <button class="cancel-unlock-btn" bindtap="onCancelUnlock" disabled="{{paying}}" hover-class="cancel-press">暂不解锁</button>
 

@@ -13,6 +13,10 @@ Page({
     product: null,
     paying: false,
     loading: true,
+    // Stage5B: report_9_9 purchase requires a server-issued reportId (recordId).
+    // Missing reportId or a still-generating/failed report must NOT create an order,
+    // and must NEVER fall back to the default 39.9 product.
+    blockedNoRecord: false,
   },
 
   onLoad(opt) {
@@ -22,6 +26,14 @@ Page({
     this.setData({ source, recordId, productId })
     // RC8.9B — 进入付款页（best-effort）
     userTrack.event('payment_view', { productId, source: source || '' })
+
+    // report_9_9 is a report-unlock SKU: relatedId MUST be the server reportId.
+    // Without it we block payment entirely (no default-product fallback).
+    if (productId === 'report_9_9' && !recordId) {
+      this.setData({ blockedNoRecord: true, loading: false })
+      wx.showToast({ title: '报告信息缺失，请返回重试', icon: 'none' })
+      return
+    }
     this.loadProduct(productId)
   },
 
@@ -39,6 +51,13 @@ Page({
             hasOriginalPrice: !!product.originalPrice,
           })
         } else {
+          // Product not found in server config. Price is server-authoritative, so we
+          // NEVER fabricate one. challenge_39_9 preserves its legacy local fallback;
+          // report_9_9 fails closed (no 39.9 default).
+          if (productId === 'report_9_9') {
+            this.setData({ loadError: '商品配置加载失败，请稍后重试', product: null })
+            return
+          }
           console.warn('[ChallengeUnlock] product not found, using fallback')
           this.setData({
             product: {
@@ -67,14 +86,24 @@ Page({
 
   async onPay() {
     if (!this.data.productId || this.data.paying) return
+
+    // Hard block: report_9_9 with no server reportId must not create an order.
+    if (this.data.productId === 'report_9_9' && !this.data.recordId) {
+      this.setData({ blockedNoRecord: true })
+      wx.showToast({ title: '报告信息缺失，无法购买', icon: 'none' })
+      return
+    }
+
     this.setData({ paying: true })
 
     try {
       // 1. 创建订单
-      const r = await paymentService.createOrder(
-        this.data.productId,
-        this.data.recordId || 'challenge_unlock'
-      )
+      //    relatedId = server reportId (report_9_9) / challenge recordId (39.9).
+      //    The server derives the price from its own product config.
+      const relatedId = this.data.productId === 'report_9_9'
+        ? this.data.recordId
+        : (this.data.recordId || 'challenge_unlock')
+      const r = await paymentService.createOrder(this.data.productId, relatedId)
 
       if (!r || r.code !== 0) {
         throw new Error(r?.message || '创建订单失败')
@@ -108,6 +137,9 @@ Page({
         wx.showToast({ title: '解锁成功！', icon: 'success' })
         userTrack.event('payment_success', { productId: this.data.productId })
         this._navTimer = setTimeout(() => { wx.navigateBack() }, 800)
+      } else if (verifyRes.code === 0 && verifyRes.data && verifyRes.data.status === 'pending') {
+        // 验单处理中 — 不误报已解锁
+        wx.showToast({ title: '支付确认中，请稍后查看报告', icon: 'none' })
       } else {
         wx.showToast({ title: '支付确认中，请稍后重试', icon: 'none' })
       }
