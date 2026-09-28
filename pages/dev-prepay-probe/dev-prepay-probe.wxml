@@ -1,0 +1,37 @@
+<view class="dpp-page">
+  <!-- Loud, always-visible warning -->
+  <view class="dpp-warn">
+    <text class="dpp-warn-title">⚠️ DEV-ONLY · PREPAY ONLY · NO PAYMENT</text>
+    <text class="dpp-warn-text">临时开发探针（PAYMENT_STAGE4A）。仅调用 createOrder 获取微信预支付参数，绝不调用 wx.requestPayment，不扣款、不标记已支付、不发权益。验收后移除。</text>
+  </view>
+
+  <view class="dpp-body">
+    <button class="dpp-btn" bindtap="onProbe" disabled="{{calling}}">
+      {{calling ? '调用 createOrder 中…' : 'PREPAY 探针（report_9_9）'}}
+    </button>
+
+    <view wx:if="{{calling}}" class="dpp-state">正在通过 wx.cloud.callFunction 调用 createOrder…</view>
+
+    <view wx:if="{{errorMsg}}" class="dpp-err">调用异常：{{errorMsg}}</view>
+
+    <block wx:if="{{called}}">
+      <view class="dpp-card">
+        <view class="dpp-row"><text class="dpp-k">result.code</text><text class="dpp-v">{{code}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">orderId</text><text class="dpp-v">{{orderId}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">productName</text><text class="dpp-v">{{productName}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">totalAmount</text><text class="dpp-v">{{totalAmount}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">paymentParams present</text><text class="dpp-v">{{paymentParamsPresent}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">package prefix</text><text class="dpp-v">{{prepayPackagePrefix}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">package length</text><text class="dpp-v">{{prepayPackageLen}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">signType</text><text class="dpp-v">{{signType}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">nonceStr length</text><text class="dpp-v">{{nonceStrLen}}</text></view>
+        <view class="dpp-row"><text class="dpp-k">paySign length</text><text class="dpp-v">{{paySignLen}}</text></view>
+      </view>
+
+      <view class="dpp-note">PREPAY ONLY — wx.requestPayment 未被调用（本页面无此调用路径）。</view>
+
+      <button class="dpp-btn2" bindtap="onCopyResult">复制安全结果</button>
+      <text class="dpp-raw">{{safeRaw}}</text>
+    </block>
+  </view>
+</view>

@@ -1,25 +1,21 @@
 {
-  "taskId": "PAYMENT_STAGE3_PAID_AUTHORITY_EXACTLY_ONCE",
-  "baseCommit": "30b4cea",
+  "taskId": "PAYMENT_STAGE4A_REAL_MINIPROGRAM_PREPAY_ONLY",
+  "baseCommit": "305a2f0",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "Paid finalization was duplicated across verifyPayment (query path) and payCallback (async path): each independently marked the order paid, wrote a payment row, and granted entitlement with only read-then-write idempotency. No DB uniqueness; no provider-side amount/mchid/appid authority on the query path; concurrent verify+callback could double-grant; no crash recovery between 'order paid' and 'entitlement granted'.",
-  "changes": {
-    "SHARED_FINALIZE_PATH": "New canonical cloudfunctions/common/paymentFinalizer.js :: finalizePaidOrder() (synced byte-identical into verifyPayment/lib + payCallback/lib). BOTH verifyPayment and payCallback now converge on this single authoritative path — no duplicated entitlement-grant logic.",
-    "PROVIDER_AUTHORITY": "finalizePaidOrder accepts ONLY authenticated provider evidence. validateProviderEvidence enforces: trade_state==SUCCESS, transaction_id present + structurally valid, out_trade_no==local orderId, mchid==expected, appid==expected (when provider supplies it), amount.total==local authoritative order amount (exact), currency==CNY (when supplied). Any mismatch → fail-closed, no paid, no entitlement. Client claims (paid=true / amount / txn / SKU) are never trusted.",
-    "EXACTLY_ONCE_GATES": "G1 order terminal: orders.where({orderId, status in finalizable}).update → stats.updated===1 unique winner. G2 payment row: payments.transactionId UNIQUE index → at-most-one row; cross-order reuse → rejected + security audit. G3 entitlement: entitlement_grants.orderId UNIQUE index → at-most-one grant.",
-    "CRASH_CONSISTENCY": "Re-entry self-heals: order=paid but payment row/grant missing → restored (idempotent on re-entry); grant exists but order not paid → order re-claimed, grant not duplicated.",
-    "CALLBACK_CONVERGENCE": "payCallback business block (paid transition + payment row + grant) replaced by a finalizePaidOrder() call; duplicate callback → idempotent; rejected finalize → non-200 (fail-closed, never silent success).",
-    "QUERY_ORDER_EVIDENCE": "verifyPayment/lib/payment.js + createOrder/lib/payment.js queryOrder now surface authenticated provider fields (out_trade_no/mchid/appid/amount{total,currency,payer_total}/trade_type/bank_type/success_time) for the finalizer.",
-    "ENTITLEMENT_SYNC": "payCallback/lib/entitlementService.js aligned to verifyPayment's copy (adds challenge_unlock: challenge_records trialMode=false/unlocked=true). Copies now byte-identical.",
-    "DB_INDEX_CHANGES": "Created UNIQUE indexes: orders.orderId, payments.transactionId, entitlement_grants.orderId. Pre-checked: 0 duplicate orderId, 0 duplicate transactionId, 0 empty/null orderId → safe, no history mutation.",
-    "TESTS": "tests/rc8.9/payment-finalizer.test.js (59 assertions): A happy, B dup verify, C dup callback, D concurrent race, E wrong amount, F wrong mchid, G wrong appid, H out_trade_no mismatch, I tx reuse, J unverified, K callback crypto, L settled idempotent + crash self-heal, M closed not reopened, N convergence/copy-integrity, O evidence unit."
+  "problem": "The live JSAPI prepay probe (Stage 4) could not run from CLI: createOrder gates on cloud.getWXContext().OPENID, which is only populated when invoked through the mini-program cloud SDK. A real mini-program user context (genuine payer OPENID) is required; tcb fn invoke yields AUTH_FAILED and createOrder has no HTTP route.",
+  "change": "TEMPORARY DEVELOPMENT-ONLY mini-program probe page pages/dev-prepay-probe/* + registration in app.json. It calls createOrder ONCE via wx.cloud.callFunction({name:'createOrder',data:{productId:'report_9_9'}}) and displays SAFE metadata only (result.code, orderId, whether paymentParams/prepay_id exist, masked package prefix/length, signType, nonceStr/paySign lengths, safe error). It NEVER imports services/paymentService.js and NEVER calls wx.requestPayment/verifyPayment — no payment-invocation path exists on the page.",
+  "devOnlySafety": {
+    "PREPAY_ONLY": true,
+    "NO_PAYMENT_INVOCATION": true,
+    "structurallyUnreachable": "page requires no paymentService; executable-code scan shows 0 occurrences of requestPayment/verifyPayment/paymentService; exactly 1 wx.cloud.callFunction",
+    "notLinkedFromUX": "registered in app.json but referenced by no other page; reachable only by direct pagePath",
+    "cleanup": "MUST be removed in a separate cleanup commit after evidence collection"
   },
   "boundaries": {
-    "PRICES": "NO", "SKU_DEFINITIONS": "NO", "UI": "NO", "QUESTIONNAIRE_REPORT": "NO",
-    "ADMIN_FUNNEL": "NO", "AI_TELEMETRY": "NO", "MERCHANT_CREDENTIALS": "NO",
-    "WXPAY_SERIAL_NO": "NO", "WXPAY_PRIVATE_KEY": "NO", "WXPAY_PUBLIC_KEY": "NO",
-    "API_V3_KEY": "NO", "REFUND_IMPLEMENTATION": "NO (remains fail-closed/disabled)"
+    "HTTP_ROUTE_ADDED": "NO", "OPENID_OVERRIDE_ADDED": "NO", "CLOUD_FN_CHANGED": "NO",
+    "PRODUCTION_PRICE_SKU_CHANGED": "NO", "PAYMENT_AUTHORITY_CHANGED": "NO", "SECRETS_EXPOSED": "NO",
+    "WX_REQUEST_PAYMENT_CALLED": "NO"
   },
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; drop the 3 unique indexes if needed (data-level rollback not required — no history mutated). No secret values committed."
+  "rollbackPlan": "git revert <this-commit> (removes the dev-only page). Separate cleanup commit required after probe evidence."
 }
