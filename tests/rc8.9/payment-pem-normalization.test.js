@@ -117,6 +117,7 @@ const fpOf = (pem) => AUTH.derivePrivateKeyFingerprint(AUTH.normalizePem(pem))
 // ── J: authoritative fingerprint anchor + format-insensitivity ──
 {
   const fixture = fs.readFileSync(path.join(ROOT, 'tests', 'rc8.9', 'fixtures', 'merchant_pub_3af9.pem'), 'utf8')
+  ok(/^[0-9a-f]{64}$/.test(fpOf(fixture)), 'J0: fingerprint is 64-hex (non-empty) — guards against silent ""=="" passes')
   ok(fpOf(fixture) === AUTHORITATIVE_FP, 'J1: committed merchant pub fixture fp == 624437be… (authoritative anchor)')
   // the same key material in three formats must normalize to the SAME fingerprint
   const flat = PEM.trim().replace(/\n/g, ' ')
@@ -133,6 +134,7 @@ const fpOf = (pem) => AUTH.derivePrivateKeyFingerprint(AUTH.normalizePem(pem))
     WXPAY_SERIAL_NO: '3AF9A0887378AAF102E498F9847AE76C4FEF9225',
   })
   ok(res.ok === true && res.verified === true, 'K1: production selfCheckSigning PASS on flattened key')
+  ok(/^[0-9a-f]{64}$/.test(res.fingerprint || ''), 'K2a: selfCheck fingerprint is 64-hex (non-empty)')
   ok(res.fingerprint === fpOf(normalized), 'K2: selfCheck fingerprint matches derived fingerprint')
   ok(typeof res.signatureLen === 'number' && res.signatureLen > 300, 'K3: RSA-2048 signature produced')
   // negative: signature must NOT verify with a DIFFERENT key

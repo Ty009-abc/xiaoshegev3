@@ -122,7 +122,10 @@ function derivePrivateKeyFingerprint(pem) {
   try {
     let key = null
     try { key = crypto.createPrivateKey(pem) } catch (_) { key = crypto.createPublicKey(pem) }
-    const spki = key.export({ type: 'spki', format: 'der' })
+    // KeyObject.export({type:'spki'}) is INVALID for a PRIVATE key object; always
+    // project to the public half first (public SPKI is what we fingerprint).
+    const pub = (key.type === 'private') ? crypto.createPublicKey(key) : key
+    const spki = pub.export({ type: 'spki', format: 'der' })
     return crypto.createHash('sha256').update(spki).digest('hex')
   } catch (err) {
     return ''
