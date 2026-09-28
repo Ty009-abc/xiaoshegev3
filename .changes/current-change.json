@@ -1,22 +1,25 @@
 {
-  "taskId": "PAYMENT_STAGE2_SIGNING_AND_VERIFICATION_FOUNDATION",
-  "baseCommit": "fd4ed57",
+  "taskId": "PAYMENT_STAGE3_PAID_AUTHORITY_EXACTLY_ONCE",
+  "baseCommit": "30b4cea",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "WeChat Pay v3 cryptographic foundation was incomplete: (a) createOrder/verifyPayment held a placeholder WXPAY_PRIVATE_KEY (merchant request signing impossible); (b) verifyPayment/queryOrder consumed the WeChat query response WITHOUT verifying its signature (unsigned provider response treated as payment authority); (c) payCallback had no HTTP trigger; (d) refundOrder returned fake refund success without calling the real refund API; (e) payCallback resource decryption assumed hex ciphertext (WeChat v3 sends Base64) and skipped cipher.final() GCM auth.",
+  "problem": "Paid finalization was duplicated across verifyPayment (query path) and payCallback (async path): each independently marked the order paid, wrote a payment row, and granted entitlement with only read-then-write idempotency. No DB uniqueness; no provider-side amount/mchid/appid authority on the query path; concurrent verify+callback could double-grant; no crash recovery between 'order paid' and 'entitlement granted'.",
   "changes": {
-    "SHARED_AUTHORITY": "payCallback/lib/paymentAuthority.js is the single canonical authority module. Added isMockTransactionId/isMockPaymentResult, verifyResponseSignature(headers, rawBody, env) (RSA-SHA256, strict Wechatpay-Serial routing via buildAuthorities/routeAuthority/verifySignature, fail-closed), and decryptResource(resource, apiV3Key) (AEAD_AES_256_GCM, Base64 ciphertext, last-16-byte tag, cipher.final()). Synced byte-identical to createOrder/lib and verifyPayment/lib — no duplicated crypto.",
-    "MERCHANT_SIGNING_UNCHANGED": "Outbound signing stays 'merchant API private key + merchant API certificate serial' (WXPAY_PRIVATE_KEY + WXPAY_SERIAL_NO). WeChat public key / platform cert is verification-only and is NEVER used for merchant request signing.",
-    "RESPONSE_VERIFY": "createOrder/lib/payment.js + verifyPayment/lib/payment.js: _request() preserves original response body + headers; jsapiOrder and queryOrder now run verifyResponseSignature before trusting the payload. Fail-closed: unsigned/invalid response → success:false, tradeState:'UNVERIFIED' (queryOrder) → verifyPayment never marks paid / grants entitlement from an unverified response.",
-    "CALLBACK_DECRYPT": "payCallback uses shared decryptResource (Base64 + GCM auth tag) instead of the previous hex/32-char slice; verification + callback semantics no longer drift.",
-    "REFUND_FAIL_CLOSED": "refundOrder._processRefund returns success:false (REFUND_NOT_IMPLEMENTED, failClosed) — never a fake 'refund success'. Production path cannot report success unless the real WeChat refund API is implemented and its authoritative response verifies. No order is marked 'refunded'.",
-    "DEPLOY_GUARD": "scripts/lib/secret-guard.js adds scanPaymentSigning (PEM + 40-hex serial value-shape) wired into scanFunction; new scripts/check-payment-signing.js CLI; new scripts/deploy-payment-functions.sh wrapper runs generic secret-clobber guard + payment-signing guard before any deploy.",
-    "TESTS": "tests/rc8.9/payment-signing-foundation.test.js (22 assertions): guard PASS/FAIL (placeholder key, wrong serial, missing key), merchant sign→verify PASS, wrong-key FAIL, signed response accept, tampered body FAIL, wrong pub-key-ID FAIL, missing headers FAIL, queryOrder rejects unsigned / accepts signed, callback sign+decrypt PASS, wrong key FAIL, tampered ciphertext FAIL, refund fail-closed. Registered in tests/rc8.9/run.js."
+    "SHARED_FINALIZE_PATH": "New canonical cloudfunctions/common/paymentFinalizer.js :: finalizePaidOrder() (synced byte-identical into verifyPayment/lib + payCallback/lib). BOTH verifyPayment and payCallback now converge on this single authoritative path — no duplicated entitlement-grant logic.",
+    "PROVIDER_AUTHORITY": "finalizePaidOrder accepts ONLY authenticated provider evidence. validateProviderEvidence enforces: trade_state==SUCCESS, transaction_id present + structurally valid, out_trade_no==local orderId, mchid==expected, appid==expected (when provider supplies it), amount.total==local authoritative order amount (exact), currency==CNY (when supplied). Any mismatch → fail-closed, no paid, no entitlement. Client claims (paid=true / amount / txn / SKU) are never trusted.",
+    "EXACTLY_ONCE_GATES": "G1 order terminal: orders.where({orderId, status in finalizable}).update → stats.updated===1 unique winner. G2 payment row: payments.transactionId UNIQUE index → at-most-one row; cross-order reuse → rejected + security audit. G3 entitlement: entitlement_grants.orderId UNIQUE index → at-most-one grant.",
+    "CRASH_CONSISTENCY": "Re-entry self-heals: order=paid but payment row/grant missing → restored (idempotent on re-entry); grant exists but order not paid → order re-claimed, grant not duplicated.",
+    "CALLBACK_CONVERGENCE": "payCallback business block (paid transition + payment row + grant) replaced by a finalizePaidOrder() call; duplicate callback → idempotent; rejected finalize → non-200 (fail-closed, never silent success).",
+    "QUERY_ORDER_EVIDENCE": "verifyPayment/lib/payment.js + createOrder/lib/payment.js queryOrder now surface authenticated provider fields (out_trade_no/mchid/appid/amount{total,currency,payer_total}/trade_type/bank_type/success_time) for the finalizer.",
+    "ENTITLEMENT_SYNC": "payCallback/lib/entitlementService.js aligned to verifyPayment's copy (adds challenge_unlock: challenge_records trialMode=false/unlocked=true). Copies now byte-identical.",
+    "DB_INDEX_CHANGES": "Created UNIQUE indexes: orders.orderId, payments.transactionId, entitlement_grants.orderId. Pre-checked: 0 duplicate orderId, 0 duplicate transactionId, 0 empty/null orderId → safe, no history mutation.",
+    "TESTS": "tests/rc8.9/payment-finalizer.test.js (59 assertions): A happy, B dup verify, C dup callback, D concurrent race, E wrong amount, F wrong mchid, G wrong appid, H out_trade_no mismatch, I tx reuse, J unverified, K callback crypto, L settled idempotent + crash self-heal, M closed not reopened, N convergence/copy-integrity, O evidence unit."
   },
   "boundaries": {
-    "REAL_PAYMENT": "NO", "PRICES_SKUS": "NO", "ENTITLEMENT_LOGIC": "NO",
-    "6Q_REPORT_AI": "NO", "MERCHANT_ACCOUNT": "NO", "SECRETS_IN_REPO": "NO",
-    "SECRETS_IN_CLOUDBASERC": "NO", "UNRELATED_FUNCTIONS": "NO"
+    "PRICES": "NO", "SKU_DEFINITIONS": "NO", "UI": "NO", "QUESTIONNAIRE_REPORT": "NO",
+    "ADMIN_FUNNEL": "NO", "AI_TELEMETRY": "NO", "MERCHANT_CREDENTIALS": "NO",
+    "WXPAY_SERIAL_NO": "NO", "WXPAY_PRIVATE_KEY": "NO", "WXPAY_PUBLIC_KEY": "NO",
+    "API_V3_KEY": "NO", "REFUND_IMPLEMENTATION": "NO (remains fail-closed/disabled)"
   },
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; code-only change (no secret values committed). Cloud-side env/trigger wiring is separate and reversible via scripts/set-env.sh."
+  "rollbackPlan": "git revert <this-commit>; drop the 3 unique indexes if needed (data-level rollback not required — no history mutated). No secret values committed."
 }

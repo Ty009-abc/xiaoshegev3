@@ -85,6 +85,27 @@ async function grantEntitlements(db, order, ts = now()) {
           data: { isPaid: true, unlockOrderId: orderId || order.orderId, updatedAt: ts },
         })
       }
+
+      // challenge_unlock: 解锁当前挑战记录 trialMode
+      if (permList.includes('challenge_full') && relatedId) {
+        try {
+          await db.collection('challenge_records').where({
+            _id: relatedId,
+            openid,
+          }).update({
+            data: {
+              trialMode: false,
+              unlocked: true,
+              unlockOrderId: orderId || order.orderId,
+              unlockedAt: ts,
+              updatedAt: ts,
+            },
+          })
+          console.log('[entitlementService] challenge_record unlocked:', relatedId)
+        } catch (e) {
+          console.error('[entitlementService] challenge unlock fail:', e.message)
+        }
+      }
     }
 
     // ═══════════════════

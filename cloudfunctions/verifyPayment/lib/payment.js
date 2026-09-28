@@ -276,11 +276,22 @@ async function queryOrder(orderId) {
   }
 
   const data = parsed.data || {}
+  const amt = data.amount || {}
   return {
     success: true,
     tradeState: data.trade_state || 'UNKNOWN',
     transactionId: data.transaction_id || '',
     tradeStateDesc: data.trade_state_desc || '',
+    // ── 已认证 provider 证据（供 paymentFinalizer 校验，绝不采信客户端）──
+    outTradeNo: data.out_trade_no || '',
+    mchid: data.mchid || '',
+    appid: data.appid || '',
+    amountTotal: amt.total != null ? amt.total : null,
+    amountCurrency: amt.currency || '',
+    amountPayerTotal: amt.payer_total != null ? amt.payer_total : null,
+    tradeType: data.trade_type || '',
+    bankType: data.bank_type || '',
+    successTime: data.success_time || '',
   }
 }
 

@@ -1,10 +1,13 @@
 /**
- * verifyPayment — 确认支付 & 发放权益（第五册 Part 1 升级版）
+ * verifyPayment — 确认支付 & 发放权益（PAYMENT_STAGE3 权威完成路径版）
  *
- * 升级：
- *   1. + 订单过期检查 (30分钟)
- *   2. + 幂等保护 (payments 表去重)
- *   3. + grantEntitlements 一体化
+ * 关键变更（exactly-once）：
+ *   - 支付成功后的「订单→paid + 写流水 + 发权益」全部收敛到唯一权威路径
+ *     lib/paymentFinalizer.js :: finalizePaidOrder()（与 payCallback 共用同一路径）。
+ *   - 不再在函数内重复实现发权益逻辑。
+ *   - 只有经过「微信应答验签」的 provider 证据才可进入 finalizePaidOrder。
+ *   - 金额 / 商户号 / appId / out_trade_no / 交易号 一律以服务端权威校验，永不采信客户端。
+ *   - 客户端声明（paid=true / 金额 / 交易号）永不作为支付权威。
  */
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
@@ -15,6 +18,24 @@ const { now } = require('./lib/permission.js')
 const { queryOrder } = require('./lib/payment.js')
 const { isMockPaymentResult } = require('./lib/paymentAuthority.js')
 const { checkOrderExpired } = require('./lib/antiFraud.js')
+const { grantEntitlements } = require('./lib/entitlementService.js')
+const { finalizePaidOrder, REASONS } = require('./lib/paymentFinalizer.js')
+
+// finalizer 原因 → 对外错误码（fail-closed，绝不返回 paid）
+const REASON_TO_CODE = {
+  [REASONS.AMOUNT_MISMATCH]: CODES.PAYMENT_ERROR,
+  [REASONS.CURRENCY_MISMATCH]: CODES.PAYMENT_ERROR,
+  [REASONS.MCHID_MISMATCH]: CODES.PAYMENT_ERROR,
+  [REASONS.APPID_MISMATCH]: CODES.PAYMENT_ERROR,
+  [REASONS.OUT_TRADE_NO_MISMATCH]: CODES.PAYMENT_ERROR,
+  [REASONS.TRANSACTION_ID_MISSING]: CODES.PAYMENT_ERROR,
+  [REASONS.TRANSACTION_ID_INVALID]: CODES.PAYMENT_ERROR,
+  [REASONS.TRANSACTION_ID_REUSED]: CODES.PAYMENT_ERROR,
+  [REASONS.MOCK_NOT_ALLOWED]: CODES.PAYMENT_ERROR,
+  [REASONS.ORDER_STATUS_NOT_FINALIZABLE]: CODES.ORDER_CLOSED,
+  [REASONS.ORDER_NOT_FOUND]: CODES.NOT_FOUND,
+  [REASONS.OWNERSHIP_MISMATCH]: CODES.FORBIDDEN,
+}
 
 exports.main = async (event) => {
   const wxContext = cloud.getWXContext()
@@ -52,76 +73,71 @@ exports.main = async (event) => {
     if (order.status === 'closed') return fail(CODES.ORDER_CLOSED, '订单已过期关闭')
     if (order.status === 'refunded') return fail(CODES.ORDER_REFUNDED, '订单已退款')
 
-    // ═══ 5. 调微信查单 ═══
-    const queryResult = await queryOrder(orderId)
+    // ═══ 5. 调微信查单（应答已验签，fail-closed）═══
+    const q = await queryOrder(orderId)
 
     // ═══ 5.1 mock 权威守卫（fail-closed）═══
-    // mock 支付结果永远不能进入权威 paid / entitlement 转换。
-    // 前端短路不可靠（UX 行为），此守卫独立于前端，直连调用亦生效。
-    if (isMockPaymentResult(queryResult)) {
-      console.warn(`[verifyPayment] 拒绝 mock 支付结果 orderId=${orderId} txn=${queryResult && queryResult.transactionId}`)
+    if (isMockPaymentResult(q)) {
+      console.warn(`[verifyPayment] 拒绝 mock 支付结果 orderId=${orderId} txn=${q && q.transactionId}`)
       return fail(CODES.PAYMENT_ERROR, '模拟支付结果不可作为真实支付')
     }
 
-    // ═══ 6. 写 payment_logs ═══
+    // ═══ 6. 审计日志（非权威）═══
     await db.collection('payment_logs').add({
       data: {
         openid, orderId,
         action: 'verify_payment',
-        status: queryResult.tradeState === 'SUCCESS' ? 'success' : 'pending',
+        status: q.tradeState === 'SUCCESS' ? 'success' : 'pending',
         request: { orderId },
-        response: queryResult,
+        response: q,
         createdAt: ts,
       },
     })
 
-    // ═══ 7. 支付成功 → 发放权益 ═══
-    if (queryResult.tradeState === 'SUCCESS') {
-      // 幂等检查
-      const payRes = await db.collection('payments').where({ transactionId: queryResult.transactionId }).limit(1).get()
-      if (payRes.data.length > 0) {
-        console.log('[verifyPayment] 已处理，跳过（幂等）')
-        return ok({ orderId, status: 'paid', message: '支付已完成', transactionId: queryResult.transactionId })
-      }
-
-      // 更新订单
-      await db.collection('orders').where({ orderId }).update({
-        data: {
-          status: 'paid',
-          transactionId: queryResult.transactionId,
-          paidAt: ts,
-          updatedAt: ts,
-        },
-      })
-
-      // 写 payments 流水
-      await db.collection('payments').add({
-        data: {
-          paymentId: `PAY_${queryResult.transactionId}`,
-          orderId,
-          openid: order.openid,
-          transactionId: queryResult.transactionId,
-          amount: order.totalAmount,
-          currency: 'CNY',
-          tradeState: 'SUCCESS',
-          createdAt: ts,
-        },
-      })
-
-      // 发放权益
-      const { grantEntitlements } = require('./lib/entitlementService.js')
-      const grantResult = await grantEntitlements(db, order, ts)
-
-      return ok({
-        orderId,
-        status: 'paid',
-        transactionId: queryResult.transactionId,
-        activation: grantResult,
-      })
+    if (q.tradeState !== 'SUCCESS') {
+      return ok({ orderId, status: 'pending_payment', message: '等待支付中', tradeState: q.tradeState })
     }
 
-    // 未支付
-    return ok({ orderId, status: 'pending_payment', message: '等待支付中', tradeState: queryResult.tradeState })
+    if (!q.success || q.tradeState === 'UNVERIFIED') {
+      // 应答未通过验签 → 绝不可作为支付权威
+      return fail(CODES.PAYMENT_ERROR, '支付应答未通过验签')
+    }
+
+    // ═══ 7. 唯一权威完成路径（exactly-once）═══
+    const result = await finalizePaidOrder(db, {
+      orderId,
+      openid,
+      source: 'query',
+      provider: {
+        tradeState: q.tradeState,
+        transactionId: q.transactionId,
+        outTradeNo: q.outTradeNo,
+        mchid: q.mchid,
+        appid: q.appid,
+        amountTotal: q.amountTotal,
+        amountCurrency: q.amountCurrency,
+        amountPayerTotal: q.amountPayerTotal,
+        tradeType: q.tradeType,
+        bankType: q.bankType,
+        successTime: q.successTime,
+      },
+      expect: { mchid: process.env.WXPAY_MCHID || '', appid: process.env.WXPAY_APPID || '' },
+      ts,
+    }, { grantEntitlements })
+
+    if (!result.ok) {
+      const code = REASON_TO_CODE[result.reason] || CODES.PAYMENT_ERROR
+      console.warn(`[verifyPayment] finalize 拒绝 orderId=${orderId} reason=${result.reason}`)
+      return fail(code, '支付未通过权威校验: ' + result.reason)
+    }
+
+    return ok({
+      orderId,
+      status: 'paid',
+      transactionId: result.transactionId,
+      idempotent: !!result.idempotent,
+      activation: result.granted || [],
+    })
   } catch (err) {
     console.error('[verifyPayment] 异常:', err)
     return fail(CODES.PAYMENT_ERROR, err.message)

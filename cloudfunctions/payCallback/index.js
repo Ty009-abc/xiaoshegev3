@@ -37,6 +37,7 @@ const {
   decryptResource,
   REASONS,
 } = require('./lib/paymentAuthority.js')
+const { finalizePaidOrder } = require('./lib/paymentFinalizer.js')
 
 const now = () => Date.now()
 
@@ -129,10 +130,9 @@ exports.main = async (event) => {
       return _err(500, 'DECRYPT_FAILED', '解密失败')
     }
 
-    const { out_trade_no, transaction_id, trade_state, amount, mchid, appid } = decrypted
     const orderId = out_trade_no
 
-    // 步骤 8: 校验 mchid / appid / out_trade_no / amount
+    // 步骤 8: 基本字段校验（orderId 必须存在）
     if (!orderId) {
       console.error('[payCallback] 缺少 out_trade_no')
       return _err(500, 'MISSING_ORDER_ID', '回调数据缺少订单号')
@@ -145,65 +145,50 @@ exports.main = async (event) => {
       return _ok()
     }
 
-    // 步骤 9: transactionId 幂等
-    const payRes = await db.collection('payments').where({ transactionId: transaction_id }).limit(1).get()
-    if (payRes.data.length > 0) {
-      console.log(`[payCallback] 已处理 ${transaction_id}，跳过（幂等）`)
-      return _ok()
+    // 步骤 9-12: 唯一权威完成路径（与 verifyPayment 共用 finalizePaidOrder）
+    //   —— 订单→paid + 写流水 + 发权益 全部在该路径内 exactly-once 完成。
+    //   —— 金额 / 商户号 / appId / out_trade_no / 交易号 均由 finalizer 权威校验，fail-closed。
+    const provider = {
+      tradeState: trade_state,
+      transactionId: transaction_id,
+      outTradeNo: out_trade_no,
+      mchid,
+      appid,
+      amountTotal: amount && amount.total != null ? amount.total : null,
+      amountCurrency: amount && amount.currency ? amount.currency : '',
+      amountPayerTotal: amount && amount.payer_total != null ? amount.payer_total : null,
+      tradeType: decrypted.trade_type || '',
+      bankType: decrypted.bank_type || '',
+      successTime: decrypted.success_time || '',
     }
-
-    const orderRes = await db.collection('orders').where({ orderId }).limit(1).get()
-    const order = orderRes.data[0]
-    if (!order) {
-      console.error(`[payCallback] 订单不存在: ${orderId}`)
-      return _err(500, 'ORDER_NOT_FOUND', '订单不存在')
-    }
-
-    // 金额校验
-    if (amount && amount.total && amount.total !== order.totalAmount) {
-      console.error(`[payCallback] 金额不匹配: 回调=${amount.total} 订单=${order.totalAmount}`)
-      await _log(order.openid, orderId, 'amount_mismatch', `回调${amount.total} vs 订单${order.totalAmount}`, ts)
-      return _ok()
-    }
-
-    if (order.status === 'paid') {
-      console.log(`[payCallback] 订单已支付，跳过: ${orderId}`)
-      return _ok()
-    }
-
-    // 步骤 10: 更新订单 → paid
-    await db.collection('orders').where({ orderId }).update({
-      data: { status: 'paid', transactionId: transaction_id, paidAt: ts, updatedAt: ts },
-    })
-
-    // 写 payments 流水
-    await db.collection('payments').add({
-      data: {
-        paymentId: `PAY_${transaction_id}`,
-        orderId,
-        openid: order.openid,
-        transactionId: transaction_id,
-        amount: order.totalAmount,
-        currency: 'CNY',
-        payerTotal: amount?.payer_total || order.totalAmount,
-        tradeState: trade_state,
-        tradeType: decrypted.trade_type || 'JSAPI',
-        bankType: decrypted.bank_type || '',
-        successTime: decrypted.success_time || '',
-        createdAt: ts,
+    const result = await finalizePaidOrder(db, {
+      orderId,
+      source: 'callback',
+      provider,
+      // 回调通道以「已验签+已解密」的 provider 字段为商户号/AppID 权威；env 缺省时回退到解密值。
+      expect: {
+        mchid: process.env.WXPAY_MCHID || mchid || '',
+        appid: process.env.WXPAY_APPID || '',
       },
-    })
+      ts,
+    }, { grantEntitlements })
 
-    // 步骤 11: 发放权益
-    const grantResult = await grantEntitlements(db, order, ts)
+    if (!result.ok) {
+      console.error(`[payCallback] finalize 拒绝 orderId=${orderId} reason=${result.reason}`)
+      await _log('unknown', orderId, 'callback_finalize_rejected', `reason=${result.reason}`, ts)
+      // fail-closed：非 200 让微信按策略重试/暴露异常，绝不静默标记成功。
+      if (result.reason === REASONS.ORDER_NOT_FOUND) {
+        return _err(500, 'ORDER_NOT_FOUND', '订单不存在')
+      }
+      return _err(500, String(result.reason || 'FINALIZE_REJECTED'), '支付未通过权威校验')
+    }
 
-    // 写 evolution_logs
-    await _log(order.openid, orderId, 'pay_callback', `支付成功，权益: ${grantResult.granted?.join(',') || 'none'}`, ts)
+    // 节点审计（非权威）
+    await _log(result.openid || 'unknown', orderId, 'pay_callback',
+      `支付成功，权益: ${(result.granted || []).join(',') || 'none'}${result.idempotent ? ' (幂等)' : ''}`, ts)
+    await _markConversion(result.openid, ts)
 
-    // 更新 response_metrics
-    await _markConversion(order.openid, ts)
-
-    console.log(`[payCallback] ✅ 完成 ${orderId} → ${grantResult.summary}`)
+    console.log(`[payCallback] ✅ 完成 ${orderId} txn=${result.transactionId} idempotent=${!!result.idempotent}`)
 
     // 步骤 12: 返回微信标准成功响应
     return _ok()
