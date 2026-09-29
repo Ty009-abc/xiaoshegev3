@@ -1,29 +1,25 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R9_1_CHALLENGE_RESULT_VISUAL_REBUILD",
-  "phase": "client visual REBUILD (challenge-result) — owner real-device visual acceptance FAIL on R9",
-  "baseCommit": "003dd3f",
+  "taskId": "PAYMENT_STAGE5A_R10_WORLD_MODEL_REPORT_PAGE_PRODUCTIZATION",
+  "phase": "client UI/UX productization — world-model report page (report-preview challenge_final) + poster + retry",
+  "baseCommit": "247b938",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "R9 source/tests PASS but OWNER real-device visual FAIL. P0: radar canvas rendered blank (type=\"2d\" canvas mixed with legacy wx.createCanvasContext → nothing drawn). P1: still浅白毛玻璃工具页，无未来科技感；标签像普通按钮；CTA像电商按钮。",
+  "pageScope": "pages/report-preview/* (STEP_1: real carrier of challenge_final full report; challenge-result routes here, ai-analysis retired)",
   "changes": {
-    "VISUAL_DIRECTION": "DARK_WORLD_MODEL_CONSOLE — Deep Navy + Glass Panel + Cognitive Dashboard + Neon Purple + Controlled Glow。背景 #070B14/#0B1020/#111827 + radial/linear gradient + ambient orbs。",
-    "RADAR_FIX": "回退到 repo 既有可用实现：legacy wx.createCanvasContext(id,this) + ctx.draw()（移除 type=\"2d\" 误用）。RADAR_FALLBACK_EXISTS：selectorQuery/createCanvasContext 不可用 → 紧凑九维数据条视图，RADAR_EMPTY_PANEL_FORBIDDEN。",
-    "HERO": "新增真正 Hero：WORLD MODEL PROFILE + 220–280rpx 世界模型核心（渐变圆 + 3 层 orbital ring 慢旋 + blur halo）+ 渐变主标题 + 副标题 + 由既有评分推导的一句结论。",
-    "DIMS": "移除 9-pill legend；只突出 Top2（优势维度，绿）/ Bottom2（待突破，金），其余由轴标签表达。",
-    "TAGS": "核心特征改为权重标签：主×3（紫 glow 边框、更大、暖金文字）/ 次×5（深蓝透明底、较小、金色）。",
-    "JUDGEMENT": "新增「世界模型判断」高价值卡（由既有 评分+finalType 推导，无新 AI）。",
-    "CTA": "CTA 改为报告入口卡（深色 glass + 右箭头 + 紫色边缘 glow + 文案「世界模型深度报告」），非促销大按钮。",
-    "MOTION": "克制：Hero 慢旋 + 卡 fade-in-up；删除标签逐个跳与大呼吸。",
-    "LAYOUT": "顺序重排：Hero → 九维雷达 → 世界模型判断 → 核心特征 → 报告入口。"
+    "HERO": "REPORT_HERO: SMALL_BADGE=AI诊断 + PAGE_TITLE=世界模型报告 + CORE_CONCLUSION(heroConclusion=report.fatalLine) + ONE_LINE_INTERPRETATION(heroInterpretation=summary||coreProblem||static). 紫色强调 + 清晰层级.",
+    "CARDS": "5 content cards unified dark-glass style (01 致命一句话 02 核心问题 03 系统困局 04 翻身路径 05 行动建议).",
+    "ACTION_BAR": "底部固定动作栏，垂直堆叠：主 生成认知海报(紫粉渐变+glow) / 次 重新挑战一次(outline)，支持 safe-area-bottom.",
+    "POSTER": "NEW utils/worldModelPosterContent.js (映射) + utils/worldModelPosterRenderer.js (1080x1920 深色导航蓝+霓虹+红/橙/绿章节编码+QR). 生成→预览→保存相册; 失败/权限/QR/空文本 fallback. SOURCE_ONLY_FROM_CURRENT_REPORT, AI_REGEN_FORBIDDEN.",
+    "RETRY": "onRetryChallenge 确认弹窗 → 既有 /pages/challenge-start/challenge-start (canonical startChallenge 服务端权威入口). 不触碰支付/权益/既有报告.",
+    "LEGACY": "旧半成品入口「保存认知海报 / 分享翻身概率」全部移除.",
+    "TESTS": "NEW tests/rc8.9/world-model-report-ui.test.js, world-model-poster.test.js, world-model-retry.test.js; 更新 3 个既有 report-preview vm shim; 注册 run.js."
   },
   "invariants": {
-    "ROUTE_UNCHANGED": "/pages/report-preview/report-preview?recordId=&type=challenge_final",
-    "DATA_SOURCE": "服务器权威 getChallengeRecord；无新 AI/无客户端重算",
-    "INTERNAL_IDS": "unchanged (challenge_final, report_9_9, ai_reports)"
+    "PAYMENT_LOGIC_UNCHANGED": "YES", "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
+    "ROUTE_TO_FULL_REPORT_UNCHANGED_EXCEPT_UI": "YES", "REAL_PAYMENT_NOT_PERFORMED": "YES"
   },
   "boundaries": {
     "BACKEND_CHANGED": "NO", "PAYMENT_CHANGED": "NO", "AUTHORITY_CHANGED": "NO",
-    "REPORT_PREVIEW_CHANGED": "NO", "CLOUD_FUNCTIONS": "NO", "SKU_PRICE": "NO",
-    "SCHEMA": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
+    "CLOUD_FUNCTIONS": "NO", "SKU_PRICE": "NO", "SCHEMA": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
   },
   "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],

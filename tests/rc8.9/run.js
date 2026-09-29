@@ -41,6 +41,9 @@ const ALL = [
   'report-unlock-authority.test.js',
   'ui-productization.test.js',
   'challenge-result-visual.test.js',
+  'world-model-report-ui.test.js',
+  'world-model-poster.test.js',
+  'world-model-retry.test.js',
   'order-entitlement-guard.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)

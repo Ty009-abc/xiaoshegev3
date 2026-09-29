@@ -151,6 +151,8 @@ function loadPreview (genImpl) {
         getAiReport: async () => ({ code: 0, data: {} }),
       },
       'utils/analytics.js': { track: () => {}, flush: () => {} },
+      'utils/worldModelPosterContent.js': require(path.join(ROOT, 'utils', 'worldModelPosterContent.js')),
+      'utils/worldModelPosterRenderer.js': require(path.join(ROOT, 'utils', 'worldModelPosterRenderer.js')),
     }),
     Page: (c) => { page = c },
     console, Date, Math, JSON, Array, Object, String, Number, Boolean, RegExp, Error,

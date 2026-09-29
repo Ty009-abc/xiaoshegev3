@@ -188,6 +188,8 @@ function loadPage (file, globals, stubs) {
       'services/aiReportService.js': aiReportService,
       'services/permissionService.js': permissionService,
       'utils/analytics.js': { track: () => {}, flush: () => {} },
+      'utils/worldModelPosterContent.js': require(path.join(ROOT, 'utils', 'worldModelPosterContent.js')),
+      'utils/worldModelPosterRenderer.js': require(path.join(ROOT, 'utils', 'worldModelPosterRenderer.js')),
     })
     inst._calls = calls
     return inst

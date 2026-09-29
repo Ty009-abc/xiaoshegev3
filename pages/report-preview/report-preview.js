@@ -5,6 +5,8 @@
  */
 const aiReportService = require('../../services/aiReportService.js')
 const analytics = require('../../utils/analytics.js')
+const posterContent = require('../../utils/worldModelPosterContent.js')
+const posterRenderer = require('../../utils/worldModelPosterRenderer.js')
 const app = getApp()
 
 // ── PAYMENT_STAGE5A_R8_P0: canonical report-access authority ──
@@ -30,6 +32,12 @@ Page({
     qrcodePath: '/images/gh_qrcode.png',
     titlesReady: false,
     contentVisible: true,
+    // ── R10: 世界模型报告 Hero + 海报预览 ──
+    heroConclusion: '',
+    heroInterpretation: '',
+    posterPath: '',
+    showPoster: false,
+    posterImageUrl: '',
     // ── Stage5B: challenge_final server-authoritative state machine ──
     // cfState: 'loading' | 'generating' | 'ready' | 'failed' | 'error'
     cfState: 'loading',
@@ -141,6 +149,16 @@ Page({
     return result;
   },
 
+  // R10: Hero 一句话解读。优先用服务端摘要；与结论句重复时退化为既有字段/静态描述（非 AI）。
+  _deriveHeroInterpretation (n) {
+    const conclusion = (n && n.basicInsight) || ''
+    const summary = this.data.cfSummaryText || ''
+    if (summary && summary !== conclusion) return summary
+    const core = (n && n.coreProblem) || ''
+    if (core && core !== conclusion) return core
+    return '基于你的30天认知挑战、九维评分与行为标签生成'
+  },
+
   /* 从 report 对象同步到 reportData（WXML 统一绑定） */
   _syncReportToReportData() {
     const r = this.data.report;
@@ -167,6 +185,9 @@ Page({
           turnaroundProbability: n.turnaroundProbability,
           threeYearRisk: n.threeYearRisk,
         },
+        // R10 Hero 绑定（PAGE_TITLE / SMALL_BADGE / CORE_CONCLUSION / ONE_LINE_INTERPRETATION）
+        heroConclusion: n.basicInsight || this.data.cfSummaryText || '',
+        heroInterpretation: this._deriveHeroInterpretation(n),
       });
       if (n._missingFields && n._missingFields.length) {
         console.error('[CONTRACT_MISSING_FIELDS] challenge_final:', n._missingFields);
@@ -503,10 +524,103 @@ Page({
   },
 
   /* ═══════════════════════════════════════
-     海报生成引擎 — Canvas 2D 重构版
-     原则：先预计算高度 → 设 canvas → 再绘制，绝不二次改尺寸
+     海报入口 — 按 reportType 分派
      ═══════════════════════════════════════ */
   generatePoster() {
+    if (this.data.reportType === 'diagnostic') return this._generateDiagnosticPoster()
+    return this._generateWorldModelPoster()
+  },
+
+  onClosePoster() { this.setData({ showPoster: false }) },
+
+  /* ═══════════════════════════════════════
+     R10 世界模型报告海报（1080×1920）
+     SOURCE_ONLY_FROM_CURRENT_REPORT · AI_REGEN_FORBIDDEN
+     ═══════════════════════════════════════ */
+  _generateWorldModelPoster() {
+    if (this.data.posterGenerating) return
+    this.setData({ posterGenerating: true })
+    wx.showLoading({ title: '正在生成海报...', mask: true })
+    const self = this
+    try {
+      const content = posterContent.buildPosterContent(this.data.reportData, {
+        mainType: (this.data._cfMeta && this.data._cfMeta.worldModelType) || '',
+      })
+      const ctx = wx.createCanvasContext('posterCanvas', this)
+      const out = posterRenderer.drawPoster(ctx, content, { qrPath: this.data.qrcodePath || '/images/qrcode.png' })
+      const W = out.width
+      const H = out.height
+      ctx.draw(false, () => {
+        wx.canvasToTempFilePath({
+          canvasId: 'posterCanvas', x: 0, y: 0, width: W, height: H, destWidth: W, destHeight: H,
+          success: (res) => {
+            self.setData({ posterGenerating: false, posterPath: res.tempFilePath, posterImageUrl: res.tempFilePath, showPoster: true })
+            wx.hideLoading()
+          },
+          fail: (err) => {
+            console.error('[worldModelPoster] canvasToTempFilePath fail:', err)
+            self.setData({ posterGenerating: false })
+            wx.hideLoading()
+            wx.showToast({ title: '海报生成失败，请重试', icon: 'none' })
+          },
+        }, self)
+      })
+    } catch (e) {
+      console.error('[worldModelPoster] render fail:', e)
+      this.setData({ posterGenerating: false })
+      wx.hideLoading()
+      wx.showToast({ title: '海报生成失败，请重试', icon: 'none' })
+    }
+  },
+
+  savePoster() {
+    const p = this.data.posterPath || this.data.posterImageUrl
+    if (!p) { wx.showToast({ title: '海报尚未生成', icon: 'none' }); return }
+    this._savePosterImage(p)
+  },
+
+  _savePosterImage(filePath) {
+    const self = this
+    wx.saveImageToPhotosAlbum({
+      filePath,
+      success: () => { self.setData({ posterGenerating: false }); wx.showToast({ title: '已保存到相册', icon: 'success' }) },
+      fail: (err) => {
+        self.setData({ posterGenerating: false })
+        if (err && err.errMsg && err.errMsg.indexOf('auth') >= 0) {
+          wx.showModal({
+            title: '授权提示',
+            content: '请允许保存到相册，否则海报无法保存。',
+            success: (res) => { if (res.confirm) wx.openSetting() },
+          })
+        } else {
+          wx.showToast({ title: '保存失败', icon: 'none' })
+        }
+      },
+    })
+  },
+
+  // R10: 重新挑战 — 确认后走既有 startChallenge 服务端权威入口（不触碰支付/既有报告）。
+  onRetryChallenge() {
+    wx.showModal({
+      title: '重新挑战一次？',
+      content: '将开启一条新的挑战记录，当前报告会保留在历史记录中，不影响已购权益。',
+      cancelText: '取消',
+      confirmText: '确认重新挑战',
+      success: (res) => {
+        if (!res.confirm) return
+        analytics.track('challenge_retry_open')
+        wx.navigateTo({
+          url: '/pages/challenge-start/challenge-start',
+          fail: () => { wx.redirectTo({ url: '/pages/challenge-start/challenge-start' }) },
+        })
+      },
+    })
+  },
+
+  /* ═══════════════════════════════════════
+     diagnostic 海报（保留既有实现）
+     ═══════════════════════════════════════ */
+  _generateDiagnosticPoster() {
     if (this.data.posterGenerating) return
     this.setData({ posterGenerating: true })
     wx.showLoading({ title: '正在生成海报...', mask: true })

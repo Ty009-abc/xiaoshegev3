@@ -231,6 +231,8 @@ async function runReady (reportEntity, vipGranted) {
       require: makeRequire({
         'services/aiReportService.js': aiReportService,
         'utils/analytics.js': { track: () => {}, flush: () => {} },
+        'utils/worldModelPosterContent.js': require(path.join(ROOT, 'utils', 'worldModelPosterContent.js')),
+        'utils/worldModelPosterRenderer.js': require(path.join(ROOT, 'utils', 'worldModelPosterRenderer.js')),
       }),
       Page: (c) => { config = c },
       Component: (c) => { config = c },
