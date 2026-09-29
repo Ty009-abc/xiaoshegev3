@@ -29,6 +29,18 @@
  * The AI network call happens BETWEEN claim and completion — never inside a DB
  * transaction. Completion is a separate conditional update.
  *
+ * ── Completion durability (PAYMENT_STAGE5A_R4_P0_REPORT_RECOVERY) ────────────
+ * Everything AFTER a successful model response is protected:
+ *     model ok → parse (tolerant) → validate → persist content → ready → audit
+ * Any recoverable failure is persisted as an EXPLICIT terminal-ish state on the
+ * SAME entity (status='failed' + lastError), reusing the SAME deterministic
+ * reportId. The entity therefore never remains permanently stuck at
+ * `status='generating', content=null`: a later retry/re-entry reclaims it
+ * (failed-retry path) or takes it over once stale. The parse step never throws;
+ * an unparseable body becomes an explicit retryable failure. Persistence/parse
+ * failures are audited best-effort to `ai_logs`. Generation still NEVER writes
+ * `isPaid`.
+ *
  * ── Paid authority (do NOT assume ai_reports.isPaid) ────────────────────────
  * Generation NEVER writes `isPaid`. The field is owned exclusively by the
  * exactly-once payment finalizer (`common/entitlement.js`,
@@ -46,6 +58,12 @@ const { ok, fail, CODES } = require('./response.js')
 // considered abandoned (λ killed mid-AI) and may be re-claimed, reusing the
 // SAME entity — no permanent stall, no duplicate.
 const DEFAULT_STALE_MS = 90 * 1000
+
+// Hard cap on the AI provider call FROM INSIDE the idempotent flow. Kept
+// strictly below the cloud-function timeout so parse + persist + audit always
+// have budget even if the model is slow. Deployment invariant: model 90s <
+// function timeout 120s (>=30s reserved).
+const MODEL_TIMEOUT_MS = 90 * 1000
 
 // ── deterministic logical report id ─────────────────────────────────────────
 // Pure function of the trusted server identity + record. Same key → same id.
@@ -68,9 +86,21 @@ function isDuplicateKey (err) {
   return /duplicate key|E11000|-502001/i.test(String(err.message || err.errMsg || ''))
 }
 
-// ── tolerant AI JSON cleaning (identical semantics to the legacy branch) ────
+// ── tolerant input coercion ─────────────────────────────────────────────────
+// The provider body is normally a string, but a defensive caller could hand us
+// an object/array/null. Coerce to a string so `.replace` can NEVER throw.
+function coerceText (value) {
+  if (typeof value === 'string') return value
+  if (value === null || value === undefined) return ''
+  try { return JSON.stringify(value) } catch (_) { return String(value) }
+}
+
+// ── tolerant AI JSON cleaning (identical JSON semantics to the legacy branch) ─
+// Returns { ok:true, value } on success, or { ok:false, error, raw } on a
+// NON-RETRYABLE-parse body. NEVER throws. A parse failure is surfaced as an
+// explicit failure by the caller (persisted) rather than fabricating content.
 function parseAiReport (aiContent) {
-  const content = aiContent || ''
+  const content = coerceText(aiContent)
   try {
     let jsonStr = content
       .replace(/```json\s*/gi, '')
@@ -79,23 +109,69 @@ function parseAiReport (aiContent) {
     const bracketMatch = jsonStr.match(/\{[\s\S]*\}/)
     if (bracketMatch) jsonStr = bracketMatch[0]
     jsonStr = jsonStr.replace(/\/\/.*$/gm, '').replace(/,(\s*[}\]])/g, '$1')
-    return JSON.parse(jsonStr)
+    const obj = JSON.parse(jsonStr)
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+      throw new Error('解析结果不是 JSON 对象')
+    }
+    return { ok: true, value: obj }
   } catch (parseErr) {
-    console.error('【challenge_final JSON清洗失败】错误:', parseErr.message)
+    console.error('【challenge_final JSON清洗失败】错误:', parseErr && parseErr.message)
     console.error('【challenge_final 原始AI返回】:', content.substring(0, 800))
     return {
-      rawContent: content,
-      oneSentence: '报告生成中，请稍后重试',
-      worldModelType: '系统信号中断',
-      whyNotRich: '暂时无法解析，点击重试',
-      biggestCognitiveGap: '重试获取分析',
-      turnaroundProbability: 0,
-      threeYearRisk: '请重试',
-      bestPath: '重新测试以获取结果',
-      thirtyDayActions: ['重试报告生成'],
-      finalStrike: '⚠️ 系统暂时无法审判你，再试一次',
+      ok: false,
+      error: String((parseErr && parseErr.message) || 'JSON 解析失败'),
+      raw: content.substring(0, 800),
     }
   }
+}
+
+// ── bounded provider-call guard ─────────────────────────────────────────────
+// Races the AI promise against a hard timer so the idempotent flow can never
+// out-wait the cloud-function budget. The underlying provider call is NOT
+// cancelled (http timeout still applies) — we simply stop waiting on it and
+// persist an explicit failure, so the entity is recoverable on retry.
+function withTimeout (promise, ms, fallback) {
+  if (!ms || ms <= 0) return Promise.resolve(promise)
+  let timer
+  const guard = new Promise((resolve) => {
+    timer = setTimeout(() => resolve(typeof fallback === 'function' ? fallback() : fallback), ms)
+  })
+  return Promise.race([promise, guard]).then(
+    (v) => { clearTimeout(timer); return v },
+    (e) => { clearTimeout(timer); throw e }
+  )
+}
+
+async function safeUpdate (db, where, data) {
+  try {
+    const res = await db.collection('ai_reports').where(where).update({ data })
+    return !!(res && res.stats && res.stats.updated === 1)
+  } catch (_) {
+    return false
+  }
+}
+
+// Persist an explicit `failed` (retryable) terminal state. Never throws, NEVER
+// writes `isPaid`. Only touches a row we still own (claimToken) — so a stale
+// writer can never clobber a newer takeover's in-flight generation.
+async function persistFailed (db, reportId, claimToken, message, extra, ts) {
+  const data = Object.assign({
+    status: 'failed',
+    lastError: String(message || '生成失败').substring(0, 200),
+    updatedAt: ts,
+  }, extra || {})
+  if (await safeUpdate(db, { _id: reportId, claimToken, status: 'generating' }, data)) return true
+  // status field may have drifted but we still own the token → force by _id
+  const cur = await readEntity(db, reportId).catch(() => null)
+  if (cur && cur.status === 'generating' && cur.claimToken === claimToken) {
+    return await safeUpdate(db, { _id: reportId, claimToken }, data)
+  }
+  return false
+}
+
+// Best-effort completion audit — never throws, never affects the flow.
+async function auditCompletion (db, row) {
+  try { await db.collection('ai_logs').add({ data: row }) } catch (_) { /* best effort */ }
 }
 
 async function readEntity (db, reportId) {
@@ -298,13 +374,21 @@ async function runChallengeFinalReport (opts) {
   const inputs = buildInputs(record)
   const { systemPrompt, userMessage } = buildReportPrompt(inputs.scores, inputs.tags, inputs.choicesSummary)
   const reportModel = process.env.AI_MODEL_PRO || 'v4-pro'
+  const modelTimeoutMs = deps.modelTimeoutMs || MODEL_TIMEOUT_MS
 
   let aiResult
+  const __aiStart = Date.now()
   try {
-    aiResult = await callAI({ systemPrompt, userMessage, forceModel: reportModel })
+    // Bounded: never wait past modelTimeoutMs, so completion always has budget.
+    aiResult = await withTimeout(
+      callAI({ systemPrompt, userMessage, forceModel: reportModel }),
+      modelTimeoutMs,
+      { success: false, error: 'AI 调用超时（' + Math.round(modelTimeoutMs / 1000) + 's）', providerErrorCode: 'AI_PROVIDER_TIMEOUT' }
+    )
   } catch (e) {
-    aiResult = { success: false, error: e.message }
+    aiResult = { success: false, error: (e && e.message) || 'AI 调用异常' }
   }
+  if (aiResult && aiResult.latencyMs === undefined) aiResult.latencyMs = Date.now() - __aiStart
 
   if (emitModelCall) {
     emitModelCall(db, aiResult, {
@@ -315,55 +399,70 @@ async function runChallengeFinalReport (opts) {
   }
 
   if (!aiResult || !aiResult.success) {
-    // mark failed so a later request can retry on the SAME entity
-    await db.collection('ai_reports')
-      .where({ _id: reportId, claimToken })
-      .update({ data: {
-        status: 'failed',
-        lastError: String((aiResult && aiResult.error) || 'AI 调用失败').substring(0, 200),
-        updatedAt: ts,
-      } })
-      .catch(() => {})
-    return fail(CODES.AI_ERROR, (aiResult && aiResult.error) || 'AI 调用失败')
+    // explicit retryable terminal state — the entity NEVER stays generating
+    const reason = (aiResult && aiResult.error) || 'AI 调用失败'
+    await persistFailed(db, reportId, claimToken, reason, null, ts)
+    return fail(CODES.AI_ERROR, reason)
   }
 
-  const parsedReport = parseAiReport(aiResult.content)
+  // ── 4. completion (PROTECTED): parse → validate → persist → ready → audit ─
+  // Every step below is guarded. parseAiReport never throws; a bad body is
+  // persisted as an explicit retryable failure instead of stranded generating.
+  const parsed = parseAiReport(aiResult.content)
+  if (!parsed || !parsed.ok) {
+    const reason = '报告内容解析失败：' + ((parsed && parsed.error) || 'JSON 解析失败')
+    await persistFailed(db, reportId, claimToken, reason, { parseFailed: true }, ts)
+    await auditCompletion(db, {
+      openid, action: 'generate_report', type: 'challenge_final', reportId, recordId,
+      tokens: (aiResult.tokens) || 0, success: false, errorMessage: reason, createdAt: ts,
+    })
+    return fail(CODES.AI_ERROR, '报告生成失败，请重试')
+  }
+  const parsedReport = parsed.value
 
-  // ── 4. completion: conditional on our claimToken + still generating ───────
+  // ── 5. persist content + flip to ready (conditional on our claimToken) ────
   // If a stale takeover already replaced us, updated!==1 → we must NOT clobber.
-  const upd = await db.collection('ai_reports')
-    .where({ _id: reportId, claimToken, status: 'generating' })
-    .update({ data: {
-      status: 'ready',
-      content: parsedReport,
-      rawPrompt: { systemPrompt, userMessage },
-      aiModel: reportModel,
-      aiTokens: (aiResult.tokens) || 0,
-      updatedAt: ts,
-      // isPaid intentionally untouched
-    } })
+  let completed = false
+  let persistError = null
+  try {
+    const upd = await db.collection('ai_reports')
+      .where({ _id: reportId, claimToken, status: 'generating' })
+      .update({ data: {
+        status: 'ready',
+        content: parsedReport,
+        rawPrompt: { systemPrompt, userMessage },
+        aiModel: reportModel,
+        aiTokens: (aiResult.tokens) || 0,
+        updatedAt: ts,
+        // isPaid intentionally untouched
+      } })
+    completed = !!(upd && upd.stats && upd.stats.updated === 1)
+  } catch (e) {
+    persistError = (e && e.message) || '持久化异常'
+  }
 
-  if (!upd || !upd.stats || upd.stats.updated !== 1) {
-    // lost the claim → return whatever the current (newer) entity holds
-    const cur = await readEntity(db, reportId)
+  if (!completed) {
+    // Either we lost the claim (a newer winner completed) OR persistence threw.
+    const cur = await readEntity(db, reportId).catch(() => null)
     if (cur && cur.status === 'ready') return respondReady(db, openid, cur, checkVip)
+    if (persistError) {
+      // Persistence failed while we still own the row → explicit retryable state.
+      await persistFailed(db, reportId, claimToken, '报告持久化失败：' + persistError, { persistFailed: true }, ts)
+      await auditCompletion(db, {
+        openid, action: 'generate_report', type: 'challenge_final', reportId, recordId,
+        tokens: (aiResult.tokens) || 0, success: false, errorMessage: persistError, createdAt: ts,
+      })
+      return fail(CODES.AI_ERROR, '报告保存失败，请重试')
+    }
+    // Lost the claim but not ready yet → report in-flight status (no clobber).
     return respondGenerating(reportId)
   }
 
-  // ── 5. best-effort log + response ─────────────────────────────────────────
-  await db.collection('ai_logs').add({
-    data: {
-      openid,
-      action: 'generate_report',
-      type: 'challenge_final',
-      reportId,
-      recordId,
-      tokens: (aiResult.tokens) || 0,
-      success: aiResult.success,
-      errorMessage: aiResult.error || '',
-      createdAt: ts,
-    },
-  }).catch(() => {})
+  // ── 6. completion audit (best-effort) + response ──────────────────────────
+  await auditCompletion(db, {
+    openid, action: 'generate_report', type: 'challenge_final', reportId, recordId,
+    tokens: (aiResult.tokens) || 0, success: true, errorMessage: '', createdAt: ts,
+  })
 
   const finalEntity = { reportId, openid, status: 'ready', content: parsedReport, isPaid: false }
   return respondReady(db, openid, finalEntity, checkVip)
@@ -374,4 +473,5 @@ module.exports = {
   logicalReportId,
   parseAiReport,
   DEFAULT_STALE_MS,
+  MODEL_TIMEOUT_MS,
 }

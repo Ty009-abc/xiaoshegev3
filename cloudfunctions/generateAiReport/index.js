@@ -376,12 +376,16 @@ exports.main = async (event, context) => {
     let rawScoresRef = null;
     let scoringVer = 'legacy_v1';
 
-    // ═══ PAYMENT_STAGE5C: challenge_final idempotent generation ═══
+    // ═══ PAYMENT_STAGE5C + R4_P0: challenge_final idempotent generation ═══
     // One logical report per (openid, recordId, type='challenge_final').
     // Delegated to a dedicated state machine: ownership/eligibility checked on
     // the TRUSTED identity, atomic claim via a deterministic _id (built-in
     // unique _id_ index), generating/ready/failed state with conditional
     // transitions, and the AI call kept OUTSIDE any DB transaction.
+    // R4_P0: the post-model path (parse → validate → persist → ready → audit)
+    // is fully protected; the model call is bounded (90s) strictly below the
+    // 120s function timeout so completion always persists an explicit state —
+    // the entity can never remain permanently generating+null.
     // Generation never writes `isPaid` (owned by the payment finalizer).
     if (type === 'challenge_final' && recordId) {
       const { runChallengeFinalReport } = require('./lib/challengeReportIdempotency.js')

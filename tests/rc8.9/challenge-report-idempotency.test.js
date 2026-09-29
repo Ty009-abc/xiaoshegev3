@@ -38,6 +38,7 @@ const CTRL = {
   callAI: null,
   updates: [],     // captured update {name, where, data}
   addDelay: 0,
+  failUpdateWhen: null, // (where, data) => bool → inject persistence failure
 }
 function makeErrDup () {
   const e = new Error('E11000 duplicate key error collection: ai_reports index: _id_ dup key')
@@ -72,6 +73,9 @@ function makeDB (seed) {
       async update ({ data }) {
         const rows = (store[name] || []).filter((d) => match(d, _w))
         CTRL.updates.push({ name, where: Object.assign({}, _w), data: Object.assign({}, data) })
+        if (CTRL.failUpdateWhen && CTRL.failUpdateWhen(Object.assign({}, _w), Object.assign({}, data))) {
+          throw new Error('persist-fail-injected')
+        }
         rows.forEach((d) => Object.assign(d, data))
         return { stats: { updated: rows.length } }
       },
@@ -122,6 +126,7 @@ function reset (seed) {
   CTRL.vip = false
   CTRL.updates = []
   CTRL.addDelay = 0
+  CTRL.failUpdateWhen = null
   DB = makeDB(Object.assign({
     challenge_records: [{ _id: 'cr1', recordId: 'rec1', openid: 'oUserA', status: 'processing', scores: { capitalThinking: 31 }, tags: ['x'] }],
     ai_reports: [],
@@ -308,6 +313,124 @@ function reset (seed) {
     await idem.runChallengeFinalReport(dev({ deps: deps() }))
     const rp = await idem.runChallengeFinalReport(dev({ deps: deps() }))
     eq(Object.keys(rp.data).sort().join(','), ['content', 'isPaid', 'locked', 'reportId', 'reportType'].sort().join(','), 'J paid shape')
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PAYMENT_STAGE5A_R4_P0_REPORT_RECOVERY — completion durability matrix
+  //   R4-1 model success + valid     → ready + content persisted
+  //   R4-2 model success + irregular → explicit failed (never stuck generating)
+  //   R4-3 model timeout             → explicit failed (never stuck generating)
+  //   R4-4 parse exception           → handled, never throws, never stuck
+  //   R4-5 persistence exception     → audited + deterministic terminal state
+  //   R4-6 stale generating          → recovers safely on retry/re-entry
+  //   R4-7 duplicate retry           → same entity, no duplicate report
+  //   R4-12 generation never writes isPaid (all paths)
+  // ═══════════════════════════════════════════════════════════════════════
+  const CODES = require(path.join(ROOT, 'cloudfunctions', 'generateAiReport', 'lib', 'errorCodes.js')).CODES
+
+  // R4-1
+  {
+    reset()
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(r.code, 0, 'R4-1 code 0')
+    eq(DB._store.ai_reports.length, 1, 'R4-1 one entity')
+    eq(DB._store.ai_reports[0].status, 'ready', 'R4-1 status ready')
+    ok(DB._store.ai_reports[0].content && DB._store.ai_reports[0].content.finalStrike, 'R4-1 content persisted')
+    ok(DB._store.ai_logs.some((l) => l.action === 'generate_report' && l.success === true), 'R4-1 completion audit row')
+  }
+
+  // R4-2
+  {
+    reset()
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps({ callAI: async () => ({ success: true, content: '这是一段纯文本，不是 JSON。', tokens: 5 }) }) }))
+    eq(r.code, CODES.AI_ERROR, 'R4-2 code AI_ERROR')
+    eq(DB._store.ai_reports.length, 1, 'R4-2 one entity')
+    eq(DB._store.ai_reports[0].status, 'failed', 'R4-2 failed (NOT stuck generating)')
+    ok(!DB._store.ai_reports[0].content, 'R4-2 no fabricated content')
+    ok(!!DB._store.ai_reports[0].lastError, 'R4-2 lastError metadata set')
+    const rid = DB._store.ai_reports[0].reportId
+    const rr = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(rr.code, 0, 'R4-2 retry code 0')
+    eq(DB._store.ai_reports.length, 1, 'R4-2 retry no 2nd entity')
+    eq(DB._store.ai_reports[0].reportId, rid, 'R4-2 retry same reportId')
+    eq(DB._store.ai_reports[0].status, 'ready', 'R4-2 retry recovers → ready')
+  }
+
+  // R4-3
+  {
+    reset()
+    let emitted = null
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps({
+      modelTimeoutMs: 30,
+      callAI: () => new Promise(() => {}),
+      emitModelCall: (db, res, meta) => { emitted = res; return Promise.resolve() },
+    }) }))
+    eq(r.code, CODES.AI_ERROR, 'R4-3 code AI_ERROR')
+    eq(DB._store.ai_reports.length, 1, 'R4-3 one entity')
+    eq(DB._store.ai_reports[0].status, 'failed', 'R4-3 timeout → failed (NOT stuck generating)')
+    ok(/超时/.test(String(r.message || '')), 'R4-3 timeout message surfaced')
+    ok(emitted && emitted.success === false, 'R4-3 model-call telemetry emitted for timeout')
+  }
+
+  // R4-4
+  {
+    reset()
+    let threw = false
+    try { idem.parseAiReport('x'); idem.parseAiReport({ a: 1 }); idem.parseAiReport(null); idem.parseAiReport(undefined); idem.parseAiReport(123) } catch (_) { threw = true }
+    ok(!threw, 'R4-4 parseAiReport never throws (string/object/null/undefined/number)')
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps({ callAI: async () => ({ success: true, content: null, tokens: 1 }) }) }))
+    eq(r.code, CODES.AI_ERROR, 'R4-4 null content code AI_ERROR')
+    eq(DB._store.ai_reports[0].status, 'failed', 'R4-4 null content → failed (NOT stuck generating)')
+  }
+
+  // R4-5
+  {
+    reset()
+    CTRL.failUpdateWhen = (where, data) => data && data.status === 'ready'
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    CTRL.failUpdateWhen = null
+    eq(r.code, CODES.AI_ERROR, 'R4-5 persist-fail code AI_ERROR')
+    eq(DB._store.ai_reports.length, 1, 'R4-5 one entity')
+    eq(DB._store.ai_reports[0].status, 'failed', 'R4-5 persist-fail → explicit failed (NOT stuck generating)')
+    ok(!!DB._store.ai_reports[0].lastError, 'R4-5 lastError metadata set')
+    ok(DB._store.ai_logs.some((l) => l.action === 'generate_report' && l.success === false), 'R4-5 failure audited')
+  }
+
+  // R4-6
+  {
+    reset()
+    const repId = idem.logicalReportId('oUserA', 'rec1')
+    const old = Date.now() - 10 * 60 * 1000
+    await DB.collection('ai_reports').add({ data: { _id: repId, reportId: repId, openid: 'oUserA', recordId: 'rec1', type: 'challenge_final', status: 'generating', claimToken: 'abandoned', claimAt: old } })
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(r.code, 0, 'R4-6 stale recovery code 0')
+    eq(DB._store.ai_reports.length, 1, 'R4-6 no 2nd entity')
+    eq(DB._store.ai_reports[0].status, 'ready', 'R4-6 stale generating → ready')
+    eq(DB._store.ai_reports[0].content && DB._store.ai_reports[0].content.finalStrike ? 'y' : 'n', 'y', 'R4-6 content persisted')
+  }
+
+  // R4-7
+  {
+    reset()
+    const r1 = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    const r2 = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(DB._store.ai_reports.length, 1, 'R4-7 exactly one entity after duplicate retry')
+    eq(r1.data.reportId, r2.data.reportId, 'R4-7 same authoritative reportId')
+  }
+
+  // R4-12
+  {
+    reset()
+    await idem.runChallengeFinalReport(dev({ deps: deps({ callAI: async () => ({ success: true, content: 'nope', tokens: 1 }) }) }))
+    ok(!CTRL.updates.some((u) => Object.prototype.hasOwnProperty.call(u.data, 'isPaid')), 'R4-12a parse-path never writes isPaid')
+    reset()
+    CTRL.failUpdateWhen = (where, data) => data && data.status === 'ready'
+    await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    CTRL.failUpdateWhen = null
+    ok(!CTRL.updates.some((u) => Object.prototype.hasOwnProperty.call(u.data, 'isPaid')), 'R4-12b persist-path never writes isPaid')
+    reset()
+    await idem.runChallengeFinalReport(dev({ deps: deps({ modelTimeoutMs: 20, callAI: () => new Promise(() => {}) }) }))
+    ok(!CTRL.updates.some((u) => Object.prototype.hasOwnProperty.call(u.data, 'isPaid')), 'R4-12c timeout-path never writes isPaid')
   }
 
   console.log(`\nchallenge-report-idempotency_TEST pass=${pass} fail=${fail}`)
