@@ -1,25 +1,22 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R2_ENTITLEMENT_AUTHORITY_REPAIR",
-  "baseCommit": "81d9ab6",
+  "taskId": "OWNER_CHALLENGE_ACCESS_RESTORED",
+  "baseCommit": "858dfb0",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "A REAL ¥39.90 challenge_39_9 payment (order XSG179063421831355dvw8 / txn 4500000468202609293533867714 / relatedId CR1790632776226vtmih6) settled (order=paid, payments=1, entitlement_grants.status=granted) but the challenge was NEVER unlocked: challenge_records.trialMode stayed true and `unlocked` was never written. ROOT CAUSE: the deployed challenge-unlock writer used `where({ _id: relatedId, openid })` while relatedId is the business recordId (CR…), so the Mongo _id never matched → 0 rows updated, yet entitlement_grants was marked granted unconditionally (false-positive marker). Secondary defects: (a) report branch selected by `permList.includes('full_report')` (permission bleed) instead of explicit product authority; (b) two divergent entitlement implementations (common/entitlement.js vs entitlementService.js); (c) getChallengeRecord did not return `unlocked`; (d) entitlements were granted even when the target mutation updated 0 rows.",
+  "problem": "After Stage5A_R2 repaired the challenge_39_9 selector + reconciled the affected record, the owner's real-device retest still showed LOCKED. Root cause: the challenge ENTRY flow (pages/challenge-start → startChallenge cloud function) unconditionally created a NEW trial record on every tap and its hasAccess only consulted `memberships` — it never honored the paid challenge_39_9 record unlock (challenge_records.trialMode===false / unlocked===true written by the payment finalizer). Evidence: the payer openid holds 26 challenge records, 24 still trialMode:true at currentEventIndex=3, including TWO fresh trial records created during the retest (08:22:25, 08:23:53) — the flow minted new locked records instead of resuming the unlocked one. getChallengeEvent reads only trialMode, so the reconciled record itself is fine; the entry flow discarded it.",
   "changes": {
-    "CANONICAL_ENTITLEMENT": "One authoritative implementation: cloudfunctions/common/entitlementService.js (byte-identical copies at verifyPayment/lib + payCallback/lib). grantEntitlements now: (1) routes ONLY by explicit product authority (product.permission==='report_unlock' | 'challenge_unlock' | membership product.type) — no permList.includes bleed; (2) applies exactly-one target; (3) re-reads and PROVES the target before returning success; (4) returns success=false on missing/ambiguous/zero-update/未证明.",
-    "CHALLENGE_TARGET_AUTHORITY": "applyChallengeUnlock: target = challenge_records.where({ recordId: relatedId, openid }); requires exactly 1 match (0 = fail; >1 = fail closed + entitlement_audit); writes trialMode=false, unlocked=true, unlockOrderId, unlockedAt; re-reads to prove (trialMode===false || unlocked===true). Legacy `_id: relatedId` selector removed.",
-    "REPORT_TARGET_AUTHORITY": "applyReportUnlock: target = ai_reports.where({ reportId: relatedId, openid }); requires exactly 1; sets isPaid=true (+unlockOrderId, unlockedAt); re-reads to prove isPaid===true. Idempotent when already isPaid.",
-    "MEMBERSHIP_IDEMPOTENCY": "applyMembership: idempotency authority = the paid orderId already recorded in memberships (where {openid, orderId}); same-order replay does NOT extend duration again; a NEW order legitimately extends. vip_month_99 (30d) & vip_year_299 (365d) covered.",
-    "GRANT_STATE_MACHINE": "paymentFinalizer._ensureGrant: entitlement_grants now carries status applying→granted|failed + applied:boolean. Marker is created as applying; promoted to granted ONLY after target proof (grantEntitlements success). Claim is CAS-guarded (create-unique, or takeover of failed/stale-or-any applying), so exactly one applier runs under verify+callback concurrency. marker.applied===true is required to trust-and-skip; a legacy granted marker with applied!==true is NOT trusted → reconciled (CAS to applying + re-apply + prove). Crash re-entry re-runs idempotently. orderId unique index remains the idempotency authority.",
-    "PRODUCT_ROUTING": "permissionEngine (canonical, byte-identical across common/verifyPayment/payCallback) now maps challenge_39_9 and report_9_9 explicitly. UI permission strings are decoupled from storage mutations (documented).",
-    "CLIENT_ALIGNMENT": "getChallengeRecord now returns BOTH trialMode (fail-closed: !== false) and unlocked (=== true). Canonical client rule: unlocked===true || trialMode===false (challenge-play guard already consumes exactly this; no client code change).",
-    "TESTS": "tests/rc8.9/entitlement-authority.test.js — A–R, 64 assertions (challenge happy/missing/ambiguous/zero-update, selector regression, crash-recovery, legacy false-positive reconcile, dup verify, dup callback, verify+callback concurrency, no cross-product mutation, report happy/missing, vip month/year single-extension, explicit routing, copy integrity). Existing payment-finalizer.test.js (59) passes unchanged against the new marker shape."
+    "SERVER_RESUME_AUTHORITY": "cloudfunctions/startChallenge/index.js: for non-diagnostic mode, BEFORE creating a record, query challenge_records for an existing UNLOCKED record owned by the trusted OPENID — where {openid, mode:'challenge', trialMode:false} (fallback: {openid, mode:'challenge', unlocked:true}), newest first — and if found and not finished, RETURN that recordId (resumed:true, trialMode:false) instead of creating a new trial. Server-authoritative: never trusts a client claim; ownership on wxContext.OPENID; cross-user isolation preserved. If no unlocked record exists, behavior unchanged (normal trial creation); membership (challenge_unlock) access still yields trialMode:false.",
+    "NO_CLIENT_CHANGE": "No client code change required — challenge-start calls the shared startChallenge cloud function, so deploying the function fixes the preview build in place.",
+    "TESTS": "tests/rc8.9/challenge-resume-authority.test.js (R1–R8, 12 assertions): resumes on trialMode:false; resumes on unlocked:true only; creates trial when none unlocked; prefers unlocked over newer trial; does NOT resume finished; membership legacy path preserved; cross-openid isolation; diagnostic mode unaffected."
   },
   "boundaries": {
-    "PRICES_CHANGED": "NO", "SKUS_CHANGED": "NO", "PAYMENT_SIGNING_CHANGED": "NO",
-    "STAGE3_PROVIDER_AUTHORITY_CHANGED": "NO", "UNIQUE_PAYMENT_INDEXES_CHANGED": "NO",
-    "REFUND_BEHAVIOR_CHANGED": "NO", "REAL_PAYMENT": "NO"
+    "PRICES_CHANGED": "NO",
+    "SKUS_CHANGED": "NO",
+    "PAYMENT_FUNCTIONS_CHANGED": "NO",
+    "ENTITLEMENT_LOGIC_CHANGED": "NO (Stage5A_R2 logic reused as-is)",
+    "DB_MUTATION": "NONE",
+    "REAL_PAYMENT": "NO"
   },
-  "deployTargets": ["verifyPayment", "payCallback", "getChallengeRecord"],
-  "deployNote": "verifyPayment + payCallback share the canonical entitlementService/paymentFinalizer/permissionEngine copies; getChallengeRecord for the unlocked field. Use scripts/deploy-payment-functions.sh for the payment fns (secret + signing guards).",
+  "deployTargets": ["startChallenge"],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit> + redeploy verifyPayment/payCallback/getChallengeRecord. No schema/index changes to reverse. Reconciliation of the affected order is idempotent and independently revertible."
+  "rollbackPlan": "git revert <this-commit> + redeploy startChallenge. No schema/index/env change."
 }

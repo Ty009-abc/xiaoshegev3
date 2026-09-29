@@ -33,6 +33,7 @@ const ALL = [
   'challenge-report-idempotency.test.js',
   'report-preview-wiring.test.js',
   'entitlement-authority.test.js',
+  'challenge-resume-authority.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)
 const TESTS = ALL.filter((t) => fs.existsSync(path.join(__dirname, t)))

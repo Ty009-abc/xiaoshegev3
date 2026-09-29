@@ -64,6 +64,40 @@ exports.main = async (event, context) => {
 
     const trialMode = isDiagnostic ? false : !hasAccess
 
+    // ── 续玩权威（服务端）：若该用户已有「已解锁」的挑战记录，直接复用，不重复创建 trial ──
+    //   解锁权威来源：challenge_records.trialMode === false（由支付 finalizer 写入）
+    //   或 unlocked === true。绝不凭客户端声明；因此这里再点「开始挑战」不会退回试用。
+    if (!isDiagnostic) {
+      let existing = null
+      const unlockedRes = await db.collection('challenge_records')
+        .where({ openid, mode: 'challenge', trialMode: false })
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get()
+      existing = unlockedRes.data[0] || null
+      if (!existing) {
+        const unlockedRes2 = await db.collection('challenge_records')
+          .where({ openid, mode: 'challenge', unlocked: true })
+          .orderBy('createdAt', 'desc')
+          .limit(1)
+          .get()
+        existing = unlockedRes2.data[0] || null
+      }
+      if (existing && existing.status !== 'finished') {
+        console.log(`[startChallenge] resume unlocked record recordId=${existing.recordId}`)
+        return ok({
+          recordId: existing.recordId,
+          currentDay: existing.currentDay,
+          currentEventIndex: existing.currentEventIndex,
+          trialMode: false,
+          mode: 'challenge',
+          scoringVersion: existing.scoringVersion || 'normalized_v2',
+          rawScores: existing.rawScores,
+          resumed: true,
+        })
+      }
+    }
+
     // 创建记录
     const recordId = genRecordId(ts)
     const record = {
