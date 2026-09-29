@@ -168,15 +168,18 @@
           </view>
           <text class="real-text-content" user-select="true">{{reportData.actionPlan || '暂无数据'}}</text>
         </view>
-      </view>
-    </block>
 
-    <!-- 底部动作栏：主「生成认知海报」+ 次「重新挑战一次」 -->
-    <view class="action-bar" wx:if="{{cfState==='ready' && !locked}}">
-      <button class="act-primary" bindtap="generatePoster" loading="{{posterGenerating}}"
-        hover-class="act-primary-hover">{{posterGenerating ? '正在生成海报...' : '生成认知海报'}}</button>
-      <button class="act-secondary" bindtap="onRetryChallenge" hover-class="act-secondary-hover">重新挑战一次</button>
-    </view>
+        <!-- R10.1 底部动作区：CARD_05 之后 · 文档正常流（不悬浮 / 不吸附 / 不遮挡） -->
+        <view class="action-bar" wx:if="{{!locked}}">
+          <button class="act-primary" bindtap="generatePoster" loading="{{posterGenerating}}"
+            hover-class="act-primary-hover">{{posterGenerating ? '正在生成海报...' : '生成认知海报'}}</button>
+          <button class="act-secondary" bindtap="onRetryChallenge" hover-class="act-secondary-hover">重新挑战一次</button>
+        </view>
+      </view>
+
+      <!-- 安全区占位：文档流内，随页面滚动，不裁切底部内容 -->
+      <view class="safe-area-spacer" wx:if="{{!locked}}"></view>
+    </block>
 
     <!-- 升级弹窗仅在未解锁时出现 -->
     <view class="upgrade-mask" wx:if="{{showUpgradeModal && locked}}">
