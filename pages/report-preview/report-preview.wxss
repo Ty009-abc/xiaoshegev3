@@ -1,14 +1,23 @@
 @import '../../styles/tokens.wxss';
 
+/* R10.2: 本页 page 背景与报告背景一致，消除底部白块（覆盖 app.wxss 亮色 page） */
+page {
+  background: #121620;
+  padding-bottom: 0;
+}
+
 /* ══════════════════════════════════════
    report-preview — v3.15 全暗色主题
    统帅最终指令：深色黑客质感
    ══════════════════════════════════════ */
 
+/* R10.2: page root shrinks to content (no viewport fill) + dark background
+   continuity down to the safe area. Safe-area is owned once by the last block. */
 .page {
   background: #121620;
-  min-height: 100vh;
-  padding: 0 0 calc(40rpx + env(safe-area-inset-bottom)) 0;
+  min-height: auto;
+  height: auto;
+  padding-bottom: 0;
   box-sizing: border-box;
 }
 
@@ -94,14 +103,15 @@
    报告容器
    ═══════════════════════════════ */
 .report-container {
-  min-height: 100vh;
+  min-height: auto;
+  height: auto;
   background-color: #121620 !important;
-  padding: 30rpx 30rpx 180rpx 30rpx;
+  padding: 30rpx 30rpx 24rpx 30rpx;
   box-sizing: border-box;
 }
 
 .report-blocks {
-  padding: 32rpx 32rpx calc(280rpx + env(safe-area-inset-bottom));
+  padding: 32rpx 32rpx 0;
 }
 
 /* ═══════════════════════════════
@@ -121,12 +131,13 @@
   gap: 22rpx;
   background: transparent;
   border-top: none;
+  margin-bottom: 0;
 }
 
-/* 安全区占位（文档流内，随页面滚动） */
+/* 安全区占位（文档流内，随页面滚动；R10.2: 不再添加额外高度，
+   页面底部仅保留 ACTION_SECTION 的 safe-area padding） */
 .safe-area-spacer {
-  width: 100%;
-  height: 16rpx;
+  display: none;
 }
 
 .act-primary {

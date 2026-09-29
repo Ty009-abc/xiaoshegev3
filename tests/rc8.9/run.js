@@ -43,6 +43,7 @@ const ALL = [
   'challenge-result-visual.test.js',
   'world-model-report-ui.test.js',
   'bottom-actions-layout.test.js',
+  'bottom-whitespace.test.js',
   'world-model-poster.test.js',
   'world-model-retry.test.js',
   'order-entitlement-guard.test.js',
