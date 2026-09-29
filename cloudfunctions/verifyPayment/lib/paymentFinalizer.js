@@ -24,6 +24,9 @@
 
 const now = () => Date.now()
 
+// 权益发放认领的过期接管窗口（崩溃/卡死后可被重新认领）
+const GRANT_CLAIM_STALE_MS = 90 * 1000
+
 const REASONS = {
   ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
   OWNERSHIP_MISMATCH: 'OWNERSHIP_MISMATCH',
@@ -117,27 +120,123 @@ async function _claimOrderPaid (db, order, transactionId, ts) {
 }
 
 /**
- * _grantOnce — G3：entitlement_grants.orderId 唯一索引 → 同一订单最多发放一次
+ * _readGrant — 读取某订单的权益发放标记
  */
-async function _grantOnce (db, order, transactionId, ts, grantEntitlements) {
-  try {
-    await db.collection('entitlement_grants').add({
-      data: {
-        orderId: order.orderId,
-        openid: order.openid,
-        productId: order.productId,
-        transactionId,
-        status: 'granted',
-        grantedAt: ts,
-        createdAt: ts,
-      },
-    })
-  } catch (err) {
-    if (_isDuplicateKey(err)) return { granted: false, idempotent: true }
-    throw err
+async function _readGrant (db, orderId) {
+  const res = await db.collection('entitlement_grants').where({ orderId }).limit(1).get()
+  return (res && res.data && res.data[0]) || null
+}
+
+/**
+ * _updateGrant — 更新标记（不带终态语义，调用方负责状态含义）
+ */
+async function _updateGrant (db, orderId, data) {
+  return db.collection('entitlement_grants').where({ orderId }).update({ data })
+}
+
+/**
+ * _ensureGrant — G3 权益 exactly-once + target-proven 状态机
+ *
+ *   状态：applying → granted | failed
+ *   - 只有「成功创建标记」或「CAS 接管（failed / 陈旧 applying）」的调用者才是 applier，
+ *     由且仅由 applier 调用 grantEntitlements，从而在 verify+callback 并发下
+ *     **恰有一个成功发放结果**。
+ *   - status='granted' 仅在 grantEntitlements 回读证明目标已生效后才写入。
+ *   - marker 存在 ≠ 成功；历史遗留 granted 但 applied!==true 不被信任，重走发放/证明。
+ *   - 崩溃后重入：陈旧 applying 被接管重跑；目标幂等，证明后升为 granted。
+ *
+ * @returns {{ granted, idempotent, markerStatus, applied, pending?, reason? }}
+ */
+async function _ensureGrant (db, order, transactionId, ts, grantEntitlements) {
+  let marker = await _readGrant(db, order.orderId)
+  let isApplier = false
+
+  // 1. 初次创建（orderId 唯一索引 = 幂等权威）
+  if (!marker) {
+    try {
+      await db.collection('entitlement_grants').add({
+        data: {
+          orderId: order.orderId,
+          openid: order.openid,
+          productId: order.productId,
+          transactionId,
+          status: 'applying',
+          applied: false,
+          attempts: 1,
+          claimAt: ts,
+          createdAt: ts,
+          updatedAt: ts,
+        },
+      })
+      isApplier = true
+    } catch (err) {
+      if (!_isDuplicateKey(err)) throw err
+    }
+    marker = await _readGrant(db, order.orderId)
   }
+
+  if (!marker) throw new Error('entitlement_grants marker unreadable after claim')
+
+  // 2. 已完整发放（target-proven）→ 信任并跳过
+  if (marker.status === 'granted' && marker.applied === true) {
+    return { granted: marker.granted || [], idempotent: true, markerStatus: 'granted', applied: true }
+  }
+
+  // 3. 非创建者：判断是否接管（failed 重试 / 陈旧 applying 接管）
+  if (!isApplier) {
+    if (marker.status === 'failed') {
+      const res = await db.collection('entitlement_grants')
+        .where({ orderId: order.orderId, status: 'failed' })
+        .update({ data: { status: 'applying', claimAt: ts, updatedAt: ts } })
+      isApplier = !!(res && res.stats && res.stats.updated === 1)
+    } else if (marker.status === 'applying') {
+      const claimAt = marker.claimAt || 0
+      const stale = (ts - claimAt) > GRANT_CLAIM_STALE_MS
+      if (stale) {
+        const res = await db.collection('entitlement_grants')
+          .where({ orderId: order.orderId, status: 'applying', claimAt })
+          .update({ data: { status: 'applying', claimAt: ts, updatedAt: ts } })
+        isApplier = !!(res && res.stats && res.stats.updated === 1)
+      }
+    } else if (marker.status === 'granted' && marker.applied !== true) {
+      // 历史遗留「假阳性」标记：status=granted 但从未经过目标证明。
+      // 不盲信 → CAS 认领并重走发放+回读证明（reconcile）。
+      const res = await db.collection('entitlement_grants')
+        .where({ orderId: order.orderId, status: 'granted' })
+        .update({ data: { status: 'applying', claimAt: ts, updatedAt: ts } })
+      isApplier = !!(res && res.stats && res.stats.updated === 1)
+      await _audit(db, { openid: order.openid, orderId: order.orderId, action: 'legacy_grant_marker_reconcile', priorStatus: 'granted', ts })
+    }
+  }
+
+  const attempts = (marker.attempts || 0) + 1
+
+  // 4. 非 applier：他人正在发放 → 反映当前状态，不重复写入
+  if (!isApplier) {
+    const cur = await _readGrant(db, order.orderId)
+    if (cur && cur.status === 'granted' && cur.applied === true) {
+      return { granted: cur.granted || [], idempotent: true, markerStatus: 'granted', applied: true }
+    }
+    return { granted: [], idempotent: true, markerStatus: (cur && cur.status) || 'applying', applied: false, pending: true }
+  }
+
+  // 5. applier：应用权益（目标权威 + 回读证明）
   const r = await grantEntitlements(db, order, ts)
-  return { granted: (r && r.granted) || [], idempotent: false, summary: r && r.summary }
+  const granted = (r && r.granted) || []
+  if (!r || r.success !== true) {
+    const reason = (r && r.reason) || 'ENTITLEMENT_NOT_APPLIED'
+    await _updateGrant(db, order.orderId, {
+      status: 'failed', applied: false, attempts, lastReason: reason, updatedAt: ts,
+    })
+    await _audit(db, { openid: order.openid, orderId: order.orderId, action: 'grant_failed', status: 'failed', detail: { reason }, ts })
+    return { granted: [], idempotent: false, markerStatus: 'failed', applied: false, reason }
+  }
+
+  // 6. 仅在目标证明通过后把标记提升为 granted
+  await _updateGrant(db, order.orderId, {
+    status: 'granted', applied: true, granted, attempts, grantedAt: ts, updatedAt: ts,
+  })
+  return { granted, idempotent: false, markerStatus: 'granted', applied: true }
 }
 
 /**
@@ -255,8 +354,8 @@ async function finalizePaidOrder (db, ctx, deps) {
     throw err
   }
 
-  // ── 6. G3 权益 exactly-once ──
-  const grant = await _grantOnce(db, order, transactionId, ts, grantEntitlements)
+  // ── 6. G3 权益 exactly-once（target-proven 状态机）──
+  const grant = await _ensureGrant(db, order, transactionId, ts, grantEntitlements)
   return {
     ok: true,
     idempotent: false,
@@ -264,7 +363,8 @@ async function finalizePaidOrder (db, ctx, deps) {
     openid: order.openid,
     granted: grant.granted,
     grantIdempotent: grant.idempotent,
-    summary: grant.summary,
+    entitlementApplied: grant.applied,
+    entitlementReason: grant.reason || null,
   }
 }
 
@@ -276,8 +376,12 @@ async function _ensure (db, order, transactionId, source, ts, grantEntitlements)
   if (!claim.won && !claim.alreadyPaid) {
     return { ok: false, reason: REASONS.ORDER_STATUS_NOT_FINALIZABLE, status: claim.status }
   }
-  const grant = await _grantOnce(db, order, transactionId, ts, grantEntitlements)
-  return { ok: true, idempotent: true, transactionId, openid: order.openid, granted: grant.granted, grantIdempotent: grant.idempotent }
+  const grant = await _ensureGrant(db, order, transactionId, ts, grantEntitlements)
+  return {
+    ok: true, idempotent: true, transactionId, openid: order.openid,
+    granted: grant.granted, grantIdempotent: grant.idempotent,
+    entitlementApplied: grant.applied, entitlementReason: grant.reason || null,
+  }
 }
 
 module.exports = {
@@ -288,4 +392,6 @@ module.exports = {
   validateProviderEvidence,
   finalizePaidOrder,
   _isDuplicateKey,
+  _ensureGrant,
+  _readGrant,
 }

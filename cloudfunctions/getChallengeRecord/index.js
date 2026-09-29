@@ -40,7 +40,10 @@ exports.main = async (event, context) => {
       tags: record.tags,
       choices: record.choices,
       finalType: record.finalType || '',
-      trialMode: record.trialMode || false,
+      // 规范解锁规则：unlocked === true 或 trialMode === false
+      // 服务端同时返回两字段；写入侧（entitlementService）同时置位，避免读到未返回的字段。
+      trialMode: record.trialMode !== false,  // 默认锁定（fail-closed）
+      unlocked: record.unlocked === true,
       startedAt: record.startedAt,
       finishedAt: record.finishedAt,
     })

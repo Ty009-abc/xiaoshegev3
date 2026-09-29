@@ -85,6 +85,22 @@ const PRODUCT_PERMISSIONS = {
     'priority_reply',
     'full_report',
   ],
+
+  // ── Stage5A R2：显式商品权益映射（UI 权限与存储目标解耦）──
+  //   注意：这里的权限字符串仅用于 UI 展示/配额；真正触发存储写入的分支
+  //   由 entitlementService 依 product.permission / product.type 决定，
+  //   绝不因 permList 包含 'full_report' 而误写 ai_reports。
+  challenge_39_9: [
+    'challenge_full',
+    'full_report',
+    'report_history',
+    'growth_review',
+  ],
+
+  report_9_9: [
+    'full_report',
+    'report_history',
+  ],
 }
 
 // ═══════════════════════════
