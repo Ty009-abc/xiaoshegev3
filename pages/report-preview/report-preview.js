@@ -4,14 +4,15 @@
  *   type=challenge_final: 30天挑战 → 收费报告
  */
 const aiReportService = require('../../services/aiReportService.js')
-const permissionService = require('../../services/permissionService.js')
 const analytics = require('../../utils/analytics.js')
 const app = getApp()
 
-// ── FIX A (RC8.3_UI_QA_STAGE1A_R2): canonical full-report permission key.
-// Backend authoritative identifier is 'full_report' (permissionEngine
-// ALL_PERMISSIONS / PRODUCT_PERMISSIONS / entitlementService). NOT 'report_full'.
-const FULL_REPORT_PERMISSION_KEY = 'full_report'
+// ── PAYMENT_STAGE5A_R8_P0: canonical report-access authority ──
+// 完整报告查看权限的唯一权威来自服务端（report.isPaid || VIP）。
+// 客户端不再持有第二套 membership-only 权威（旧 'full_report'
+// checkPermission 二次闸门已移除 —— 它正是「已购报告仍锁死」的根因）。
+// 服务端 locked=false / canViewFullReport=true 绝不被客户端覆盖。
+const REPORT_ACCESS_AUTHORITY = 'server'
 
 // Stage5B + R4_P0_FIX2 — bounded re-check while the server reports
 // status='generating'. 24 × 5s = 120s cap (>= the server stale window 90s),
@@ -84,15 +85,19 @@ Page({
     }
 
     // ── challenge_final: server-authoritative load (Stage5B) ──
+    // R8_P0: 抑制 onLoad 后紧跟的首次 onShow 重复刷新（首次加载已在此发起）。
+    this._cfSuppressNextShow = true
     this._startChallengeFinal()
   },
 
   onShow(){
-    // Returning from the payment page → re-read authoritative report state.
-    if (this._cfReturnFromPay) {
-      this._cfReturnFromPay = false
-      if (this.data.reportType === 'challenge_final') this._startChallengeFinal()
-    }
+    // R8_P0: 返回报告页（含支付后 navigateBack）时，总是以服务端权威状态刷新。
+    // 不再依赖瞬时 _cfReturnFromPay 标志；仅在「非生成中」时读取以避免重复生成。
+    if (this.data.reportType !== 'challenge_final') return
+    if (this._cfSuppressNextShow) { this._cfSuppressNextShow = false; return }
+    if (this._cfUnloaded) this._cfUnloaded = false
+    if (this.data.cfState === 'generating') return
+    this._startChallengeFinal()
   },
 
   /* 从 report 对象同步到 reportData（WXML 统一绑定） */
@@ -384,7 +389,9 @@ Page({
         || '你的认知画像已生成'
       this.setData({
         report: d,
-        locked: d.locked !== false,   // fail-closed: only explicit false unlocks
+        // R8_P0: locked 完全来自服务端权威（canViewFullReport / locked）；
+        // fail-closed：仅当服务端明确 false 才解锁。
+        locked: (d.canViewFullReport === true) ? false : (d.locked !== false),
         cfState: 'ready',
         cfSoftTimeout: false,
         cfMsg: '',
@@ -451,7 +458,6 @@ Page({
       return
     }
     analytics.track('report_unlock_click')
-    this._cfReturnFromPay = true
     wx.navigateTo({
       url: '/pages/membership/membership?source=report&productId=report_9_9&recordId='
         + encodeURIComponent(reportId),
@@ -466,44 +472,33 @@ Page({
     wx.redirectTo({ url:'/pages/challenge-play/challenge-play' })
   },
 
-  // ── FIX A: single shared full-report navigation authority path ──
-  // Both goFull() and onCloseUpgrade() MUST route through here before any
-  // navigation to the protected report-detail. isVip is NOT authority;
-  // report.locked is NOT authority. Only permissionService with the canonical
-  // 'full_report' key authorizes; any error/unknown fails closed.
-  async requestFullReportAccess() {
-    try {
-      const res = await permissionService.checkPermission(FULL_REPORT_PERMISSION_KEY)
-      return !!(res && res.granted === true)
-    } catch (_) {
-      return false
-    }
-  },
-
-  async _goFullReport() {
-    const authorized = await this.requestFullReportAccess()
-    if (!authorized) {
-      this.setData({ showUpgradeModal: true, locked: true })
-      return false
-    }
-    // FIX B: canonical business report ID only. Never _id / recordId.
-    const reportId = this.data.report && this.data.report.reportId
-    if (!reportId) {
-      wx.showToast({ title: '报告信息缺失，请重新生成', icon: 'none' })
-      return false
-    }
-    wx.navigateTo({ url: '/pages/report-detail/report-detail?reportId=' + reportId })
-    return true
+  // ── R8_P0: 唯一报告访问权威 = 服务端结论 ──
+  // 单份已购报告（report.isPaid）或 VIP 授权 → 解锁。旧的 membership-only
+  // checkPermission('full_report') 二次闸门已删除 —— 它是已购报告仍锁死的根因。
+  // 服务端 locked=false / canViewFullReport=true 绝不被客户端覆盖。
+  requestFullReportAccess() {
+    const d = this.data.report
+    if (!d) return false
+    if (d.canViewFullReport === true) return true
+    if (d.isPaid === true && d.locked === false) return true
+    return false
   },
 
   goFull(){
     analytics.track('report_detail_view')
-    return this._goFullReport()
+    // R8_P0: 已解锁 → 就地渲染同一实体的权威完整内容（已绑定 reportData）。
+    if (!this.requestFullReportAccess()) {
+      this.setData({ showUpgradeModal: true, locked: true })
+      return false
+    }
+    this.setData({ showUpgradeModal: false })
+    this._syncReportToReportData()
+    return true
   },
 
   onCloseUpgrade(){
     this.setData({ showUpgradeModal: false })
-    return this._goFullReport()
+    return this.goFull()
   },
   onUpgrade(){ analytics.track('membership_visit'); wx.navigateTo({ url:'/pages/membership/membership' }) },
 

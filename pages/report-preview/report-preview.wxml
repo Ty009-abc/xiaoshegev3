@@ -128,9 +128,52 @@
 
       <xsg-button wx:if="{{locked}}" type="ai" text="9.9元解锁完整报告" bind:tapbutton="onGenerate" class="anim-fade-in anim-delay-2" />
       <xsg-button wx:if="{{!locked}}" type="gold" text="查看完整报告" bind:tapbutton="goFull" class="anim-fade-in" />
+
+      <!-- R8_P0: 已解锁 → 就地渲染同一实体的权威完整内容（数据已来自服务端 reportData）。
+           未解锁时隐藏，避免空块。不在本任务重新设计内容结构。 -->
+      <block wx:if="{{!locked}}">
+        <view class="report-blocks">
+          <view class="section-card red-card">
+            <view class="section-header">
+              <text class="section-badge bg-red">01</text>
+              <text class="section-title text-red">致命一句话</text>
+            </view>
+            <text class="real-text-content text-red-content" user-select="true">{{reportData.basicInsight || '暂无数据'}}</text>
+          </view>
+          <view class="section-card">
+            <view class="section-header">
+              <text class="section-badge">02</text>
+              <text class="section-title">核心问题</text>
+            </view>
+            <text class="real-text-content" user-select="true">{{reportData.mechanism || '暂无数据'}}</text>
+          </view>
+          <view class="section-card">
+            <view class="section-header">
+              <text class="section-badge">03</text>
+              <text class="section-title">系统困局</text>
+            </view>
+            <text class="real-text-content" user-select="true">{{reportData.reverseReasoning || '暂无数据'}}</text>
+          </view>
+          <view class="section-card">
+            <view class="section-header">
+              <text class="section-badge">04</text>
+              <text class="section-title">翻身路径</text>
+            </view>
+            <text class="real-text-content" user-select="true">{{reportData.biasCorrection || '暂无数据'}}</text>
+          </view>
+          <view class="section-card">
+            <view class="section-header">
+              <text class="section-badge">05</text>
+              <text class="section-title">行动建议</text>
+            </view>
+            <text class="real-text-content" user-select="true">{{reportData.actionPlan || '暂无数据'}}</text>
+          </view>
+        </view>
+      </block>
     </block>
 
-    <view class="upgrade-mask" wx:if="{{showUpgradeModal}}">
+    <!-- R8_P0: 升级弹窗仅在未解锁时出现。已购（locked=false）绝不再显示升级 CTA。 -->
+    <view class="upgrade-mask" wx:if="{{showUpgradeModal && locked}}">
       <view class="upgrade-modal anim-fade-in">
         <text class="um-icon">🧬</text>
         <text class="um-title">你的完整世界模型已生成</text>
