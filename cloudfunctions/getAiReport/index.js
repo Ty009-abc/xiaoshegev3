@@ -10,6 +10,8 @@ const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
 const { checkVip } = require('./lib/permission.js')
+// PAYMENT_STAGE5A_R8_P0 — 唯一权威「完整报告查看权限」判定（report.isPaid || VIP）。
+const { resolveReportAccess } = require('./lib/reportAccess.js')
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -26,13 +28,16 @@ exports.main = async (event, context) => {
     const report = res.data[0]
     if (!report) return fail(CODES.NOT_FOUND, '报告不存在')
 
-    // VIP 或已付费 → 完整报告
+    // 唯一权威：report.isPaid（单份已购，最高优先）|| VIP/会员报告权限。
+    // report.isPaid=true 绝不被 membershipLevel='free' 覆盖。
     const isVip = await checkVip(db, openid)
-    if (isVip || report.isPaid) {
+    const access = resolveReportAccess(report, isVip === true)
+    if (access.canViewFullReport) {
       return ok({
         reportId: report.reportId,
         isPaid: true,
         locked: false,
+        canViewFullReport: true,
         type: report.type,
         scores: report.scores,
         tags: report.tags,
@@ -46,6 +51,7 @@ exports.main = async (event, context) => {
       reportId: report.reportId,
       isPaid: false,
       locked: true,
+      canViewFullReport: false,
       type: report.type,
       summary: report.content ? {
         oneSentence: report.content.oneSentence || '',

@@ -1,27 +1,32 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R7_FIX_AND_E2E_CLOSEOUT",
-  "phase": "client: world-model presenter + challenge-result UI + explicit report contract",
-  "baseCommit": "80adbce",
+  "taskId": "PAYMENT_STAGE5A_R8_P0_CANONICAL_REPORT_UNLOCK",
+  "phase": "server+client: single canonical report-access authority + post-pay rendering",
+  "baseCommit": "c41be06",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "challenge-result leaked the raw internal enum (normal_awakened) and its WXML classes (.result-hero/.r-type/.r-sub/.scores-title/.scores-grid/.score/.sc-num/.sc-label/.tag-row/.share-cta/.scta-*) had NO WXSS definitions → inherited near-black page text on the dark xsg-card (dark-on-dark). goReport passed only recordId, relying on an implicit report-preview default type.",
+  "problem": "R8 forensic ROOT_CAUSE=E: 完整报告解锁权威分裂。服务端 generateAiReport/getAiReport 依据 report.isPaid||VIP 正确返回 locked=false，但客户端 report-preview 的「查看完整报告/升级」闸门走 membership-only 的 checkPermission('full_report')（memberships=[]），因此一份已购(¥9.90)报告仍被客户端覆盖为 locked=true —— 付款成功仍显示锁 + 9.9 CTA + 立即升级。",
   "changes": {
-    "PRESENTER": "utils/worldModelLabels.js (NEW) — canonical WORLD_MODEL_TYPE_LABELS mapping every calcFinalType() enum to a Chinese label; WORLD_MODEL_TYPE_FALLBACK='认知探索者' for unknown/missing; worldModelTypeLabel() NEVER returns the raw enum key.",
-    "PAGE_ENUM": "pages/challenge-result/challenge-result.js — normalizeResult now sets mainType: worldModelTypeLabel(raw.finalType) (no raw fallback).",
-    "PAGE_UI": "pages/challenge-result/challenge-result.wxml + .wxss — reconciled all WXML classes with real light-theme token definitions (scores grid / score number / score label / hero type / tags / poster CTA); passed theme=\"light\" to cards so they are not dark. No hardcoded white masking.",
-    "CONTRACT": "pages/challenge-result/challenge-result.js goReport() now navigates to report-preview?recordId=<id>&type=challenge_final (explicit). No fictional source=challengefinal.",
-    "TESTS": "tests/rc8.9/world-model-labels.test.js (NEW) — audits all calcFinalType enums have labels + RAW_ENUM_NOT_VISIBLE. tests/rc8.9/challenge-worldmodel-e2e.test.js (NEW) — full real-chain E2E (A current, B legacy, C missing-optional, D repeat, E same-owner, F cross-user, G failed-retry, H ready-reuse) with REAL startChallenge/idempotency/permission/aiReportService, AI stub only. Registered in run.js."
+    "SERVER_AUTHORITY": "cloudfunctions/common/reportAccess.js (NEW, canonical) — 唯一权威判定 canAccessFullReport(report, vipGranted)=report.isPaid===true || vipGranted===true；report.isPaid 绝不因 membershipLevel=free 降级。字节一致副本：generateAiReport/lib/reportAccess.js、getAiReport/lib/reportAccess.js。",
+    "SERVER_GEN": "cloudfunctions/generateAiReport/lib/challengeReportIdempotency.js — isEntitled/respondReady 改用 reportAccess；ready 响应新增 canViewFullReport（paid→locked:false,canViewFullReport:true）。",
+    "SERVER_GET": "cloudfunctions/getAiReport/index.js — 改用 resolveReportAccess(report, isVip)；paid/VIP→{isPaid:true,locked:false,canViewFullReport:true,content}。",
+    "CLIENT_CHANGED": "pages/report-preview/report-preview.js — 删除第二套权威 checkPermission('full_report')（及 permissionService/FULL_REPORT_PERMISSION_KEY 依赖）；requestFullReportAccess 改为读服务端结论(d.canViewFullReport===true || isPaid===true&&locked===false)；goFull 就地渲染同一实体（不再跳 legacy report-detail ?reportId）；onShow 总是以服务端权威刷新（不依赖瞬时 _cfReturnByPay），并抑制 onLoad 后首次 onShow 重复请求。pages/report-preview/report-preview.wxml — 已解锁渲染 challenge_final 完整内容（5 段，绑定服务端派生 reportData）；升级弹窗仅在 locked 时出现。",
+    "TESTS": "tests/rc8.9/report-unlock-authority.test.js (NEW) — 权威模块单测 + 服务端响应 + 客户端渲染矩阵 A–L；真实 fixture 元数据 reportId=ARCF9bc1766a2b0fbbcdfc0cdc3f（status=ready,isPaid=true,membership=free）。tests/rc8.9/report-preview-wiring.test.js — 更新（移除 second-gate 断言，新增 fail-closed 未购断言）。"
   },
   "invariants": {
-    "R6_ENTITLEMENT": "unchanged",
-    "STARTCHALLENGE": "unchanged (not redeployed)",
-    "NO_RAW_ENUM": "enforced by canonical presenter + test",
-    "LEGACY_COMPAT": "compatibility adapter = worldModelTypeLabel generic fallback + buildInputs fallback to record.scores; no DB rewrite, no recharge, no trial downgrade"
+    "REPORT_IS_PAID_HONORED": "YES",
+    "VIP_FALLBACK_HONORED": "YES",
+    "SERVER_OWNS_LOCKED": "YES",
+    "CLIENT_SECONDARY_GATE": "REMOVED",
+    "LEGACY_V6_GATE_BYPASSED_FOR_CHALLENGE_FINAL": "YES",
+    "GLOBAL_PERMISSION_SERVICE_CHANGED": "NO",
+    "CHECKPERMISSION_CHANGED": "NO"
   },
   "boundaries": {
-    "SERVER_CHANGED": "NO", "PAYMENT_FUNCTIONS": "NO", "PRODUCTS_PRICES": "NO",
-    "REPORT_9_9": "NO", "REFUND": "NO", "SCHEMA_INDEX": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
+    "PAYMENT_FUNCTIONS": "NO", "PRICE_SKU": "NO", "FINALIZER": "NO",
+    "ENTITLEMENT_GRANT": "NO", "MERCHANT_CONFIG": "NO", "REFUND": "NO",
+    "CHALLENGE_ENTRY": "NO", "REPORT_GENERATION": "NO", "SCHEMA_INDEX": "NO",
+    "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO", "NEW_ORDER_CREATED": "NO"
   },
-  "deployTargets": [],
+  "deployTargets": ["generateAiReport", "getAiReport"],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <client-commit>; rebuild preview. Pure client; no server/schema/env impact."
+  "rollbackPlan": "git revert <server+client commits>; redeploy generateAiReport+getAiReport; rebuild preview. No schema/env/payment impact."
 }

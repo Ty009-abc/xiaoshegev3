@@ -325,7 +325,7 @@ function reset (seed) {
   {
     reset()
     const r = await idem.runChallengeFinalReport(dev({ deps: deps() }))
-    eq(Object.keys(r.data).sort().join(','), ['isPaid', 'locked', 'preview', 'reportId', 'summary'].sort().join(','), 'J unpaid shape unchanged')
+    eq(Object.keys(r.data).sort().join(','), ['isPaid', 'locked', 'preview', 'reportId', 'summary', 'canViewFullReport'].sort().join(','), 'J unpaid shape unchanged (+canViewFullReport)')
     eq(Object.keys(r.data.summary).sort().join(','), ['oneSentence', 'turnaroundProbability', 'worldModelType'].sort().join(','), 'J summary shape unchanged')
     // generation must NOT write isPaid anywhere (owned by finalizer)
     const wrotePaid = CTRL.updates.some((u) => Object.prototype.hasOwnProperty.call(u.data, 'isPaid'))
@@ -337,7 +337,7 @@ function reset (seed) {
     CTRL.vip = true
     await idem.runChallengeFinalReport(dev({ deps: deps() }))
     const rp = await idem.runChallengeFinalReport(dev({ deps: deps() }))
-    eq(Object.keys(rp.data).sort().join(','), ['content', 'isPaid', 'locked', 'reportId', 'reportType'].sort().join(','), 'J paid shape')
+    eq(Object.keys(rp.data).sort().join(','), ['content', 'isPaid', 'locked', 'reportId', 'reportType', 'canViewFullReport'].sort().join(','), 'J paid shape (+canViewFullReport)')
   }
 
   // ═══════════════════════════════════════════════════════════════════════

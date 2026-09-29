@@ -53,6 +53,9 @@
 
 const crypto = require('crypto')
 const { ok, fail, CODES } = require('./response.js')
+// PAYMENT_STAGE5A_R8_P0 — 唯一权威「完整报告查看权限」判定（report.isPaid || VIP）。
+// 绝不用 membership-only 权限去覆盖 report.isPaid。
+const { canAccessFullReport, reportAccessFields } = require('./reportAccess.js')
 
 // Stale-generation takeover window. A `generating` entity older than this is
 // considered abandoned (λ killed mid-AI) and may be re-claimed, reusing the
@@ -180,23 +183,25 @@ async function readEntity (db, reportId) {
 }
 
 // Entitlement is derived from the SERVER authority, never from the client.
-// membership (checkVip) OR the finalizer-written report.isPaid.
+// canonical: report.isPaid (single-purchase) OR membership/VIP (checkVip).
+// report.isPaid is NEVER overridden by membershipLevel='free'.
 async function isEntitled (db, openid, entity, checkVip) {
-  if (entity && entity.isPaid === true) return true
   const vip = await checkVip(db, openid)
-  return vip === true
+  return canAccessFullReport(entity, vip === true)
 }
 
 // Response for an already-materialised (ready) entity. Preserves the existing
 // response shape + summary semantics exactly.
 async function respondReady (db, openid, entity, checkVip) {
-  const entitled = await isEntitled(db, openid, entity, checkVip)
-  if (entitled) {
+  const vip = await checkVip(db, openid)
+  const access = reportAccessFields(entity, vip === true)
+  if (access.canViewFullReport) {
     return ok({
       reportId: entity.reportId,
       reportType: 'challenge_final',
       isPaid: true,
       locked: false,
+      canViewFullReport: true,
       content: entity.content || {},
     })
   }
@@ -205,6 +210,7 @@ async function respondReady (db, openid, entity, checkVip) {
     reportId: entity.reportId,
     isPaid: false,
     locked: true,
+    canViewFullReport: false,
     summary: {
       oneSentence: c.oneSentence || '',
       worldModelType: c.worldModelType || '',
