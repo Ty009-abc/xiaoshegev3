@@ -1,18 +1,25 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R6_CHALLENGE_ENTRY_AUTHORITY",
-  "phase": "client: challenge-start routes finished owner to challenge-result",
-  "baseCommit": "d34b969",
+  "taskId": "PAYMENT_STAGE5A_R7_FIX_AND_E2E_CLOSEOUT",
+  "phase": "server: fix challenge_final report persistence (nested content over null)",
+  "baseCommit": "145f9f4",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "The challenge entry page always navigated to challenge-play, even when the server returned an owned FINISHED record — sending a paid, finished owner back into the play/trial surface (and its paywall) instead of their result.",
+  "problem": "generateAiReport challenge_final: after a SUCCESSFUL model call + parse, the completion update threw 'Cannot create field bestPath in element {content: null}'. The claim placeholder created the ai_reports row with content:null; the completion update sent content as a nested plain object, which wx-server-sdk's update serializer FLATTENS into dot-paths (content.bestPath, …) → Mongo rejects creating a subfield on a null parent. Entity left status=failed/persistFailed=true; every retry re-hit the identical deterministic failure.",
   "changes": {
-    "ROUTING": "pages/challenge-start/challenge-start.js — after startChallenge, when the authoritative response is completed===true or destination==='challenge_result', navigate straight to /pages/challenge-result/challenge-result?recordId=<SAME recordId>; otherwise challenge-play as before. Trial remains a legitimate challenge-play target only for genuinely non-entitled users.",
-    "TESTS": "tests/rc8.9/challenge-start-routing.test.js (NEW) — finished → challenge-result (same recordId, not play/paywall); destination-only → result; unfinished → challenge-play (same recordId); fresh trial → challenge-play; error → no navigation + toast. Registered in tests/rc8.9/run.js."
+    "PERSISTENCE": "cloudfunctions/generateAiReport/lib/challengeReportIdempotency.js — completion now assigns content as a WHOLE FIELD via db.command.set(parsedReport) (encoded as {$set:{content:<whole object>}}, verified NOT flattened through the real @cloudbase/database UpdateSerializer). Fallback to plain object if db.command.set is unavailable. Whole-field replacement is atomic and correct over a null placeholder."
   },
+  "invariants": {
+    "IDEMPOTENCY": "claim / retry / ready / failed / duplicate-suppression / same-report reuse all unchanged (conditional updates still guarded by claimToken + status)",
+    "PAYMENT_AUTHORITY": "generation NEVER writes isPaid/entitlement/membership/payment fields",
+    "CHALLENGE_RECORD": "never mutated (SAME_CHALLENGE_RECORD_ID)",
+    "RETRYABLE": "existing failed row ARCF9bc1766a2b0fbbcdfc0cdc3f can transition to ready on retry (same logical report, no duplicates)"
+  },
+  "tests": "tests/rc8.9/challenge-report-idempotency.test.js — P1 (null→nested success) P2 (nested sections stored intact) P3 (failed→ready) P4 (repeat idempotent) P5 (ready reused) P6 (persist failure→retryable) P7 (no payment fields) + MUTATION (old nested .update over content:null MUST throw). 116 assertions. In-memory DB upgraded to faithfully emulate SDK flatten + Mongo null-parent semantics + db.command.set.",
   "boundaries": {
-    "SERVER_CHANGED": "NO", "PAYMENT_FUNCTIONS": "NO", "PRODUCTS_PRICES": "NO",
-    "REPORT_9_9": "NO", "REFUND": "NO", "SCHEMA_INDEX": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
+    "PAYMENT_FUNCTIONS": "NO", "PAYMENT_FINALIZER": "NO", "ENTITLEMENT_WRITER": "NO",
+    "PRODUCTS_PRICES": "NO", "REPORT_9_9": "NO", "REFUND": "NO", "SCHEMA_INDEX": "NO",
+    "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO", "STARTCHALLENGE": "UNCHANGED"
   },
-  "deployTargets": [],
+  "deployTargets": ["generateAiReport"],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <client-commit>. Pure client change; rebuild preview. No server/schema/env impact."
+  "rollbackPlan": "git revert <server-commit>; redeploy generateAiReport. No schema/env/index change."
 }

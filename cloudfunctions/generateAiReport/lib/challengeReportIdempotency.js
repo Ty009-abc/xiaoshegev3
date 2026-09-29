@@ -425,11 +425,23 @@ async function runChallengeFinalReport (opts) {
   let completed = false
   let persistError = null
   try {
+    // ── R7 P0: whole-field assignment for `content` ──────────────────────
+    // The claim placeholder created this row with `content: null`. The SDK's
+    // update serializer FLATTENS a nested plain object into dot-paths
+    // (`content.bestPath`, `content.oneSentence`, …). Applying those over a
+    // `null` parent makes Mongo throw:
+    //   Cannot create field 'bestPath' in element {content: null}
+    // `db.command.set(obj)` is encoded as `{ $set: { content: <whole object> } }`
+    // (verified: it is NOT flattened) → whole-field replacement, atomic and
+    // semantically correct. Fallback keeps correctness if `command` is absent.
+    const wholeContent = (db.command && typeof db.command.set === 'function')
+      ? db.command.set(parsedReport)
+      : parsedReport
     const upd = await db.collection('ai_reports')
       .where({ _id: reportId, claimToken, status: 'generating' })
       .update({ data: {
         status: 'ready',
-        content: parsedReport,
+        content: wholeContent,
         rawPrompt: { systemPrompt, userMessage },
         aiModel: reportModel,
         aiTokens: (aiResult.tokens) || 0,

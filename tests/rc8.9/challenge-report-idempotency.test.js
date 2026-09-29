@@ -76,7 +76,32 @@ function makeDB (seed) {
         if (CTRL.failUpdateWhen && CTRL.failUpdateWhen(Object.assign({}, _w), Object.assign({}, data))) {
           throw new Error('persist-fail-injected')
         }
-        rows.forEach((d) => Object.assign(d, data))
+        // Faithful emulation of wx-server-sdk encode + Mongo semantics:
+        //  • db.command.set(v) → marker → WHOLE-FIELD replacement (no flatten)
+        //  • nested plain object → dot-path flatten; Mongo throws
+        //    "Cannot create field 'x' in element {k: null}" when the parent
+        //    field EXISTS but is null/scalar (undefined parent is created).
+        // Applied atomically: compute all next-row states first, then commit.
+        const apply = (d) => {
+          const next = Object.assign({}, d)
+          for (const k of Object.keys(data)) {
+            const v = data[k]
+            if (v && typeof v === 'object' && v.__op === 'set') { next[k] = v.value; continue }
+            if (v && typeof v === 'object' && !Array.isArray(v)) {
+              const parent = next[k]
+              if (parent !== undefined && (parent === null || typeof parent !== 'object' || Array.isArray(parent))) {
+                throw new Error("Cannot create field '" + Object.keys(v)[0] + "' in element {" + k + ': ' + (parent === null ? 'null' : typeof parent) + '}')
+              }
+              if (next[k] === undefined) next[k] = {}
+              for (const ck of Object.keys(v)) next[k + '.' + ck] = v[ck]
+              continue
+            }
+            next[k] = v
+          }
+          return next
+        }
+        const nextRows = rows.map(apply) // throws BEFORE any mutation → atomic
+        rows.forEach((d, i) => { Object.assign(d, nextRows[i]) })
         return { stats: { updated: rows.length } }
       },
       doc (id) {
@@ -94,7 +119,7 @@ function makeDB (seed) {
   }
   return {
     collection,
-    command: { gt: (n) => ({ $gt: n }), in: (a) => ({ $in: a }) },
+    command: { gt: (n) => ({ $gt: n }), in: (a) => ({ $in: a }), set: (v) => ({ __op: 'set', value: v }) },
     _store: store,
   }
 }
@@ -431,6 +456,104 @@ function reset (seed) {
     reset()
     await idem.runChallengeFinalReport(dev({ deps: deps({ modelTimeoutMs: 20, callAI: () => new Promise(() => {}) }) }))
     ok(!CTRL.updates.some((u) => Object.prototype.hasOwnProperty.call(u.data, 'isPaid')), 'R4-12c timeout-path never writes isPaid')
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // R7 — persistence contract (placeholder content:null → whole object)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // P1+P2: placeholder content=null → completion with NESTED object → success + intact
+  {
+    reset()
+    const nested = JSON.stringify({
+      oneSentence: '你有对冲思维，但缺少长期主义。',
+      worldModelType: 'normal_awakened',
+      bestPath: { name: '稳中求变', score: 9 },
+      diagnosis: { core: '结构性问题', detail: '缺少杠杆' },
+      actions: ['存安全垫', '做实验'],
+    })
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps({ callAI: async () => ({ success: true, content: nested, tokens: 9 }) }) }))
+    eq(r.code, 0, 'P1 code 0')
+    const row = DB._store.ai_reports[0]
+    eq(row.status, 'ready', 'P1 status ready')
+    ok(row.content && typeof row.content === 'object', 'P2 content stored as object (not flattened)')
+    eq(row.content.bestPath && row.content.bestPath.name, '稳中求变', 'P2 nested bestPath intact')
+    eq(row.content.diagnosis && row.content.diagnosis.core, '结构性问题', 'P2 nested diagnosis intact')
+    ok(Array.isArray(row.content.actions) && row.content.actions.length === 2, 'P2 actions array intact')
+  }
+
+  // P3: failed → retry → ready (existing failed row)
+  {
+    reset()
+    const repId = idem.logicalReportId('oUserA', 'rec1')
+    await DB.collection('ai_reports').add({ data: { _id: repId, reportId: repId, openid: 'oUserA', recordId: 'rec1', type: 'challenge_final', status: 'failed', content: null, claimToken: 'old', claimAt: Date.now() - 60000, lastError: '报告持久化失败：old' } })
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(r.code, 0, 'P3 retry code 0')
+    eq(DB._store.ai_reports.length, 1, 'P3 same entity (no duplicate)')
+    eq(DB._store.ai_reports[0].status, 'ready', 'P3 failed → ready')
+    ok(DB._store.ai_reports[0].content && DB._store.ai_reports[0].content.oneSentence, 'P3 content persisted on retry')
+  }
+
+  // P4: repeated identical request → idempotent
+  {
+    reset()
+    await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(DB._store.ai_reports.length, 1, 'P4 no duplicate report')
+  }
+
+  // P5: existing ready report → reused
+  {
+    reset()
+    const repId = idem.logicalReportId('oUserA', 'rec1')
+    await DB.collection('ai_reports').add({ data: { _id: repId, reportId: repId, openid: 'oUserA', recordId: 'rec1', type: 'challenge_final', status: 'ready', content: { oneSentence: '已存在的报告' }, claimToken: 'x', claimAt: 1, createdAt: 1, updatedAt: 1 } })
+    const r = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(r.code, 0, 'P5 code 0')
+    eq(DB._store.ai_reports[0].content.oneSentence, '已存在的报告', 'P5 ready report NOT overwritten')
+    eq(DB._store.ai_reports.length, 1, 'P5 no new entity')
+  }
+
+  // P6: DB persistence failure → failed/retryable remains valid
+  {
+    reset()
+    CTRL.failUpdateWhen = (where, data) => data && data.status === 'ready'
+    const r1 = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    CTRL.failUpdateWhen = null
+    eq(r1.code !== 0, true, 'P6 persistence failure surfaced as error')
+    const row = DB._store.ai_reports[0]
+    eq(row.status, 'failed', 'P6 status failed')
+    eq(row.persistFailed, true, 'P6 persistFailed flag')
+    const r2 = await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    eq(r2.code, 0, 'P6 retry after failure succeeds')
+    eq(DB._store.ai_reports[0].status, 'ready', 'P6 failed → ready on retry')
+    eq(DB._store.ai_reports.length, 1, 'P6 still one entity')
+  }
+
+  // P7: no payment authority fields ever written
+  {
+    reset()
+    await idem.runChallengeFinalReport(dev({ deps: deps() }))
+    const banned = ['isPaid', 'entitlement', 'entitlements', 'membership', 'memberships', 'paid', 'payment', 'paymentSuccess', 'orderId']
+    const wrote = CTRL.updates.some((u) => Object.keys(u.data).some((k) => banned.includes(k)))
+    ok(!wrote, 'P7 generation never writes payment authority fields')
+    const row = DB._store.ai_reports[0]
+    ok(!Object.prototype.hasOwnProperty.call(row, 'isPaid'), 'P7 entity has no isPaid field')
+  }
+
+  // MUTATION: restore the OLD nested-`.update` (flattening over content:null)
+  // → the persistence path MUST fail (proves the fix is load-bearing).
+  {
+    reset()
+    const row = () => DB._store.ai_reports[0]
+    // simulate the pre-fix write: plain nested object over content:null
+    let threw = false
+    try {
+      await DB.collection('ai_reports').add({ data: { _id: 'm1', reportId: 'm1', openid: 'oUserA', recordId: 'rec1', type: 'challenge_final', status: 'generating', claimToken: 't', claimAt: Date.now(), content: null } })
+      await DB.collection('ai_reports').where({ _id: 'm1' }).update({ data: { status: 'ready', content: { bestPath: { name: 'A' } } } })
+    } catch (e) { threw = true }
+    ok(threw, 'MUT old nested-update over content:null MUST throw (Cannot create field)')
+    ok(row() && row().status === 'generating', 'MUT entity left non-ready after old path')
   }
 
   console.log(`\nchallenge-report-idempotency_TEST pass=${pass} fail=${fail}`)
