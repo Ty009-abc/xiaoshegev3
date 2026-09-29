@@ -341,26 +341,28 @@ async function runReady (reportEntity, vipGranted) {
     eq(p._calls.length, before, 'F2 first onShow suppressed (no duplicate generation)')
   }
 
-  // I: paid report → no second createOrder / no membership navigation from full-report path
+  // I (R9): paid report → no second createOrder / no navigation path from the report page
   {
     const p = loadPreview(async () => PAID)
     p.setData({ recordId: FIXTURE_RECORD_ID, reportType: 'challenge_final' })
     await p._requestChallengeReport()
     CALLS = []
-    const r = p.goFull()
-    ok(r === true, 'I goFull returns true when unlocked')
-    ok(!CALLS.some((c) => c.m === 'navigateTo'), 'I goFull does NOT navigate away (renders in place)')
-    ok(!CALLS.some((c) => c.m === 'createOrder'), 'I no createOrder from goFull')
+    ok(typeof p.goFull === 'undefined', 'I R9: redundant goFull entry removed')
+    eq(p.requestFullReportAccess(), true, 'I paid → full access authorized (in place)')
+    ok(!CALLS.some((c) => c.m === 'navigateTo'), 'I no navigation away (fully rendered in place)')
+    ok(!CALLS.some((c) => c.m === 'createOrder'), 'I no createOrder from the report page')
     eq(p.data.showUpgradeModal, false, 'I no upgrade modal for paid report')
   }
 
-  // G/H: WXML hides 9.9 CTA + lock card + upgrade modal when unlocked
+  // G/H (R9): WXML hides unlock CTA + lock card + upgrade modal when unlocked
   {
     const w = fs.readFileSync(PREVIEW_WXML, 'utf8')
-    ok(/wx:if="\{\{locked\}\}"[^>]*text="9\.9元解锁完整报告"/.test(w) || (w.indexOf('9.9元解锁完整报告') >= 0 && /wx:if="\{\{locked\}\}"/.test(w)), 'G 9.9 CTA gated by locked')
     ok(/report-lock-card\s+wx:if="\{\{locked\}\}"/.test(w), 'H lock card gated by locked')
+    ok(/btnText="解锁完整世界模型报告 ¥9\.90"/.test(w), 'G single unlock CTA = 解锁完整世界模型报告 ¥9.90')
     ok(/wx:if="\{\{showUpgradeModal && locked\}\}"/.test(w), 'H upgrade modal gated by (showUpgradeModal && locked)')
     ok(/wx:if="\{\{!locked\}\}"/.test(w), 'full-content block gated by !locked')
+    ok(w.indexOf('查看完整报告') < 0, 'G/H no 查看完整报告 button anywhere')
+    ok(w.indexOf('9.9元解锁完整报告') < 0, 'G old 9.9 CTA copy removed')
   }
 
   // K: challenge_final does not route through legacy V6 report-detail authorization

@@ -89,7 +89,7 @@
 
   <!-- ═══════ challenge_final 报告（Stage5B：服务端权威状态机） ═══════ -->
   <block wx:else>
-    <xsg-navbar title="AI诊断报告" showBack />
+    <xsg-navbar title="世界模型报告" showBack />
 
     <!-- loading -->
     <xsg-loading text="正在加载报告..." wx:if="{{cfState==='loading'}}" />
@@ -97,7 +97,6 @@
     <!-- generating：生成中，有界重查 -->
     <block wx:elif="{{cfState==='generating'}}">
       <xsg-card type="ai" class="anim-fade-in">
-        <xsg-tag text="AI诊断" type="ai" />
         <view class="main-title mt-16">报告正在生成中…</view>
         <view class="sub-title mt-8">小事哥正在拆解你的世界模型，请稍候</view>
       </xsg-card>
@@ -114,23 +113,23 @@
       <xsg-empty icon="📄" title="无法加载报告" desc="{{cfMsg||'先完成一次认知挑战'}}" btnText="去挑战" bind:action="onGoChallenge" />
     </block>
 
-    <!-- ready：服务端已确认，locked 完全依据服务端 -->
+    <!-- ready：服务端已确认。paid → 直接全量阅读；unpaid → 摘要 + 唯一解锁 CTA -->
     <block wx:elif="{{cfState==='ready'}}">
-      <xsg-card type="ai" class="anim-fade-in">
-        <xsg-tag text="AI诊断" type="ai" />
-        <view class="main-title mt-16">{{cfSummaryText||'你的认知画像已生成'}}</view>
-        <view class="sub-title mt-8">世界模型深度报告</view>
-      </xsg-card>
+      <!-- 报告头（用户可见名 = 世界模型报告；副标题取自报告数据） -->
+      <view class="report-hero anim-fade-in">
+        <text class="rh-title">世界模型报告</text>
+        <text class="rh-sub" wx:if="{{cfSummaryText}}">{{cfSummaryText}}</text>
+      </view>
 
-      <report-lock-card wx:if="{{locked}}" title="完整AI诊断报告已生成"
-        benefits="{{['世界模型深度评分','翻身概率预测','最大认知漏洞分析','未来3年风险预警','30天定制行动建议','小事哥的最终认知暴击']}}"
-        bind:unlock="onUnlock" />
+      <!-- UNPAID：摘要预览 + 唯一解锁 CTA（无二级入口） -->
+      <block wx:if="{{locked}}">
+        <report-lock-card wx:if="{{locked}}" title="完整世界模型报告已生成"
+          benefits="{{['九维能力深度评分','翻身概率预测','最大认知漏洞分析','未来3年风险预警','30天定制行动建议','小事哥的最终认知暴击']}}"
+          btnText="解锁完整世界模型报告 ¥9.90"
+          bind:unlock="onGenerate" />
+      </block>
 
-      <xsg-button wx:if="{{locked}}" type="ai" text="9.9元解锁完整报告" bind:tapbutton="onGenerate" class="anim-fade-in anim-delay-2" />
-      <xsg-button wx:if="{{!locked}}" type="gold" text="查看完整报告" bind:tapbutton="goFull" class="anim-fade-in" />
-
-      <!-- R8_P0: 已解锁 → 就地渲染同一实体的权威完整内容（数据已来自服务端 reportData）。
-           未解锁时隐藏，避免空块。不在本任务重新设计内容结构。 -->
+      <!-- PAID / UNLOCKED：直接渲染完整内容，无任何购买/升级 UI -->
       <block wx:if="{{!locked}}">
         <view class="report-blocks">
           <view class="section-card red-card">
@@ -172,7 +171,7 @@
       </block>
     </block>
 
-    <!-- R8_P0: 升级弹窗仅在未解锁时出现。已购（locked=false）绝不再显示升级 CTA。 -->
+    <!-- 升级弹窗仅在未解锁时出现。已购（locked=false）绝不再显示升级 CTA。 -->
     <view class="upgrade-mask" wx:if="{{showUpgradeModal && locked}}">
       <view class="upgrade-modal anim-fade-in">
         <text class="um-icon">🧬</text>

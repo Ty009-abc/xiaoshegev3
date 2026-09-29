@@ -1,32 +1,29 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R8_P0_CANONICAL_REPORT_UNLOCK",
-  "phase": "server+client: single canonical report-access authority + post-pay rendering",
-  "baseCommit": "c41be06",
+  "taskId": "PAYMENT_STAGE5A_R9_UI_PRODUCTIZATION",
+  "phase": "client UI/UX productization (challenge-result + report-preview + naming)",
+  "baseCommit": "46ebcee",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "R8 forensic ROOT_CAUSE=E: 完整报告解锁权威分裂。服务端 generateAiReport/getAiReport 依据 report.isPaid||VIP 正确返回 locked=false，但客户端 report-preview 的「查看完整报告/升级」闸门走 membership-only 的 checkPermission('full_report')（memberships=[]），因此一份已购(¥9.90)报告仍被客户端覆盖为 locked=true —— 付款成功仍显示锁 + 9.9 CTA + 立即升级。",
+  "problem": "挑战结果页与报告页仍是 developer/debug 观感：原始标签池可能倾倒上百个标签；报告页仍用「AI诊断报告」「查看完整报告」二级入口；结果页保留未完成的「保存认知海报」入口；命名四处不一致（世界模型报告/AI诊断报告/AI深度翻身报告）。纯 UI/UX，不涉及支付/权益/报告权威。",
   "changes": {
-    "SERVER_AUTHORITY": "cloudfunctions/common/reportAccess.js (NEW, canonical) — 唯一权威判定 canAccessFullReport(report, vipGranted)=report.isPaid===true || vipGranted===true；report.isPaid 绝不因 membershipLevel=free 降级。字节一致副本：generateAiReport/lib/reportAccess.js、getAiReport/lib/reportAccess.js。",
-    "SERVER_GEN": "cloudfunctions/generateAiReport/lib/challengeReportIdempotency.js — isEntitled/respondReady 改用 reportAccess；ready 响应新增 canViewFullReport（paid→locked:false,canViewFullReport:true）。",
-    "SERVER_GET": "cloudfunctions/getAiReport/index.js — 改用 resolveReportAccess(report, isVip)；paid/VIP→{isPaid:true,locked:false,canViewFullReport:true,content}。",
-    "CLIENT_CHANGED": "pages/report-preview/report-preview.js — 删除第二套权威 checkPermission('full_report')（及 permissionService/FULL_REPORT_PERMISSION_KEY 依赖）；requestFullReportAccess 改为读服务端结论(d.canViewFullReport===true || isPaid===true&&locked===false)；goFull 就地渲染同一实体（不再跳 legacy report-detail ?reportId）；onShow 总是以服务端权威刷新（不依赖瞬时 _cfReturnByPay），并抑制 onLoad 后首次 onShow 重复请求。pages/report-preview/report-preview.wxml — 已解锁渲染 challenge_final 完整内容（5 段，绑定服务端派生 reportData）；升级弹窗仅在 locked 时出现。",
-    "TESTS": "tests/rc8.9/report-unlock-authority.test.js (NEW) — 权威模块单测 + 服务端响应 + 客户端渲染矩阵 A–L；真实 fixture 元数据 reportId=ARCF9bc1766a2b0fbbcdfc0cdc3f（status=ready,isPaid=true,membership=free）。tests/rc8.9/report-preview-wiring.test.js — 更新（移除 second-gate 断言，新增 fail-closed 未购断言）。"
+    "TAGS": "utils/worldModelTags.js (NEW) — canonical CORE-TRAIT presenter: normalize + dedupe + priority ordering + hard cap MAX_CORE_TAGS=8; pure/deterministic/no AI.",
+    "RESULT_PAGE": "pages/challenge-result/challenge-result.js + .wxml + .wxss — 头部类型/副标题；九维 3x3（dimKeys/dimLabels）；「核心标签」→「核心特征」且最多 8 个；新增一句话总结（由既有 scores 推导，无新 AI 调用）；主 CTA「生成我的世界模型报告」→「查看我的世界模型报告」；移除未完成的「保存认知海报 · 分享翻身概率」入口与 goShare handler。",
+    "REPORT_PAGE": "pages/report-preview/report-preview.wxml + .wxss — navbar/标题统一「世界模型报告」；新增 report-hero（标题+取自报告数据的副标题）；未解锁 = 摘要 + 唯一解锁 CTA（锁卡文案「解锁完整世界模型报告 ¥9.90」）；已解锁 = 直接渲染 01-05 全量内容；删除「查看完整报告」按钮；升级弹窗仅在 locked 时出现；暗色卡间距/padding/行高/对比度/安全区优化，无暗底暗字。",
+    "REPORT_JS": "pages/report-preview/report-preview.js — 删除冗余 goFull()（已解锁就地全量渲染，无二级跳转）；onCloseUpgrade 仅关闭弹窗（不再跳转）；保留 requestFullReportAccess 服务端权威判定。",
+    "NAMING": "pages/report-preview.wxml 世界模型报告；pages/challenge-result.wxml「查看我的世界模型报告」；pages/membership/membership.js report_9_9 显示名「世界模型报告」（价格/SKU 不变）；pages/home/home.wxml「世界模型报告 · 9.9元解锁完整版」。",
+    "TESTS": "tests/rc8.9/ui-productization.test.js (NEW) — A–J 矩阵；tests/rc8.9/report-unlock-authority.test.js 更新（goFull 移除断言、单一解锁 CTA、新导航栈）。注册进 run.js。"
   },
   "invariants": {
-    "REPORT_IS_PAID_HONORED": "YES",
-    "VIP_FALLBACK_HONORED": "YES",
-    "SERVER_OWNS_LOCKED": "YES",
-    "CLIENT_SECONDARY_GATE": "REMOVED",
-    "LEGACY_V6_GATE_BYPASSED_FOR_CHALLENGE_FINAL": "YES",
-    "GLOBAL_PERMISSION_SERVICE_CHANGED": "NO",
-    "CHECKPERMISSION_CHANGED": "NO"
+    "REPORT_ACCESS_AUTHORITY": "unchanged (server isPaid || VIP)",
+    "INTERNAL_IDS": "unchanged (report_9_9, challenge_final, ai_reports)",
+    "LOCKED_LOGIC": "unchanged",
+    "CHALLENGE_ROUTING": "unchanged"
   },
   "boundaries": {
-    "PAYMENT_FUNCTIONS": "NO", "PRICE_SKU": "NO", "FINALIZER": "NO",
-    "ENTITLEMENT_GRANT": "NO", "MERCHANT_CONFIG": "NO", "REFUND": "NO",
-    "CHALLENGE_ENTRY": "NO", "REPORT_GENERATION": "NO", "SCHEMA_INDEX": "NO",
-    "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO", "NEW_ORDER_CREATED": "NO"
+    "PAYMENT_CHANGED": "NO", "ENTITLEMENT_CHANGED": "NO", "REPORT_AUTHORITY_CHANGED": "NO",
+    "PRICE_SKU": "NO", "CLOUD_FUNCTIONS": "NO", "REPORT_GENERATION": "NO",
+    "SCHEMA_INDEX": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
   },
-  "deployTargets": ["generateAiReport", "getAiReport"],
+  "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <server+client commits>; redeploy generateAiReport+getAiReport; rebuild preview. No schema/env/payment impact."
+  "rollbackPlan": "git revert <client-commit>; rebuild preview. Pure client; no server/schema/env impact."
 }

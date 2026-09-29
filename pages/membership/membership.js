@@ -44,8 +44,10 @@ Page({
         const products = r.data.products || r.data || []
         const product = products.find(p => p.productId === productId)
         if (product) {
+          // R9: report_9_9 用户可见名统一为「世界模型报告」（内部 SKU/价格不变）。
+          const displayName = product.productId === 'report_9_9' ? '世界模型报告' : product.name
           this.setData({
-            product,
+            product: Object.assign({}, product, { name: displayName }),
             priceDisplay: (product.price / 100).toFixed(2),
             originalPriceDisplay: product.originalPrice ? (product.originalPrice / 100).toFixed(2) : '',
             hasOriginalPrice: !!product.originalPrice,

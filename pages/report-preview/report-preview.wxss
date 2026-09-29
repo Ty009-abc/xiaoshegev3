@@ -8,7 +8,28 @@
 .page {
   background: #121620;
   min-height: 100vh;
-  padding: 0 0 0;
+  padding: 0 0 calc(40rpx + env(safe-area-inset-bottom)) 0;
+  box-sizing: border-box;
+}
+
+/* ── R9 报告头（用户可见名 = 世界模型报告） ── */
+.report-hero {
+  padding: 40rpx 40rpx 8rpx;
+}
+.rh-title {
+  display: block;
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: 1rpx;
+}
+.rh-sub {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: #A78BFA;
+  font-weight: 600;
 }
 
 /* ── 全局加载条（暗色适配） ── */
@@ -57,18 +78,19 @@
 }
 
 .report-blocks {
-  padding: 0;
+  padding: 32rpx 32rpx 0;
 }
 
 /* ═══════════════════════════════
    板块卡片 — 暗色玻璃质感
    ═══════════════════════════════ */
 .section-card {
-  margin-bottom: 30rpx;
+  margin-bottom: 28rpx;
   background: #191F2E;
-  border-radius: 16rpx;
-  padding: 32rpx;
-  border: 1rpx solid rgba(255, 255, 255, 0.05);
+  border-radius: 24rpx;
+  padding: 40rpx 36rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.18);
   box-sizing: border-box;
 }
 
@@ -102,7 +124,7 @@
 
 .section-title {
   font-weight: bold;
-  font-size: 28rpx;
+  font-size: 30rpx;
   color: #FFFFFF;
   animation: fadeInTitle 0.6s ease-out forwards;
 }
@@ -143,17 +165,17 @@
 
 /* ── 真实文本内容 ── */
 .real-text-content {
-  font-size: 26rpx;
-  color: #D0D5E0;
-  line-height: 1.6;
+  font-size: 28rpx;
+  color: #E4E8F2;
+  line-height: 1.8;
   display: block;
 }
 
 /* 致命一句话文本 */
 .text-red-content {
-  color: #FF453A !important;
+  color: #FF6B60 !important;
   font-weight: bold;
-  font-size: 28rpx;
+  font-size: 30rpx;
 }
 
 /* ── 行动建议数字列表（暗色） ── */

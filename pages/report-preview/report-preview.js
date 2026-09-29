@@ -472,10 +472,11 @@ Page({
     wx.redirectTo({ url:'/pages/challenge-play/challenge-play' })
   },
 
-  // ── R8_P0: 唯一报告访问权威 = 服务端结论 ──
+  // ── R8_P0/R9: 唯一报告访问权威 = 服务端结论 ──
   // 单份已购报告（report.isPaid）或 VIP 授权 → 解锁。旧的 membership-only
   // checkPermission('full_report') 二次闸门已删除 —— 它是已购报告仍锁死的根因。
   // 服务端 locked=false / canViewFullReport=true 绝不被客户端覆盖。
+  // R9: 已解锁时报告页直接全量渲染，不再有「查看完整报告」二级入口。
   requestFullReportAccess() {
     const d = this.data.report
     if (!d) return false
@@ -484,23 +485,10 @@ Page({
     return false
   },
 
-  goFull(){
-    analytics.track('report_detail_view')
-    // R8_P0: 已解锁 → 就地渲染同一实体的权威完整内容（已绑定 reportData）。
-    if (!this.requestFullReportAccess()) {
-      this.setData({ showUpgradeModal: true, locked: true })
-      return false
-    }
-    this.setData({ showUpgradeModal: false })
-    this._syncReportToReportData()
-    return true
-  },
-
-  onCloseUpgrade(){
-    this.setData({ showUpgradeModal: false })
-    return this.goFull()
-  },
   onUpgrade(){ analytics.track('membership_visit'); wx.navigateTo({ url:'/pages/membership/membership' }) },
+
+  // R9: 升级弹窗仅在未解锁态可用；「先看报告」只是关闭弹窗回到摘要（不再有二级跳转）。
+  onCloseUpgrade(){ this.setData({ showUpgradeModal: false }) },
 
   onShareAppMessage() {
     const r = this.data.report

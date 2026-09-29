@@ -49,6 +49,14 @@ page { background: #f4f5f7; }
   margin-top: 12rpx;
   display: block;
 }
+.r-summary {
+  font-size: 26rpx;
+  color: #475467;
+  line-height: 1.6;
+  margin-top: 20rpx;
+  max-width: 620rpx;
+  display: block;
+}
 
 /* ── scores ── */
 .scores-title {
