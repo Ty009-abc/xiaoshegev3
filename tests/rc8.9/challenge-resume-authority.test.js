@@ -122,7 +122,7 @@ function reset (seed) {
     eq(added.length, 0, 'R4.2: no new record')
   }
 
-  // R5: finished unlocked record → do NOT resume as playable; (must create new so a fresh cycle can start)
+  // R5: finished unlocked record → R6: return the SAME record and route to result (NO new record)
   {
     reset({
       users: [{ openid: 'oUser', membershipLevel: 'free' }],
@@ -131,8 +131,11 @@ function reset (seed) {
       ],
     })
     const r = await startChallenge({}, {})
-    eq(r.data.resumed, undefined, 'R5.1: finished record not resumed as playable')
-    eq(added.length, 1, 'R5.2: creates a new cycle record')
+    eq(r.data.recordId, 'CR_DONE', 'R5.1: finished owned record returns SAME recordId')
+    eq(r.data.resumed, true, 'R5.2: resumed=true')
+    eq(r.data.completed, true, 'R5.3: completed=true')
+    eq(r.data.destination, 'challenge_result', 'R5.4: destination=challenge_result')
+    eq(added.length, 0, 'R5.5: NO new record created')
   }
 
   // R6: active membership grants access (legacy path preserved) — hasAccess=true → trialMode false

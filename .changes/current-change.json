@@ -1,24 +1,22 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R4_P0_REPORT_RECOVERY",
-  "phase": "FIX-2 client polling budget + terminal-state handling",
-  "baseCommit": "ba444ca",
+  "taskId": "PAYMENT_STAGE5A_R6_CHALLENGE_ENTRY_AUTHORITY",
+  "phase": "server: challenge entry authority (entitlement precedence + owned-record resume/route)",
+  "baseCommit": "575581f",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "The report-preview client gave up after CF_MAX_POLLS=6 x 5s = 30s while the server stale/takeover window (DEFAULT_STALE_MS) is 90s. A slow-but-healthy generation therefore showed a premature '生成失败 / 生成超时' screen even though the server was still working. Terminal-state handling also had gaps: a server-side explicit status='failed' was not recognised, and the timeout screen could misrepresent a still-generating server as a failure.",
+  "problem": "A real paid challenge_39_9 owner (record CR1790632776226vtmih6: trialMode=false, unlocked=true, status=finished) was shown the ¥39.90 paywall again. Root cause: startChallenge found the owned record but rejected it with `existing.status !== 'finished'`, then fell through to create a NEW trial because hasAccess ignored product entitlement (entitlements.challenge_full) and only considered memberships.",
   "changes": {
-    "BUDGET": "pages/report-preview/report-preview.js — CF_MAX_POLLS 6 -> 24 (24 x 5s = 120s), >= the 90s server stale window so the client never abandons a healthy generation. Still strictly bounded (no infinite polling).",
-    "TERMINAL_STATES": "Explicit handling for generating | ready | failed | error. A server-side data.status==='failed' now stops polling immediately and shows a controlled retry. ready stops polling immediately. error (missing recordId) unchanged.",
-    "SOFT_TIMEOUT": "When the client budget is exhausted the page no longer claims server failure: it sets cfSoftTimeout=true with a neutral '报告仍在生成中，请稍后重试' message + controlled retry (the server may still be generating).",
-    "NO_DUP_LOOPS": "New _stopPoll() single point that clears the in-flight timer before any reschedule; _schedulePoll() always clears first and the timer callback nulls _cfPollTimer → at most ONE live poll loop at any time.",
-    "UNLOAD": "onUnload() calls _stopPoll() (clears the timer) and sets the unloaded flag → no timers survive page exit.",
-    "WXML": "report-preview.wxml failed-state description falls back to cfMsg (already bound); no structural change.",
-    "TESTS": "tests/rc8.9/report-preview-wiring.test.js — P4 updated to the new bounded/soft-timeout semantics; added T1..T5: polls beyond the old 30s cap without premature failure, stops at ready, stops at server failed (+retry), unload cancels polling, no duplicate poll loops (single live timer)."
+    "ENTITLEMENT_AUTHORITY": "cloudfunctions/startChallenge/lib/challengeEntitlement.js (NEW) — hasChallengeEntitlement(db, openid) delegates to the canonical cloudfunctions/startChallenge/lib/permissionEngine.js (byte-identical copy of cloudfunctions/common/permissionEngine.js; sha256 57e42473869b3f44…) → hasPermission(db, openid, 'challenge_full'). permissionEngine reads the entitlements collection first (finalizer-written), then memberships. No second/divergent resolver.",
+    "ENTRY_PRECEDENCE": "cloudfunctions/startChallenge/index.js — resolve in strict order: (A/B) owned record (trialMode===false, fallback unlocked===true), newest by createdAt; if not finished → resume SAME recordId (resumed,completed=false,trialMode=false,unlocked=true); if finished → SAME recordId + completed=true + destination='challenge_result' (NO new record, NO trial); (C) no owned record but hasAccess → new record with trialMode=false (never trial); (D) only a genuinely non-entitled user gets trialMode=true. hasAccess = membership fast-path (challenge_unlock|challenge_full) OR canonical challenge_full entitlement (entitlements→memberships).",
+    "RECORD_SELECTION": "Owned query filters trialMode:false / unlocked:true directly (not a bare createdAt scan) → later stale trial records can never outrank the paid record.",
+    "TESTS": "tests/rc8.9/challenge-entry-authority.test.js (NEW, A–J + M + cross-user): unfinished paid → same id/no new; finished paid → same id completed+result/no new; paid beats newer stale trials; entitlement w/o owned → never trial; free → trial; idx>3 → no paywall gate; repeat ×5 → 0 new; membershipLevel=free + challenge_full → entitled; memberships absent → entitled; finished paid wins over stale trial. tests/rc8.9/challenge-resume-authority.test.js R5 updated to the R6 finished-route contract. Registered in tests/rc8.9/run.js."
   },
   "boundaries": {
-    "SERVER_CHANGED": "NO", "PRICES_CHANGED": "NO", "SKUS_CHANGED": "NO",
-    "PAYMENT_SIGNING_CHANGED": "NO", "ENTITLEMENT_CHANGED": "NO", "REFUND_CHANGED": "NO",
-    "SCHEMA_CHANGED": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
+    "PAYMENT_FUNCTIONS": "NO", "PAYMENT_FINALIZER": "NO", "ENTITLEMENT_WRITER": "NO",
+    "PRODUCTS_PRICES": "NO", "REPORT_9_9": "NO", "REFUND": "NO", "CREDENTIALS": "NO",
+    "WORLD_MODEL_REPORT_GEN": "NO", "R4_TIMEOUT_CHANGES": "NO", "SCHEMA_INDEX": "NO",
+    "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO", "DELETE_HISTORY": "NO"
   },
-  "deployTargets": [],
+  "deployTargets": ["startChallenge"],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>. Pure client change; rebuild preview. No server/schema/env impact."
+  "rollbackPlan": "git revert <server-commit>; redeploy startChallenge; remove lib/challengeEntitlement.js + lib/permissionEngine.js if reverting. No schema/env change."
 }
