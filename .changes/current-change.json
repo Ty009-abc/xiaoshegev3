@@ -1,22 +1,20 @@
 {
   "taskId": "OWNER_CHALLENGE_ACCESS_RESTORED",
-  "baseCommit": "858dfb0",
+  "phase": "double-charge guard",
+  "baseCommit": "441d5a5",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "After Stage5A_R2 repaired the challenge_39_9 selector + reconciled the affected record, the owner's real-device retest still showed LOCKED. Root cause: the challenge ENTRY flow (pages/challenge-start → startChallenge cloud function) unconditionally created a NEW trial record on every tap and its hasAccess only consulted `memberships` — it never honored the paid challenge_39_9 record unlock (challenge_records.trialMode===false / unlocked===true written by the payment finalizer). Evidence: the payer openid holds 26 challenge records, 24 still trialMode:true at currentEventIndex=3, including TWO fresh trial records created during the retest (08:22:25, 08:23:53) — the flow minted new locked records instead of resuming the unlocked one. getChallengeEvent reads only trialMode, so the reconciled record itself is fine; the entry flow discarded it.",
+  "problem": "Owner's real-device screenshot (2026-09-29 08:25:12, i.e. BEFORE the 08:28:26 startChallenge deploy) showed the ¥39.90 paywall for a CHALLENGE the owner had ALREADY PAID for. The entry-flow resume fix (441d5a5) addresses the routing, but the paywall/order path had no 'already owned' guard: createOrder's only duplicate check (antiFraud.checkDuplicateOrder) blocks a repeat within a 30-minute window only, so an older paid unlock could still be purchased AGAIN → double-charge risk on one-time unlock SKUs.",
   "changes": {
-    "SERVER_RESUME_AUTHORITY": "cloudfunctions/startChallenge/index.js: for non-diagnostic mode, BEFORE creating a record, query challenge_records for an existing UNLOCKED record owned by the trusted OPENID — where {openid, mode:'challenge', trialMode:false} (fallback: {openid, mode:'challenge', unlocked:true}), newest first — and if found and not finished, RETURN that recordId (resumed:true, trialMode:false) instead of creating a new trial. Server-authoritative: never trusts a client claim; ownership on wxContext.OPENID; cross-user isolation preserved. If no unlocked record exists, behavior unchanged (normal trial creation); membership (challenge_unlock) access still yields trialMode:false.",
-    "NO_CLIENT_CHANGE": "No client code change required — challenge-start calls the shared startChallenge cloud function, so deploying the function fixes the preview build in place.",
-    "TESTS": "tests/rc8.9/challenge-resume-authority.test.js (R1–R8, 12 assertions): resumes on trialMode:false; resumes on unlocked:true only; creates trial when none unlocked; prefers unlocked over newer trial; does NOT resume finished; membership legacy path preserved; cross-openid isolation; diagnostic mode unaffected."
+    "SERVER_GUARD": "NEW cloudfunctions/createOrder/lib/entitlementGuard.js — checkAlreadyEntitled(db, openid, productId, relatedId): for one-time unlock SKUs, reads the server entity owned by the trusted openid and blocks if already entitled — challenge_39_9 → challenge_records.where({recordId:relatedId, openid, trialMode:false}) (fallback unlocked:true); report_9_9 → ai_reports.where({reportId:relatedId, openid, isPaid:true}). Membership SKUs (vip_*) are NOT pre-blocked (duration-based; same-order idempotency handled by the finalizer). Fails OPEN on error (never introduces a false block).",
+    "WIRING": "cloudfunctions/createOrder/index.js calls checkAlreadyEntitled AFTER anti-fraud expiry cleanup and BEFORE price check / product lookup / prepay; on entitled → returns fail(CODES.DUPLICATE=10020, msg, {entitled:true, source}). No order row, no prepay, no charge.",
+    "CLIENT": "pages/membership/membership.js onPay now detects code 10020 + data.entitled, shows a friendly '已解锁' toast and backs out (navigateBack) instead of creating/charging again.",
+    "TESTS": "tests/rc8.9/order-entitlement-guard.test.js (G1–G12, 24 assertions): challenge trialMode/unlocked entitled; still-trial not entitled; report isPaid entitled; unpaid not; cross-user isolation; vip not blocked; empty relatedId; db-error fail-open; createOrder wiring order (guard before prepay) + DUPLICATE code; antiFraud has no entitlement awareness; client duplicate handling."
   },
   "boundaries": {
-    "PRICES_CHANGED": "NO",
-    "SKUS_CHANGED": "NO",
-    "PAYMENT_FUNCTIONS_CHANGED": "NO",
-    "ENTITLEMENT_LOGIC_CHANGED": "NO (Stage5A_R2 logic reused as-is)",
-    "DB_MUTATION": "NONE",
-    "REAL_PAYMENT": "NO"
+    "PRICES_CHANGED": "NO", "SKUS_CHANGED": "NO", "PAYMENT_SIGNING_CHANGED": "NO",
+    "REFUND_BEHAVIOR_CHANGED": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
   },
-  "deployTargets": ["startChallenge"],
+  "deployTargets": ["createOrder", "startChallenge"],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit> + redeploy startChallenge. No schema/index/env change."
+  "rollbackPlan": "git revert <this-commit> + redeploy createOrder. No schema/index/env change."
 }

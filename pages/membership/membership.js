@@ -105,6 +105,15 @@ Page({
         : (this.data.recordId || 'challenge_unlock')
       const r = await paymentService.createOrder(this.data.productId, relatedId)
 
+      if (r && r.code === 10020 && r.data && r.data.entitled) {
+        // 服务端已拥有权益（防重复扣款）— 友好提示并返回，不再次扣款。
+        console.log('[ChallengeUnlock] already entitled, skip payment', { source: r.data.source })
+        wx.showToast({ title: r.message || '已解锁，无需重复购买', icon: 'none', duration: 2000 })
+        this.setData({ paying: false })
+        this._navTimer = setTimeout(() => { wx.navigateBack() }, 1500)
+        return
+      }
+
       if (!r || r.code !== 0) {
         throw new Error(r?.message || '创建订单失败')
       }

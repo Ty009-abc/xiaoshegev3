@@ -17,6 +17,7 @@ const { now } = require('./lib/permission.js')
 const { jsapiOrder, selfCheckSigning } = require('./lib/payment.js')
 const { generateOrderId } = require('./lib/order.js')
 const { checkDuplicateOrder, checkPrice, expirePendingOrders } = require('./lib/antiFraud.js')
+const { checkAlreadyEntitled } = require('./lib/entitlementGuard.js')
 const { safeWritePaymentLog } = require('./lib/paymentLog.js')
 
 exports.main = async (event) => {
@@ -47,6 +48,16 @@ exports.main = async (event) => {
       return fail(CODES.DUPLICATE, dupCheck.message, {
         existingOrderId: dupCheck.existingOrderId,
         existingStatus: dupCheck.existingStatus,
+      })
+    }
+
+    // ═══ 2.1 已拥有权益前置校验（一次性解锁类防重复扣款）═══
+    //     权威来源：服务端实体状态（challenge trialMode/unlocked、report isPaid）
+    const already = await checkAlreadyEntitled(db, openid, productId, relatedId)
+    if (already.entitled) {
+      return fail(CODES.DUPLICATE, already.message || '已拥有该权益，无需重复购买', {
+        entitled: true,
+        source: already.source || null,
       })
     }
 
