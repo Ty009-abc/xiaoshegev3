@@ -200,8 +200,8 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     const js = fs.readFileSync(RESULT_JS, 'utf8')
     ok(js.indexOf('goShare') < 0, 'C goShare handler removed')
     ok(js.indexOf('share-poster') < 0, 'C no share-poster navigation')
-    // the CTA to the report remains
-    ok(w.indexOf('查看我的世界模型报告') >= 0, 'F result CTA = 查看我的世界模型报告')
+    // the report entry (card, R9.1) remains
+    ok(w.indexOf('世界模型深度报告') >= 0, 'F result report entry = 世界模型深度报告 (R9.1 card)')
     ok(w.indexOf('核心特征') >= 0, 'D heading renamed 核心标签 → 核心特征')
     ok(w.indexOf('核心标签') < 0, 'D old heading gone')
   }
@@ -272,7 +272,7 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     ok(/xsg-navbar title="世界模型报告"/.test(w), 'I report-preview navbar = 世界模型报告')
     ok(w.indexOf('AI诊断报告') < 0, 'I AI诊断报告 removed from report-preview')
     const rw = fs.readFileSync(RESULT_WXML, 'utf8')
-    ok(rw.indexOf('查看我的世界模型报告') >= 0, 'I challenge-result CTA = 世界模型报告')
+    ok(rw.indexOf('世界模型深度报告') >= 0, 'I challenge-result report entry = 世界模型报告 (R9.1 card)')
     const mjs = fs.readFileSync(MEMBERSHIP_JS, 'utf8')
     ok(/productId === 'report_9_9' \? '世界模型报告'/.test(mjs), 'I membership displays 世界模型报告 for report_9_9')
     const hw = fs.readFileSync(HOME_WXML, 'utf8')

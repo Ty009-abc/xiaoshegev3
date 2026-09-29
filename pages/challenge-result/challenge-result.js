@@ -16,28 +16,39 @@ const DIM_ORDER = [
   'informationSensitivity', 'longTermism', 'decisionStability',
 ]
 
-// ── 一句话总结（由既有数据推导，不新增 AI 调用）──
-// 取九维最高/最低项生成一句诊断式语句；数据不足时返回空串（UI 自动隐藏）。
+// ── 由既有评分推导（不新增 AI 调用）──
+function rankDims (profile) {
+  const arr = DIM_ORDER
+    .map((k) => ({ key: k, label: DIM_LABELS[k], value: (typeof profile[k] === 'number') ? profile[k] : 50 }))
+    .sort((a, b) => b.value - a.value)
+  return arr
+}
 function buildSummary (profile, mainType) {
   if (!profile) return ''
-  let hiKey = '', hiVal = -1, loKey = '', loVal = 101
-  for (const k of DIM_ORDER) {
-    const v = profile[k]
-    if (typeof v !== 'number') continue
-    if (v > hiVal) { hiVal = v; hiKey = k }
-    if (v < loVal) { loVal = v; loKey = k }
-  }
-  if (!hiKey || !loKey) return ''
-  const hi = DIM_LABELS[hiKey]
-  const lo = DIM_LABELS[loKey]
-  const type = mainType && mainType !== '认知探索者'
-    ? `当前你的世界模型更偏向「${mainType}」。`
-    : ''
-  return `你的「${hi}」维度最强（${hiVal}分），「${lo}」仍有明显提升空间。${type}`
+  const ranked = rankDims(profile)
+  const hi = ranked[0], lo = ranked[ranked.length - 1]
+  const type = mainType && mainType !== '认知探索者' ? `当前你的世界模型更偏向「${mainType}」。` : ''
+  return `你的「${hi.label}」维度最强（${hi.value}分），「${lo.label}」仍有明显提升空间。${type}`
+}
+// 世界模型判断：来自 existing 评分 + finalType，不新增 AI
+function buildJudgement (profile, mainType) {
+  if (!profile) return ''
+  const ranked = rankDims(profile)
+  const hi = ranked[0], hi2 = ranked[1]
+  const lo = ranked[ranked.length - 1]
+  const strong = (hi.value >= 60)
+  const gap = (lo.value <= 55)
+  const lead = strong
+    ? `你的「${hi.label}」与「${hi2.label}」明显领先，已具备识别机会与验证路径的能力。`
+    : `你的九维评分整体仍在构建中，「${hi.label}」是你目前相对最稳的支点。`
+  const next = gap
+    ? `下一阶段的关键不是继续学习，而是把已有能力「${lo.label}」补成闭环——系统化、资产化，而不是停留在单点技巧。`
+    : `下一阶段建议把能力系统化、资产化，形成可持续放大的闭环。`
+  const tail = mainType && mainType !== '认知探索者' ? `这也是「${mainType}」走向系统型的关键一步。` : ''
+  return `${lead}${next}${tail}`
 }
 
-// 归一化 scores → profile（v2 normalized + legacy 兼容）
-function normalizeResult(raw) {
+function normalizeResult (raw) {
   if (!raw) return null
   const scores = raw.scores || {}
   const profile = {}
@@ -47,6 +58,7 @@ function normalizeResult(raw) {
   }
   const mainType = worldModelTypeLabel(raw.finalType)
   const { coreTraits, total } = resolveCoreTraits(raw.tags)
+  const ranked = rankDims(profile)
   return {
     ...raw,
     profile,
@@ -54,6 +66,10 @@ function normalizeResult(raw) {
     coreTraits,
     coreTraitTotal: total,
     summary: buildSummary(profile, mainType),
+    judgement: buildJudgement(profile, mainType),
+    dims: DIM_ORDER.map((k) => ({ key: k, label: DIM_LABELS[k], value: profile[k] })),
+    topDims: ranked.slice(0, 2),
+    bottomDims: ranked.slice(-2).reverse(),
     scoringVersion: raw.scoringVersion || 'legacy_v1',
   }
 }
@@ -61,9 +77,11 @@ function normalizeResult(raw) {
 Page({ data:{
     recordId:'', result:null, loading:true,
     dimKeys:DIM_ORDER, dimLabels:DIM_LABELS,
-    radarReady:false,
+    radarOk:false,          // 雷达成功绘制 → 显示 canvas
+    radarFail:false,        // 绘制失败 → 显示 fallback 数据视图
   },
   onLoad(opt){ this.setData({ recordId:opt.recordId||'' }); this.load() },
+  onReady(){ if (this.data.result) this.renderRadar() },
   onUnload(){
     analytics.flush()
     if (this._radarTimer) { clearInterval(this._radarTimer); this._radarTimer = null }
@@ -76,50 +94,76 @@ Page({ data:{
         const result=normalizeResult(r.data)
         this.setData({ result })
         analytics.track('challenge_finish',{ recordId:this.data.recordId })
-        this.renderRadar()          // 数据就绪后异步绘制（不阻塞首屏）
+        this.renderRadar()
       }
     }catch(_){} finally { this.setData({ loading:false }) }
   },
 
-  // ── 九维认知画像雷达图（原生 Canvas 2D，淡入 + 展开动画）──
+  // ── 九维世界模型雷达（legacy Canvas API，与 repo 既有可用实现一致）──
   renderRadar(){
     const result = this.data.result
     if (!result || !result.profile) return
     const data = radar.buildRadarData(result.profile, DIM_ORDER, DIM_LABELS)
-    if (data.length < 3) return
+    if (data.length < 3) { this.setData({ radarFail:true }); return }
     this._radarData = data
-    // 等 canvas 进入布局后再查询尺寸
-    setTimeout(() => this._paintRadar(), 60)
+    // 等 canvas 进入布局后再绘制
+    setTimeout(() => this._paintRadar(0), 80)
   },
-  _paintRadar(){
+  _paintRadar(attempt){
     const data = this._radarData
-    if (!data || !wx.createSelectorQuery) return
-    wx.createSelectorQuery().in(this).select('#radarCanvas').boundingClientRect((rect) => {
-      if (!rect || !rect.width || !rect.height) {
-        // canvas 尚未布局：下一拍重试一次
-        if (!this._radarRetried) { this._radarRetried = true; setTimeout(() => this._paintRadar(), 120) }
-        return
-      }
-      const dpr = (wx.getSystemInfoSync && (wx.getSystemInfoSync().pixelRatio || 2)) || 2
+    if (!data) { this.setData({ radarFail:true }); return }
+    if (!wx.createCanvasContext) { this.setData({ radarFail:true }); return }
+    if (!wx.createSelectorQuery) { this._paintDirect(data); return }
+    let settled = false
+    const failTimer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      if (attempt < 2) this._paintRadar(attempt + 1)
+      else this.setData({ radarFail:true, radarOk:false })
+    }, 700)
+    try {
+      wx.createSelectorQuery().in(this).select('#radarCanvas').boundingClientRect((rect) => {
+        if (settled) return
+        settled = true
+        clearTimeout(failTimer)
+        if (!rect || !rect.width || !rect.height) {
+          if (attempt < 3) { setTimeout(() => this._paintRadar(attempt + 1), 140); return }
+          this.setData({ radarFail:true }); return
+        }
+        this._drawFrames(data, rect.width, rect.height)
+      }).exec()
+    } catch (e) {
+      settled = true
+      clearTimeout(failTimer)
+      this._paintDirect(data)
+    }
+  },
+  // selectorQuery 不可用时的兜底：按 CSS 设计尺寸(560rpx≈) 直接画
+  _paintDirect(data){
+    try { this._drawFrames(data, 280, 280) } catch (e) { this.setData({ radarFail:true }) }
+  },
+  _drawFrames(data, cssW, cssH){
+    try {
       const ctx = wx.createCanvasContext('radarCanvas', this)
-      let frame = 0
-      const total = 22
+      const total = 24
       if (this._radarTimer) { clearInterval(this._radarTimer); this._radarTimer = null }
+      this._frame = 0
       const paint = (p) => {
-        radar.drawRadar(ctx, { width: rect.width, height: rect.height, data, progress: p })
+        radar.drawRadar(ctx, { width: cssW, height: cssH, data, progress: p })
         ctx.draw()
       }
       paint(0.01)
       this._radarTimer = setInterval(() => {
-        frame++
-        paint(radar.easeOutCubic(frame / total))
-        if (frame >= total) {
+        this._frame++
+        paint(radar.easeOutCubic(this._frame / total))
+        if (this._frame >= total) {
           clearInterval(this._radarTimer); this._radarTimer = null
-          this.setData({ radarReady: true })
+          this.setData({ radarOk: true, radarFail: false })
         }
       }, 16)
-      void dpr
-    }).exec()
+    } catch (e) {
+      this.setData({ radarFail:true, radarOk:false })
+    }
   },
 
   goReport(){ analytics.track('report_view'); wx.navigateTo({ url:'/pages/report-preview/report-preview?recordId='+this.data.recordId+'&type=challenge_final' }) },
