@@ -1,22 +1,18 @@
 {
   "taskId": "PAYMENT_STAGE5A_R6_CHALLENGE_ENTRY_AUTHORITY",
-  "phase": "server: challenge entry authority (entitlement precedence + owned-record resume/route)",
-  "baseCommit": "575581f",
+  "phase": "client: challenge-start routes finished owner to challenge-result",
+  "baseCommit": "d34b969",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "A real paid challenge_39_9 owner (record CR1790632776226vtmih6: trialMode=false, unlocked=true, status=finished) was shown the ¥39.90 paywall again. Root cause: startChallenge found the owned record but rejected it with `existing.status !== 'finished'`, then fell through to create a NEW trial because hasAccess ignored product entitlement (entitlements.challenge_full) and only considered memberships.",
+  "problem": "The challenge entry page always navigated to challenge-play, even when the server returned an owned FINISHED record — sending a paid, finished owner back into the play/trial surface (and its paywall) instead of their result.",
   "changes": {
-    "ENTITLEMENT_AUTHORITY": "cloudfunctions/startChallenge/lib/challengeEntitlement.js (NEW) — hasChallengeEntitlement(db, openid) delegates to the canonical cloudfunctions/startChallenge/lib/permissionEngine.js (byte-identical copy of cloudfunctions/common/permissionEngine.js; sha256 57e42473869b3f44…) → hasPermission(db, openid, 'challenge_full'). permissionEngine reads the entitlements collection first (finalizer-written), then memberships. No second/divergent resolver.",
-    "ENTRY_PRECEDENCE": "cloudfunctions/startChallenge/index.js — resolve in strict order: (A/B) owned record (trialMode===false, fallback unlocked===true), newest by createdAt; if not finished → resume SAME recordId (resumed,completed=false,trialMode=false,unlocked=true); if finished → SAME recordId + completed=true + destination='challenge_result' (NO new record, NO trial); (C) no owned record but hasAccess → new record with trialMode=false (never trial); (D) only a genuinely non-entitled user gets trialMode=true. hasAccess = membership fast-path (challenge_unlock|challenge_full) OR canonical challenge_full entitlement (entitlements→memberships).",
-    "RECORD_SELECTION": "Owned query filters trialMode:false / unlocked:true directly (not a bare createdAt scan) → later stale trial records can never outrank the paid record.",
-    "TESTS": "tests/rc8.9/challenge-entry-authority.test.js (NEW, A–J + M + cross-user): unfinished paid → same id/no new; finished paid → same id completed+result/no new; paid beats newer stale trials; entitlement w/o owned → never trial; free → trial; idx>3 → no paywall gate; repeat ×5 → 0 new; membershipLevel=free + challenge_full → entitled; memberships absent → entitled; finished paid wins over stale trial. tests/rc8.9/challenge-resume-authority.test.js R5 updated to the R6 finished-route contract. Registered in tests/rc8.9/run.js."
+    "ROUTING": "pages/challenge-start/challenge-start.js — after startChallenge, when the authoritative response is completed===true or destination==='challenge_result', navigate straight to /pages/challenge-result/challenge-result?recordId=<SAME recordId>; otherwise challenge-play as before. Trial remains a legitimate challenge-play target only for genuinely non-entitled users.",
+    "TESTS": "tests/rc8.9/challenge-start-routing.test.js (NEW) — finished → challenge-result (same recordId, not play/paywall); destination-only → result; unfinished → challenge-play (same recordId); fresh trial → challenge-play; error → no navigation + toast. Registered in tests/rc8.9/run.js."
   },
   "boundaries": {
-    "PAYMENT_FUNCTIONS": "NO", "PAYMENT_FINALIZER": "NO", "ENTITLEMENT_WRITER": "NO",
-    "PRODUCTS_PRICES": "NO", "REPORT_9_9": "NO", "REFUND": "NO", "CREDENTIALS": "NO",
-    "WORLD_MODEL_REPORT_GEN": "NO", "R4_TIMEOUT_CHANGES": "NO", "SCHEMA_INDEX": "NO",
-    "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO", "DELETE_HISTORY": "NO"
+    "SERVER_CHANGED": "NO", "PAYMENT_FUNCTIONS": "NO", "PRODUCTS_PRICES": "NO",
+    "REPORT_9_9": "NO", "REFUND": "NO", "SCHEMA_INDEX": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
   },
-  "deployTargets": ["startChallenge"],
+  "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <server-commit>; redeploy startChallenge; remove lib/challengeEntitlement.js + lib/permissionEngine.js if reverting. No schema/env change."
+  "rollbackPlan": "git revert <client-commit>. Pure client change; rebuild preview. No server/schema/env impact."
 }

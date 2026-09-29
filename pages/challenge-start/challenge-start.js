@@ -16,8 +16,21 @@ Page({
         throw new Error(res?.message || '挑战创建失败：未返回有效 recordId')
       }
 
-      const { recordId, scoringVersion, rawScores } = res.data
-      console.log('[ChallengeV2Start]', { recordId, scoringVersion, hasRawScores: Boolean(rawScores), choicesLength: 0 })
+      const { recordId, scoringVersion, rawScores, completed, destination } = res.data
+      console.log('[ChallengeV2Start]', { recordId, scoringVersion, hasRawScores: Boolean(rawScores), choicesLength: 0, completed, destination })
+
+      // R6: titled owner with a FINISHED record → route straight to the result page
+      // with the SAME recordId. Never re-enter the 3-question trial gate or paywall.
+      if (completed === true || destination === 'challenge_result') {
+        wx.navigateTo({
+          url: '/pages/challenge-result/challenge-result?recordId=' + encodeURIComponent(recordId),
+          fail: (err) => {
+            console.error('[ChallengeV2Start] navigateTo result fail:', err)
+            wx.showToast({ title: '页面跳转失败，请重试', icon: 'none', duration: 2500 })
+          },
+        })
+        return
+      }
 
       wx.navigateTo({
         url: '/pages/challenge-play/challenge-play?mode=challenge&recordId=' + encodeURIComponent(recordId),
