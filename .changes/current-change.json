@@ -1,27 +1,27 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R9_UI_PRODUCTIZATION",
-  "phase": "client UI/UX productization (challenge-result + report-preview + naming)",
-  "baseCommit": "46ebcee",
+  "taskId": "PAYMENT_STAGE5A_R9_CHALLENGE_RESULT_VISUAL_UPGRADE",
+  "phase": "client visual upgrade (challenge-result page only)",
+  "baseCommit": "f168c05",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "挑战结果页与报告页仍是 developer/debug 观感：原始标签池可能倾倒上百个标签；报告页仍用「AI诊断报告」「查看完整报告」二级入口；结果页保留未完成的「保存认知海报」入口；命名四处不一致（世界模型报告/AI诊断报告/AI深度翻身报告）。纯 UI/UX，不涉及支付/权益/报告权威。",
+  "problem": "挑战结果页仍是普通工具页观感：3x3 布满灰格、浅色平铺背景、海报半成品入口已删但视觉仍弱、缺乏付费产品入口的科技感与高级感。",
   "changes": {
-    "TAGS": "utils/worldModelTags.js (NEW) — canonical CORE-TRAIT presenter: normalize + dedupe + priority ordering + hard cap MAX_CORE_TAGS=8; pure/deterministic/no AI.",
-    "RESULT_PAGE": "pages/challenge-result/challenge-result.js + .wxml + .wxss — 头部类型/副标题；九维 3x3（dimKeys/dimLabels）；「核心标签」→「核心特征」且最多 8 个；新增一句话总结（由既有 scores 推导，无新 AI 调用）；主 CTA「生成我的世界模型报告」→「查看我的世界模型报告」；移除未完成的「保存认知海报 · 分享翻身概率」入口与 goShare handler。",
-    "REPORT_PAGE": "pages/report-preview/report-preview.wxml + .wxss — navbar/标题统一「世界模型报告」；新增 report-hero（标题+取自报告数据的副标题）；未解锁 = 摘要 + 唯一解锁 CTA（锁卡文案「解锁完整世界模型报告 ¥9.90」）；已解锁 = 直接渲染 01-05 全量内容；删除「查看完整报告」按钮；升级弹窗仅在 locked 时出现；暗色卡间距/padding/行高/对比度/安全区优化，无暗底暗字。",
-    "REPORT_JS": "pages/report-preview/report-preview.js — 删除冗余 goFull()（已解锁就地全量渲染，无二级跳转）；onCloseUpgrade 仅关闭弹窗（不再跳转）；保留 requestFullReportAccess 服务端权威判定。",
-    "NAMING": "pages/report-preview.wxml 世界模型报告；pages/challenge-result.wxml「查看我的世界模型报告」；pages/membership/membership.js report_9_9 显示名「世界模型报告」（价格/SKU 不变）；pages/home/home.wxml「世界模型报告 · 9.9元解锁完整版」。",
-    "TESTS": "tests/rc8.9/ui-productization.test.js (NEW) — A–J 矩阵；tests/rc8.9/report-unlock-authority.test.js 更新（goFull 移除断言、单一解锁 CTA、新导航栈）。注册进 run.js。"
+    "THEME": "浅色毛玻璃 + 紫/粉霓虹 + 弥散氛围光（Glassmorphism/Neon）；背景 #EEF0F7 + 三颗 blur orb 慢漂；主色 紫#7B61FF 粉#D94BFF 蓝紫#5B8CFF。",
+    "HERO": "废弃顶部灰方块；新增 Hero：弥散光球（core+glow+双 orbital ring 旋转）+ eyebrow 挑战结果 + 渐变主标题类型 + 副标题 + 玻璃摘要卡（诊断式文案）。",
+    "RADAR": "九维评分由 3x3 主布局改为原生 Canvas 雷达图主导（NEW utils/radarChart.js，纯函数无依赖无 AI）；标题「九维认知画像」；保留紧凑 legend；首次淡入+展开动画（easeOutCubic，22 帧）。",
+    "TAGS": "核心特征标签升级为深蓝黑半透明 + 紫色霓虹描边 + 暖金白文字 + stagger 出场；最多仍 8 个。",
+    "CTA": "查看我的世界模型报告 → 紫粉霓虹渐变 + 呼吸光 + 按压缩放；宽度收至 78%。",
+    "MICRO": "Hero/卡片 fade-in-up；CTA 呼吸光；标签 stagger；paid 阅读稳定性优先，无闪烁/高频旋转。",
+    "SAFEAREA": "navbar transparent + 安全区；页面底 padding-bottom + env(safe-area-inset-bottom)；overflow-x hidden。"
   },
   "invariants": {
-    "REPORT_ACCESS_AUTHORITY": "unchanged (server isPaid || VIP)",
-    "INTERNAL_IDS": "unchanged (report_9_9, challenge_final, ai_reports)",
-    "LOCKED_LOGIC": "unchanged",
-    "CHALLENGE_ROUTING": "unchanged"
+    "ROUTE_UNCHANGED": "/pages/report-preview/report-preview?recordId=&type=challenge_final",
+    "DATA_SOURCE": "服务器权威 getChallengeRecord；无新 AI/无客户端重算",
+    "INTERNAL_IDS": "unchanged (challenge_final, report_9_9, ai_reports)"
   },
   "boundaries": {
-    "PAYMENT_CHANGED": "NO", "ENTITLEMENT_CHANGED": "NO", "REPORT_AUTHORITY_CHANGED": "NO",
-    "PRICE_SKU": "NO", "CLOUD_FUNCTIONS": "NO", "REPORT_GENERATION": "NO",
-    "SCHEMA_INDEX": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
+    "BACKEND_CHANGED": "NO", "PAYMENT_CHANGED": "NO", "AUTHORITY_CHANGED": "NO",
+    "REPORT_PREVIEW_CHANGED": "NO", "CLOUD_FUNCTIONS": "NO", "SKU_PRICE": "NO",
+    "SCHEMA": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
   },
   "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],

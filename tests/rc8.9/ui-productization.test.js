@@ -131,6 +131,7 @@ function loadResult (record) {
     if (req.indexOf('analytics') >= 0) return { track: () => {}, flush: () => {} }
     if (req.indexOf('worldModelLabels') >= 0) return require(LABELS_JS)
     if (req.indexOf('worldModelTags') >= 0) return require(TAGS_JS)
+    if (req.indexOf('radarChart') >= 0) return require(path.join(ROOT, 'utils', 'radarChart.js'))
     throw new Error('unexpected require: ' + req)
   }
   vm.runInContext(src, sandbox, { filename: RESULT_JS })

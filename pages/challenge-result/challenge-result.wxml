@@ -1,33 +1,70 @@
-<!-- challenge-result — R9 production UI -->
+<!-- challenge-result — R9 视觉升级：浅色毛玻璃 + 紫/粉霓虹 -->
 <view class="page">
-  <xsg-navbar title="挑战结果" light />
-  <xsg-loading text="正在分析你的认知画像..." wx:if="{{loading}}" />
-  <block wx:elif="{{result}}">
-    <!-- B. 世界模型类型（仅用户可见中文名，绝不显示内部枚举） -->
-    <view class="result-hero anim-fade-in">
-      <text class="r-type">{{result.mainType||'认知探索者'}}</text>
-      <text class="r-sub">你的世界模型初步类型</text>
-      <text class="r-summary" wx:if="{{result.summary}}">{{result.summary}}</text>
-    </view>
+  <!-- 弥散氛围光背景 -->
+  <view class="ambient">
+    <view class="orb orb-1"></view>
+    <view class="orb orb-2"></view>
+    <view class="orb orb-3"></view>
+  </view>
 
-    <!-- C. 九维评分 3x3 -->
-    <xsg-card theme="light" class="anim-fade-in">
-      <view class="scores-title">九维评分</view>
-      <view class="scores-grid">
-        <view class="score" wx:for="{{dimKeys}}" wx:for-item="d" wx:key="*this">
-          <text class="sc-num">{{result.profile[d]||50}}</text>
-          <text class="sc-label">{{dimLabels[d]}}</text>
+  <xsg-navbar title="挑战结果" light transparent />
+
+  <xsg-loading text="正在分析你的认知画像..." wx:if="{{loading}}" />
+
+  <block wx:elif="{{result}}">
+    <view class="content">
+      <!-- ═══ A. Hero ═══ -->
+      <view class="hero anim-fade-up">
+        <view class="hero-sphere">
+          <view class="sphere-ring ring-1"></view>
+          <view class="sphere-ring ring-2"></view>
+          <view class="sphere-core"></view>
+          <view class="sphere-glow"></view>
+        </view>
+        <text class="hero-eyebrow">挑战结果</text>
+        <text class="hero-type">{{result.mainType||'认知探索者'}}</text>
+        <text class="hero-sub">你的世界模型初步类型</text>
+        <view class="hero-summary" wx:if="{{result.summary}}">
+          <text class="hs-text">{{result.summary}}</text>
         </view>
       </view>
-    </xsg-card>
 
-    <!-- D. 核心特征（最多 8 个，取高价值标签，不倾倒内部标签池） -->
-    <xsg-card theme="light" wx:if="{{result.coreTraits && result.coreTraits.length}}" class="anim-fade-in">
-      <view class="scores-title">核心特征</view>
-      <view class="tag-row"><xsg-tag wx:for="{{result.coreTraits}}" wx:for-item="t" wx:key="*this" text="{{t}}" type="gold" /></view>
-    </xsg-card>
+      <!-- ═══ B. 九维认知画像 — 雷达图主导 ═══ -->
+      <view class="glass-card radar-card anim-fade-up anim-d1">
+        <view class="card-head">
+          <text class="card-title">九维认知画像</text>
+          <text class="card-hint">满分 100 · 数值越高越强</text>
+        </view>
+        <view class="radar-wrap">
+          <canvas canvas-id="radarCanvas" id="radarCanvas" type="2d" class="radar-canvas"></canvas>
+          <view class="radar-fade" wx:if="{{!radarReady}}"></view>
+        </view>
+        <view class="radar-legend">
+          <view class="lg-item" wx:for="{{dimKeys}}" wx:for-item="d" wx:key="*this">
+            <text class="lg-label">{{dimLabels[d]}}</text>
+            <text class="lg-val">{{result.profile[d]||50}}</text>
+          </view>
+        </view>
+      </view>
 
-    <!-- F. 主 CTA：报告实体已存在，使用「查看」而非「生成」 -->
-    <xsg-button type="ai" text="查看我的世界模型报告" bind:tapbutton="goReport" class="anim-fade-in" />
+      <!-- ═══ C. 核心特征（最多 8 个 · 认知模块标签）═══ -->
+      <view class="glass-card tags-card anim-fade-up anim-d2" wx:if="{{result.coreTraits && result.coreTraits.length}}">
+        <view class="card-head">
+          <text class="card-title">核心特征</text>
+        </view>
+        <view class="trait-row">
+          <view class="trait-chip" wx:for="{{result.coreTraits}}" wx:for-item="t" wx:key="*this" style="animation-delay:{{index*40}}ms">
+            <text class="tc-text">{{t}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- ═══ D. 主 CTA — 紫粉霓虹 ═══ -->
+      <view class="cta-wrap anim-fade-up anim-d3">
+        <button class="neon-cta" hover-class="neon-cta-hover" bindtap="goReport">
+          <text class="nc-text">查看我的世界模型报告</text>
+        </button>
+      </view>
+    </view>
   </block>
 </view>
