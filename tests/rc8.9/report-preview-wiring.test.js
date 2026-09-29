@@ -246,15 +246,17 @@ function loadPage (file, globals, stubs) {
     eq(p.data.cfState, 'ready', 'P3 transitions to ready after recheck')
   }
 
-  // P4: generating bounded — never exceeds CF_MAX_POLLS
+  // P4: generating bounded — never exceeds CF_MAX_POLLS; client budget is
+  // exhausted → NEUTRAL "still generating" state (not a false server failure)
   {
     const p = loadPreview(async () => GENERATING)
     p.setData({ recordId: 'REC1', reportType: 'challenge_final' })
     await p._requestChallengeReport()
-    for (let i = 0; i < 20; i++) { p._flushTimers(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0)) }
+    for (let i = 0; i < 40; i++) { p._flushTimers(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0)) }
     eq(p.data.cfState, 'failed', 'P4 gives up (failed) after bound')
-    eq(p.data.cfMsg, '生成超时，请重试', 'P4 timeout message')
-    ok(p._calls.length <= 1 + 6, 'P4 bounded request count (<= 7)')
+    eq(p.data.cfSoftTimeout, true, 'P4 soft-timeout flag set (server may still generate)')
+    ok(/仍在生成中/.test(p.data.cfMsg), 'P4 neutral still-generating message')
+    ok(p._calls.length <= 1 + 24, 'P4 bounded request count (<= 25)')
   }
 
   // P5: unload stops re-check
@@ -304,6 +306,80 @@ function loadPage (file, globals, stubs) {
     CALLS = []
     p.onGenerate()
     ok(!CALLS.find((c) => c.m === 'navigateTo'), 'P8 no navigation while generating')
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PAYMENT_STAGE5A_R4_P0_REPORT_RECOVERY — FIX-2 client polling matrix
+  //   T1 polls beyond the old 30s cap without premature failure
+  //   T2 stops immediately at ready
+  //   T3 stops immediately at server-side failed (+ controlled retry)
+  //   T4 unload cancels polling
+  //   T5 no duplicate poll loops (at most one live timer)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // T1: polls beyond 30s (>=7 polls) and only then becomes ready
+  {
+    let n = 0
+    const p = loadPreview(async () => (n++ < 8 ? GENERATING : READY_LOCKED))
+    p.setData({ recordId: 'REC1', reportType: 'challenge_final' })
+    await p._requestChallengeReport()
+    for (let i = 0; i < 7; i++) { p._flushTimers(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0)) }
+    eq(p.data.cfState, 'generating', 'T1 still generating after >30s (no premature fail)')
+    ok(p.data.cfPollCount >= 7, 'T1 polled >= 7 times (>=35s budget)')
+    p._flushTimers(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0))
+    eq(p.data.cfState, 'ready', 'T1 becomes ready after extended polling')
+  }
+
+  // T2: ready → polling stops immediately (no pending timer, no extra call)
+  {
+    const p = loadPreview(async () => READY_LOCKED)
+    p.setData({ recordId: 'REC1', reportType: 'challenge_final' })
+    await p._requestChallengeReport()
+    eq(p.data.cfState, 'ready', 'T2 ready')
+    const calls = p._calls.length
+    eq(p._pendingTimers(), 0, 'T2 no pending timer at ready')
+    p._flushTimers(); await new Promise((r) => setTimeout(r, 0))
+    eq(p._calls.length, calls, 'T2 no further request after ready')
+  }
+
+  // T3: server-side explicit failed → stops immediately + controlled retry
+  {
+    let n = 0
+    const p = loadPreview(async () => (n++ === 0 ? { code: 0, data: { reportId: 'ARCF_1', status: 'failed', locked: true } } : READY_LOCKED))
+    p.setData({ recordId: 'REC1', reportType: 'challenge_final' })
+    await p._requestChallengeReport()
+    eq(p.data.cfState, 'failed', 'T3 server status:failed → failed state')
+    eq(p.data.cfSoftTimeout, false, 'T3 not a client soft-timeout')
+    eq(p._pendingTimers(), 0, 'T3 no pending timer after failed')
+    await p.onRetryReport()
+    await new Promise((r) => setTimeout(r, 0))
+    eq(p.data.cfState, 'ready', 'T3 controlled retry recovers')
+  }
+
+  // T4: unload cancels polling
+  {
+    const p = loadPreview(async () => GENERATING)
+    p.setData({ recordId: 'REC1', reportType: 'challenge_final' })
+    await p._requestChallengeReport()
+    const before = p._calls.length
+    p.onUnload()
+    eq(p._pendingTimers(), 0, 'T4 unload clears pending timer')
+    p._flushTimers(); await new Promise((r) => setTimeout(r, 0))
+    eq(p._calls.length, before, 'T4 no further requests after unload')
+  }
+
+  // T5: no duplicate poll loops (single live timer even under re-entry)
+  {
+    const p = loadPreview(async () => GENERATING)
+    p.setData({ recordId: 'REC1', reportType: 'challenge_final' })
+    await p._requestChallengeReport()
+    // re-entry without unload must not stack timers
+    p._schedulePoll(); p._schedulePoll(); p._schedulePoll()
+    eq(p._pendingTimers(), 1, 'T5 at most one live poll timer')
+    for (let i = 0; i < 5; i++) { p._flushTimers(); await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0)) }
+    eq(p._pendingTimers(), 1, 'T5 still single timer after several polls')
+    // bounded: never runs away
+    ok(p._calls.length <= 1 + 24, 'T5 bounded call count')
   }
 
   console.log(`\nreport-preview-wiring_TEST pass=*** fail=${fail}`)

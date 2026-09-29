@@ -1,24 +1,24 @@
 {
   "taskId": "PAYMENT_STAGE5A_R4_P0_REPORT_RECOVERY",
-  "phase": "FIX-1 report completion durability",
-  "baseCommit": "461ddb4",
+  "phase": "FIX-2 client polling budget + terminal-state handling",
+  "baseCommit": "ba444ca",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "After entitlement repair, the owner completed a real challenge and tapped '生成我的世界模型报告'. The model call SUCCEEDED (ai_logs model_call status=SUCCESS, deepseek-chat, 2755ms) but the report entity was never advanced: ai_reports._id=ARCF9bc1766a2b0fbbcdfc0cdc3f stayed status='generating', content=null, updatedAt===createdAt, and no completion audit row was written. Root cause is structural: the post-model path (parseAiReport + completion conditional update + audit) was OUTSIDE any try/catch, parseAiReport was not tolerant, and the AI axios timeout (60s) equalled the cloud-function timeout (60s), leaving zero budget for the completion write. Result: a paid user can be left with a permanently stuck generating report and a client '生成超时' screen.",
+  "problem": "The report-preview client gave up after CF_MAX_POLLS=6 x 5s = 30s while the server stale/takeover window (DEFAULT_STALE_MS) is 90s. A slow-but-healthy generation therefore showed a premature '生成失败 / 生成超时' screen even though the server was still working. Terminal-state handling also had gaps: a server-side explicit status='failed' was not recognised, and the timeout screen could misrepresent a still-generating server as a failure.",
   "changes": {
-    "DURABILITY": "cloudfunctions/generateAiReport/lib/challengeReportIdempotency.js — everything after a successful model response is now protected: model ok → tolerant parse → validate → persist content → status ready → completion audit. Any recoverable failure (bad/non-object body, model timeout, persistence exception) is persisted as an explicit retryable terminal state on the SAME deterministic entity (status='failed' + lastError + parseFailed/persistFailed flag) — the entity can NEVER remain permanently status='generating', content=null. A later retry/re-entry reclaims it (failed-retry path) or takes it over once stale (existing stale-takeover CAS).",
-    "PARSE_TOLERANCE": "parseAiReport now coerces input to a string (object/null/undefined/number safe → .replace can never throw) and returns {ok:true,value} | {ok:false,error,raw}. Behaviour change vs Stage5C: an unparseable body is an explicit RETRYABLE FAILURE (status='failed', user '请重试') instead of fabricated placeholder content. Valid JSON → ready, unchanged.",
-    "MODEL_BOUND": "callAI is now bounded by MODEL_TIMEOUT_MS=90s via a withTimeout race (deps.modelTimeoutMs overridable in tests). Strictly below the 120s function timeout, reserving >=30s for parse+persist+audit. Timeout → explicit failed state (never stuck generating).",
-    "PERSIST_FAILURE": "The completion conditional update is wrapped; a persistence exception is audited (ai_logs action='generate_report' success=false) and ends in an explicit failed state; a completion success emits an audit row (action='generate_report' success=true).",
-    "TIMEOUT_CONFIG": "cloudbaserc.json generateAiReport timeout 60→120 (runtime untouched: Nodejs18.15 declared, live Nodejs16.13). Live function config pushed via `tcb config update fn generateAiReport --timeout 120`.",
-    "ISPAID": "Generation STILL never writes ai_reports.isPaid on ANY path (parse-fail / timeout / persistence-fail asserted).",
-    "TESTS": "tests/rc8.9/challenge-report-idempotency.test.js — added R4 matrix (R4-1..R4-7 + R4-12): success→ready+content; irregular body→explicit failed→retry recovers; model timeout→failed; parse never throws (5 input types); persistence exception→audited+terminal; stale generating→recovered; duplicate retry→one entity/same reportId; isPaid never written on any path. Suite 92 assertions (was 56). In-memory DB gained a failUpdateWhen fault injector."
+    "BUDGET": "pages/report-preview/report-preview.js — CF_MAX_POLLS 6 -> 24 (24 x 5s = 120s), >= the 90s server stale window so the client never abandons a healthy generation. Still strictly bounded (no infinite polling).",
+    "TERMINAL_STATES": "Explicit handling for generating | ready | failed | error. A server-side data.status==='failed' now stops polling immediately and shows a controlled retry. ready stops polling immediately. error (missing recordId) unchanged.",
+    "SOFT_TIMEOUT": "When the client budget is exhausted the page no longer claims server failure: it sets cfSoftTimeout=true with a neutral '报告仍在生成中，请稍后重试' message + controlled retry (the server may still be generating).",
+    "NO_DUP_LOOPS": "New _stopPoll() single point that clears the in-flight timer before any reschedule; _schedulePoll() always clears first and the timer callback nulls _cfPollTimer → at most ONE live poll loop at any time.",
+    "UNLOAD": "onUnload() calls _stopPoll() (clears the timer) and sets the unloaded flag → no timers survive page exit.",
+    "WXML": "report-preview.wxml failed-state description falls back to cfMsg (already bound); no structural change.",
+    "TESTS": "tests/rc8.9/report-preview-wiring.test.js — P4 updated to the new bounded/soft-timeout semantics; added T1..T5: polls beyond the old 30s cap without premature failure, stops at ready, stops at server failed (+retry), unload cancels polling, no duplicate poll loops (single live timer)."
   },
   "boundaries": {
-    "PRICES_CHANGED": "NO", "SKUS_CHANGED": "NO", "PAYMENT_SIGNING_CHANGED": "NO",
-    "ENTITLEMENT_CHANGED": "NO", "REFUND_CHANGED": "NO", "SCHEMA_CHANGED": "NO",
-    "INDEX_CHANGED": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
+    "SERVER_CHANGED": "NO", "PRICES_CHANGED": "NO", "SKUS_CHANGED": "NO",
+    "PAYMENT_SIGNING_CHANGED": "NO", "ENTITLEMENT_CHANGED": "NO", "REFUND_CHANGED": "NO",
+    "SCHEMA_CHANGED": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
   },
-  "deployTargets": ["generateAiReport"],
+  "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <this-commit>; redeploy generateAiReport via scripts/deploy-generateAiReport.sh; resettimeout to 60 if desired. No schema/index/env change."
+  "rollbackPlan": "git revert <this-commit>. Pure client change; rebuild preview. No server/schema/env impact."
 }

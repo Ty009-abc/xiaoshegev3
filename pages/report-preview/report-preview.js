@@ -13,10 +13,12 @@ const app = getApp()
 // ALL_PERMISSIONS / PRODUCT_PERMISSIONS / entitlementService). NOT 'report_full'.
 const FULL_REPORT_PERMISSION_KEY = 'full_report'
 
-// Stage5B — bounded re-check while the server reports status='generating'.
-// 6 attempts × 5s = 30s cap; polling stops on unload and on any terminal state.
+// Stage5B + R4_P0_FIX2 — bounded re-check while the server reports
+// status='generating'. 24 × 5s = 120s cap (>= the server stale window 90s),
+// so the client never gives up while the server can still finish. Polling stops
+// on unload and on any terminal state; at most ONE timer is ever live.
 const CF_POLL_INTERVAL = 5000
-const CF_MAX_POLLS = 6
+const CF_MAX_POLLS = 24
 
 Page({
   data: {
@@ -35,6 +37,7 @@ Page({
     cfReportId: '',
     cfPollCount: 0,
     cfMaxPolls: 0,
+    cfSoftTimeout: false,   // client budget exhausted but server may still be generating
     reportData: {
       basicInsight: '',     // 1: 位置定位
       mechanism: '',        // 2: 困住因素
@@ -318,8 +321,7 @@ Page({
   onUnload(){
     // Stop any in-flight generating re-check when leaving the page.
     this._cfUnloaded = true
-    this._cfPollTimer && clearTimeout(this._cfPollTimer)
-    this._cfPollTimer = null
+    this._stopPoll()
     analytics.flush()
   },
 
@@ -343,7 +345,7 @@ Page({
     }
     this._cfPollTimer && clearTimeout(this._cfPollTimer)
     this._cfPollCount = 0
-    this.setData({ cfState:'loading', cfMsg:'', loading:true, report:null, locked:true, cfSummaryText:'', cfReportId:'' })
+    this.setData({ cfState:'loading', cfMsg:'', cfSoftTimeout:false, loading:true, report:null, locked:true, cfSummaryText:'', cfReportId:'' })
     this._requestChallengeReport()
   },
 
@@ -354,20 +356,29 @@ Page({
       if (this._cfUnloaded) return
       if (!r || r.code !== 0){
         console.error('[report-preview] challenge_final failed:', r && r.code, r && r.message)
-        this.setData({ cfState:'failed', cfMsg:(r && r.message) || '报告生成失败，请重试', loading:false })
+        this._stopPoll()
+        this.setData({ cfState:'failed', cfSoftTimeout:false, cfMsg:(r && r.message) || '报告生成失败，请重试', loading:false })
         return
       }
       const d = r.data || {}
       this._cfReportId = d.reportId || ''
 
+      // explicit server-side terminal failure → stop immediately + retry
+      if (d.status === 'failed'){
+        this._stopPoll()
+        this.setData({ cfState:'failed', cfSoftTimeout:false, cfMsg:'报告生成失败，请重试', loading:false, cfReportId: this._cfReportId })
+        return
+      }
+
       // generating → bounded, spaced re-check; leave page stops it
       if (d.status === 'generating'){
-        this.setData({ cfState:'generating', loading:false, report:null, cfReportId: this._cfReportId })
+        this.setData({ cfState:'generating', cfSoftTimeout:false, loading:false, report:null, cfReportId: this._cfReportId })
         this._schedulePoll()
         return
       }
 
-      // ready (locked may be true/false, both authoritative from server)
+      // ready → terminal: stop polling immediately
+      this._stopPoll()
       const summaryText = (d.summary && d.summary.oneSentence)
         || (d.content && d.content.oneSentence)
         || '你的认知画像已生成'
@@ -375,6 +386,7 @@ Page({
         report: d,
         locked: d.locked !== false,   // fail-closed: only explicit false unlocks
         cfState: 'ready',
+        cfSoftTimeout: false,
         cfMsg: '',
         loading: false,
         cfSummaryText: summaryText,
@@ -384,20 +396,34 @@ Page({
     } catch (e) {
       if (this._cfUnloaded) return
       console.error('[report-preview] challenge_final exception:', e && e.message)
-      this.setData({ cfState:'failed', cfMsg:'网络异常，请重试', loading:false })
+      this._stopPoll()
+      this.setData({ cfState:'failed', cfSoftTimeout:false, cfMsg:'网络异常，请重试', loading:false })
     }
   },
 
+  // Single point that clears the in-flight poll timer → at most one live loop.
+  _stopPoll(){
+    this._cfPollTimer && clearTimeout(this._cfPollTimer)
+    this._cfPollTimer = null
+  },
+
   _schedulePoll(){
+    // Never stack timers → guarantees no duplicate poll loops.
+    this._stopPoll()
+    if (this._cfUnloaded) return
     const MAX = CF_MAX_POLLS
     if (typeof this._cfPollCount !== 'number') this._cfPollCount = 0
     if (this._cfPollCount >= MAX){
-      this.setData({ cfState:'failed', cfMsg:'生成超时，请重试' })
+      // Client budget exhausted. The server may STILL be generating, so this is
+      // NOT a server failure — surface a neutral "still generating" state with a
+      // controlled retry rather than a false "生成失败".
+      this.setData({ cfState:'failed', cfSoftTimeout:true, cfMsg:'报告仍在生成中，请稍后重试' })
       return
     }
     this._cfPollCount += 1
     this.setData({ cfPollCount: this._cfPollCount, cfMaxPolls: MAX })
     this._cfPollTimer = setTimeout(() => {
+      this._cfPollTimer = null
       if (this._cfUnloaded) return
       this._requestChallengeReport()
     }, CF_POLL_INTERVAL)
@@ -406,9 +432,9 @@ Page({
   // Controlled retry (failed → re-request). Never creates a second entity:
   // the server reuses the same deterministic report entity.
   onRetryReport(){
-    this._cfPollTimer && clearTimeout(this._cfPollTimer)
+    this._stopPoll()
     this._cfPollCount = 0
-    this.setData({ cfState:'loading', cfMsg:'', loading:true, cfPollCount:0 })
+    this.setData({ cfState:'loading', cfMsg:'', cfSoftTimeout:false, loading:true, cfPollCount:0, cfMaxPolls:CF_MAX_POLLS })
     this._requestChallengeReport()
   },
 
