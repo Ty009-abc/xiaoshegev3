@@ -1,25 +1,27 @@
 {
   "taskId": "PAYMENT_STAGE5A_R7_FIX_AND_E2E_CLOSEOUT",
-  "phase": "server: fix challenge_final report persistence (nested content over null)",
-  "baseCommit": "145f9f4",
+  "phase": "client: world-model presenter + challenge-result UI + explicit report contract",
+  "baseCommit": "80adbce",
   "branch": "feature/rc8.9d-funnel-authority",
-  "problem": "generateAiReport challenge_final: after a SUCCESSFUL model call + parse, the completion update threw 'Cannot create field bestPath in element {content: null}'. The claim placeholder created the ai_reports row with content:null; the completion update sent content as a nested plain object, which wx-server-sdk's update serializer FLATTENS into dot-paths (content.bestPath, …) → Mongo rejects creating a subfield on a null parent. Entity left status=failed/persistFailed=true; every retry re-hit the identical deterministic failure.",
+  "problem": "challenge-result leaked the raw internal enum (normal_awakened) and its WXML classes (.result-hero/.r-type/.r-sub/.scores-title/.scores-grid/.score/.sc-num/.sc-label/.tag-row/.share-cta/.scta-*) had NO WXSS definitions → inherited near-black page text on the dark xsg-card (dark-on-dark). goReport passed only recordId, relying on an implicit report-preview default type.",
   "changes": {
-    "PERSISTENCE": "cloudfunctions/generateAiReport/lib/challengeReportIdempotency.js — completion now assigns content as a WHOLE FIELD via db.command.set(parsedReport) (encoded as {$set:{content:<whole object>}}, verified NOT flattened through the real @cloudbase/database UpdateSerializer). Fallback to plain object if db.command.set is unavailable. Whole-field replacement is atomic and correct over a null placeholder."
+    "PRESENTER": "utils/worldModelLabels.js (NEW) — canonical WORLD_MODEL_TYPE_LABELS mapping every calcFinalType() enum to a Chinese label; WORLD_MODEL_TYPE_FALLBACK='认知探索者' for unknown/missing; worldModelTypeLabel() NEVER returns the raw enum key.",
+    "PAGE_ENUM": "pages/challenge-result/challenge-result.js — normalizeResult now sets mainType: worldModelTypeLabel(raw.finalType) (no raw fallback).",
+    "PAGE_UI": "pages/challenge-result/challenge-result.wxml + .wxss — reconciled all WXML classes with real light-theme token definitions (scores grid / score number / score label / hero type / tags / poster CTA); passed theme=\"light\" to cards so they are not dark. No hardcoded white masking.",
+    "CONTRACT": "pages/challenge-result/challenge-result.js goReport() now navigates to report-preview?recordId=<id>&type=challenge_final (explicit). No fictional source=challengefinal.",
+    "TESTS": "tests/rc8.9/world-model-labels.test.js (NEW) — audits all calcFinalType enums have labels + RAW_ENUM_NOT_VISIBLE. tests/rc8.9/challenge-worldmodel-e2e.test.js (NEW) — full real-chain E2E (A current, B legacy, C missing-optional, D repeat, E same-owner, F cross-user, G failed-retry, H ready-reuse) with REAL startChallenge/idempotency/permission/aiReportService, AI stub only. Registered in run.js."
   },
   "invariants": {
-    "IDEMPOTENCY": "claim / retry / ready / failed / duplicate-suppression / same-report reuse all unchanged (conditional updates still guarded by claimToken + status)",
-    "PAYMENT_AUTHORITY": "generation NEVER writes isPaid/entitlement/membership/payment fields",
-    "CHALLENGE_RECORD": "never mutated (SAME_CHALLENGE_RECORD_ID)",
-    "RETRYABLE": "existing failed row ARCF9bc1766a2b0fbbcdfc0cdc3f can transition to ready on retry (same logical report, no duplicates)"
+    "R6_ENTITLEMENT": "unchanged",
+    "STARTCHALLENGE": "unchanged (not redeployed)",
+    "NO_RAW_ENUM": "enforced by canonical presenter + test",
+    "LEGACY_COMPAT": "compatibility adapter = worldModelTypeLabel generic fallback + buildInputs fallback to record.scores; no DB rewrite, no recharge, no trial downgrade"
   },
-  "tests": "tests/rc8.9/challenge-report-idempotency.test.js — P1 (null→nested success) P2 (nested sections stored intact) P3 (failed→ready) P4 (repeat idempotent) P5 (ready reused) P6 (persist failure→retryable) P7 (no payment fields) + MUTATION (old nested .update over content:null MUST throw). 116 assertions. In-memory DB upgraded to faithfully emulate SDK flatten + Mongo null-parent semantics + db.command.set.",
   "boundaries": {
-    "PAYMENT_FUNCTIONS": "NO", "PAYMENT_FINALIZER": "NO", "ENTITLEMENT_WRITER": "NO",
-    "PRODUCTS_PRICES": "NO", "REPORT_9_9": "NO", "REFUND": "NO", "SCHEMA_INDEX": "NO",
-    "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO", "STARTCHALLENGE": "UNCHANGED"
+    "SERVER_CHANGED": "NO", "PAYMENT_FUNCTIONS": "NO", "PRODUCTS_PRICES": "NO",
+    "REPORT_9_9": "NO", "REFUND": "NO", "SCHEMA_INDEX": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
   },
-  "deployTargets": ["generateAiReport"],
+  "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <server-commit>; redeploy generateAiReport. No schema/env/index change."
+  "rollbackPlan": "git revert <client-commit>; rebuild preview. Pure client; no server/schema/env impact."
 }

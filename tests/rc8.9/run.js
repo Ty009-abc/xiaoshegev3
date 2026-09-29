@@ -36,6 +36,8 @@ const ALL = [
   'challenge-resume-authority.test.js',
   'challenge-entry-authority.test.js',
   'challenge-start-routing.test.js',
+  'world-model-labels.test.js',
+  'challenge-worldmodel-e2e.test.js',
   'order-entitlement-guard.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)

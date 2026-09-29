@@ -7,7 +7,7 @@
       <text class="r-type">{{result.mainType||'认知探索者'}}</text>
       <text class="r-sub">你的世界模型初步类型</text>
     </view>
-    <xsg-card class="anim-fade-in">
+    <xsg-card theme="light" class="anim-fade-in">
       <view class="scores-title">九维评分</view>
       <view class="scores-grid">
         <view class="score" wx:for="{{['laborMindset','probabilityMindset','systemThinking','leverageThinking','capitalThinking','riskAwareness','informationSensitivity','longTermism','decisionStability']}}" wx:key="*this">
@@ -16,13 +16,13 @@
         </view>
       </view>
     </xsg-card>
-    <xsg-card wx:if="{{result.tags&&result.tags.length}}" class="anim-fade-in">
+    <xsg-card theme="light" wx:if="{{result.tags&&result.tags.length}}" class="anim-fade-in">
       <view class="scores-title">核心标签</view>
       <view class="tag-row"><xsg-tag wx:for="{{result.tags}}" wx:for-item="t" wx:key="*this" text="{{t}}" type="gold" /></view>
     </xsg-card>
         <!-- CTA 区块 -->
     <xsg-button type="ai" text="生成我的世界模型报告" bind:tapbutton="goReport" class="anim-fade-in" />
-    <xsg-card type="premium" clickable bindtap="goShare" class="anim-fade-in anim-delay-1">
+    <xsg-card type="premium" theme="light" clickable bindtap="goShare" class="anim-fade-in anim-delay-1">
       <view class="share-cta"><text class="scta-icon">📤</text><text class="scta-text">保存认知海报 · 分享翻身概率</text><text class="scta-arrow">→</text></view>
     </xsg-card>
   </block>
