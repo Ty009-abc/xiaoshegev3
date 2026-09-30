@@ -30,6 +30,7 @@ const FUNNEL_EVENTS = [
   'challenge_retry_request_fail',   // 服务端 replay 失败
   'challenge_retry_nav_success',    // 跳转 challenge-play 成功
   'challenge_retry_nav_fail',       // 跳转 challenge-play 失败
+  'challenge_retry_modal_fail',     // 确认弹窗打开失败（confirmText 超限等）
 ]
 
 const EXTRA_EVENTS = [

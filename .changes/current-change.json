@@ -1,29 +1,34 @@
 {
-  "taskId": "RC8_9_P0_REPLAY_REAL_DEVICE_TAP_DISPATCH_FIX",
-  "phase": "Fix real-device tap dispatch for the 重新挑战一次 control (report-preview). The retry control rendered disabled-like and its tap did not reach onRetryChallenge (video evidence: page=report-preview, button visible/correct text, owner taps correctly, no modal). Client-only.",
-  "baseCommit": "4a28c04",
+  "taskId": "RC8_9_P0_REPLAY_MODAL_CONFIRMTEXT_FIX",
+  "phase": "Fix replay confirmation modal not rendering on device (report-preview onRetryChallenge). wx.showModal confirmText '确认重新挑战' = 6 chars exceeds the WeChat documented max of 4 chars -> showModal fails before render -> success/confirm never fires -> no startChallenge call, no nav, no new record. Client-only.",
+  "baseCommit": "7f8ec12",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "pages/report-preview/{wxml,wxss} (retry control markup/visual only) + related tests. No JS business-logic change; no backend.",
-  "goldenSource": "GOLDEN_SHA 2823f55 (uploaded). challenge-result visual golden + onboarding 70a901c untouched. Replay contract + startChallenge untouched.",
+  "pageScope": "pages/report-preview/report-preview.js (modal config + fail handler only) + utils/analytics.js (event registration) + related tests + manifest. No replay business-logic change; no backend.",
+  "goldenSource": "GOLDEN_SHA 2823f55 (uploaded). challenge-result visual golden + onboarding 70a901c untouched. Replay payload/contract untouched.",
+  "provenRootCause": {
+    "class": "MODAL_CONFIRM_NOT_COMPLETED",
+    "proof": "funnel_events challenge_retry_tap=41, challenge_retry_modal_confirm=0 (all downstream replay events 0). onRetryChallenge entered (tap telemetry works after 7f8ec12), but wx.showModal confirmText was 6 chars > WeChat limit 4 -> dialog fails before render -> success callback never runs. No fail handler => fully silent.",
+    "apiConstraint": "developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.showModal.html : confirmText/cancelText «最多 4 个字符»"
+  },
   "changes": {
-    "RETRY_TAP_DISPATCH": "pages/report-preview.wxml: the 重新挑战一次 control switched from native <button class=\"act-secondary\"> to <view class=\"act-secondary\" role=\"button\" aria-label bindtap=\"onRetryChallenge\" hover-class hover-stay-time> — the spec-sanctioned alternative for a native-button hit-test/style-state defect. Accessible tap area, single bindtap (no duplicate events), no pointer blocking.",
-    "DISABLED_APPEARANCE_REMOVED": "pages/report-preview.wxss .act-secondary: display:block, opacity:1 (explicitly), box-sizing, brighter text (#E6EAF3) + purple outline/bg (#A78BFA border, rgba(124,92,255,0.14) bg) so it no longer looks disabled; kept lower visual weight than act-primary (no gradient). hover = opacity .85 + scale .985.",
-    "REPLAY_LOGIC_LOCK": "onRetryChallenge JS unchanged: replay:true, replayRequestId, replaySource, startChallenge payload, entitlement verification, navigateTo challenge-play target and failure toasts all byte-identical. No client-side record creation, no payment.",
-    "TESTS": "NEW tests/rc8.9/retry-tap-dispatch.test.js (view role=button; no disabled attr; no pointer-events:none; opacity:1; single bindtap; no catchtap; overlays gated; tap → handler once → challenge_retry_tap once → modal once + title). Registered in tests/rc8.9/run.js.",
-    "EVIDENCE": "Owner video 16:05:45 confirms correct page + correct button + owner-correct tap + no modal + dim visual. Static audit found NO pointer-events:none, NO catch*, NO overlay over the action bar, NO disabled binding anywhere in report-preview.* — isolating the defect to the retry control's native-button node/style state (sibling act-primary native button was real-device accepted in R10.4)."
+    "CONFIRM_TEXT": "pages/report-preview/report-preview.js onRetryChallenge: confirmText '确认重新挑战' (6) -> '确认' (2), within the 4-char limit. cancelText '取消' (2) kept. title/content kept unchanged.",
+    "MODAL_FAIL_HANDLER_ADDED": "Added wx.showModal fail handler -> console.error + toast '弹窗打开失败，请重试'. Explicit observability if the dialog cannot open.",
+    "MODAL_FAIL_TELEMETRY_ADDED": "New funnel event challenge_retry_modal_fail (registered in utils/analytics.js FUNNEL_EVENTS -> existing trackFunnelEvent -> funnel_events infra). Payload: safe_error_code, safe_error_message (openid redacted), route=pages/report-preview. No full openid, no secrets, no payment credentials.",
+    "REPLAY_LOGIC_LOCK": "replayRequestId generation, replay:true, replaySource:'world_model_report', startChallenge call, response envelope read, new-record validation, navigateTo challenge-play target, entitlement behavior — ALL byte-identical / semantically equivalent. No navigation contract or payload change.",
+    "TESTS": "Updated tests/rc8.9/world-model-retry.test.js (confirmText 确认 + <=4 char asserts); extended tests/rc8.9/replay-observability.test.js with matrix A (modal config char limits) and F (showModal fail -> challenge_retry_modal_fail + toast, zero server calls)."
   },
   "invariants": {
-    "PROFILE_AUTHORITY_FIX_4A28C04_PRESERVED": "YES",
-    "REPLAY_OBSERVABILITY_4A28C04_PRESERVED": "YES",
-    "REPLAY_CONTRACT_UNCHANGED": "YES",
-    "STARTCHALLENGE_UNCHANGED": "YES",
+    "REPLAY_BUSINESS_LOGIC_CHANGED": "NO",
+    "REPLAY_PAYLOAD_CHANGED": "NO",
+    "NAVIGATION_CONTRACT_CHANGED": "NO",
     "PAYMENT_LOGIC_UNCHANGED": "YES",
     "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
-    "REPORT_GENERATION_UNCHANGED": "YES",
+    "REPORT_AUTHORITY_UNCHANGED": "YES",
+    "STARTCHALLENGE_UNCHANGED": "YES",
     "CHALLENGE_RESULT_GOLDEN_2823F55_UNCHANGED": "YES",
     "ONBOARDING_70A901C_UNCHANGED": "YES",
-    "POSTER_GENERATION_UNCHANGED": "YES",
-    "PAYCALLBACK_FIX_PRESERVED": "YES"
+    "PROFILE_AUTHORITY_FIX_4A28C04_PRESERVED": "YES",
+    "RETRY_TAP_DISPATCH_7F8EC12_PRESERVED": "YES"
   },
   "boundaries": {
     "BACKEND_CHANGED": "NO",
@@ -34,7 +39,7 @@
     "DEPLOY": "NO",
     "ENV_CHANGED": "NO",
     "REAL_PAYMENT": "NO",
-    "CLIENT_UI_CHANGED": "YES (report-preview retry control markup + style only)"
+    "CLIENT_UI_CHANGED": "YES (report-preview modal button text + fail handling only)"
   },
   "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],

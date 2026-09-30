@@ -58,7 +58,10 @@ function load (behavior) {
       },
       redirectTo: (o) => calls.push({ m: 'redirectTo', url: o.url }),
       switchTab: (o) => calls.push({ m: 'switchTab', url: o.url }),
-      showModal: (o) => calls.push({ m: 'showModal', opt: o }),
+      showModal: (o) => {
+        calls.push({ m: 'showModal', opt: o })
+        if (b.modalFail) { o.fail && o.fail({ errMsg: 'showModal:fail invalid confirmText' }); o.complete && o.complete() }
+      },
       showToast: (o) => calls.push({ m: 'showToast', opt: o }),
       showLoading: () => {}, hideLoading: () => {}, openSetting: () => {},
       cloud: {
@@ -137,6 +140,27 @@ const tick = () => new Promise((r) => setTimeout(r, 0))
     ok(has(p, 'challenge_retry_nav_fail'), 'G: challenge_retry_nav_fail emitted')
     ok(p._calls.some((c) => c.m === 'showToast' && /无法进入挑战/.test(c.opt.title)), 'G: nav-fail toast visible')
   }
+  // ── A: modal config char limits (wx.showModal confirmText/cancelText <= 4) ──
+  {
+    const p = load()
+    p.onRetryChallenge()
+    const m = modalOf(p)
+    ok([...m.opt.confirmText].length <= 4, 'A: confirmText <= 4 chars (' + m.opt.confirmText + ')')
+    ok([...m.opt.cancelText].length <= 4, 'A: cancelText <= 4 chars (' + m.opt.cancelText + ')')
+    eq(m.opt.confirmText, '确认', 'A: confirmText normalized to 确认')
+    eq(m.opt.cancelText, '取消', 'A: cancelText kept 取消')
+    eq(m.opt.title, '重新挑战一次？', 'A: title unchanged')
+  }
+  // ── F: showModal fail (over-length confirmText / API rejection) ──
+  {
+    const p = load({ modalFail: true })
+    p.onRetryChallenge()
+    await tick()
+    ok(has(p, 'challenge_retry_tap'), 'F: tap emitted')
+    ok(has(p, 'challenge_retry_modal_fail'), 'F: challenge_retry_modal_fail emitted')
+    ok(p._calls.some((c) => c.m === 'showToast' && /弹窗打开失败/.test(c.opt.title)), 'F: modal-fail toast visible')
+    eq(p._calls.filter((c) => c.m === 'callFunction').length, 0, 'F: zero server calls on modal fail')
+  }
   // ── cancel: tap only, no confirm ──
   {
     const p = load()
@@ -154,7 +178,8 @@ const tick = () => new Promise((r) => setTimeout(r, 0))
     ok(!/switchTab/.test(body), 'SRC: no switchTab in retry handler')
     ok(!/createOrder|requestPayment|membership|39\.9/i.test(body), 'SRC: no payment chain in retry handler')
     for (const e of ['challenge_retry_tap', 'challenge_retry_modal_confirm', 'challenge_retry_request_sent',
-      'challenge_retry_request_success', 'challenge_retry_request_fail', 'challenge_retry_nav_success', 'challenge_retry_nav_fail']) {
+      'challenge_retry_request_success', 'challenge_retry_request_fail', 'challenge_retry_nav_success', 'challenge_retry_nav_fail',
+      'challenge_retry_modal_fail']) {
       ok(body.indexOf(e) >= 0, 'SRC: telemetry ' + e + ' present')
     }
     const ana = fs.readFileSync(path.join(ROOT, 'utils', 'analytics.js'), 'utf8')

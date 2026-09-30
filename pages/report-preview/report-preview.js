@@ -649,11 +649,26 @@ Page({
   onRetryChallenge() {
     // RC8.9_P0_REPLAY_OBSERVABILITY — 仅埋点，不改动任何 replay 业务语义。
     analytics.track('challenge_retry_tap')
+    // RC8_9_P0_REPLAY_MODAL_CONFIRMTEXT_FIX — wx.showModal 的 confirmText/cancelText
+    // 官方约束为「最多 4 个字符」；此前 confirmText='确认重新挑战'(6 字符) 超限，
+    // 导致弹窗无法渲染 → success/confirm 永不回调 → replay 全链路静默失效。
+    // 仅收敛按钮文案，replay 业务语义与 payload 一律不变。
     wx.showModal({
       title: '重新挑战一次？',
       content: '将开启一轮新的挑战，当前挑战结果和世界模型报告都会保留，不影响已购权益。',
       cancelText: '取消',
-      confirmText: '确认重新挑战',
+      confirmText: '确认',
+      fail: (err) => {
+        // 弹窗无法打开时的显式可观测失败（只记录安全字段，绝不含 openid/密钥/支付凭据）。
+        const msg = (err && err.errMsg) || 'showModal:fail'
+        console.error('[retry] showModal fail:', msg)
+        analytics.track('challenge_retry_modal_fail', {
+          safe_error_code: (msg.split(':')[1] || '').trim() || 'unknown',
+          safe_error_message: msg.replace(/openid=[^,&\s]+/gi, 'openid=***'),
+          route: 'pages/report-preview',
+        })
+        wx.showToast({ title: '弹窗打开失败，请重试', icon: 'none' })
+      },
       success: (res) => {
         if (!res.confirm) return
         if (this.data.retryCreating) return   // 快速双击 / 重复确认防抖
