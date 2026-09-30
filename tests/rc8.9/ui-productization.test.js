@@ -183,8 +183,7 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     await p.load()
     eq(p.data.result.mainType, '普通觉醒型', 'A enum → Chinese label')
     ok(p.data.result.mainType !== 'normal_awakened', 'A raw enum never surfaced')
-    eq(p.data.result.coreTraits.length, 5, 'B five tags kept')
-    ok(p.data.result.summary && p.data.result.summary.indexOf('长期') >= 0, 'E summary sentence derived from data')
+    ok(Array.isArray(p.data.result.tags) && p.data.result.tags.length === 5, 'B raw tags preserved (5)')
     // raw enum must not appear in the page WXML
     const w = fs.readFileSync(RESULT_WXML, 'utf8')
     ;['normal_awakened', 'strategic', 'effort_trap', 'high_risk', 'opportunity_hunter', 'system_thinker'].forEach((e) => {
@@ -193,19 +192,18 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // C — incomplete poster entry absent
+  // C — golden 09-26 challenge-result UI: report CTA + poster entry present
   // ═════════════════════════════════════════════════════════════════════════
   {
     const w = fs.readFileSync(RESULT_WXML, 'utf8')
-    ok(w.indexOf('保存认知海报') < 0, 'C poster entry removed')
-    ok(w.indexOf('goShare') < 0, 'C no goShare binding')
     const js = fs.readFileSync(RESULT_JS, 'utf8')
-    ok(js.indexOf('goShare') < 0, 'C goShare handler removed')
-    ok(js.indexOf('share-poster') < 0, 'C no share-poster navigation')
-    // the report entry (card, R9.1) remains
-    ok(w.indexOf('世界模型深度报告') >= 0, 'F result report entry = 世界模型深度报告 (R9.1 card)')
-    ok(w.indexOf('核心特征') >= 0, 'D heading renamed 核心标签 → 核心特征')
-    ok(w.indexOf('核心标签') < 0, 'D old heading gone')
+    ok(w.indexOf('生成我的世界模型报告') >= 0, 'C report CTA = 生成我的世界模型报告 (golden)')
+    ok(w.indexOf('保存认知海报') >= 0, 'C poster entry present (golden)')
+    ok(w.indexOf('goShare') >= 0, 'C goShare binding present (golden)')
+    ok(js.indexOf('goShare') >= 0, 'C goShare handler present (golden)')
+    ok(js.indexOf('share-poster') >= 0, 'C share-poster navigation present (golden)')
+    ok(w.indexOf('核心标签') >= 0, 'C tag section heading = 核心标签 (golden)')
+    ok(w.indexOf('九维评分') >= 0, 'C nine-dim score grid present (golden)')
   }
 
   // ═════════════════════════════════════════════════════════════════════════
@@ -274,7 +272,7 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     ok(/xsg-navbar title="世界模型报告"/.test(w), 'I report-preview navbar = 世界模型报告')
     ok(w.indexOf('AI诊断报告') < 0, 'I AI诊断报告 removed from report-preview')
     const rw = fs.readFileSync(RESULT_WXML, 'utf8')
-    ok(rw.indexOf('世界模型深度报告') >= 0, 'I challenge-result report entry = 世界模型报告 (R9.1 card)')
+    ok(rw.indexOf('生成我的世界模型报告') >= 0, 'I challenge-result report CTA = 世界模型报告 (golden)')
     const mjs = fs.readFileSync(MEMBERSHIP_JS, 'utf8')
     ok(/productId === 'report_9_9' \? '世界模型报告'/.test(mjs), 'I membership displays 世界模型报告 for report_9_9')
     const hw = fs.readFileSync(HOME_WXML, 'utf8')

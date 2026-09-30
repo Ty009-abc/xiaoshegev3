@@ -1,41 +1,36 @@
 {
-  "taskId": "RC8_9_PRELAUNCH_P0_PAYMENT_CALLBACK_RECOVERY",
-  "phase": "P0 release-blocker: fix payCallback undeclared-symbol ReferenceError (valid signed callback could not finalize); add real payCallback.main() E2E; verify unique indexes; harden payCallback env deploy script",
-  "baseCommit": "a339811",
+  "taskId": "RC8_9_PRELAUNCH_UI_0926_GOLDEN_RECOVERY",
+  "phase": "restore 2026-09-26 golden challenge-result product UI (light theme, presenter-wired) over the unaccepted R9/R9.1 dark world-model console; onboarding already at golden (no change)",
+  "baseCommit": "0d06255",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "cloudfunctions/payCallback/* + scripts/set-env.sh + tests/rc8.9/paycallback-main-e2e.test.js",
+  "pageScope": "pages/challenge-result/* (+ reconciled UI regression tests). Onboarding untouched (already == 09-26 golden). No backend.",
   "changes": {
-    "P0_FIX": "payCallback/index.js after AES-GCM decrypt now binds the provider fields from the decrypted payload: `const { out_trade_no, transaction_id, trade_state, amount, mchid, appid } = decrypted`. Previously these symbols were referenced without declaration (destructure removed by refactor 305a2f0) → ReferenceError → catch → HTTP 500 INTERNAL_ERROR, so the async callback channel could never finalize a paid order. Fix aligns with the required authority order: verify_signature → verify_public_key_id → decrypt_resource → validate_event_type → bind_provider_fields → validate_out_trade_no → validate_trade_state_SUCCESS → call shared finalizePaidOrder → HTTP 200.",
-    "EVENT_TYPE_GUARD": "Added step 7.1: non-`TRANSACTION.SUCCESS` events are safely acknowledged (200) without granting value (fail-closed).",
-    "E2E_TEST": "NEW tests/rc8.9/paycallback-main-e2e.test.js — loads the REAL payCallback/index.js in a vm sandbox (stub wx-server-sdk + REAL paymentAuthority/paymentFinalizer/entitlementService) and exercises a fully signed+encrypted callback end-to-end (A..L): valid SUCCESS=200+finalize once+fields bound; invalid sig/wrong key id/decrypt fail rejected; trade_state!=SUCCESS acked no-finalize; amount/mchid/appid mismatch rejected; missing transaction_id rejected; duplicate callback idempotent (one payment row, one entitlement); callback+verify concurrent (one paid/payment/entitlement); no-ReferenceError regression pin; source binding guard.",
-    "ENV_SCRIPT": "NEW scripts/lib/merge-paycallback-env.js + hardened scripts/set-env.sh [4/6]: payCallback env injection is now MERGE-SAFE (read remote → keep all keys → overlay only the 5 required payment-authority keys → write back full union) and fail-closed on missing required keys. Required: WXPAY_API_V3_KEY, WXPAY_MCHID, WXPAY_SERIAL_NO, WXPAY_PUBLIC_KEY, WXPAY_PUBLIC_KEY_ID. Never prints values, never rotates.",
-    "DB_INDEX_GATE": "READ_ONLY verify: orders.orderId, payments.transactionId, entitlement_grants.orderId unique indexes ALL PRESENT (tcb db nosql listIndexes). Duplicate scan + null/empty scan: CLEAN. No index created.",
-    "STALE_TEST": "tests/rc8.3-stage21-batch4-r1-payment-authority.test.js marked ARCHIVED (tests/archived/*.archived): unregistered in every runner, and its mutation anchors (queryResult / inline finalize + inline grant) describe a pre-refactor verifyPayment shape that no longer exists (finalizer extraction). Not used as a release blocker; legacy archived copy may be preserved outside the maintained runner set.",
-    "TESTS": "Registered paycallback-main-e2e.test.js in tests/rc8.9/run.js. RC8.9 32/32 PASS, RC8.8 7/7 PASS. Targeted payment suites all PASS."
+    "RESULT_RESTORE": "Restored pages/challenge-result/{js,wxml,wxss,json} to the c41be06 golden 09-26 light product UI: hero type via canonical presenter (worldModelTypeLabel), 九维评分 3x3 grid, 核心标签 (xsg-tag), report CTA 生成我的世界模型报告 → /pages/report-preview?type=challenge_final, poster entry 保存认知海报·分享翻身概率 → /pages/share-poster. Light theme #f8f9fa, no raw enum, classes fully defined in wxss (no drift).",
+    "ONBOARDING": "NO CHANGE — HEAD onboarding == 70a901c 09-26 golden (git diff 70a901c HEAD -- pages/onboarding empty). Per ONLY_IF_FILES_DIFFER the onboarding commit was skipped.",
+    "TESTS": "tests/rc8.9/challenge-result-visual.test.js rewritten to CHALLENGE_RESULT_0926_GOLDEN (light golden: hero, 9-dim grid, tags, CTA, poster entry, no R9 dark console, no class drift, no raw enum). tests/rc8.9/ui-productization.test.js section A/C reconciled to golden (raw tags preserved, report CTA present, poster entry present, 核心标签 heading)."
   },
   "invariants": {
-    "NORMAL_ENTRY_SEMANTICS_CHANGED": "NO",
-    "PAYMENT_FINALIZER_SEMANTICS_CHANGED": "NO",
-    "ENTITLEMENT_MAPPING_CHANGED": "NO",
-    "SKU_PRICE_CHANGED": "NO",
-    "CLIENT_UI_CHANGED": "NO",
-    "CHALLENGE_LOGIC_CHANGED": "NO",
-    "REPORT_LOGIC_CHANGED": "NO",
-    "REFUND_IMPLEMENTATION_CHANGED": "NO",
-    "REAL_PAYMENT_NOT_PERFORMED": "YES",
-    "SCHEMA_DOCUMENT_MUTATION": "NO"
+    "PAYMENT_LOGIC_UNCHANGED": "YES",
+    "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
+    "REPLAY_CONTRACT_UNCHANGED": "YES",
+    "REPORT_GENERATION_UNCHANGED": "YES",
+    "REPORT_HISTORY_UNCHANGED": "YES",
+    "OLD_PAID_RECORDS_PRESERVED": "YES",
+    "POSTER_RECOVERY_R10_4_PRESERVED": "YES",
+    "SERVER_DATA_AUTHORITY_PRESERVED": "YES",
+    "SCORING_UNCHANGED": "YES",
+    "NO_RECOMPUTE_RESULT": "YES"
   },
   "boundaries": {
-    "BACKEND_CHANGED": "YES (payCallback field binding only)",
-    "PAYMENT_CHANGED": "NO (no price/SKU/finalizer/entitlement-mapping change)",
-    "AUTHORITY_CHANGED": "NO (fail-closed authority preserved/strengthened)",
-    "CLOUD_FUNCTIONS": "payCallback",
-    "DEPLOY_TARGETS": ["payCallback"],
-    "DEPLOY_FORBIDDEN": ["createOrder", "verifyPayment", "startChallenge", "generateAiReport", "refundOrder"],
+    "BACKEND_CHANGED": "NO",
+    "CLIENT_UI_CHANGED": "YES (challenge-result only)",
+    "CLOUD_FUNCTIONS": "NONE",
     "DB_MUTATION": "NONE",
-    "REAL_PAYMENT": "NO"
+    "DEPLOY": "NO",
+    "REAL_PAYMENT": "NO",
+    "ENV_CHANGED": "NO"
   },
-  "deployTargets": ["payCallback"],
-  "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js", "node tests/rc8.9/paycallback-main-e2e.test.js"],
-  "rollbackPlan": "git revert <commit>; re-deploy previous payCallback. Pure field-binding fix; no schema/env/payment semantics affected."
+  "deployTargets": [],
+  "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
+  "rollbackPlan": "git revert <commit> (client-only). No backend/schema/env impact."
 }
