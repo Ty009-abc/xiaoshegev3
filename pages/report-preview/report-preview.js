@@ -467,23 +467,18 @@ Page({
     this._requestChallengeReport()
   },
 
-  // 9.9 report unlock entry — ONLY reachable when the report is server-confirmed
-  // ready. Passes the SERVER reportId as relatedId (never a client-computed id).
+  // RC8_11：报告解锁入口统一导向会员（会员含 report_member）。仅在服务端
+  // 确认报告已生成（ready）时可用；历史已购报告由服务端放行，本入口不会出现。
   onGenerate(){
     const reportId = this._cfReportId || (this.data.report && this.data.report.reportId)
     if (this.data.cfState !== 'ready'){
       wx.showToast({ title:'报告正在生成中，请稍候', icon:'none' })
       return
     }
-    if (!reportId){
-      wx.showToast({ title:'报告信息缺失，请重试', icon:'none' })
-      return
-    }
     analytics.track('report_unlock_click')
-    wx.navigateTo({
-      url: '/pages/membership/membership?source=report&productId=report_9_9&recordId='
-        + encodeURIComponent(reportId),
-    })
+    let url = '/pages/membership/membership?source=report&productId=vip_month_39_9'
+    if (reportId) url += '&recordId=' + encodeURIComponent(reportId)
+    wx.navigateTo({ url })
   },
 
   onUnlock(){ return this.onGenerate() },

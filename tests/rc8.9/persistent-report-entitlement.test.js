@@ -171,7 +171,9 @@ const RA = require(COMMON)
 // ── §5 UI copy: keep 一次购买 · 永久解锁 ─────────────────────────────────────
 {
   const mw = fs.readFileSync(path.join(ROOT, 'pages', 'membership', 'membership.wxml'), 'utf8')
-  ok(/一次购买 · 永久解锁/.test(mw), 'UI keeps 一次购买 · 永久解锁')
+  ok(/认知会员/.test(mw), 'UI advertises 认知会员 (RC8_11 membership)')
+  ok(/会员权益/.test(mw), 'UI shows membership rights')
+  ok(!/一次购买 · 永久解锁/.test(mw), 'UI no longer advertises the retired standalone permanent unlock')
 }
 
 console.log(`\npersistent-report-entitlement_TEST pass=${pass} fail=${fail}`)

@@ -360,7 +360,7 @@ async function runReady (reportEntity, vipGranted) {
   {
     const w = fs.readFileSync(PREVIEW_WXML, 'utf8')
     ok(/report-lock-card\s+wx:if="\{\{locked\}\}"/.test(w), 'H lock card gated by locked')
-    ok(/btnText="解锁完整世界模型报告 ¥9\.90"/.test(w), 'G single unlock CTA = 解锁完整世界模型报告 ¥9.90')
+    ok(/btnText="开通认知会员 · 解锁完整报告"/.test(w), 'G single unlock CTA = 开通认知会员 · 解锁完整报告')
     ok(/wx:if="\{\{showUpgradeModal && locked\}\}"/.test(w), 'H upgrade modal gated by (showUpgradeModal && locked)')
     ok(/wx:if="\{\{!locked\}\}"/.test(w), 'full-content block gated by !locked')
     ok(w.indexOf('查看完整报告') < 0, 'G/H no 查看完整报告 button anywhere')

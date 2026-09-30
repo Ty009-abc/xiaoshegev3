@@ -224,11 +224,11 @@ Page({
   },
   onUnlock() {
     const recordId = this.data.recordId
-    const productId = 'challenge_39_9'
+    // RC8_11：挑战解锁统一导向会员（会员含 challenge_member）。
     wx.navigateTo({
       url: '/pages/membership/membership?source=challenge&recordId='
         + encodeURIComponent(recordId)
-        + '&productId=' + encodeURIComponent(productId),
+        + '&productId=vip_month_39_9',
     })
   },
   onGoHome() {

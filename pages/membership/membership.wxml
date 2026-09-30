@@ -1,15 +1,8 @@
-<!-- membership — 挑战解锁专用页 -->
+<!-- membership — 认知会员购买页（RC8_11 会员权威） -->
 <view class="page">
-  <xsg-navbar title="解锁完整挑战" light />
+  <xsg-navbar title="开通认知会员" light />
 
   <xsg-loading text="加载方案..." wx:if="{{loading}}" />
-
-  <block wx:elif="{{blockedNoRecord}}">
-    <view class="error-card">
-      <text class="error-text">报告信息缺失，无法创建订单。请返回报告页重新生成后再试。</text>
-      <xsg-button type="primary" text="返回" bind:tapbutton="onCancelUnlock" />
-    </view>
-  </block>
 
   <block wx:elif="{{loadError}}">
     <view class="error-card">
@@ -22,41 +15,53 @@
     <!-- 头部 -->
     <view class="hero">
       <text class="hero-icon">🧠</text>
-      <text class="hero-title">认知操作系统 · 完整挑战</text>
-      <text class="hero-desc">解锁30天认知决策，建立你的九维能力模型</text>
+      <text class="hero-title">认知会员</text>
+      <text class="hero-desc">解锁完整认知系统 · 持续进化的认知操作系统</text>
     </view>
 
     <!-- 权益说明 -->
     <view class="perks-card">
-      <text class="perks-title">解锁后将获得：</text>
+      <text class="perks-title">会员权益：</text>
       <view class="perk-list">
-        <view class="perk"><text>🎯</text><text>完整30道认知决策题</text></view>
-        <view class="perk"><text>📊</text><text>九维能力模型</text></view>
-        <view class="perk"><text>🤖</text><text>AI翻身策略报告</text></view>
-        <view class="perk"><text>📅</text><text>历史记录与复盘</text></view>
+        <view class="perk"><text>🤖</text><text>AI问小事哥</text></view>
+        <view class="perk"><text>🎯</text><text>6个个性化场景</text></view>
+        <view class="perk"><text>🧬</text><text>长期记忆</text></view>
+        <view class="perk"><text>🏆</text><text>30天认知挑战</text></view>
+        <view class="perk"><text>📄</text><text>完整世界模型报告</text></view>
+        <view class="perk"><text>📚</text><text>历史报告与复盘</text></view>
       </view>
+      <text class="perks-note" wx:if="{{plan === 'annual'}}">年卡另含：硬核真相模式 · 进阶报告 · 优先模型</text>
     </view>
 
-    <!-- 商品卡片 -->
-    <view class="product-card" wx:if="{{product}}">
-      <view class="product-badge" wx:if="{{hasOriginalPrice}}">限时优惠</view>
-
-      <text class="product-name">{{product.name || '解锁完整30天挑战'}}</text>
-      <text class="product-desc">{{product.description || '一次购买，本次挑战永久解锁'}}</text>
-
-      <view class="product-price-row">
-        <text class="product-price">¥{{priceDisplay || '39.90'}}</text>
-        <text class="product-original" wx:if="{{hasOriginalPrice}}">¥{{originalPriceDisplay}}</text>
+    <!-- 方案选择 -->
+    <view class="plans">
+      <view class="plan-card {{plan === 'monthly' ? 'active' : ''}}" data-plan="monthly" bindtap="onSelectPlan">
+        <view class="plan-badge" wx:if="{{monthly.hasOriginalPrice}}">限时优惠</view>
+        <text class="plan-name">{{monthly.name || '认知会员月卡'}}</text>
+        <view class="plan-price-row">
+          <text class="plan-price">¥{{monthly.priceDisplay || '39.90'}}</text>
+          <text class="plan-original" wx:if="{{monthly.hasOriginalPrice}}">¥{{monthly.originalPriceDisplay}}</text>
+        </view>
+        <text class="plan-unit">/ 月</text>
       </view>
 
-      <text class="product-tag">一次购买 · 永久解锁</text>
+      <view class="plan-card {{plan === 'annual' ? 'active' : ''}}" data-plan="annual" bindtap="onSelectPlan" wx:if="{{annual}}">
+        <view class="plan-badge year">超值年卡</view>
+        <text class="plan-name">{{annual.name || '认知会员年卡'}}</text>
+        <view class="plan-price-row">
+          <text class="plan-price">¥{{annual.priceDisplay || '299.00'}}</text>
+          <text class="plan-original" wx:if="{{annual.hasOriginalPrice}}">¥{{annual.originalPriceDisplay}}</text>
+        </view>
+        <text class="plan-unit" wx:if="{{annual.perMonth}}">约 ¥{{annual.perMonth}} / 月</text>
+        <text class="plan-unit" wx:else>/ 年</text>
+      </view>
     </view>
 
     <!-- 支付按钮 -->
     <view class="pay-section">
-      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (priceDisplay || '')}}" loading="{{paying}}" disabled="{{paying||!product}}" bind:tapbutton="onPay" />
+      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (priceDisplay || '')}}" loading="{{paying}}" disabled="{{paying || !product}}" bind:tapbutton="onPay" />
 
-      <button class="cancel-unlock-btn" bindtap="onCancelUnlock" disabled="{{paying}}" hover-class="cancel-press">暂不解锁</button>
+      <button class="cancel-unlock-btn" bindtap="onCancelUnlock" disabled="{{paying}}" hover-class="cancel-press">暂不开通</button>
 
       <text class="safe-hint">🔒 支付由微信安全保障</text>
     </view>

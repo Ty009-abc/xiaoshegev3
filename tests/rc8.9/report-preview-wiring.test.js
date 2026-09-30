@@ -99,49 +99,46 @@ function loadPage (file, globals, stubs) {
   }
 
   const SERVER_PRODUCTS = { code: 0, data: { products: [
-    { productId: 'report_9_9', name: 'AI深度翻身报告', price: 990, originalPrice: 1990, type: 'single', permission: 'report_unlock' },
-    { productId: 'challenge_39_9', name: '30天认知翻身挑战', price: 3990, originalPrice: 5990, type: 'single', permission: 'challenge_unlock' },
-    { productId: 'vip_month_99', name: '月卡', price: 9900, type: 'membership', permission: 'vip' },
+    { productId: 'vip_month_39_9', name: '认知会员月卡', price: 3990, originalPrice: 5990, type: 'membership', permission: 'vip', durationDays: 30 },
+    { productId: 'vip_year_299', name: '认知会员年卡', price: 29900, originalPrice: 49900, type: 'membership', permission: 'vip', durationDays: 365 },
   ] } }
 
-  // M1: report_9_9 + reportId → server price, no fallback
+  // M1: retired standalone report_9_9 request → mapped to membership offer
   {
     CALLS = []
     const m = loadMembership(SERVER_PRODUCTS)
     m.onLoad({ productId: 'report_9_9', recordId: 'ARCFabc123', source: 'report' })
     await new Promise((r) => setTimeout(r, 0))
-    eq(m.data.productId, 'report_9_9', 'M1 productId')
-    eq(m.data.recordId, 'ARCFabc123', 'M1 recordId = reportId')
-    eq(m.data.blockedNoRecord, false, 'M1 not blocked')
-    eq(m.data.product && m.data.product.productId, 'report_9_9', 'M1 product = report_9_9')
-    eq(m.data.priceDisplay, '9.90', 'M1 price from server config (990→9.90)')
+    eq(m.data.productId, 'vip_month_39_9', 'M1 retired report_9_9 → membership productId')
+    eq(m.data.plan, 'monthly', 'M1 defaults to monthly plan')
+    eq(m.data.product && m.data.product.productId, 'vip_month_39_9', 'M1 product = monthly membership')
+    eq(m.data.priceDisplay, '39.90', 'M1 price from server config (3990→39.90)')
   }
 
-  // M2: report_9_9 WITHOUT reportId → blocked, no product, no order
+  // M2: retired request WITHOUT recordId → still membership, no block, no standalone order
   {
     CALLS = []
     let createCalled = false
     const m = loadMembership(SERVER_PRODUCTS, async () => { createCalled = true; return { code: 0, data: {} } })
     m.onLoad({ productId: 'report_9_9', source: 'report' })
-    await m.onPay()
-    eq(m.data.blockedNoRecord, true, 'M2 blockedNoRecord set')
-    eq(m.data.product, null, 'M2 no product loaded')
-    ok(!createCalled, 'M2 createOrder NOT called')
+    await new Promise((r) => setTimeout(r, 0))
+    eq(m.data.blockedNoRecord, undefined, 'M2 no block for retired request')
+    eq(m.data.product && m.data.product.productId, 'vip_month_39_9', 'M2 membership product loaded')
+    ok(!createCalled, 'M2 createOrder NOT called before onPay')
   }
 
-  // M3: report_9_9 not in server list → fail closed, NO 39.9 fallback
+  // M3: monthly subscription absent from server list → fail closed, no fabricated price
   {
     const m = loadMembership({ code: 0, data: { products: [
-      { productId: 'challenge_39_9', name: 'x', price: 3990, type: 'single' },
+      { productId: 'vip_year_299', name: '年卡', price: 29900, type: 'membership' },
     ] } })
     m.onLoad({ productId: 'report_9_9', recordId: 'ARCFxyz' })
     await new Promise((r) => setTimeout(r, 0))
-    ok(!!m.data.loadError, 'M3 loadError set for report_9_9')
-    eq(m.data.product, null, 'M3 no product (no 39.9 default)')
-    ok(!(m.data.priceDisplay), 'M3 no fabricated price')
+    ok(!!m.data.loadError, 'M3 loadError set when monthly plan missing')
+    eq(m.data.product, null, 'M3 no product (no fabricated fallback)')
   }
 
-  // M4: onPay report_9_9 → createOrder('report_9_9', <reportId>)
+  // M4: onPay → createOrder('vip_month_39_9', relatedId)
   {
     CALLS = []
     const m = loadMembership(SERVER_PRODUCTS)
@@ -150,30 +147,31 @@ function loadPage (file, globals, stubs) {
     await m.onPay()
     const co = CALLS.find((c) => c.m === 'createOrder')
     ok(!!co, 'M4 createOrder called')
-    eq(co.p, 'report_9_9', 'M4 productId report_9_9')
-    eq(co.r, 'ARCF_report_id', 'M4 relatedId = server reportId')
+    eq(co.p, 'vip_month_39_9', 'M4 productId = membership monthly')
   }
 
-  // M5: challenge_39_9 legacy fallback preserved (product found) + relatedId=recordId
+  // M5: challenge_39_9 retired → membership offer as well
   {
     CALLS = []
     const m = loadMembership(SERVER_PRODUCTS)
     m.onLoad({ productId: 'challenge_39_9', recordId: 'REC1', source: 'challenge' })
     await new Promise((r) => setTimeout(r, 0))
-    eq(m.data.priceDisplay, '39.90', 'M5 39.9 price')
+    eq(m.data.productId, 'vip_month_39_9', 'M5 retired challenge_39_9 → membership')
     await m.onPay()
     const co = CALLS.find((c) => c.m === 'createOrder')
-    eq(co.p, 'challenge_39_9', 'M5 product challenge_39_9')
-    eq(co.r, 'REC1', 'M5 relatedId = recordId')
+    eq(co.p, 'vip_month_39_9', 'M5 createOrder product membership')
   }
 
-  // M6: challenge_39_9 missing-in-list keeps legacy local fallback (unchanged)
+  // M6: annual plan selection → annual product + price
   {
-    const m = loadMembership({ code: 0, data: { products: [] } })
-    m.onLoad({ productId: 'challenge_39_9', recordId: 'REC1' })
+    CALLS = []
+    const m = loadMembership(SERVER_PRODUCTS)
+    m.onLoad({ productId: 'vip_year_299' })
     await new Promise((r) => setTimeout(r, 0))
-    ok(m.data.product && m.data.product.productId === 'challenge_39_9', 'M6 legacy fallback preserved')
-    eq(m.data.priceDisplay, '39.90', 'M6 fallback price 39.90')
+    eq(m.data.productId, 'vip_year_299', 'M6 annual productId')
+    eq(m.data.priceDisplay, '299.00', 'M6 annual price 299.00')
+    m.onSelectPlan({ currentTarget: { dataset: { plan: 'monthly' } } })
+    eq(m.data.productId, 'vip_month_39_9', 'M6 switch back to monthly')
   }
 
   // ── report-preview page ──────────────────────────────────────────────────
@@ -217,8 +215,8 @@ function loadPage (file, globals, stubs) {
     const nav = CALLS.find((c) => c.m === 'navigateTo')
     ok(!!nav, 'P1 navigates on 9.9 entry')
     ok(nav.url.indexOf('/pages/membership/membership') >= 0, 'P1 → membership page')
-    ok(nav.url.indexOf('productId=report_9_9') >= 0, 'P1 → productId=report_9_9')
-    ok(nav.url.indexOf('recordId=' + encodeURIComponent('ARCF_1')) >= 0, 'P1 → recordId = server reportId (NOT challenge recordId)')
+    ok(nav.url.indexOf('productId=vip_month_39_9') >= 0, 'P1 → membership offer')
+    ok(nav.url.indexOf('recordId=' + encodeURIComponent('ARCF_1')) >= 0, 'P1 → recordId = server reportId')
     ok(nav.url.indexOf('REC1') < 0, 'P1 never leaks challenge recordId as relatedId')
   }
 
