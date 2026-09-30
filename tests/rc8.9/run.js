@@ -50,6 +50,7 @@ const ALL = [
   'world-model-retry.test.js',
   'replay-contract.test.js',
   'replay-observability.test.js',
+  'retry-tap-dispatch.test.js',
   'profile-authority.test.js',
   'order-entitlement-guard.test.js',
 ]

@@ -156,7 +156,11 @@ page {
 .act-primary::after { border: none; }
 .act-primary-hover { transform: scale(0.975); opacity: 0.94; }
 
+/* RC8_9_P0_REPLAY_TAP_DISPATCH — 重新挑战一次（view role=button）。
+   正常态必须“可点击”：opacity:1、无 disabled 外观、pointer-events 默认 auto。
+   保持次级视觉（无渐变、弱于 primary）但文字/描边足够明亮，避免“像被禁用”。 */
 .act-secondary {
+  display: block;
   width: 100%;
   min-height: 88rpx;
   line-height: 88rpx;
@@ -164,12 +168,15 @@ page {
   border-radius: 44rpx;
   text-align: center;
   font-size: 28rpx;
-  color: #B7BECD;
-  border: 1rpx solid rgba(148,163,184,0.32);
-  background: rgba(30,41,59,0.42);
+  font-weight: 600;
+  color: #E6EAF3;
+  border: 1rpx solid rgba(167,139,250,0.45);
+  background: rgba(124,92,255,0.14);
+  box-sizing: border-box;
+  opacity: 1;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
-.act-secondary::after { border: none; }
-.act-secondary-hover { opacity: 0.88; }
+.act-secondary-hover { opacity: 0.85; transform: scale(0.985); }
 
 /* ═══════════════════════════════
    R10 海报预览

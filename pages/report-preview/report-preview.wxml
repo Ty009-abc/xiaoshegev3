@@ -174,7 +174,12 @@
         <view class="action-bar" wx:if="{{!locked}}">
           <button class="act-primary" bindtap="generatePoster" loading="{{posterGenerating}}"
             hover-class="act-primary-hover">{{posterGenerating ? '正在生成海报...' : '生成认知海报'}}</button>
-          <button class="act-secondary" bindtap="onRetryChallenge" hover-class="act-secondary-hover">重新挑战一次</button>
+          <!-- RC8_9_P0_REPLAY_TAP_DISPATCH — 重新挑战一次：改用 view+role=button。
+               原生 <button> 在本容器内（act-primary 已真机验证可用）此处却出现
+               按压不下发 / 原生 disabled-like 视觉，故按规范切换到 view role=button
+               （accessible tap area，无 pointer 阻塞，无双事件）。业务语义不变。 -->
+          <view class="act-secondary" role="button" aria-label="重新挑战一次"
+            bindtap="onRetryChallenge" hover-class="act-secondary-hover" hover-stay-time="120">重新挑战一次</view>
         </view>
       </view>
 
