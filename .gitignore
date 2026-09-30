@@ -37,6 +37,8 @@ tests/**
 !tests/rc8.8/**
 !tests/rc8.9/
 !tests/rc8.9/**
+!tests/rc8.10/
+!tests/rc8.10/**
 !tests/legacy6q/
 !tests/legacy6q/**
 !tests/turnaround6q/

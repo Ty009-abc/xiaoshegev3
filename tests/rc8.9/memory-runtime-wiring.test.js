@@ -177,18 +177,21 @@ const OPENID = 'oZa463Yb2VY0k9Es_pGzdHFtigNo'
   // ── S: source invariants ──
   {
     const idx = fs.readFileSync(INDEX, 'utf8')
-    const readFn = (idx.split('async function _readMemoryContext')[1] || '').split('async function _writeLongTermMemory')[0]
-    const writeFn = (idx.split('async function _writeLongTermMemory')[1] || '').split('const { systemPrompt')[0]
-    ok(/isMemoryEnabled\(openid\)/.test(readFn), 'S1: read path checks isMemoryEnabled')
-    ok(readFn.indexOf('isMemoryEnabled') < readFn.indexOf('getRelevantMemories'), 'S2: read gate BEFORE retrieval')
-    ok(/memory_read_skipped_disabled/.test(readFn), 'S3: read skip telemetry')
+    // RC8_10A — the read gate is CENTRAL: index checks memoryEngine.isMemoryEnabled
+    // BEFORE the grounded turn; the retrieval gate lives in getRelevantMemories.
+    const engSrc = fs.readFileSync(path.join(LIB, 'memoryEngine.js'), 'utf8')
+    const readGateFn = (engSrc.split('async function getRelevantMemories')[1] || '').split('// ──')[0]
+    ok(/memoryEngine\.isMemoryEnabled\(openid\)/.test(idx), 'S1: index checks memoryEngine.isMemoryEnabled')
+    ok(readGateFn.indexOf('isMemoryEnabled') < readGateFn.indexOf('getUserMemory'), 'S2: retrieval read gate BEFORE load')
+    ok(/memory_read_skipped_disabled/.test(idx), 'S3: read skip telemetry')
+    const writeFn = (idx.split('async function _writeLongTermMemory')[1] || '').split('exports.main')[0]
     ok(/isMemoryEnabled\(openid\)/.test(writeFn), 'S4: write path checks isMemoryEnabled')
     ok(/extractFromMessage/.test(writeFn), 'S5: write path applies extractor policy')
     ok(/updateUserMemory/.test(writeFn), 'S6: write path persists approved memory')
     ok(/memory_write_skipped_disabled/.test(writeFn), 'S7: write skip telemetry')
     // write happens only AFTER successful AI call
     const afterSuccess = idx.indexOf('_writeLongTermMemory(openid, promptInput)')
-    const successGuard = idx.indexOf('if (!aiResult.success) return fail')
+    const successGuard = idx.indexOf('if (!turn.ok || !aiResult || !aiResult.success) return fail')
     ok(successGuard >= 0 && afterSuccess > successGuard, 'S8: write called only after AI success')
     // observability events
     for (const ev of ['memory_read_attempt', 'memory_read_skipped_disabled', 'memory_read_success', 'memory_write_attempt', 'memory_write_skipped_disabled', 'memory_write_success', 'memory_operation_fail']) {

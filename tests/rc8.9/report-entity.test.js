@@ -83,6 +83,8 @@ function loadGenAiReport(db, canned) {
     if (id === './lib/legacy6q/legacy6qRuntime.js') return { runLegacy6QReport: async () => JSON.parse(JSON.stringify(canned || CANNED)) }
     if (id === './lib/memoryEngine.js') return { isMemoryEnabled: async () => false, getRelevantMemories: async () => [], formatMemoryForPrompt: () => '', updateUserMemory: async () => ({ code: 0 }) }
     if (id === './lib/memoryExtractor.js') return { extractFromMessage: () => null }
+    if (id === './lib/context/coachingContextRuntime.js') return { runCoachingTurn: async () => ({ ok: true, aiResult: { success: true, content: '{}' }, ctx: {}, attempts: 1, validation: { ok: true } }) }
+    if (id === './lib/context/userContextBuilder.js') return { SCENARIO_NAME_TO_KEY: {} }
     return require(id)
   }
   const ctx = { module: mod, exports: mod.exports, require: fakeRequire, console, process, setTimeout, Promise, Object, Date, Math, JSON, Array, String, Number, RegExp, parseInt }

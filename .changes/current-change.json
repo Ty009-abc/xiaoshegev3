@@ -1,63 +1,46 @@
 {
-  "taskId": "RC8_9_MEMORY_ENGINE_RUNTIME_WIRING",
-  "phase": "Wire the deployed AI chat (generateAiReport type=coaching) to long-term memory so 记忆开关 actually gates read+write; implement the missing getRelevantMemories; deploy the memory cloud functions; keep CLEAR memory-domain only. Backend memory-domain + client-visible switch only.",
-  "baseCommit": "c04ade3",
+  "taskId": "RC8_10A_CONTEXT_MEMORY_SCENARIO_ASK_XIAOSHIGE",
+  "stage": "A",
+  "phase": "Build the single user context authority (userContextBuilder) that grounds the six home-page scenarios and 直接问小事哥 in the user's real 6Q/profile/challenge/report data (+long-term memory when enabled); make the memory backend read/write path authoritative and gated by memoryEnabled.",
+  "baseCommit": "70a6d4f",
   "branch": "feature/rc8.9d-funnel-authority",
-  "scope": "cloudfunctions/generateAiReport (coaching memory adapter + lib memory modules), cloudfunctions/{getMemory,updateMemory,toggleMemory,clearMemory,summarizeConversation}/lib (memory modules), memory tests, deploy. No payment/entitlement/replay/challenge/report-generation/DB-schema/env change.",
+  "scope": "cloudfunctions/generateAiReport (lib/context/*, coaching branch), memory backend (already deployed), tests. No payment/entitlement/replay/challenge/report-generation/DB-schema/env change.",
   "architecture": {
-    "deployedAiEntryPoint": "generateAiReport (type=coaching) — deployed; sole AI chat entry (ai-chat.onSend → {type:'coaching', message, personality?})",
-    "deployedMemoryFunctions": ["getMemory"],
-    "repoOnlyMemoryFunctions": ["updateMemory", "toggleMemory", "clearMemory", "summarizeConversation"],
-    "memoryEnabledAuthority": "user_memory.memoryEnabled (server)"
+    "deployedAiEntryPoint": "generateAiReport (type=coaching) — SAME path for the six home chips and 直接问小事哥",
+    "contextAuthority": "lib/context/userContextBuilder.js (UCB) — L0 6Q > L1 profile > L2 challenge > L3 report > L4 memory [gated] > L5 message",
+    "evidencePolicy": "SIX_Q/PROFILE/CHALLENGE/REPORT/MEMORY/CURRENT_USER_MESSAGE only; MODEL_GUESS forbidden; missing → conditional advice + one ask",
+    "sixQAuthority": "latest ai_reports{openid, reportType:turnaround_6q} orderBy createdAt desc limit 1"
   },
   "implementation": {
-    "GET_RELEVANT_MEMORIES_IMPLEMENTED": "YES (was missing; common/memoryEngine.js — read-gated, budget-bounded MAX 600 chars/60 per item, dedup, deterministic [] fallback, current-openid only)",
-    "READ_GATED": "YES (generateAiReport coaching: isMemoryEnabled → false = skip; true = retrieve + inject into systemPrompt)",
-    "WRITE_GATED": "YES (after successful AI response: isMemoryEnabled → false = zero write; true = extractFromMessage allow-list → dedup → updateUserMemory)",
-    "CLEAR_MEMORY_DEPLOYED": "YES (clearUserMemory: memory-domain collections only; now returns per-collection deleted counts; idempotent; owner-only)",
-    "CROSS_USER_GUARD": "YES (every memory read/write/clear scoped to authenticated openid)",
-    "DEDUP": "YES (_dedupeArray for coreGoals/riskFlags/stableTraits + cap 20)",
-    "CONTEXT_BUDGET": "YES (MAX_MEMORY_PROMPT_CHARS=600 applied before injection; memory appended, user message never truncated)",
-    "SUMMARIZATION": "bounded via existing memoryCompressor (MAX_RECENT_MESSAGES=10)"
+    "USER_CONTEXT_BUILDER": "YES (assembleUserContext pure + buildUserContext async loader)",
+    "SIX_SCENARIO_RULES": "career/money_logic/side_hustle/ai_track/cognition/traffic + ask (names frozen)",
+    "VALIDATOR": "validateScenarioResponse (negation/conditional aware) + coachingContextRuntime regenerate-once",
+    "MEMORY_READ_GATE": "generateAiReport checks memoryEngine.isMemoryEnabled BEFORE the grounded turn; L4 empty when false",
+    "MEMORY_WRITE_GATE": "unchanged (after success; isMemoryEnabled; allow-list; dedup)",
+    "SIX_Q_INDEPENDENT_OF_MEMORY": "YES (memoryEnabled gates ONLY L4; 6Q/profile always applied)"
   },
-  "observability": {
-    "events": ["memory_read_attempt", "memory_read_skipped_disabled", "memory_read_success", "memory_write_attempt", "memory_write_skipped_disabled", "memory_write_success", "memory_operation_fail", "memory_clear_success(source: clearUserMemory)"],
-    "privacy": "counts/status only; never logs memory content / secrets / full openid"
-  },
-  "deployTargets": ["generateAiReport", "getMemory", "updateMemory", "toggleMemory", "clearMemory", "summarizeConversation"],
   "filesChanged": [
-    "cloudfunctions/common/memoryEngine.js",
-    "cloudfunctions/common/memoryExtractor.js",
-    "cloudfunctions/generateAiReport/index.js",
-    "cloudfunctions/generateAiReport/lib/memoryEngine.js",
-    "cloudfunctions/generateAiReport/lib/memoryPolicy.js",
-    "cloudfunctions/generateAiReport/lib/memoryExtractor.js",
-    "cloudfunctions/generateAiReport/lib/memoryCompressor.js",
-    "cloudfunctions/{getMemory,updateMemory,toggleMemory,clearMemory,summarizeConversation}/lib/memory{Engine,Policy,Extractor,Compressor}.js",
-    "tests/rc8.9/memory-runtime-wiring.test.js (NEW)",
-    "tests/rc8.9/run.js",
+    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js (NEW)",
+    "cloudfunctions/generateAiReport/lib/context/coachingContextRuntime.js (NEW)",
+    "cloudfunctions/generateAiReport/index.js (coaching branch → grounded context engine)",
+    "tests/rc8.10/context-authority.test.js (NEW)",
+    "tests/rc8.10/run.js (NEW)",
+    "tests/rc8.9/memory-runtime-wiring.test.js (invariants updated for central gate)",
     "tests/rc8.9/report-entity.test.js (sandbox stubs)",
     "tests/rc8.9/ai-telemetry-core.test.js (sandbox stubs)",
     ".changes/current-change.json"
   ],
   "invariants": {
     "REPLAY_CHANGED": "NO",
-    "PROFILE_CHANGED": "NO (profile counts/classification untouched)",
+    "PROFILE_AUTHORITY_CHANGED": "NO",
     "PAYMENT_CHANGED": "NO",
     "ENTITLEMENT_CHANGED": "NO",
     "CHALLENGE_SCORING_CHANGED": "NO",
-    "REPORT_GENERATION_PROMPT_CHANGED": "NO (challenge_final/diagnostic/6Q report prompts & reportId untouched)",
-    "AI_REPORTS_AUTHORITY_CHANGED": "NO",
+    "REPORT_GENERATION_PROMPT_CHANGED": "NO (challenge_final/diagnostic/6Q untouched)",
     "DB_SCHEMA_CHANGED": "NO",
-    "ENV_CHANGED": "NO",
-    "REAL_PAYMENT": "NO"
+    "ENV_CHANGED": "NO"
   },
-  "boundaries": {
-    "BACKEND_CHANGED": "YES (memory domain only: generateAiReport coaching adapter + 5 memory fns)",
-    "DEPLOY": "YES (memory functions only; NO payment/startChallenge/entitlement/payCallback)",
-    "ENV_CHANGED": "NO",
-    "DB_MUTATION": "NONE (code only; memory docs created at runtime when user interacts)"
-  },
-  "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <commit> + redeploy prior generateAiReport/memory fns. No schema/payment impact."
+  "deployTargets": ["generateAiReport"],
+  "requiredTests": ["node tests/rc8.10/run.js", "node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
+  "rollbackPlan": "git revert <commit> + redeploy prior generateAiReport. No schema/payment impact."
 }

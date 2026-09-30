@@ -17,33 +17,12 @@ const { generateReportId, now } = require('./lib/order.js')
 const aiTelemetry = require('./lib/aiTelemetry.js')
 const memoryEngine = require('./lib/memoryEngine.js')
 const { extractFromMessage } = require('./lib/memoryExtractor.js')
+const { runCoachingTurn } = require('./lib/context/coachingContextRuntime.js')
+const { SCENARIO_NAME_TO_KEY } = require('./lib/context/userContextBuilder.js')
 
 // ── 长期记忆：隐私安全可观测（仅计数/状态，绝不记录记忆内容/密钥/openid）──
 function _memTelemetry (event, detail) {
   try { console.log('[memory] ' + JSON.stringify(Object.assign({ event }, detail || {}))) } catch (_) {}
-}
-
-// 读取路径：先读门控（memoryEnabled），再检索当前 openid 的相关长期记忆。
-// 关闭 → 确定性空（绝不读取/注入）。异常 → 空回退（绝不阻断 AI）。
-async function _readMemoryContext (openid, promptInput) {
-  let enabled = true
-  try { enabled = await memoryEngine.isMemoryEnabled(openid) } catch (_) { enabled = true }
-  if (!enabled) { _memTelemetry('memory_read_skipped_disabled', {}); return { enabled: false, text: '' } }
-  _memTelemetry('memory_read_attempt', {})
-  let items = []
-  try { items = await memoryEngine.getRelevantMemories(openid, openid, 'coaching', { limit: 10 }) } catch (_) { items = [] }
-  if (!items || !items.length) return { enabled: true, text: '' }
-  const text = memoryEngine.formatMemoryForPrompt({
-    userMemory: {
-      coreGoals: items.filter(i => i.type === 'goal').map(i => i.content),
-      riskFlags: items.filter(i => i.type === 'risk').map(i => i.content),
-      stableTraits: items.filter(i => i.type === 'trait').map(i => i.content),
-    },
-    conversationMemory: { longTermSummary: (items.find(i => i.type === 'summary') || {}).content || '' },
-    growthMemory: { milestones: items.filter(i => i.type === 'milestone').map(i => ({ title: i.content })) },
-  })
-  if (text) _memTelemetry('memory_read_success', { itemCount: items.length })
-  return { enabled: true, text: text || '' }
 }
 
 // 写入路径：成功 AI 调用后，再检查门控；仅 allow-list 且 durable 的记忆写入（去重在上游引擎）。
@@ -96,16 +75,39 @@ exports.main = async (event, context) => {
       const promptInput = message || ''
       if (!promptInput) return fail(CODES.PARAM_ERROR, '请提供要分析的话题')
 
-      const { systemPrompt, userMessage, personality: pMeta } = buildCoachingPrompt(promptInput, personality, personalityStyle)
+      // RC8_10A — grounded coaching turn: USER CONTEXT (L0 6Q → L1 profile →
+      // L2 challenge → L3 report → L4 long-term memory [gated by memoryEnabled]
+      // → L5 current message) → grounded prompt → ONE model call → scenario
+      // validator (≤1 regeneration). memoryEnabled=false disables ONLY L4;
+      // 6Q / profile personalization always stays ON.
+      const scenario = SCENARIO_NAME_TO_KEY[event.scenario] || (typeof event.scenario === 'string' ? event.scenario : '') || 'ask'
+      const memEnabled = await memoryEngine.isMemoryEnabled(openid).catch(() => true)
+      if (!memEnabled) _memTelemetry('memory_read_skipped_disabled', {})
+      else _memTelemetry('memory_read_attempt', {})
 
-      // ── 长期记忆读取（门控 memoryEnabled=false → 不读取、不注入）──
-      const mem = await _readMemoryContext(openid, promptInput)
-      const systemPromptWithMemory = mem.text ? (systemPrompt + '\n' + mem.text) : systemPrompt
-
-      const coachingModel = process.env.AI_MODEL_FLASH || 'v4-flash'
-      const aiResult = await callAI({ systemPrompt: systemPromptWithMemory, userMessage, maxTokens: 2048, temperature: 0.7 })
-
-      if (!aiResult.success) return fail(CODES.AI_ERROR, aiResult.error || 'AI 调用失败')
+      const turn = await runCoachingTurn({
+        db, openid, scenario, message: promptInput,
+        personality, personalityEmoji, personalityStyle,
+        maxTokens: 2048, temperature: 0.7,
+        memoryEnabled: memEnabled,
+        callAI,
+      })
+      const aiResult = turn.aiResult
+      const pMeta = { name: personality || 'unknown', emoji: personalityEmoji || '' }
+      if (!turn.ok || !aiResult || !aiResult.success) return fail(CODES.AI_ERROR, (aiResult && aiResult.error) || 'AI 调用失败')
+      if (memEnabled && turn.ctx && turn.ctx.memories && turn.ctx.memories.length) {
+        _memTelemetry('memory_read_success', { itemCount: turn.ctx.memories.length })
+      }
+      try {
+        console.log('[coachingContext] ' + JSON.stringify({
+          scenario: scenario,
+          evidence: Object.keys((turn.ctx && turn.ctx.evidenceMap) || {}),
+          missingFields: (turn.ctx && turn.ctx.missingFields) || [],
+          attempts: turn.attempts,
+          validationOk: !!(turn.validation && turn.validation.ok),
+          validationErrors: (turn.validation && turn.validation.errors) || [],
+        }))
+      } catch (_) {}
 
       const replyText = aiResult.content || '换个说法试试？'
 
