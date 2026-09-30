@@ -1,24 +1,19 @@
 {
   "taskId": "RC8_10B_RAW_6Q_AUTHORITY_AND_PERSONALIZED_30DAY_CHALLENGE",
-  "stage": "D1",
+  "stage": "D2",
   "priority": "P0_PRODUCT_CORE",
-  "phase": "STAGE_D1 (raw 6Q authority): persist the user RAW 6Q (age/job/education/income/anxiety/rootCause) server-side in a dedicated collection bound to the authenticated openid within the existing 6Q submission transaction; make RAW 6Q the L0 context authority (report text = DERIVED_LEGACY only; no report reverse-engineering when raw exists).",
-  "baseCommit": "c55f59f",
-  "scope": "cloudfunctions/generateAiReport (raw6qStore.js NEW + index.js persist hook + context/userContextBuilder.js L0) + getChallengeEvent/lib/context (UCB copy) + tests. No payment/entitlement/replay/profile-authority/report-authority/DB-schema/env change.",
+  "phase": "STAGE_D2 (event metadata + personalized selector): align the domain taxonomy to the spec superset (universal/career/business/sales/content/service/technical/management/money/ai) and ship the occupation-adjacent + capital/skill-aware personalized selector reading RAW 6Q.",
+  "baseCommit": "f32f3f8",
+  "scope": "cloudfunctions/common/{challengeEventCatalog,challengePersonalization}.js + getChallengeEvent/lib copies. No payment/entitlement/replay/profile/report/DB-schema/env change; event bank unchanged.",
   "filesChanged": [
-    "cloudfunctions/generateAiReport/lib/raw6qStore.js",
-    "cloudfunctions/generateAiReport/index.js",
-    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
-    "cloudfunctions/getChallengeEvent/lib/context/userContextBuilder.js",
-    "tests/rc8.10/raw6q-authority.test.js",
-    "tests/rc8.10/*.test.js",
-    "tests/rc8.10/run.js",
-    "tests/rc8.9/report-entity.test.js",
-    "tests/rc8.9/ai-telemetry-core.test.js",
+    "cloudfunctions/common/challengeEventCatalog.js",
+    "cloudfunctions/common/challengePersonalization.js",
+    "cloudfunctions/getChallengeEvent/lib/challengeEventCatalog.js",
+    "cloudfunctions/getChallengeEvent/lib/challengePersonalization.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [
-    "generateAiReport"
+    "getChallengeEvent"
   ],
   "requiredTests": [
     "node tests/rc8.10/run.js",

@@ -27,7 +27,7 @@
 
 const DOMAINS = [
   'universal', 'career', 'business', 'sales', 'content',
-  'service', 'technical', 'management', 'investment', 'ai',
+  'service', 'technical', 'management', 'money', 'ai',
 ]
 
 const DIMENSIONS = [
@@ -46,12 +46,12 @@ const NON_TECH_OCCUPATIONS = [
 const EVENT_META = {
   CE001: { domains: ['ai', 'business'], occupationAffinity: ['universal'], skillRequirement: 'low', capitalRequirement: 'low', experienceLevel: 'any', cognitiveDimension: 'probabilityMindset', scenarioTags: ['机会识别', 'AI副业'], contraindications: [] },
   CE002: { domains: ['career'], occupationAffinity: ['白领', '销售', '技术人员'], skillRequirement: 'none', capitalRequirement: 'none', experienceLevel: 'any', cognitiveDimension: 'leverageThinking', scenarioTags: ['股权', '加班'], contraindications: [] },
-  CE003: { domains: ['investment'], occupationAffinity: ['个体老板', '白领'], skillRequirement: 'none', capitalRequirement: 'medium', experienceLevel: 'any', cognitiveDimension: 'riskAwareness', scenarioTags: ['投资', '高收益陷阱'], contraindications: [] },
+  CE003: { domains: ['money'], occupationAffinity: ['个体老板', '白领'], skillRequirement: 'none', capitalRequirement: 'medium', experienceLevel: 'any', cognitiveDimension: 'riskAwareness', scenarioTags: ['投资', '高收益陷阱'], contraindications: [] },
   CE004: { domains: ['technical', 'career'], occupationAffinity: ['学生', '白领', '技术人员'], skillRequirement: 'technical', capitalRequirement: 'low', experienceLevel: 'beginner', cognitiveDimension: 'informationSensitivity', scenarioTags: ['培训陷阱', '转行'], contraindications: NON_TECH_OCCUPATIONS },
   CE005: { domains: ['career'], occupationAffinity: ['白领', '销售', '技术人员', '厨师'], skillRequirement: 'none', capitalRequirement: 'none', experienceLevel: 'any', cognitiveDimension: 'leverageThinking', scenarioTags: ['跳槽', '职业选择'], contraindications: [] },
   CE006: { domains: ['universal'], occupationAffinity: ['universal'], skillRequirement: 'none', capitalRequirement: 'medium', experienceLevel: 'any', cognitiveDimension: 'longTermism', scenarioTags: ['家庭', '财务'], contraindications: [] },
-  CE007: { domains: ['investment'], occupationAffinity: ['个体老板'], skillRequirement: 'none', capitalRequirement: 'high', experienceLevel: 'intermediate', cognitiveDimension: 'riskAwareness', scenarioTags: ['内幕消息', '股市'], contraindications: ['外卖员', '快递员', '宝妈', '学生', '厨师'] },
-  CE008: { domains: ['investment'], occupationAffinity: ['个体老板', '白领'], skillRequirement: 'low', capitalRequirement: 'high', experienceLevel: 'any', cognitiveDimension: 'capitalThinking', scenarioTags: ['理财', '第一笔'], contraindications: ['外卖员', '快递员', '宝妈', '学生'] },
+  CE007: { domains: ['money'], occupationAffinity: ['个体老板'], skillRequirement: 'none', capitalRequirement: 'high', experienceLevel: 'intermediate', cognitiveDimension: 'riskAwareness', scenarioTags: ['内幕消息', '股市'], contraindications: ['外卖员', '快递员', '宝妈', '学生', '厨师'] },
+  CE008: { domains: ['money'], occupationAffinity: ['个体老板', '白领'], skillRequirement: 'low', capitalRequirement: 'high', experienceLevel: 'any', cognitiveDimension: 'capitalThinking', scenarioTags: ['理财', '第一笔'], contraindications: ['外卖员', '快递员', '宝妈', '学生'] },
   CE009: { domains: ['content'], occupationAffinity: ['内容创作者', '宝妈', '学生'], skillRequirement: 'none', capitalRequirement: 'none', experienceLevel: 'any', cognitiveDimension: 'longTermism', scenarioTags: ['短视频', '注意力'], contraindications: [] },
   CE010: { domains: ['ai', 'career'], occupationAffinity: ['universal'], skillRequirement: 'low', capitalRequirement: 'none', experienceLevel: 'any', cognitiveDimension: 'systemThinking', scenarioTags: ['AI', '岗位升级'], contraindications: [] },
   CE011: { domains: ['universal'], occupationAffinity: ['universal'], skillRequirement: 'none', capitalRequirement: 'low', experienceLevel: 'any', cognitiveDimension: 'longTermism', scenarioTags: ['复利', '死工资'], contraindications: [] },

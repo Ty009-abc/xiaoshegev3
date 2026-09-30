@@ -63,7 +63,7 @@ const KEYWORD_DOMAINS = [
   { re: /销售|客户|业绩|谈判|成交/, dom: ['sales'] },
   { re: /短视频|自媒体|直播|内容|粉丝|IP/i, dom: ['content'] },
   { re: /AI|人工智能|自动化|大模型/i, dom: ['ai'] },
-  { re: /投资|理财|理财|股票|基金/, dom: ['investment'] },
+  { re: /投资|理财|理财|股票|基金/, dom: ['money'] },
   { re: /管理|团队|带人|组织/, dom: ['management'] },
   { re: /技术|编程|开发|设备|维修/, dom: ['technical'] },
   { re: /服务|客户服务|接待/, dom: ['service'] },
@@ -183,7 +183,7 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
     if (ev.cognitiveDimension && weak.includes(ev.cognitiveDimension)) score += 3
     // STEP_4/adaptive — reinforce themes the user actually mis-handled
     if (signals.tags.size && ev.scenarioTags.some((t) => signals.tags.has(t))) score += 4
-    if (signals.risky && ev.domains.includes('investment')) score += 2
+    if (signals.risky && ev.domains.includes('money')) score += 2
     if (signals.shortTerm && ev.cognitiveDimension === 'longTermism') score += 2
     // capital discipline — a low-capital user must not be biased capital-heavy
     if (capLevel === 'low') {
