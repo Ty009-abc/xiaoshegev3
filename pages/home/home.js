@@ -92,7 +92,7 @@ Page({
   goReports()     { wx.navigateTo({ url:'/pages/report-preview/report-preview' }) },
   goInvite()      { wx.navigateTo({ url:'/pages/invite/invite' }) },
   goRanking()     { wx.navigateTo({ url:'/pages/growth-ranking/growth-ranking' }) },
-  goAIChat()      { wx.switchTab({ url:'/pages/ai-chat/ai-chat' }) },
+  goAIChat()      { app.globalData._quickAskScenario = 'ask'; wx.switchTab({ url:'/pages/ai-chat/ai-chat' }) },
   goDaily()       { wx.navigateTo({ url:'/pages/cognition-daily/cognition-daily' }) },
 
   onQuickAsk(e)  {
@@ -103,6 +103,16 @@ Page({
     console.log('[home] 场景快捷提问:', q, '| 人格:', personality.name)
     analytics.track('quick_ask', { topic: q, personality: personality.name })
     app.globalData._quickAskTopic = q
+    // RC8_10A — 场景键（服务端据此选择 grounded 语境权威）
+    const SCENARIO_KEYS = {
+      '职场困境': 'career',
+      '搞钱逻辑': 'money_logic',
+      '副业方向': 'side_hustle',
+      'AI赛道': 'ai_track',
+      '认知升级': 'cognition',
+      '流量密码': 'traffic',
+    }
+    app.globalData._quickAskScenario = SCENARIO_KEYS[q] || ''
     app.globalData._quickAskPersonality = personality
     wx.switchTab({ url:'/pages/ai-chat/ai-chat' })
   },

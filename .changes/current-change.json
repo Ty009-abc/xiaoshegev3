@@ -1,10 +1,10 @@
 {
   "taskId": "RC8_10A_CONTEXT_MEMORY_SCENARIO_ASK_XIAOSHIGE",
-  "stage": "A",
-  "phase": "Build the single user context authority (userContextBuilder) that grounds the six home-page scenarios and 直接问小事哥 in the user's real 6Q/profile/challenge/report data (+long-term memory when enabled); make the memory backend read/write path authoritative and gated by memoryEnabled.",
+  "stage": "B",
+  "phase": "Wire the six home-page scenarios to pass the canonical scenario key (career/money_logic/side_hustle/ai_track/cognition/traffic) to the server so each scenario is answered from the real 6Q/context authority.",
   "baseCommit": "70a6d4f",
   "branch": "feature/rc8.9d-funnel-authority",
-  "scope": "cloudfunctions/generateAiReport (lib/context/*, coaching branch), memory backend (already deployed), tests. No payment/entitlement/replay/challenge/report-generation/DB-schema/env change.",
+  "scope": "pages/home/home.js (scenario key mapping). Client-only; no cloudfunction change.",
   "architecture": {
     "deployedAiEntryPoint": "generateAiReport (type=coaching) — SAME path for the six home chips and 直接问小事哥",
     "contextAuthority": "lib/context/userContextBuilder.js (UCB) — L0 6Q > L1 profile > L2 challenge > L3 report > L4 memory [gated] > L5 message",
@@ -20,14 +20,7 @@
     "SIX_Q_INDEPENDENT_OF_MEMORY": "YES (memoryEnabled gates ONLY L4; 6Q/profile always applied)"
   },
   "filesChanged": [
-    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js (NEW)",
-    "cloudfunctions/generateAiReport/lib/context/coachingContextRuntime.js (NEW)",
-    "cloudfunctions/generateAiReport/index.js (coaching branch → grounded context engine)",
-    "tests/rc8.10/context-authority.test.js (NEW)",
-    "tests/rc8.10/run.js (NEW)",
-    "tests/rc8.9/memory-runtime-wiring.test.js (invariants updated for central gate)",
-    "tests/rc8.9/report-entity.test.js (sandbox stubs)",
-    "tests/rc8.9/ai-telemetry-core.test.js (sandbox stubs)",
+    "pages/home/home.js",
     ".changes/current-change.json"
   ],
   "invariants": {
@@ -40,7 +33,11 @@
     "DB_SCHEMA_CHANGED": "NO",
     "ENV_CHANGED": "NO"
   },
-  "deployTargets": ["generateAiReport"],
-  "requiredTests": ["node tests/rc8.10/run.js", "node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
+  "deployTargets": [],
+  "requiredTests": [
+    "node tests/rc8.10/run.js",
+    "node tests/rc8.9/run.js",
+    "node tests/rc8.8/run.js"
+  ],
   "rollbackPlan": "git revert <commit> + redeploy prior generateAiReport. No schema/payment impact."
 }
