@@ -95,6 +95,7 @@ function loadGenAiReport(db, canned, cons) {
     if (id === './lib/legacy6q/legacy6qRuntime.js') return { runLegacy6QReport: async () => JSON.parse(JSON.stringify(canned)) }
     if (id === './lib/memoryEngine.js') return { isMemoryEnabled: async () => false, getRelevantMemories: async () => [], formatMemoryForPrompt: () => '', updateUserMemory: async () => ({ code: 0 }) }
     if (id === './lib/memoryExtractor.js') return { extractFromMessage: () => null }
+    if (id === './lib/raw6qStore.js') return { persistRaw6Q: async () => ({ ok: true, rawId: 'raw_test' }), loadLatestRaw6Q: async () => null }
     if (id === './lib/context/coachingContextRuntime.js') return { runCoachingTurn: async () => ({ ok: true, aiResult: { success: true, content: '{}' }, ctx: {}, attempts: 1, validation: { ok: true } }) }
     if (id === './lib/context/userContextBuilder.js') return { SCENARIO_NAME_TO_KEY: {} }
     return require(id)

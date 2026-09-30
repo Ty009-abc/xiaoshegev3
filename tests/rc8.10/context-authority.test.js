@@ -99,7 +99,7 @@ const baseProfile = {
     ok(off.sixQ && off.sixQ.reportId === 'rpt_6q_NEW', 'P: 6Q present with memory off')
     eq(off.memoryEnabled, false, 'P: memoryEnabled false')
     eq(off.memories.length, 0, 'P: memories empty when off')
-    ok(off.evidenceMap.sixQ === 'SIX_Q', 'P: 6Q evidence present despite memory off')
+    ok(off.evidenceMap.sixQ === 'RAW_6Q' || off.evidenceMap.sixQ === 'DERIVED_LEGACY' || off.evidenceMap.sixQ === 'SIX_Q', 'P: 6Q evidence present despite memory off')
     const p = CTXB.composeScenarioPrompt('ai_track', off)
     ok(/外卖员|厨师/.test(p.systemPrompt), 'P: grounded prompt still carries explicit facts')
     ok(!/SHOULD_NOT_APPEAR/.test(p.systemPrompt), 'P: memory NOT injected when off')
@@ -138,9 +138,9 @@ const baseProfile = {
     let allShare = true
     for (const k of keys) {
       const ctx = await CTXB.buildUserContext(db, OWNER, { scenario: k, message: 'help', memoryEnabled: false })
-      if (!(ctx.sixQ && ctx.sixQ.reportId === 'rpt_6q_NEW') || ctx.evidenceMap.sixQ !== 'SIX_Q') allShare = false
+      if (!ctx.hasSixQ || !(ctx.evidenceMap.sixQ === 'RAW_6Q' || ctx.evidenceMap.sixQ === 'DERIVED_LEGACY' || ctx.evidenceMap.sixQ === 'SIX_Q')) allShare = false
       const p = CTXB.composeScenarioPrompt(k, ctx)
-      if (!/【最新6Q权威数据/.test(p.systemPrompt)) allShare = false
+      if (!/【用户原始6Q作答|【6Q报告推导证据|【最新6Q权威数据/.test(p.systemPrompt)) allShare = false
     }
     ok(allShare, 'S3: six scenarios all route through the same 6Q authority')
     // names frozen

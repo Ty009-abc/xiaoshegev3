@@ -19,6 +19,7 @@ const ALL = [
   'golden-cases.test.js',
   'ask-xiaoshige.test.js',
   'personalized-challenge.test.js',
+  'raw6q-authority.test.js',
 ]
 const TESTS = ALL.filter((t) => fs.existsSync(path.join(__dirname, t)))
 

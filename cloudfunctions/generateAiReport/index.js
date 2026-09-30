@@ -273,6 +273,23 @@ exports.main = async (event, context) => {
         // 一份有效的用户报告。持久化结果通过 reportPersistence 显式暴露，并对
         // ai_logs 记录（可观测）。幂等：同一 requestId 复用同一 reportId。
         const store6q = require('./lib/reportStore6q.js')
+        // RC8_10B STAGE_D1 — persist the RAW 6Q answers as L0 authority (same
+        // 6Q submission/report transaction; bound to the authenticated openid;
+        // never derived from the generated report). Non-blocking + idempotent.
+        const rawStore = require('./lib/raw6qStore.js')
+        let raw6qPersistence = 'PERSISTED'
+        try {
+          const rr = await rawStore.persistRaw6Q(db, {
+            openid,
+            requestId: event.requestId || event.recordId || '',
+            answers,
+            ts,
+          })
+          if (!rr.ok) raw6qPersistence = 'SKIPPED:' + (rr.reason || 'UNKNOWN')
+        } catch (rawErr) {
+          raw6qPersistence = 'FAILED'
+          console.error('[generateAiReport] raw6q persist failed (non-blocking):', (rawErr && rawErr.message) || String(rawErr))
+        }
         let reportId = ''
         let reportPersistence = 'PERSISTED'
         let persistErrorMessage = ''
@@ -294,6 +311,7 @@ exports.main = async (event, context) => {
         db.collection('ai_logs').add({ data: {
           openid, action: 'generate_report_6q', type: 'diagnostic',
           reportType: 'turnaround_6q', success: rep.reportState === 'PRIMARY',
+          raw6qPersistence,
           reportState: rep.reportState || '',
           isFallback: rep.reportState === 'FALLBACK',
           reportPersistence,

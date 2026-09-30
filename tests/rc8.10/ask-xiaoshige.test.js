@@ -57,7 +57,9 @@ async function main () {
   ok(ctx.explicitProfile.occupation === '厨师', 'A2: ask reads occupation from own 6Q')
   const p = composeScenarioPrompt('ask', ctx)
   const idxPersona = p.systemPrompt.indexOf('珠澳小事哥')
-  const idxSixQ = p.systemPrompt.indexOf('【最新6Q权威数据')
+  const idxRaw = p.systemPrompt.indexOf('【用户原始6Q作答')
+  const idxDerived = p.systemPrompt.indexOf('【6Q报告推导证据')
+  const idxSixQ = idxRaw >= 0 ? idxRaw : idxDerived
   const idxMem = p.systemPrompt.indexOf('【长期记忆')
   ok(idxPersona >= 0 && idxSixQ > idxPersona, 'A1: persona precedes 6Q')
   ok(idxMem < 0 || idxMem > idxSixQ, 'A1: memory comes after 6Q')

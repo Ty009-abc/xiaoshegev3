@@ -45,7 +45,10 @@ const WORLD_MODEL_TYPE_FALLBACK = '认知探索者'
 const UNKNOWN = '—'
 
 const SIXQ_DOMAIN = 'turnaround_6q'
+const RAW6Q_TYPE = 'raw_6q'
+const RAW6Q_COLLECTION = 'user_6q_raw'
 const SIXQ_VERSION = 'turnaround_strategy_6q_v1'
+const RAW6Q_FIELDS = ['age', 'job', 'education', 'income', 'anxiety', 'rootCause']
 
 // Six scenario registry (user-facing names are FROZEN).
 const SCENARIOS = Object.freeze({
@@ -170,11 +173,23 @@ function assembleUserContext (raw) {
   const evidenceMap = {}
   const missingFields = []
 
-  // ── L0 sixQ ──
+  // ── L0 RAW 6Q (highest authority; server-persisted raw answers) ──
+  const rawDoc = r.raw6q || null
+  const rf = (rawDoc && rawDoc.facts) || {}
+  const hasRaw = !!(clean(rf.job) || clean(rf.rootCause) || clean(rf.anxiety) || clean(rf.income) || clean(rf.education) || clean(rf.age))
+  const raw6Q = hasRaw ? {
+    source: 'RAW_6Q',
+    diagnosticVersion: clean(rawDoc.diagnosticVersion) || SIXQ_VERSION,
+    job: clean(rf.job), income: clean(rf.income), age: clean(rf.age),
+    education: clean(rf.education), anxiety: clean(rf.anxiety), rootCause: clean(rf.rootCause),
+    completedAt: rawDoc.completedAt || null,
+  } : null
+
+  // ── L0b turnaround_6q report (DERIVED evidence only) ──
   const c = (sixq && sixq.content) || {}
-  const sixqText = [clean(c.system_trap), clean(c.core_problem), clean(c.fatal_sentence), clean(c.strategy_path)].join('\n')
-  const hasSixQ = !!(clean(c.system_trap) || clean(c.core_problem) || clean(c.fatal_sentence) || clean(c.strategy_path))
-  const sixQ = hasSixQ ? {
+  const reportText = [clean(c.system_trap), clean(c.core_problem), clean(c.fatal_sentence), clean(c.strategy_path)].join('\n')
+  const hasReport = !!(clean(c.system_trap) || clean(c.core_problem) || clean(c.fatal_sentence) || clean(c.strategy_path))
+  const sixQ = hasReport ? {
     reportId: clean((sixq && sixq.reportId) || c.reportId),
     diagnosticVersion: clean(c.diagnosticVersion) || SIXQ_VERSION,
     systemTrap: clean(c.system_trap),
@@ -182,25 +197,39 @@ function assembleUserContext (raw) {
     fatalSentence: clean(c.fatal_sentence),
     strategyPath: clean(c.strategy_path),
     createdAt: (sixq && sixq.createdAt) || null,
+    derivedFrom: 'DERIVED_LEGACY',
   } : null
-  if (hasSixQ) evidenceMap.sixQ = 'SIX_Q'
+  // Authority text: RAW wins; else report text marked DERIVED_LEGACY.
+  const sixqText = hasRaw ? [raw6Q.job, raw6Q.anxiety, raw6Q.rootCause].filter(Boolean).join('\n') : reportText
+  const hasSixQ = hasRaw || hasReport
+  const sixQSource = hasRaw ? 'RAW_6Q' : (hasReport ? 'DERIVED_LEGACY' : null)
+  if (hasRaw) evidenceMap.sixQ = 'RAW_6Q'
+  else if (hasReport) evidenceMap.sixQ = 'DERIVED_LEGACY'
 
-  // ── L1 explicit profile (from 6Q text + message; profile doc holds cognition) ──
-  const textPool = sixqText + '\n' + message
-  let occupation = firstToken(textPool, OCCUPATION_TOKENS)
+  // ── L1 explicit profile ──
+  // When RAW 6Q exists, explicit facts come from the RAW answers ONLY — no model
+  // extraction from the generated report text. Otherwise derive from the user's
+  // own message (+ report text as a DERIVED_LEGACY fallback).
+  const textPool = (hasRaw ? '' : reportText + '\n') + message
+  const rawOcc = hasRaw ? firstToken(raw6Q.job, OCCUPATION_TOKENS) : ''
+  let occupation = rawOcc || firstToken(textPool, OCCUPATION_TOKENS)
   if (!occupation && profile && typeof profile.occupation === 'string') occupation = clean(profile.occupation)
-  const income = extractIncome(sixqText) != null ? extractIncome(sixqText) : extractIncome(message)
-  const age = extractAge(sixqText) != null ? extractAge(sixqText) : extractAge(message)
-  const education = extractEducation(sixqText) || extractEducation(message)
+  const rawIncomeNum = hasRaw ? parseInt(raw6Q.income, 10) : NaN
+  const repIncome = extractIncome(reportText)
+  const income = Number.isFinite(rawIncomeNum) ? rawIncomeNum : (repIncome != null ? repIncome : extractIncome(message))
+  const rawAgeNum = hasRaw ? parseInt(raw6Q.age, 10) : NaN
+  const repAge = extractAge(reportText)
+  const age = Number.isFinite(rawAgeNum) ? rawAgeNum : (repAge != null ? repAge : extractAge(message))
+  const rawEdu = hasRaw ? firstToken(raw6Q.education, EDUCATION_TOKENS) : ''
+  const education = rawEdu || extractEducation(reportText) || extractEducation(message)
 
-  const srcOf = (tok) => sixqText.includes(tok) ? 'SIX_Q' : 'CURRENT_USER_MESSAGE'
-  if (occupation) evidenceMap.occupation = srcOf(occupation)
+  if (occupation) evidenceMap.occupation = rawOcc ? 'RAW_6Q' : (reportText.includes(occupation) ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('occupation')
-  if (income != null) evidenceMap.income = extractIncome(sixqText) != null ? 'SIX_Q' : 'CURRENT_USER_MESSAGE'
+  if (income != null) evidenceMap.income = Number.isFinite(rawIncomeNum) ? 'RAW_6Q' : (repIncome != null ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('income')
-  if (age != null) evidenceMap.age = extractAge(sixqText) != null ? 'SIX_Q' : 'CURRENT_USER_MESSAGE'
+  if (age != null) evidenceMap.age = Number.isFinite(rawAgeNum) ? 'RAW_6Q' : (repAge != null ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('age')
-  if (education) evidenceMap.education = srcOf(education)
+  if (education) evidenceMap.education = rawEdu ? 'RAW_6Q' : (extractEducation(reportText) ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('education')
 
   // skills / capital are NEVER invented — absent unless the message states them.
@@ -214,6 +243,8 @@ function assembleUserContext (raw) {
     income: income != null ? income : null,
     age: age != null ? age : null,
     education: education || null,
+    anxiety: hasRaw ? (raw6Q.anxiety || null) : null,
+    rootCause: hasRaw ? (raw6Q.rootCause || null) : null,
     skills,
     capital,
     goal: (profile && profile.currentFocus && profile.currentFocus.goalText && profile.currentFocus.goalText.value) || null,
@@ -278,6 +309,8 @@ function assembleUserContext (raw) {
     message,
     explicitProfile,
     sixQ,
+    raw6Q,
+    sixQSource,
     sixQText: sixqText,
     profile: profileEvidence,
     challengeEvidence,
@@ -303,10 +336,20 @@ function composeScenarioPrompt (scenario, ctx) {
   lines.push('你只能使用下面【已确认信息】里的事实回答；绝对不能编造用户没提供的技能、收入、经历或资源。')
   lines.push('信息缺失时，用条件式建议（"如果你……"）或反问一句补齐，不要假装知道。')
 
-  // L0 6Q
-  if (c.sixQ) {
+  // L0 RAW 6Q (explicit raw answers — highest authority)
+  if (c.raw6Q) {
     lines.push('')
-    lines.push('【最新6Q权威数据（最高优先）】')
+    lines.push('【用户原始6Q作答（最高权威，必须直接采用，不得反推）】')
+    lines.push('- 年龄：' + (c.raw6Q.age || '未知'))
+    lines.push('- 职业：' + (c.raw6Q.job || '未知'))
+    lines.push('- 学历：' + (c.raw6Q.education || '未知'))
+    lines.push('- 月收入：' + (c.raw6Q.income ? c.raw6Q.income + '元' : '未知'))
+    lines.push('- 当前最焦虑：' + (c.raw6Q.anxiety || '未知'))
+    lines.push('- 自认为翻不了身的原因：' + (c.raw6Q.rootCause || '未知'))
+  } else if (c.sixQ) {
+    // L0 fallback — 6Q report text is DERIVED evidence only (legacy users).
+    lines.push('')
+    lines.push('【6Q报告推导证据（DERIVED_LEGACY，非原始作答，不得当作既定事实）】')
     if (c.sixQ.systemTrap) lines.push('- 系统困局：' + c.sixQ.systemTrap)
     if (c.sixQ.rootProblem) lines.push('- 核心问题：' + c.sixQ.rootProblem)
     if (c.sixQ.fatalSentence) lines.push('- 致命一句话：' + c.sixQ.fatalSentence)
@@ -476,11 +519,18 @@ async function buildUserContext (db, openid, opts) {
   const scenario = o.scenario || 'ask'
   const memoryEnabled = o.memoryEnabled !== false
 
-  let profile = null, sixqReport = null, challengeRecord = null, memories = []
+  let profile = null, sixqReport = null, raw6qReport = null, challengeRecord = null, memories = []
   try {
     const pr = await db.collection('user_profiles').where({ openid }).limit(1).get()
     profile = (pr.data && pr.data[0]) || null
   } catch (_) { profile = null }
+  try {
+    // L0 RAW 6Q — newest completed raw answers (highest authority)
+    const rr = await db.collection(RAW6Q_COLLECTION)
+      .where({ openid })
+      .orderBy('completedAt', 'desc').limit(1).get()
+    raw6qReport = (rr.data && rr.data[0]) || null
+  } catch (_) { raw6qReport = null }
   try {
     const sr = await db.collection('ai_reports')
       .where({ openid, reportType: SIXQ_DOMAIN })
@@ -503,12 +553,12 @@ async function buildUserContext (db, openid, opts) {
 
   return assembleUserContext({
     openid, scenario, message: o.message,
-    profile, sixqReport, challengeRecord, memories, memoryEnabled,
+    profile, sixqReport, raw6q: raw6qReport, challengeRecord, memories, memoryEnabled,
   })
 }
 
 module.exports = {
-  SCENARIOS, SCENARIO_NAME_TO_KEY, DOMAIN_TOKENS, DIMENSION_LABELS,
+  SCENARIOS, SCENARIO_NAME_TO_KEY, DOMAIN_TOKENS, DIMENSION_LABELS, RAW6Q_TYPE, RAW6Q_FIELDS,
   WORLD_MODEL_TYPE_LABELS, WORLD_MODEL_TYPE_FALLBACK,
   assembleUserContext, composeScenarioPrompt, validateScenarioResponse,
   buildUserContext, typeLabel,

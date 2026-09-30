@@ -120,6 +120,17 @@ function sixqRow (openid, content, createdAt) {
   }
 }
 
+function raw6qRow (openid, cse, completedAt) {
+  return {
+    openid, rawId: 'raw6q_' + completedAt, source: 'RAW_6Q',
+    diagnosticVersion: 'turnaround_strategy_6q_v1', completedAt,
+    facts: {
+      age: String(cse.age || 30), job: cse.job, education: cse.edu,
+      income: String(cse.income), anxiety: cse.problem, rootCause: cse.fatal,
+    },
+  }
+}
+
 async function main () {
   console.log('RC8_10A2 — GOLDEN CASES (' + CASES.length + ' cases)')
 
@@ -133,25 +144,26 @@ async function main () {
     }
     const rows = {
       ai_reports: [sixqRow(openid, sixqContent, 1000 + i)],
+      user_6q_raw: [raw6qRow(openid, cse, 2000 + i)],
       user_profiles: [{ openid, mainType: 'normal_awakened', wealthPotentialScore: 62, laborMindset: 30, capitalThinking: 40 }],
       challenge_records: [],
     }
     const db = makeFakeDb(rows)
 
-    // G1 latest 6Q selected
+    // G1 latest RAW 6Q selected (L0 authority)
     const ctx = await buildUserContext(db, openid, { scenario: 'career', message: '' })
-    ok(ctx.hasSixQ, `#${i + 1} ${cse.occupation}: latest 6Q selected`)
-    ok(ctx.sixQ && ctx.sixQ.rootProblem === cse.problem, `#${i + 1} ${cse.occupation}: 6Q content correct`)
+    ok(ctx.hasSixQ && ctx.sixQSource === 'RAW_6Q', `#${i + 1} ${cse.occupation}: latest raw 6Q selected`)
+    ok(ctx.raw6Q && ctx.raw6Q.rootCause === cse.fatal, `#${i + 1} ${cse.occupation}: raw 6Q content correct`)
 
-    // G2 occupation read from own 6Q
+    // G2 occupation read from own raw 6Q
     ok(ctx.explicitProfile.occupation === cse.occupation,
       `#${i + 1} expect occupation ${cse.occupation}, got ${ctx.explicitProfile.occupation}`)
-    ok(ctx.evidenceMap.occupation === 'SIX_Q', `#${i + 1} occupation evidenced as SIX_Q`)
+    ok(ctx.evidenceMap.occupation === 'RAW_6Q', `#${i + 1} occupation evidenced as RAW_6Q`)
 
     // G3 chef / any non-digital → no programming career for AI赛道
     const aiCtx = assembleUserContext({
       scenario: 'ai_track', message: '',
-      sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memoryEnabled: true,
+      raw6q: rows.user_6q_raw[0], sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memoryEnabled: true,
     })
     const nonDigital = !['技术人员'].includes(cse.occupation)
     if (nonDigital) {
@@ -165,7 +177,7 @@ async function main () {
     // G4 low-capital side hustle → no capital-heavy PRIMARY plan
     const shCtx = assembleUserContext({
       scenario: 'side_hustle', message: '',
-      sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memoryEnabled: true,
+      raw6q: rows.user_6q_raw[0], sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memoryEnabled: true,
     })
     const capitalHeavy = '首选方案是加盟开店，进货囤货，租店面做起来。' + cse.problem
     const v2 = validateScenarioResponse(capitalHeavy, shCtx)
@@ -175,22 +187,22 @@ async function main () {
     for (const sc of SCENARIOS) {
       const sctx = assembleUserContext({
         scenario: sc, message: '',
-        sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memoryEnabled: true,
+        raw6q: rows.user_6q_raw[0], sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memoryEnabled: true,
       })
-      ok(sctx.hasSixQ && sctx.evidenceMap.sixQ === 'SIX_Q' && sctx.sixQ.rootProblem === cse.problem,
-        `#${i + 1} ${cse.occupation}: scenario ${sc} uses shared 6Q authority`)
+      ok(sctx.hasSixQ && sctx.evidenceMap.sixQ === 'RAW_6Q' && sctx.raw6Q.rootCause === cse.fatal,
+        `#${i + 1} ${cse.occupation}: scenario ${sc} uses shared raw 6Q authority`)
     }
 
     // G6 memory OFF still uses 6Q; memory ON adds memory context
     const offCtx = assembleUserContext({
       scenario: 'career', message: '',
-      sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memories: [{ content: 'MEM' }], memoryEnabled: false,
+      raw6q: rows.user_6q_raw[0], sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memories: [{ content: 'MEM' }], memoryEnabled: false,
     })
     ok(offCtx.hasSixQ && offCtx.memories.length === 0 && offCtx.evidenceMap.memories === 'MEMORY_DISABLED',
-      `#${i + 1} ${cse.occupation}: memory OFF keeps 6Q, drops memory`)
+      `#${i + 1} ${cse.occupation}: memory OFF keeps raw 6Q, drops memory`)
     const onCtx = assembleUserContext({
       scenario: 'career', message: '',
-      sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memories: [{ content: 'MEM' }], memoryEnabled: true,
+      raw6q: rows.user_6q_raw[0], sixqReport: rows.ai_reports[0], profile: rows.user_profiles[0], memories: [{ content: 'MEM' }], memoryEnabled: true,
     })
     ok(onCtx.hasSixQ && onCtx.memories.length === 1, `#${i + 1} ${cse.occupation}: memory ON adds memory context`)
 

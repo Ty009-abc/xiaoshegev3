@@ -1,30 +1,28 @@
 {
-  "taskId": "RC8_10B_PERSONALIZED_30DAY_CHALLENGE",
-  "stage": "D",
-  "phase": "STAGE_D (personalized challenge): add metadata to the unchanged 30-event bank, build a deterministic personalized selector (occupation/capital/cognition aware) + 5-day adaptive engine + profile-version cache key, and wire getChallengeEvent to it (legacy fallback preserved).",
-  "baseCommit": "70a6d4f",
-  "branch": "feature/rc8.9d-funnel-authority",
-  "scope": "cloudfunctions/getChallengeEvent (index + lib), cloudfunctions/common (catalog/selector source), tests/rc8.10/*. No payment/entitlement/replay/profile/report/DB-schema/env change; event bank NOT rewritten.",
+  "taskId": "RC8_10B_RAW_6Q_AUTHORITY_AND_PERSONALIZED_30DAY_CHALLENGE",
+  "stage": "D1",
+  "priority": "P0_PRODUCT_CORE",
+  "phase": "STAGE_D1 (raw 6Q authority): persist the user RAW 6Q (age/job/education/income/anxiety/rootCause) server-side in a dedicated collection bound to the authenticated openid within the existing 6Q submission transaction; make RAW 6Q the L0 context authority (report text = DERIVED_LEGACY only; no report reverse-engineering when raw exists).",
+  "baseCommit": "c55f59f",
+  "scope": "cloudfunctions/generateAiReport (raw6qStore.js NEW + index.js persist hook + context/userContextBuilder.js L0) + getChallengeEvent/lib/context (UCB copy) + tests. No payment/entitlement/replay/profile-authority/report-authority/DB-schema/env change.",
   "filesChanged": [
-    "cloudfunctions/common/challengeEventCatalog.js",
-    "cloudfunctions/common/challengePersonalization.js",
-    "cloudfunctions/getChallengeEvent/index.js",
-    "cloudfunctions/getChallengeEvent/lib/challengeEventCatalog.js",
-    "cloudfunctions/getChallengeEvent/lib/challengePersonalization.js",
+    "cloudfunctions/generateAiReport/lib/raw6qStore.js",
+    "cloudfunctions/generateAiReport/index.js",
+    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
     "cloudfunctions/getChallengeEvent/lib/context/userContextBuilder.js",
-    "cloudfunctions/getChallengeEvent/lib/context/challengePersonalizationRuntime.js",
-    "tests/rc8.10/challenge-events.fixture.js",
-    "tests/rc8.10/personalized-challenge.test.js",
+    "tests/rc8.10/raw6q-authority.test.js",
+    "tests/rc8.10/*.test.js",
     "tests/rc8.10/run.js",
+    "tests/rc8.9/report-entity.test.js",
+    "tests/rc8.9/ai-telemetry-core.test.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [
-    "getChallengeEvent"
+    "generateAiReport"
   ],
   "requiredTests": [
     "node tests/rc8.10/run.js",
     "node tests/rc8.9/run.js",
     "node tests/rc8.8/run.js"
-  ],
-  "priority": "P0_PRODUCT_CORE"
+  ]
 }
