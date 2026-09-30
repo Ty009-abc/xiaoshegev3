@@ -123,10 +123,16 @@ function computeProfileVersion (ctx, openid, opts) {
   return 'pv_' + h.toString(36)
 }
 
-/** Themes already demonstrated by the user's ACTUAL prior choices. */
+/**
+ * Themes + weaknesses demonstrated by the user's ACTUAL prior choices.
+ * Reassessment dimensions (spec Phase 5): risk_behavior, short_termism,
+ * execution, verification, leverage, capital_discipline.
+ */
 function priorAnswerSignals (priorChoices, eventsById) {
   const tags = new Set()
-  let risky = false, shortTerm = false
+  let risky = false, shortTerm = false, verifyGap = false, leverageGap = false
+  let capIndiscipline = false
+  let negDecisionStreak = 0
   for (const ch of (priorChoices || [])) {
     const ev = eventsById && eventsById[ch.eventId]
     if (!ev) continue
@@ -134,11 +140,14 @@ function priorAnswerSignals (priorChoices, eventsById) {
     if (!choice) continue
     for (const t of (choice.tags || [])) tags.add(t)
     const eff = choice.effects || {}
-    // negative risk/decision = repeated impulsive behaviour → reinforce
-    if ((eff.riskAwareness || 0) < 0 || (eff.decisionStability || 0) < 0) risky = true
+    if ((eff.riskAwareness || 0) < 0) risky = true
+    if ((eff.decisionStability || 0) < 0) { negDecisionStreak++; if (negDecisionStreak >= 2) risky = true }
     if ((eff.longTermism || 0) < 0) shortTerm = true
+    if ((eff.informationSensitivity || 0) < 0) verifyGap = true
+    if ((eff.leverageThinking || 0) < 0) leverageGap = true
+    if ((eff.capitalThinking || 0) < 0) capIndiscipline = true
   }
-  return { tags, risky, shortTerm }
+  return { tags, risky, shortTerm, verifyGap, leverageGap, capIndiscipline }
 }
 
 /**
@@ -182,9 +191,13 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
     // STEP_3 cover cognition dimensions
     if (ev.cognitiveDimension && weak.includes(ev.cognitiveDimension)) score += 3
     // STEP_4/adaptive — reinforce themes the user actually mis-handled
-    if (signals.tags.size && ev.scenarioTags.some((t) => signals.tags.has(t))) score += 4
-    if (signals.risky && ev.domains.includes('money')) score += 2
-    if (signals.shortTerm && ev.cognitiveDimension === 'longTermism') score += 2
+    const adaptiveActive = adaptPhase >= 1 // day 6+ (re-evaluate every 5 days)
+    if (adaptiveActive && signals.tags.size && ev.scenarioTags.some((t) => signals.tags.has(t))) score += 4
+    if (adaptiveActive && signals.risky && ev.domains.includes('money')) score += 3
+    if (adaptiveActive && signals.shortTerm && ev.cognitiveDimension === 'longTermism') score += 2
+    if (adaptiveActive && signals.verifyGap && ev.cognitiveDimension === 'informationSensitivity') score += 2
+    if (adaptiveActive && signals.leverageGap && ev.cognitiveDimension === 'leverageThinking') score += 2
+    if (adaptiveActive && signals.capIndiscipline && ev.cognitiveDimension === 'capitalThinking') score += 2
     // capital discipline — a low-capital user must not be biased capital-heavy
     if (capLevel === 'low') {
       if (ev.capitalRequirement === 'high') score -= 5
@@ -214,11 +227,19 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
   universal.sort((a, b) => (a.difficulty - b.difficulty) || (a.day - b.day))
   // adaptive: bump events matching demonstrated weakness to the FRONT of the
   // tail band (positions ≥ WARMUP) so day6+ reacts to prior choices.
+  const weakDims = []
+  if (signals.risky) weakDims.push('riskAwareness')
+  if (signals.shortTerm) weakDims.push('longTermism')
+  if (signals.verifyGap) weakDims.push('informationSensitivity')
+  if (signals.leverageGap) weakDims.push('leverageThinking')
+  if (signals.capIndiscipline) weakDims.push('capitalThinking')
   if (adaptPhase >= 1) {
     const bump = (arr) => arr.sort((a, b) => {
-      const am = signals.tags.size && a.scenarioTags.some((t) => signals.tags.has(t)) ? 0 : 1
-      const bm = signals.tags.size && b.scenarioTags.some((t) => signals.tags.has(t)) ? 0 : 1
-      return (am - bm) || (a.difficulty - b.difficulty) || (a.day - b.day)
+      const tagA = signals.tags.size && a.scenarioTags.some((t) => signals.tags.has(t)) ? 0 : 1
+      const tagB = signals.tags.size && b.scenarioTags.some((t) => signals.tags.has(t)) ? 0 : 1
+      const dimA = weakDims.includes(a.cognitiveDimension) ? 0 : 1
+      const dimB = weakDims.includes(b.cognitiveDimension) ? 0 : 1
+      return (tagA - tagB) || (dimA - dimB) || (a.difficulty - b.difficulty) || (a.day - b.day)
     })
     bump(personal); bump(universal)
   }
@@ -258,6 +279,7 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
     capitalHeavyRatio: +capHeavyRatio.toFixed(3),
     filteredOutCount: filteredOut.length,
     adaptPhase,
+    reevaluation: adaptPhase >= 1 ? { applied: true, weakDimensions: weakDims, matchedTags: Array.from(signals.tags) } : { applied: false },
     domains: userDomains,
     profileVersion: computeProfileVersion(ctx, o.openid, { completedCount }),
   }

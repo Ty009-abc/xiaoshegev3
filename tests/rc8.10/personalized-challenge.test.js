@@ -143,9 +143,14 @@ function main () {
   const tail = adaptivePlan.plan.slice(personal.WARMUP)
   const matchedAtFront = tail.length && tail[0].scenarioTags.some((t) => signals.tags.has(t))
   ok(matchedAtFront, 'M4: tail front-loads an event matching demonstrated prior themes')
+  ok(adaptivePlan.metrics.reevaluation && adaptivePlan.metrics.reevaluation.applied === true, 'M4: 5-day reevaluation applied at day6+')
+  ok(adaptivePlan.metrics.reevaluation.weakDimensions.includes('riskAwareness'), 'M4: reevaluation flags risk_behavior weakness')
   // determinism
   const again = planFor(chef, prior)
   ok(JSON.stringify(again.plan.map((p) => p.eventId)) === JSON.stringify(adaptivePlan.plan.map((p) => p.eventId)), 'M4: plan is deterministic')
+  // D3 — no reevaluation before day 6
+  const early = planFor(chef, prior.slice(0, 3))
+  ok(!early.metrics.reevaluation.applied, 'D3: no reevaluation before day 6')
 
   // ── R ratio target 40-60 / 40-60 ──
   ok(chefPlan.metrics.personalizedRatio >= 0.4 && chefPlan.metrics.personalizedRatio <= 0.6,

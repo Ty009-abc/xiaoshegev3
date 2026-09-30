@@ -1,15 +1,14 @@
 {
   "taskId": "RC8_10B_RAW_6Q_AUTHORITY_AND_PERSONALIZED_30DAY_CHALLENGE",
-  "stage": "D2",
+  "stage": "D3",
   "priority": "P0_PRODUCT_CORE",
-  "phase": "STAGE_D2 (event metadata + personalized selector): align the domain taxonomy to the spec superset (universal/career/business/sales/content/service/technical/management/money/ai) and ship the occupation-adjacent + capital/skill-aware personalized selector reading RAW 6Q.",
-  "baseCommit": "f32f3f8",
-  "scope": "cloudfunctions/common/{challengeEventCatalog,challengePersonalization}.js + getChallengeEvent/lib copies. No payment/entitlement/replay/profile/report/DB-schema/env change; event bank unchanged.",
+  "phase": "STAGE_D3 (adaptive 5-day reevaluation): the selector re-evaluates every 5 days from ACTUAL prior choices across risk_behavior/short_termism/execution/verification/leverage/capital_discipline and front-loads events matching the observed weakness; never rewrites past answers, invents progress, or changes scores.",
+  "baseCommit": "8671211",
+  "scope": "cloudfunctions/common/challengePersonalization.js + getChallengeEvent/lib copy + tests. No payment/entitlement/replay/profile/report/DB-schema/env change; event bank unchanged.",
   "filesChanged": [
-    "cloudfunctions/common/challengeEventCatalog.js",
     "cloudfunctions/common/challengePersonalization.js",
-    "cloudfunctions/getChallengeEvent/lib/challengeEventCatalog.js",
     "cloudfunctions/getChallengeEvent/lib/challengePersonalization.js",
+    "tests/rc8.10/personalized-challenge.test.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [
