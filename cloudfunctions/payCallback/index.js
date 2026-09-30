@@ -130,6 +130,16 @@ exports.main = async (event) => {
       return _err(500, 'DECRYPT_FAILED', '解密失败')
     }
 
+    // 步骤 7.1: 事件类型校验（仅处理交易成功通知；其他事件安全忽略，fail-closed 不发放权益）
+    if (event_type && event_type !== 'TRANSACTION.SUCCESS') {
+      console.log(`[payCallback] 非交易成功事件，忽略: ${event_type}`)
+      return _ok()
+    }
+
+    // 步骤 7.2: 绑定已解密的 provider 字段
+    //   —— AES-GCM 解密产物 decrypted 为唯一字段权威来源（P0：修复未声明标识符引用）
+    const { out_trade_no, transaction_id, trade_state, amount, mchid, appid } = decrypted
+
     const orderId = out_trade_no
 
     // 步骤 8: 基本字段校验（orderId 必须存在）

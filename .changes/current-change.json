@@ -1,31 +1,41 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R10_7_EXPLICIT_REPLAY_CONTRACT",
-  "phase": "explicit replay contract (OPTION_C) — report retry creates a NEW entitled challenge record via server authority; normal entry unchanged",
-  "baseCommit": "9469e78",
+  "taskId": "RC8_9_PRELAUNCH_P0_PAYMENT_CALLBACK_RECOVERY",
+  "phase": "P0 release-blocker: fix payCallback undeclared-symbol ReferenceError (valid signed callback could not finalize); add real payCallback.main() E2E; verify unique indexes; harden payCallback env deploy script",
+  "baseCommit": "a339811",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "pages/report-preview/* (retry entry) + cloudfunctions/startChallenge/* (replay branch)",
+  "pageScope": "cloudfunctions/payCallback/* + scripts/set-env.sh + tests/rc8.9/paycallback-main-e2e.test.js",
   "changes": {
-    "HERO": "REPORT_HERO: SMALL_BADGE=AI诊断 + PAGE_TITLE=世界模型报告 + CORE_CONCLUSION(heroConclusion=report.fatalLine) + ONE_LINE_INTERPRETATION(heroInterpretation=summary||coreProblem||static). 紫色强调 + 清晰层级.",
-    "CARDS": "5 content cards unified dark-glass style (01 致命一句话 02 核心问题 03 系统困局 04 翻身路径 05 行动建议).",
-    "ACTION_BAR": "底部固定动作栏，垂直堆叠：主 生成认知海报(紫粉渐变+glow) / 次 重新挑战一次(outline)，支持 safe-area-bottom.",
-    "POSTER": "NEW utils/worldModelPosterContent.js (映射) + utils/worldModelPosterRenderer.js (1080x1920 深色导航蓝+霓虹+红/橙/绿章节编码+QR). 生成→预览→保存相册; 失败/权限/QR/空文本 fallback. SOURCE_ONLY_FROM_CURRENT_REPORT, AI_REGEN_FORBIDDEN.",
-    "RETRY": "onRetryChallenge 确认弹窗 → 既有 /pages/challenge-start/challenge-start (canonical startChallenge 服务端权威入口). 不触碰支付/权益/既有报告.",
-    "LEGACY": "旧半成品入口「保存认知海报 / 分享翻身概率」全部移除.",
-    "TESTS": "NEW tests/rc8.9/world-model-report-ui.test.js, world-model-poster.test.js; NEW poster-recovery.test.js (R10.4), replay-contract.test.js (R10.7 server), retry-navigation removed; updated world-model-retry.test.js to OPTION_C; 注册 run.js.",
-    "RETRY_R10_7": "onRetryChallenge 确认 → 直接调用 startChallenge (replay:true, replayRequestId, source=world_model_report) → 服务端校验权益后新建全新 unlocked 记录 (trialMode:false/status:processing/idx:0) → navigateTo challenge-play?recordId=NEW. 删除 switchTab/challenge-start 常规入口; 双击防抖 retryCreating; 服务端幂等按 replayRequestId.",
-    "SERVER_R10_7": "startChallenge 新增显式重放分支 _handleExplicitReplay (replay===true): 认证→校验 replayRequestId→服务端权益校验(hasChallengeEntitlement)→幂等→复用 _buildRecord 初始化器新建 unlocked 记录 (绝不复制旧数据). 非权益 fail-closed. NORMAL_ENTRY 语义不变."
+    "P0_FIX": "payCallback/index.js after AES-GCM decrypt now binds the provider fields from the decrypted payload: `const { out_trade_no, transaction_id, trade_state, amount, mchid, appid } = decrypted`. Previously these symbols were referenced without declaration (destructure removed by refactor 305a2f0) → ReferenceError → catch → HTTP 500 INTERNAL_ERROR, so the async callback channel could never finalize a paid order. Fix aligns with the required authority order: verify_signature → verify_public_key_id → decrypt_resource → validate_event_type → bind_provider_fields → validate_out_trade_no → validate_trade_state_SUCCESS → call shared finalizePaidOrder → HTTP 200.",
+    "EVENT_TYPE_GUARD": "Added step 7.1: non-`TRANSACTION.SUCCESS` events are safely acknowledged (200) without granting value (fail-closed).",
+    "E2E_TEST": "NEW tests/rc8.9/paycallback-main-e2e.test.js — loads the REAL payCallback/index.js in a vm sandbox (stub wx-server-sdk + REAL paymentAuthority/paymentFinalizer/entitlementService) and exercises a fully signed+encrypted callback end-to-end (A..L): valid SUCCESS=200+finalize once+fields bound; invalid sig/wrong key id/decrypt fail rejected; trade_state!=SUCCESS acked no-finalize; amount/mchid/appid mismatch rejected; missing transaction_id rejected; duplicate callback idempotent (one payment row, one entitlement); callback+verify concurrent (one paid/payment/entitlement); no-ReferenceError regression pin; source binding guard.",
+    "ENV_SCRIPT": "NEW scripts/lib/merge-paycallback-env.js + hardened scripts/set-env.sh [4/6]: payCallback env injection is now MERGE-SAFE (read remote → keep all keys → overlay only the 5 required payment-authority keys → write back full union) and fail-closed on missing required keys. Required: WXPAY_API_V3_KEY, WXPAY_MCHID, WXPAY_SERIAL_NO, WXPAY_PUBLIC_KEY, WXPAY_PUBLIC_KEY_ID. Never prints values, never rotates.",
+    "DB_INDEX_GATE": "READ_ONLY verify: orders.orderId, payments.transactionId, entitlement_grants.orderId unique indexes ALL PRESENT (tcb db nosql listIndexes). Duplicate scan + null/empty scan: CLEAN. No index created.",
+    "STALE_TEST": "tests/rc8.3-stage21-batch4-r1-payment-authority.test.js marked ARCHIVED (tests/archived/*.archived): unregistered in every runner, and its mutation anchors (queryResult / inline finalize + inline grant) describe a pre-refactor verifyPayment shape that no longer exists (finalizer extraction). Not used as a release blocker; legacy archived copy may be preserved outside the maintained runner set.",
+    "TESTS": "Registered paycallback-main-e2e.test.js in tests/rc8.9/run.js. RC8.9 32/32 PASS, RC8.8 7/7 PASS. Targeted payment suites all PASS."
   },
   "invariants": {
     "NORMAL_ENTRY_SEMANTICS_CHANGED": "NO",
-    "PAYMENT_LOGIC_UNCHANGED": "YES", "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
-    "ROUTE_TO_FULL_REPORT_UNCHANGED_EXCEPT_UI": "YES", "REAL_PAYMENT_NOT_PERFORMED": "YES",
-    "OLD_RECORD_PRESERVED": "YES", "OLD_REPORT_PRESERVED": "YES", "ENTITLEMENT_PRESERVED": "YES"
+    "PAYMENT_FINALIZER_SEMANTICS_CHANGED": "NO",
+    "ENTITLEMENT_MAPPING_CHANGED": "NO",
+    "SKU_PRICE_CHANGED": "NO",
+    "CLIENT_UI_CHANGED": "NO",
+    "CHALLENGE_LOGIC_CHANGED": "NO",
+    "REPORT_LOGIC_CHANGED": "NO",
+    "REFUND_IMPLEMENTATION_CHANGED": "NO",
+    "REAL_PAYMENT_NOT_PERFORMED": "YES",
+    "SCHEMA_DOCUMENT_MUTATION": "NO"
   },
   "boundaries": {
-    "BACKEND_CHANGED": "YES (startChallenge replay branch only)", "PAYMENT_CHANGED": "NO", "AUTHORITY_CHANGED": "NO",
-    "CLOUD_FUNCTIONS": "startChallenge (replay branch)", "SKU_PRICE": "NO", "SCHEMA": "NO", "DB_MUTATION": "NEW_RECORD_ONLY_ON_CONFIRMED_REPLAY", "REAL_PAYMENT": "NO"
+    "BACKEND_CHANGED": "YES (payCallback field binding only)",
+    "PAYMENT_CHANGED": "NO (no price/SKU/finalizer/entitlement-mapping change)",
+    "AUTHORITY_CHANGED": "NO (fail-closed authority preserved/strengthened)",
+    "CLOUD_FUNCTIONS": "payCallback",
+    "DEPLOY_TARGETS": ["payCallback"],
+    "DEPLOY_FORBIDDEN": ["createOrder", "verifyPayment", "startChallenge", "generateAiReport", "refundOrder"],
+    "DB_MUTATION": "NONE",
+    "REAL_PAYMENT": "NO"
   },
-  "deployTargets": ["startChallenge"],
-  "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <client-commit>; rebuild preview. Pure client; no server/schema/env impact."
+  "deployTargets": ["payCallback"],
+  "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js", "node tests/rc8.9/paycallback-main-e2e.test.js"],
+  "rollbackPlan": "git revert <commit>; re-deploy previous payCallback. Pure field-binding fix; no schema/env/payment semantics affected."
 }

@@ -30,6 +30,7 @@ const ALL = [
   'payment-finalizer.test.js',
   'payment-pem-normalization.test.js',
   'payment-log-resilience.test.js',
+  'paycallback-main-e2e.test.js',
   'challenge-report-idempotency.test.js',
   'report-preview-wiring.test.js',
   'entitlement-authority.test.js',

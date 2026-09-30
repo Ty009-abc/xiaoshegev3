@@ -131,11 +131,58 @@ tcb fn config:update createOrder --envId "$ENV_ID" \
   --envVariables "{\"WXPAY_MCHID\":\"${WXPAY_MCHID}\",\"WXPAY_APPID\":\"${WXPAY_APPID}\",\"WXPAY_API_V3_KEY\":\"${WXPAY_API_V3_KEY}\",\"WXPAY_SERIAL_NO\":\"${WXPAY_SERIAL_NO}\",\"WXPAY_PRIVATE_KEY\":\"${WXPAY_PRIVATE_KEY}\",\"WXPAY_NOTIFY_URL\":\"${WXPAY_NOTIFY_URL}\"}" 2>&1 || echo "  ⚠️ 设置失败"
 fi
 
-# 4. payCallback — 微信支付回调解密
+# 4. payCallback — 微信支付回调（验签 + AES-GCM 解密）
+#    P0 (RC8_9_PRELAUNCH_P0_PAYMENT_CALLBACK_RECOVERY):
+#    回调权威需要 5 个键：验签(RSA) + 解密(GCM) 缺一不可。历史脚本仅注入
+#    WXPAY_API_V3_KEY，导致回调验签规格未绑定。改为「读取远程 → 保留全部已有键
+#    → 仅覆盖显式提供的必填键 → 回写完整并集」的 MERGE-SAFE 策略，且对缺失必填键
+#    fail-closed（绝不臆造 / 绝不轮换 / 绝不打印值）。
+PAYCALLBACK_REQUIRED_KEYS="WXPAY_API_V3_KEY WXPAY_MCHID WXPAY_SERIAL_NO WXPAY_PUBLIC_KEY WXPAY_PUBLIC_KEY_ID"
 echo "[4/6] payCallback"
-if [ "$DRY_RUN" = "1" ]; then echo "  (dry-run) 跳过"; else
-tcb fn config:update payCallback --envId "$ENV_ID" \
-  --envVariables "{\"WXPAY_API_V3_KEY\":\"${WXPAY_API_V3_KEY}\"}" 2>&1 || echo "  ⚠️ 设置失败"
+PC_TMP="$(mktemp -d)"
+# 4a. 读取远程 payCallback env（只解析，不回显值）
+if ! tcb fn detail payCallback --env-id "$ENV_ID" --json 2>/dev/null \
+      | tr -d '\000' > "$PC_TMP/remote.json" ; then
+  echo "  ❌ 无法读取远程 payCallback env → fail-closed，放弃设置"
+  rm -rf "$PC_TMP"
+  exit 1
+fi
+if [ ! -s "$PC_TMP/remote.json" ]; then
+  echo "  ❌ 远程 payCallback env 为空/无法解析 → fail-closed，放弃设置"
+  rm -rf "$PC_TMP"
+  exit 1
+fi
+# 4b. 合并（必填键来自已 source 的 .env.deploy；缺失 → helper 以非 0 退出）
+PC_MERGE_ARGS=(--remote "$PC_TMP/remote.json" --out "$PC_TMP/merged-env.json")
+if [ "$DRY_RUN" = "1" ]; then
+  PC_MERGE_ARGS+=(--dry-run)
+fi
+if ! PAYCALLBACK_REQUIRED_KEYS="$PAYCALLBACK_REQUIRED_KEYS" \
+     node "$SCRIPT_DIR/lib/merge-paycallback-env.js" "${PC_MERGE_ARGS[@]}" >/dev/null; then
+  echo "  ❌ payCallback env 校验或合并失败（缺少必填键？）→ fail-closed，放弃设置"
+  rm -rf "$PC_TMP"
+  exit 1
+fi
+# 4c. 回写完整并集（仅含 envVariables 的最小 cloudbaserc，避免误改 timeout/runtime）
+if [ "$DRY_RUN" = "1" ]; then
+  echo "  (dry-run) 已完成远程读取/校验/合并；跳过 config update（未写入云端）"
+  rm -rf "$PC_TMP"
+else
+  ENV_ID="$ENV_ID" node -e '
+    const fs = require("fs");
+    const env = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+    const cfg = { functions: [ { name: "payCallback", envVariables: env } ] };
+    fs.writeFileSync(process.argv[2], JSON.stringify(cfg, null, 2));
+  ' "$PC_TMP/merged-env.json" "$PC_TMP/cloudbaserc.json"
+
+  if tcb --config-file "$PC_TMP/cloudbaserc.json" \
+        config update fn payCallback --env-id "$ENV_ID" --yes 2>&1 \
+        | sed -E 's/(KEY|SECRET|TOKEN|PASSWORD|ALLOWLIST|PRIVATE|CERT)[A-Z_]*[=:][^ ]*/\1=<redacted>/g'; then
+    echo "  ✅ payCallback env 已合并写入（保留全部既有键）"
+  else
+    echo "  ⚠️ 设置失败"
+  fi
+  rm -rf "$PC_TMP"
 fi
 
 # 5. refundOrder — 微信支付退款
