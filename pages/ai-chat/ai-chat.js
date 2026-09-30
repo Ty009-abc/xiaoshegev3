@@ -36,7 +36,10 @@ Page({
     const topic = app.globalData._quickAskTopic
     const personality = app.globalData._quickAskPersonality
     if (topic) {
+      // RC8_10A — 场景键随话题传入 onSend（服务端据此选择 grounded 语境）
+      this._pendingScenario = app.globalData._quickAskScenario || ''
       app.globalData._quickAskTopic = null
+      app.globalData._quickAskScenario = null
       app.globalData._quickAskPersonality = null
       const personalityTag = personality ? ` [${personality.emoji} ${personality.name}]` : ''
       console.log('[ai-chat] onShow 收到快捷提问话题:', topic, '| 人格:', personality?.name)
@@ -128,9 +131,12 @@ Page({
     try {
       const personality = this._pendingPersonality
       this._pendingPersonality = null
+      const scenario = this._pendingScenario || 'ask'
+      this._pendingScenario = null
       const payload = {
         type: 'coaching',
         message: text,
+        scenario,
         ...(personality ? { personality: personality.name, personalityEmoji: personality.emoji, personalityStyle: personality.style } : {}),
       }
 

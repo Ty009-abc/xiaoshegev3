@@ -1,10 +1,10 @@
 {
   "taskId": "RC8_10A_CONTEXT_MEMORY_SCENARIO_ASK_XIAOSHIGE",
-  "stage": "B",
-  "phase": "Wire the six home-page scenarios to pass the canonical scenario key (career/money_logic/side_hustle/ai_track/cognition/traffic) to the server so each scenario is answered from the real 6Q/context authority.",
+  "stage": "C",
+  "phase": "Wire 直接问小事哥 (ai-chat) to the same grounded context authority: carry the scenario key (ask / quick-scenario) into the coaching call so answers speak to the user's real 6Q/profile/challenge/report evidence.",
   "baseCommit": "70a6d4f",
   "branch": "feature/rc8.9d-funnel-authority",
-  "scope": "pages/home/home.js (scenario key mapping). Client-only; no cloudfunction change.",
+  "scope": "pages/ai-chat/ai-chat.js (scenario passthrough). Client-only; no cloudfunction change.",
   "architecture": {
     "deployedAiEntryPoint": "generateAiReport (type=coaching) — SAME path for the six home chips and 直接问小事哥",
     "contextAuthority": "lib/context/userContextBuilder.js (UCB) — L0 6Q > L1 profile > L2 challenge > L3 report > L4 memory [gated] > L5 message",
@@ -20,7 +20,7 @@
     "SIX_Q_INDEPENDENT_OF_MEMORY": "YES (memoryEnabled gates ONLY L4; 6Q/profile always applied)"
   },
   "filesChanged": [
-    "pages/home/home.js",
+    "pages/ai-chat/ai-chat.js",
     ".changes/current-change.json"
   ],
   "invariants": {
