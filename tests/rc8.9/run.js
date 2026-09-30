@@ -47,6 +47,7 @@ const ALL = [
   'world-model-poster.test.js',
   'poster-recovery.test.js',
   'world-model-retry.test.js',
+  'retry-navigation.test.js',
   'order-entitlement-guard.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)

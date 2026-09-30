@@ -642,19 +642,24 @@ Page({
     })
   },
 
-  // R10: 重新挑战 — 确认后走既有 startChallenge 服务端权威入口（不触碰支付/既有报告）。
+  // R10.5 重新挑战 — 确认后跳转规范挑战入口。
+  // challenge-start 已注册为 tabBar 页（app.json tabBar.list[1]），wx.navigateTo 对 tabBar 页
+  // 会被框架静默拒绝 → 必须用 wx.switchTab。不触碰支付 / 不改既有报告 / 不清空历史。
   onRetryChallenge() {
     wx.showModal({
       title: '重新挑战一次？',
-      content: '将开启一条新的挑战记录，当前报告会保留在历史记录中，不影响已购权益。',
+      content: '将开启新一轮挑战，当前报告会继续保留，不影响已购权益。',
       cancelText: '取消',
       confirmText: '确认重新挑战',
       success: (res) => {
         if (!res.confirm) return
         analytics.track('challenge_retry_open')
-        wx.navigateTo({
+        wx.switchTab({
           url: '/pages/challenge-start/challenge-start',
-          fail: () => { wx.redirectTo({ url: '/pages/challenge-start/challenge-start' }) },
+          fail: (err) => {
+            console.error('[retry] switchTab challenge-start fail:', err)
+            wx.showToast({ title: '跳转失败，请重试', icon: 'none' })
+          },
         })
       },
     })

@@ -42,6 +42,7 @@ function loadPreview () {
     wx: {
       navigateTo: (o) => calls.push({ m: 'navigateTo', url: o.url }),
       redirectTo: (o) => calls.push({ m: 'redirectTo', url: o.url }),
+      switchTab: (o) => { calls.push({ m: 'switchTab', url: o.url }); o.fail && o.fail({ errMsg: 'x' }) },
       showModal: (o) => calls.push({ m: 'showModal', opt: o }),
       showToast: () => {}, showLoading: () => {}, hideLoading: () => {}, openSetting: () => {},
     },
@@ -64,31 +65,30 @@ function loadPreview () {
   const modal = p._calls.find((c) => c.m === 'showModal')
   ok(!!modal, 'RETRY_CONFIRM_MODAL_PRESENT (showModal called)')
   eq(modal.opt.title, '重新挑战一次？', 'modal title')
-  ok(modal.opt.content.indexOf('当前报告会保留在历史记录中') >= 0, 'modal content mentions report preserved')
+  ok(modal.opt.content.indexOf('当前报告会继续保留') >= 0, 'modal content mentions report preserved')
   ok(modal.opt.content.indexOf('不影响已购权益') >= 0, 'modal content mentions entitlement untouched')
   eq(modal.opt.cancelText, '取消', 'cancel text')
   eq(modal.opt.confirmText, '确认重新挑战', 'confirm text')
   // no navigation until confirmed
-  eq(p._calls.filter((c) => c.m === 'navigateTo' || c.m === 'redirectTo').length, 0, 'no navigation before confirm')
+  eq(p._calls.filter((c) => /navigateTo|redirectTo|switchTab/.test(c.m)).length, 0, 'no navigation before confirm')
 }
 
 // ── RETRY_ACTION_USES_CANONICAL_ENTRY + does NOT touch payment ──
+// challenge-start is a tabBar page -> wx.switchTab is the only API that works.
 {
   const p = loadPreview()
   const calls = p._calls
-  // simulate the user pressing confirm
-  const orig = p.onRetryChallenge.bind(p)
   p.onRetryChallenge()
   const modal = calls.find((c) => c.m === 'showModal')
-  const navBefore = calls.filter((c) => c.m === 'navigateTo' || c.m === 'redirectTo').length
+  const navBefore = calls.filter((c) => /navigateTo|redirectTo|switchTab/.test(c.m)).length
   modal.opt.success({ confirm: true })
-  const navAfter = calls.filter((c) => c.m === 'navigateTo' || c.m === 'redirectTo')
+  const navAfter = calls.filter((c) => /navigateTo|redirectTo|switchTab/.test(c.m))
   eq(navAfter.length, navBefore + 1, 'confirm triggers exactly one route')
   const target = navAfter[navAfter.length - 1]
+  ok(target.m === 'switchTab', 'RETRY uses switchTab for tabBar target')
   ok(target.url.indexOf('/pages/challenge-start/challenge-start') >= 0, 'RETRY_ACTION_USES_CANONICAL_ENTRY (challenge-start)')
   ok(!/membership|createOrder|pay/i.test(target.url), 'route is not a payment route')
   ok(!calls.some((c) => /report_9_9|membership/.test(c.url || '')), 'RETRY_ACTION_DOES_NOT_TOUCH_PAYMENT (no membership/report route)')
-  void orig
 }
 
 // ── cancel does nothing ──
@@ -97,7 +97,7 @@ function loadPreview () {
   p.onRetryChallenge()
   const modal = p._calls.find((c) => c.m === 'showModal')
   modal.opt.success({ confirm: false })
-  eq(p._calls.filter((c) => c.m === 'navigateTo' || c.m === 'redirectTo').length, 0, 'cancel performs no navigation')
+  eq(p._calls.filter((c) => /navigateTo|redirectTo|switchTab/.test(c.m)).length, 0, 'cancel performs no navigation')
 }
 
 // ── RETRY_ACTION_PRESERVES_EXISTING_REPORT (no report mutation) ──
@@ -118,6 +118,7 @@ function loadPreview () {
   ok(js.indexOf('verifyPayment') < 0, 'no verifyPayment')
   ok(js.indexOf('paymentFinalizer') < 0, 'no paymentFinalizer')
   ok(js.indexOf('/pages/challenge-start/challenge-start') >= 0, 'canonical start route referenced')
+  ok(/switchTab\(\{[^}]*challenge-start/.test(js), 'switchTab used for challenge-start (tabBar page)')
 }
 
 console.log(`\nworld-model-retry_TEST pass=*** fail=${fail}`)
