@@ -98,9 +98,15 @@ const HANDOFF = { requestId: 'r6q_X1', answers: { age: 30, job: '厨师', income
   ok(/reportHistory\.record\(this\._report, this\._handoff\)/.test(thinkSrc), 'thinking persists on success transition')
 
   // D4b: profile count source = history, not ai_reports
+  // RC8.9_P0_PROFILE_AUTHORITY — profile is now SERVER-authoritative:
+  //   reportCount = ai_reports{openid} (server) with local 6Q history as a
+  //   secondary compatibility source that can NEVER override a non-zero server
+  //   count. The legacy "local-only, never ai_reports" D4 policy is superseded
+  //   (it made a paid world-model report user show 0).
   const prof = fs.readFileSync(path.join(ROOT, 'pages/profile/profile.js'), 'utf8')
-  ok(/reportHistory\.count\(\)/.test(prof), 'profile reportCount uses reportHistory.count()')
-  ok(!/ai_reports'\)\.where\(\{ openid \}\)\.count\(\)/.test(prof), 'profile no longer counts ai_reports')
+  ok(/reportHistory\.count\(\)/.test(prof), 'profile keeps reportHistory.count() as secondary compatibility source')
+  ok(/ai_reports'\)\.where\(\{ openid: openid \}\)\.count\(\)/.test(prof), 'profile reportCount (primary) counts ai_reports')
+  ok(/serverReportCount > 0 \? serverReportCount : localCount/.test(prof), 'local 6Q history cannot override non-zero server count')
   ok(/goReports[^\n]*report-history/.test(prof), 'profile goReports -> report-history')
   ok(/goReports[^\n]*report-preview/.test(prof) === false, 'profile goReports no longer -> report-preview')
 

@@ -1,40 +1,41 @@
 {
-  "taskId": "RC8_9_FINAL_WORLD_MODEL_VISUAL_GOLDEN_REBUILD",
-  "phase": "rebuild pages/challenge-result to match the OWNER reference screenshot (2026-09-30 10:24 real-device). Golden-authority = owner screenshot.",
-  "baseCommit": "aa773aa",
+  "taskId": "RC8_9_P0_PROFILE_AUTHORITY_AND_REPLAY_OBSERVABILITY_FIX",
+  "phase": "Restore server-authoritative profile counts + instrument the replay (重新挑战一次) path for observability. Client-only.",
+  "baseCommit": "2823f55",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "pages/challenge-result/* (+ UI regression tests). Onboarding LOCKED at 70a901c (NO_CHANGE). No backend.",
-  "goldenSource": "OWNER_REFERENCE_SCREENSHOT (dark 世界模型控制台): nav 挑战结果, eyebrow WORLD MODEL PROFILE, purple orb, 普通觉醒型, 你的世界模型初步类型, 九维世界模型 radar (满分100), 优势维度/待突破, deep-navy ground.",
-  "goldenSource2": "OWNER_REFERENCE_SCREENSHOT #2 (bottom): 世界模型判断, 核心特征 chips, 世界模型深度报告 entry card.",
+  "pageScope": "pages/profile/*, pages/report-preview/report-preview.js (telemetry only), utils/analytics.js (event registry), related tests.",
+  "goldenSource": "GOLDEN_SHA 2823f55 (release NO_GO). challenge-result visual golden + onboarding 70a901c LOCKED/untouched.",
   "changes": {
-    "RESULT_REBUILD": "Rebuilt pages/challenge-result to the owner-screenshot dark console: hero orb + WORLD MODEL PROFILE eyebrow + gradient type via presenter; 九维世界模型 radar panel + fallback + 优势维度/待突破; 世界模型判断 card; 核心特征 weighted chips (≤8, primary×3); 世界模型深度报告 entry card → report-preview?type=challenge_final. Matches the two owner screenshots (top + bottom). Legacy 保存认知海报 CTA intentionally NOT shown (golden screenshot has none; entry is the report card).",
-    "CLASS_DRIFT_FIX": "Defined the 5 classes the prior 9469e78 dark console left undefined (radar-panel, dh-strong, dh-weak, tags-panel, entry-left) — no undefined layout classes remain.",
-    "ONBOARDING": "NO CHANGE (LOCKED at 70a901c).",
-    "TESTS": "challenge-result-visual.test.js rewritten → CHALLENGE_RESULT_OWNER_SCREENSHOT_GOLDEN. ui-productization.test.js section C/I reconciled (核心特征 / 九维世界模型 / 世界模型深度报告 entry).",
-    "RADAR": "Canvas 2D (legacy wx.createCanvasContext) radar 600rpx×540rpx; 9 axes; grid levels=3; semi-transparent purple fill; glow points; muted-blue-gray axis labels. Robust fallback (radarFail) for missing node / draw failure / invalid size / init timeout. Dev-only RADAR_DEBUG console capture (envVersion===develop); no user-visible debug.",
-    "REPORT_PREVIEW": "PRESERVED (R10 productized structure unchanged) per DO_NOT_REWRITE; paid=direct full content, unpaid=exactly one unlock CTA (¥9.90). Onboarding LOCKED."
+    "PROFILE_SERVER_AUTHORITY": "pages/profile/profile.js: challengeCount = challenge_records{openid}.count() (server); reportCount = ai_reports{openid}.count() (server) PRIMARY, with local 6Q history (reportHistory.count) as SECONDARY compatibility ONLY that can never override a non-zero server count; new paidReportCount = ai_reports{openid,isPaid:true}.count().",
+    "OPENID_GUARD": "Resolves authenticated openid via app.globalData.openid (login authority). If missing → explicit loadError state (never a silent false zero).",
+    "SILENT_CATCH_REMOVED": "loadData + memory-notice/toggle/admin catches now log via console.warn/error and set a field-level failure state instead of catch(_){}.",
+    "FAILURE_UI": "profile.wxml shows a visible 数据加载失败 banner and '—' placeholders (instead of false 0/0) when loadError is set.",
+    "REPLAY_OBSERVABILITY": "pages/report-preview/report-preview.js onRetryChallenge: added 7 analytics events (challenge_retry_tap / _modal_confirm / _request_sent / _request_success / _request_fail / _nav_success / _nav_fail). NO business-logic change: replay:true contract, startChallenge payload, navigate target and failure toasts are byte-identical. No client-side record creation, no payment.",
+    "TELEMETRY_STORAGE": "Reused existing utils/analytics.js funnel registry (FUNNEL_EVENTS → trackFunnelEvent → funnel_events). No new collection.",
+    "TESTS": "NEW tests/rc8.9/profile-authority.test.js (cases A–F + source invariants, 20). NEW tests/rc8.9/replay-observability.test.js (cases A–H + source invariants, 30). Registered in tests/rc8.9/run.js. Reconciled legacy rc8.8 D4b assertion (report-history.test.js) to the superseding server-authority policy."
   },
   "invariants": {
     "PAYMENT_LOGIC_UNCHANGED": "YES",
     "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
     "REPLAY_CONTRACT_UNCHANGED": "YES",
+    "STARTCHALLENGE_UNCHANGED": "YES",
     "REPORT_GENERATION_UNCHANGED": "YES",
-    "REPORT_HISTORY_UNCHANGED": "YES",
-    "PAYCALLBACK_FIX_PRESERVED": "YES",
-    "POSTER_RECOVERY_R10_4_PRESERVED": "YES",
-    "SERVER_DATA_AUTHORITY_PRESERVED": "YES",
-    "NO_RECOMPUTE_RESULT": "YES"
+    "REPORT_PREVIEW_UI_UNCHANGED": "YES",
+    "CHALLENGE_RESULT_GOLDEN_2823F55_UNCHANGED": "YES",
+    "ONBOARDING_70A901C_UNCHANGED": "YES",
+    "PAYCALLBACK_FIX_PRESERVED": "YES"
   },
   "boundaries": {
     "BACKEND_CHANGED": "NO",
-    "CLIENT_UI_CHANGED": "YES (challenge-result only)",
     "CLOUD_FUNCTIONS": "NONE",
     "DB_MUTATION": "NONE",
+    "DB_SCHEMA": "NONE",
     "DEPLOY": "NO",
+    "ENV_CHANGED": "NO",
     "REAL_PAYMENT": "NO",
-    "ENV_CHANGED": "NO"
+    "CLIENT_UI_CHANGED": "YES (profile counts/failure-state; report-preview telemetry only)"
   },
   "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
-  "rollbackPlan": "git revert <commit> (client-only). No backend/schema/env impact."
+  "rollbackPlan": "git revert <commit> (client-only). No backend/schema/env/deploy impact."
 }

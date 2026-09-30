@@ -32,6 +32,9 @@
     </view>
   </view>
 
+  <!-- RC8.9_P0_PROFILE_AUTHORITY — 显式失败态（登录未完成 / 会话缺失 / 读取失败） -->
+  <view wx:if="{{loadError}}" style="margin:16rpx 32rpx;padding:16rpx 24rpx;border-radius:12rpx;background:rgba(244,63,94,0.12);color:#f43f5e;font-size:24rpx;text-align:center;">数据加载失败，请稍后重试</view>
+
   <!-- 成长面板 -->
   <growth-panel cv="{{user.cv||0}}" level="{{user.level||1}}" streak="{{user.streak||0}}" theme="light" />
 
@@ -47,12 +50,12 @@
       <view class="menu-item" bindtap="goChallenges">
         <text class="menu-icon">🎯</text>
         <text class="menu-text">挑战记录</text>
-        <text class="menu-arrow">{{challengeCount}}次  ›</text>
+        <text class="menu-arrow">{{loadError ? '—' : challengeCount + '次'}}  ›</text>
       </view>
       <view class="menu-item" bindtap="goReports">
         <text class="menu-icon">📄</text>
         <text class="menu-text">我的报告</text>
-        <text class="menu-arrow">{{reportCount}}份  ›</text>
+        <text class="menu-arrow">{{loadError ? '—' : reportCount + '份'}}  ›</text>
       </view>
       <view class="menu-item" bindtap="goDaily">
         <text class="menu-icon">📅</text>

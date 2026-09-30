@@ -1,5 +1,13 @@
 /**
  * pages/profile — 成长档案 v3.1 (Part 6)
+ *
+ * RC8.9_P0_PROFILE_AUTHORITY — server-authoritative counts.
+ *   challengeCount : challenge_records{openid} (server)
+ *   reportCount     : ai_reports{openid} (server) — local 6Q history is secondary
+ *                     compatibility ONLY and never overrides a non-zero server count.
+ *   paidReportCount : ai_reports{openid, isPaid:true} (server)
+ *   Auth identity   : app.globalData.openid (login authority). Missing openid →
+ *                     explicit load-error state, never a silent false zero.
  */
 const app = getApp()
 const analytics = require('../../utils/analytics.js')
@@ -8,42 +16,72 @@ const reportHistory = require('../../utils/reportHistory.js')
 Page({
   data: {
     user: {}, profile: {}, isVip: false,
-    challengeCount: 0, reportCount: 0, badges: [], streak: 0,
+    challengeCount: 0, reportCount: 0, paidReportCount: 0, badges: [], streak: 0,
+    countsLoaded: false, loadError: false,
     adminTapCount: 0, adminTimer: null,
     memoryEnabled: true,
   },
   onShow() { this.loadData() },
   onUnload() { analytics.flush() },
   async loadData() {
-    const gd = app.globalData
+    const gd = (app && app.globalData) || {}
+    const user = gd.userInfo || {}
     this.setData({
-      user: gd.userInfo || {},
+      user,
       profile: gd.profile || {},
-      isVip: gd.userInfo?.membershipLevel !== 'free',
-      streak: gd.userInfo?.streak || 0,
+      isVip: user.membershipLevel !== 'free',
+      // 无服务端权威 streak 字段 —— 明确展示 0，而非伪造计算
+      streak: user.streak || 0,
     })
-    // 加载记忆开关状态
+    // 加载记忆开关状态（best-effort，但不再静默吞错）
     try {
       const mRes = await wx.cloud.callFunction({ name: 'getMemory' })
       this.setData({ memoryEnabled: mRes.result?.data?.memoryEnabled !== false })
       // 首次记忆说明
       this._maybeShowMemoryNotice()
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[profile] getMemory failed:', err && err.message)
+    }
+
+    // 服务端权威计数 —— 必须使用已认证 openid
+    const openid = gd.openid || ''
+    if (!openid) {
+      // 不静默返回 0：显式失败态（登录尚未完成 / 会话缺失）
+      console.error('[profile] openid missing — authoritative counts unavailable')
+      this.setData({ countsLoaded: false, loadError: true })
+      return
+    }
     try {
       const db = wx.cloud.database()
-      const openid = gd.openid || ''
-      const [cRes, bRes] = await Promise.all([
+      const [cRes, arRes, paidRes, bRes] = await Promise.all([
         db.collection('challenge_records').where({ openid }).count(),
+        db.collection('ai_reports').where({ openid: openid }).count(),
+        db.collection('ai_reports').where({ openid: openid, isPaid: true }).count(),
         db.collection('badges').limit(10).get(),
       ])
       const badgeDefs = bRes.data || []
       const earned = gd.profile?.badges || []
       const badges = badgeDefs.map(b => ({ ...b, unlocked: earned.includes(b.id || b._id) }))
-      // D4 — 报告计数改用 canonical 本地历史（不再读 ai_reports）
-      let reportCount = 0
-      try { reportCount = reportHistory.count() } catch (_) { reportCount = 0 }
-      this.setData({ challengeCount: cRes.total, reportCount, badges })
-    } catch (_) {}
+      // 本地 6Q 历史 = 次要兼容来源；服务端计数 > 0 时绝不覆盖
+      let localCount = 0
+      try { localCount = reportHistory.count() } catch (err) {
+        console.warn('[profile] reportHistory.count failed:', err && err.message)
+      }
+      const serverReportCount = (arRes && arRes.total) || 0
+      const reportCount = serverReportCount > 0 ? serverReportCount : localCount
+      this.setData({
+        challengeCount: (cRes && cRes.total) || 0,
+        reportCount,
+        paidReportCount: (paidRes && paidRes.total) || 0,
+        badges,
+        countsLoaded: true,
+        loadError: false,
+      })
+    } catch (err) {
+      // 显式失败：记录错误 + 暴露失败态，保留页面可用（不静默吞掉）
+      console.error('[profile] authoritative counts load failed:', err && err.message)
+      this.setData({ countsLoaded: false, loadError: true })
+    }
   },
 
   goDaily()       { wx.navigateTo({ url: '/pages/cognition-strike-records/cognition-strike-records' }) },
@@ -74,7 +112,9 @@ Page({
             await db.collection('users').where({ openid }).update({ data: { memoryNoticeShown: true } })
           }
           if (gd.userInfo) gd.userInfo.memoryNoticeShown = true
-        } catch (_) {}
+        } catch (err) {
+          console.warn('[profile] memoryNotice persist failed:', err && err.message)
+        }
       },
     })
   },
@@ -85,7 +125,10 @@ Page({
     try {
       await wx.cloud.callFunction({ name: 'toggleMemory', data: { enabled } })
       wx.showToast({ title: enabled ? '记忆已开启' : '记忆已关闭', icon: 'none' })
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[profile] toggleMemory failed:', err && err.message)
+      wx.showToast({ title: '设置失败，请重试', icon: 'none' })
+    }
   },
   onClearMemory() {
     wx.showModal({
@@ -152,6 +195,8 @@ Page({
       const r = await wx.cloud.callFunction({ name: 'adminCheckAccess', data: {} })
       if (r.result?.code === 0) wx.navigateTo({ url: '/pages/admin/dashboard/dashboard' })
       else wx.showToast({ title: '无管理权限', icon: 'none' })
-    } catch (_) {}
+    } catch (err) {
+      console.warn('[profile] adminCheckAccess failed:', err && err.message)
+    }
   },
 })

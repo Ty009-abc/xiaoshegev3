@@ -22,6 +22,14 @@ const FUNNEL_EVENTS = [
   'membership_view',      // 会员页访问
   'membership_purchase',  // 会员购买
   'consult_apply',        // 咨询申请
+  // RC8.9_P0_REPLAY_OBSERVABILITY — 重新挑战（replay）可观测性事件
+  'challenge_retry_tap',            // 点击「重新挑战一次」
+  'challenge_retry_modal_confirm',  // 确认弹窗
+  'challenge_retry_request_sent',   // 已发送服务端 replay 请求
+  'challenge_retry_request_success',// 服务端 replay 成功
+  'challenge_retry_request_fail',   // 服务端 replay 失败
+  'challenge_retry_nav_success',    // 跳转 challenge-play 成功
+  'challenge_retry_nav_fail',       // 跳转 challenge-play 失败
 ]
 
 const EXTRA_EVENTS = [
