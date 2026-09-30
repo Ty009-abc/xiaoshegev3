@@ -1,18 +1,25 @@
 {
-  "taskId": "RC8_10A2_SIX_SCENARIOS_AND_ASK_XIAOSHIGE_CONTEXT_WIRING",
-  "stage": "C",
-  "phase": "STAGE_C (AI问小事哥 runtime): refine 直接问小事哥 to a light free-form reply structure (distinct from the six-scenario report scaffold) while sharing the SAME context authority (L0 6Q → challenge/report → memory[gated] → conversation); add dedicated ask tests.",
+  "taskId": "RC8_10B_PERSONALIZED_30DAY_CHALLENGE",
+  "stage": "D",
+  "phase": "STAGE_D (personalized challenge): add metadata to the unchanged 30-event bank, build a deterministic personalized selector (occupation/capital/cognition aware) + 5-day adaptive engine + profile-version cache key, and wire getChallengeEvent to it (legacy fallback preserved).",
   "baseCommit": "70a6d4f",
   "branch": "feature/rc8.9d-funnel-authority",
-  "scope": "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js (ask output structure), tests/rc8.10/ask-xiaoshige.test.js + run.js. No payment/entitlement/replay/profile/report/challenge/DB-schema/env change.",
+  "scope": "cloudfunctions/getChallengeEvent (index + lib), cloudfunctions/common (catalog/selector source), tests/rc8.10/*. No payment/entitlement/replay/profile/report/DB-schema/env change; event bank NOT rewritten.",
   "filesChanged": [
-    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
-    "tests/rc8.10/ask-xiaoshige.test.js",
+    "cloudfunctions/common/challengeEventCatalog.js",
+    "cloudfunctions/common/challengePersonalization.js",
+    "cloudfunctions/getChallengeEvent/index.js",
+    "cloudfunctions/getChallengeEvent/lib/challengeEventCatalog.js",
+    "cloudfunctions/getChallengeEvent/lib/challengePersonalization.js",
+    "cloudfunctions/getChallengeEvent/lib/context/userContextBuilder.js",
+    "cloudfunctions/getChallengeEvent/lib/context/challengePersonalizationRuntime.js",
+    "tests/rc8.10/challenge-events.fixture.js",
+    "tests/rc8.10/personalized-challenge.test.js",
     "tests/rc8.10/run.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [
-    "generateAiReport"
+    "getChallengeEvent"
   ],
   "requiredTests": [
     "node tests/rc8.10/run.js",

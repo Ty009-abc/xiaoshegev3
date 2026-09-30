@@ -14,6 +14,13 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
+const { resolvePersonalizedEvent } = require('./lib/context/challengePersonalizationRuntime.js')
+
+// RC8_10B observability — counts / reason codes / domain tags / latency ONLY.
+// NEVER logs full 6Q, full memory, full prompt, or plaintext openid.
+function _logPersonalization (evt, detail) {
+  try { console.log('[challengePersonalization] ' + JSON.stringify(Object.assign({ event: evt }, detail || {}))) } catch (_) {}
+}
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -67,15 +74,50 @@ exports.main = async (event, context) => {
       })
     }
 
-    // 读取题目库（按 day 排序取第 currentEventIndex 条）
-    const eventsRes = await db.collection('challenge_events')
-      .where({ status: 'active' })
-      .orderBy('day', 'asc')
-      .skip(record.currentEventIndex)
-      .limit(1)
-      .get()
+    // ── RC8_10B: personalized selection (occupation/capital/cognition aware) ──
+    // Primary path resolves the event from the user's REAL situation; on any
+    // failure we fall back to the legacy day-ordered bank (behavior preserved).
+    let ce = null
+    let total = 0
+    const pr = await resolvePersonalizedEvent({ db, openid, record })
+    if (!pr.fallback && pr.event) {
+      ce = pr.event
+      total = (pr.metrics && pr.metrics.total) || 0
+      const filtered = (pr.filteredOut || [])
+      if (filtered.length) {
+        _logPersonalization('challenge_event_filtered', {
+          count: filtered.length,
+          reasonCodes: Array.from(new Set(filtered.map(f => f.reasonCode))),
+          latencyMs: pr.latencyMs,
+        })
+      }
+      _logPersonalization('challenge_personalization_success', {
+        position: record.currentEventIndex + 1,
+        total: total,
+        domains: (pr.metrics && pr.metrics.domains) || [],
+        filteredOutCount: filtered.length,
+        personalizedRatio: pr.metrics && pr.metrics.personalizedRatio,
+        latencyMs: pr.latencyMs,
+      })
+    } else {
+      _logPersonalization('challenge_personalization_fallback', {
+        reasonCode: pr.reasonCode || 'UNKNOWN',
+        position: record.currentEventIndex + 1,
+        latencyMs: pr.latencyMs,
+      })
+      const eventsRes = await db.collection('challenge_events')
+        .where({ status: 'active' })
+        .orderBy('day', 'asc')
+        .skip(record.currentEventIndex)
+        .limit(1)
+        .get()
+      ce = eventsRes.data[0]
+      const totalEventsRes = await db.collection('challenge_events')
+        .where({ status: 'active' })
+        .count()
+      total = totalEventsRes.total
+    }
 
-    const ce = eventsRes.data[0]
     if (!ce) return fail(CODES.NOT_FOUND, '题目已用完，恭喜完成挑战！')
 
     // 构造返回：不暴露 effects
@@ -84,10 +126,6 @@ exports.main = async (event, context) => {
       text: c.text,
       tags: c.tags,
     }))
-
-    const totalEventsRes = await db.collection('challenge_events')
-      .where({ status: 'active' })
-      .count()
 
     return ok({
       finished: false,
@@ -99,7 +137,7 @@ exports.main = async (event, context) => {
       difficulty: ce.difficulty,
       progress: {
         current: record.currentEventIndex + 1,
-        total: totalEventsRes.total,
+        total: total,
         day: ce.day,
       },
       trialMode: record.trialMode || false,
