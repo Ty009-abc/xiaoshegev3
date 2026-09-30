@@ -15,6 +15,62 @@ const { checkVip } = require('./lib/permission.js')
 const { callAI, buildReportPrompt, buildCoachingPrompt } = require('./lib/ai.js')
 const { generateReportId, now } = require('./lib/order.js')
 const aiTelemetry = require('./lib/aiTelemetry.js')
+const memoryEngine = require('./lib/memoryEngine.js')
+const { extractFromMessage } = require('./lib/memoryExtractor.js')
+
+// ── 长期记忆：隐私安全可观测（仅计数/状态，绝不记录记忆内容/密钥/openid）──
+function _memTelemetry (event, detail) {
+  try { console.log('[memory] ' + JSON.stringify(Object.assign({ event }, detail || {}))) } catch (_) {}
+}
+
+// 读取路径：先读门控（memoryEnabled），再检索当前 openid 的相关长期记忆。
+// 关闭 → 确定性空（绝不读取/注入）。异常 → 空回退（绝不阻断 AI）。
+async function _readMemoryContext (openid, promptInput) {
+  let enabled = true
+  try { enabled = await memoryEngine.isMemoryEnabled(openid) } catch (_) { enabled = true }
+  if (!enabled) { _memTelemetry('memory_read_skipped_disabled', {}); return { enabled: false, text: '' } }
+  _memTelemetry('memory_read_attempt', {})
+  let items = []
+  try { items = await memoryEngine.getRelevantMemories(openid, openid, 'coaching', { limit: 10 }) } catch (_) { items = [] }
+  if (!items || !items.length) return { enabled: true, text: '' }
+  const text = memoryEngine.formatMemoryForPrompt({
+    userMemory: {
+      coreGoals: items.filter(i => i.type === 'goal').map(i => i.content),
+      riskFlags: items.filter(i => i.type === 'risk').map(i => i.content),
+      stableTraits: items.filter(i => i.type === 'trait').map(i => i.content),
+    },
+    conversationMemory: { longTermSummary: (items.find(i => i.type === 'summary') || {}).content || '' },
+    growthMemory: { milestones: items.filter(i => i.type === 'milestone').map(i => ({ title: i.content })) },
+  })
+  if (text) _memTelemetry('memory_read_success', { itemCount: items.length })
+  return { enabled: true, text: text || '' }
+}
+
+// 写入路径：成功 AI 调用后，再检查门控；仅 allow-list 且 durable 的记忆写入（去重在上游引擎）。
+// 关闭 → 零写入。非 durable（闲聊/敏感/不够长度）→ 不写。异常 → 忽略，不影响响应。
+async function _writeLongTermMemory (openid, userText) {
+  if (!userText) return
+  let enabled = true
+  try { enabled = await memoryEngine.isMemoryEnabled(openid) } catch (_) { enabled = true }
+  if (!enabled) { _memTelemetry('memory_write_skipped_disabled', {}); return }
+  let extracted = null
+  try { extracted = extractFromMessage(openid, { role: 'user', content: userText, createdAt: Date.now() }) } catch (_) { extracted = null }
+  if (!extracted || !extracted.memoryType) return   // policy 拒绝 / 非 durable → 不持久化
+  const d = extracted.data || {}
+  const patch = {}
+  if (extracted.memoryType === 'long_term_goal' && Array.isArray(d.goals) && d.goals.length) patch.coreGoals = d.goals
+  if (extracted.memoryType === 'cognition_tag' && Array.isArray(d.tags) && d.tags.length) patch.stableTraits = d.tags
+  if (extracted.memoryType === 'pain_point' && Array.isArray(d.painPoints) && d.painPoints.length) patch.riskFlags = d.painPoints
+  if (extracted.memoryType === 'risk_profile' && d.riskTolerance && d.riskTolerance !== 'unknown') patch.riskFlags = ['风险偏好:' + d.riskTolerance]
+  if (!Object.keys(patch).length) return
+  _memTelemetry('memory_write_attempt', { memoryType: extracted.memoryType })
+  try {
+    await memoryEngine.updateUserMemory(openid, Object.assign({ collection: 'user_memory' }, patch))
+    _memTelemetry('memory_write_success', { memoryType: extracted.memoryType, fields: Object.keys(patch) })
+  } catch (_) {
+    _memTelemetry('memory_operation_fail', { op: 'write' })
+  }
+}
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -41,12 +97,20 @@ exports.main = async (event, context) => {
       if (!promptInput) return fail(CODES.PARAM_ERROR, '请提供要分析的话题')
 
       const { systemPrompt, userMessage, personality: pMeta } = buildCoachingPrompt(promptInput, personality, personalityStyle)
+
+      // ── 长期记忆读取（门控 memoryEnabled=false → 不读取、不注入）──
+      const mem = await _readMemoryContext(openid, promptInput)
+      const systemPromptWithMemory = mem.text ? (systemPrompt + '\n' + mem.text) : systemPrompt
+
       const coachingModel = process.env.AI_MODEL_FLASH || 'v4-flash'
-      const aiResult = await callAI({ systemPrompt, userMessage, maxTokens: 2048, temperature: 0.7 })
+      const aiResult = await callAI({ systemPrompt: systemPromptWithMemory, userMessage, maxTokens: 2048, temperature: 0.7 })
 
       if (!aiResult.success) return fail(CODES.AI_ERROR, aiResult.error || 'AI 调用失败')
 
       const replyText = aiResult.content || '换个说法试试？'
+
+      // ── 长期记忆写入（仅成功调用后；门控 + allow-list + 去重）──
+      await _writeLongTermMemory(openid, promptInput)
 
       // 写入 ai_logs
       await db.collection('ai_logs').add({ data: {

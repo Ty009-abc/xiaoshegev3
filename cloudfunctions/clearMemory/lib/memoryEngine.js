@@ -25,6 +25,28 @@ function _ensureDB() {
 
 function db() { _ensureDB(); return _db }
 
+// 注入 prompt 的长期记忆预算（约 600 tokens）与单条上限
+const MAX_MEMORY_PROMPT_CHARS = 600
+const MAX_MEMORY_ITEM_CHARS = 60
+
+// 数组字段大小上限（防无界增长）
+const ARRAY_CAPS = { coreGoals: 20, riskFlags: 20, stableTraits: 20 }
+
+// 数组去重合并（dedup）：保留已有在前，追加新且不重复的项，并裁到上限
+function _dedupeArray (existing, incoming) {
+  const seen = new Set()
+  const out = []
+  for (const v of [].concat(existing || [], incoming || [])) {
+    if (v === undefined || v === null || v === '') continue
+    const key = typeof v === 'string' ? v.trim() : JSON.stringify(v)
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    out.push(v)
+  }
+  const cap = arguments.length > 2 ? arguments[2] : null
+  return cap ? out.slice(-cap) : out
+}
+
 // ═══════════════════════
 // getUserMemory
 // ═══════════════════════
@@ -77,8 +99,19 @@ async function updateUserMemory(openid, data) {
   updateData.updatedAt = Date.now()
   _ensureDB()
   const res = await _db.collection(collection).where({ openid }).get()
-  if (res.data.length > 0) await _db.collection(collection).doc(res.data[0]._id).update({ data: updateData })
-  else await _db.collection(collection).add({ data: { openid, ...updateData, createdAt: Date.now() } })
+  if (res.data.length > 0) {
+    const existing = res.data[0]
+    // 去重：数组字段合并去重 + 上限（不重复写入同一 durable memory）
+    for (const k of Object.keys(ARRAY_CAPS)) {
+      if (Array.isArray(updateData[k])) updateData[k] = _dedupeArray(existing[k], updateData[k], ARRAY_CAPS[k])
+    }
+    await _db.collection(collection).doc(existing._id).update({ data: updateData })
+  } else {
+    for (const k of Object.keys(ARRAY_CAPS)) {
+      if (Array.isArray(updateData[k])) updateData[k] = _dedupeArray([], updateData[k], ARRAY_CAPS[k])
+    }
+    await _db.collection(collection).add({ data: { openid, ...updateData, createdAt: Date.now() } })
+  }
   await _logOp(openid, 'update', { collection, fields: Object.keys(updateData) })
   return { code: 0, message: '更新成功' }
 }
@@ -132,11 +165,81 @@ async function compressConversation(openid) {
 async function clearUserMemory(openid, collections = null) {
   const targets = collections || ['user_memory', 'conversation_memory', 'behavior_memory', 'growth_memory', 'cognition_memory']
   _ensureDB()
+  const deleted = {}
+  let total = 0
   for (const col of targets) {
-    try { await _db.collection(col).where({ openid }).remove() } catch (e) { console.warn(`[Memory] 清除 ${col} 失败:`, e.message) }
+    try {
+      const r = await _db.collection(col).where({ openid }).remove()
+      const n = (r && (r.stats ? r.stats.removed : r.removed)) || 0
+      deleted[col] = n
+      total += n
+    } catch (e) {
+      console.warn(`[Memory] 清除 ${col} 失败:`, e.message)
+      deleted[col] = 0
+    }
   }
-  await _logOp(openid, 'clear_all', { collections: targets })
-  return { code: 0, message: `已清除 ${targets.length} 个记忆集合` }
+  await _logOp(openid, 'clear_all', { collections: targets, deleted })
+  return { code: 0, message: `已清除 ${targets.length} 个记忆集合`, data: { deleted, total } }
+}
+
+// ═══════════════════════
+// getRelevantMemories — 长期记忆读取路径（自带读门控 + 预算 + 空回退）
+// ═══════════════════════
+/**
+ * 返回当前 openid 的相关长期记忆条目（禁止跨用户）。
+ *  - memoryEnabled=false → 确定性空数组（绝不注入）
+ *  - 预算上限；异常/空 → 空回退（绝不抛出，绝不阻断 AI）
+ * @param {object|string} dbOrOpenid  - db 实例（兼容）或直接 openid
+ * @param {string} openidArg
+ * @param {string} scene
+ * @param {object} options           - { limit }
+ * @returns {Promise<Array<{type,content,importance}>>}
+ */
+async function getRelevantMemories(dbOrOpenid, openidArg, scene, options = {}) {
+  try {
+    const openid = typeof dbOrOpenid === 'string' ? dbOrOpenid : openidArg
+    if (!openid) return []
+    const limit = options.limit || 10
+
+    // 读门控：关闭 → 绝不读取 / 绝不注入
+    const enabled = await isMemoryEnabled(openid)
+    if (!enabled) return []
+
+    const memory = await getUserMemory(openid)   // 仅当前 openid 的记忆域
+    const items = []
+
+    const um = memory.userMemory || {}
+    for (const g of (um.coreGoals || [])) items.push({ type: 'goal', content: String(g), importance: 0.9 })
+    for (const t of (um.stableTraits || [])) items.push({ type: 'trait', content: String(t), importance: 0.8 })
+    for (const f of (um.riskFlags || [])) items.push({ type: 'risk', content: String(f), importance: 0.6 })
+
+    const summary = memory.conversationMemory && memory.conversationMemory.longTermSummary
+    if (summary) items.push({ type: 'summary', content: String(summary), importance: 0.7 })
+
+    const miles = (memory.growthMemory && memory.growthMemory.milestones) || []
+    for (const m of miles.slice(-3)) {
+      if (m && m.title) items.push({ type: 'milestone', content: String(m.title), importance: 0.5 })
+    }
+
+    // 相关度排序 + 去重 + 预算截断
+    items.sort((a, b) => b.importance - a.importance)
+    const seen = new Set()
+    const capped = []
+    let budget = MAX_MEMORY_PROMPT_CHARS
+    for (const it of items) {
+      if (capped.length >= limit) break
+      const text = String(it.content || '').slice(0, MAX_MEMORY_ITEM_CHARS).trim()
+      if (!text || seen.has(text)) continue
+      if (text.length > budget) break
+      seen.add(text)
+      budget -= text.length
+      capped.push({ type: it.type, content: text, importance: it.importance })
+    }
+    return capped
+  } catch (e) {
+    console.warn('[Memory] getRelevantMemories 回退为空:', e && e.message)
+    return []
+  }
 }
 
 // ═══════════════════════
@@ -253,6 +356,7 @@ module.exports = {
   updateBehaviorMemory,
   recordGrowthEvent,
   formatMemoryForPrompt,
+  getRelevantMemories,
   logMemoryOperation: _logOp,
   toggleMemory,
   isMemoryEnabled,

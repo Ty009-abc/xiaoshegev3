@@ -81,6 +81,8 @@ function loadGenAiReport(db, canned) {
     if (id === './lib/ai.js') return { callAI: async () => ({ success: true, content: '{}', tokens: 1 }), buildReportPrompt: () => ({}), buildCoachingPrompt: () => ({}) }
     if (id === './lib/order.js') return { generateReportId: () => 'AR_TEST', now: () => Date.now() }
     if (id === './lib/legacy6q/legacy6qRuntime.js') return { runLegacy6QReport: async () => JSON.parse(JSON.stringify(canned || CANNED)) }
+    if (id === './lib/memoryEngine.js') return { isMemoryEnabled: async () => false, getRelevantMemories: async () => [], formatMemoryForPrompt: () => '', updateUserMemory: async () => ({ code: 0 }) }
+    if (id === './lib/memoryExtractor.js') return { extractFromMessage: () => null }
     return require(id)
   }
   const ctx = { module: mod, exports: mod.exports, require: fakeRequire, console, process, setTimeout, Promise, Object, Date, Math, JSON, Array, String, Number, RegExp, parseInt }

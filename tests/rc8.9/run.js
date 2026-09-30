@@ -54,6 +54,7 @@ const ALL = [
   'profile-authority.test.js',
   'report-history-authority.test.js',
   'memory-switch.test.js',
+  'memory-runtime-wiring.test.js',
   'order-entitlement-guard.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)

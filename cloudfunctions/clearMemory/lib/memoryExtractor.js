@@ -136,9 +136,9 @@ function extractCognitionTag(text) {
 function extractRiskProfile(text) {
   let tolerance = 'unknown'
 
-  if (/激[进晉]|冒险|搏一[把搏]|梭哈|一把/ .test(text)) tolerance = 'high'
-  if (/保守|稳健|慢慢|稳住|安全/ .test(text)) tolerance = 'low'
-  if (/风险.*收益|平衡|适当/ .test(text)) tolerance = 'medium'
+  if (/激进|冒险|搏一把|梭哈|一把梭/.test(text)) tolerance = 'high'
+  if (/保守|稳健|慢慢|稳住|安全/.test(text)) tolerance = 'low'
+  if (/风险.*收益|平衡|适当/.test(text)) tolerance = 'medium'
 
   return { riskTolerance: tolerance }
 }

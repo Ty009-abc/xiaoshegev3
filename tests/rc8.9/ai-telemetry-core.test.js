@@ -93,6 +93,8 @@ function loadGenAiReport(db, canned, cons) {
     if (id === './lib/aiPricing.js') return require(path.join(GEN, 'lib', 'aiPricing.js'))
     if (id === './lib/reportStore6q.js') return require(path.join(GEN, 'lib', 'reportStore6q.js'))
     if (id === './lib/legacy6q/legacy6qRuntime.js') return { runLegacy6QReport: async () => JSON.parse(JSON.stringify(canned)) }
+    if (id === './lib/memoryEngine.js') return { isMemoryEnabled: async () => false, getRelevantMemories: async () => [], formatMemoryForPrompt: () => '', updateUserMemory: async () => ({ code: 0 }) }
+    if (id === './lib/memoryExtractor.js') return { extractFromMessage: () => null }
     return require(id)
   }
   const ctx = { module: mod, exports: mod.exports, require: fakeRequire, console: cons || console, process, setTimeout, clearTimeout, Promise, Object, Date, Math, JSON, Array, String, Number, RegExp, parseInt, parseFloat, isFinite, isNaN }
