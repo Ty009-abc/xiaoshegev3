@@ -64,15 +64,20 @@ const SCENARIO_NAME_TO_KEY = Object.freeze(
 
 // ── deterministic extraction (rule-based over the user's OWN words) ─────────
 const OCCUPATION_TOKENS = [
-  '外卖员', '骑手', '厨师', '快递员', '司机', '销售', '程序员', '开发', '工程师',
+  // RC8_10A2 — common occupations (explicit recognition only; never inferred).
+  // Longest match wins, so generic substrings (老板/个体户) do not shadow them.
+  '个体老板', '内容创作者', '技术人员', '自由职业', '健身教练',
+  '外卖员', '快递员', '骑手', '厨师', '宝妈', '学生', '白领',
+  '个体户', '创业者', '老板', '自媒体', '网约车',
+  '司机', '销售', '程序员', '开发', '工程师',
   '设计师', '教师', '老师', '护士', '医生', '保安', '客服', '运营', '会计', '律师',
-  '主播', '美工', '维修', '店员', '导购', '服务员', '理发', '美容', '宝妈', '学生',
-  '公务员', '工人', '个体户', '创业者', '老板', '自由职业', '电商', '农户', '农民',
-  '文员', '行政', '人事', '采购', '仓管', '健身教练', '摄影师', '剪辑',
+  '主播', '美工', '维修', '店员', '导购', '服务员', '理发', '美容',
+  '公务员', '工人', '电商', '农户', '农民',
+  '文员', '行政', '人事', '采购', '仓管', '摄影师', '剪辑',
 ]
 // The AI-track "digital occupation" set — a non-digital occupation must NOT be
 // pushed a software-engineering career.
-const DIGITAL_TOKENS = ['程序员', '开发', '工程师', '设计师', '运营', '主播', '剪辑', '美工', '产品经理', '数据']
+const DIGITAL_TOKENS = ['程序员', '开发', '工程师', '设计师', '运营', '主播', '剪辑', '美工', '产品经理', '数据', '技术人员']
 const EDUCATION_TOKENS = ['小学', '初中', '中专', '高中', '大专', '本科', '硕士', '研究生', '博士', 'MBA', '海归']
 
 // 流量密码 — domain tokens (only read out of the user's own 6Q text).
@@ -96,8 +101,13 @@ function clean (v) { return (v === undefined || v === null) ? '' : String(v).tri
 function firstToken (text, tokens) {
   const t = clean(text)
   if (!t) return ''
-  for (const tok of tokens) if (t.includes(tok)) return tok
-  return ''
+  // Longest matching token wins (more specific occupation beats a generic
+  // substring: 个体老板 > 老板, 技术人员 > 维修). Deterministic.
+  let best = ''
+  for (const tok of tokens) {
+    if (t.includes(tok) && tok.length > best.length) best = tok
+  }
+  return best
 }
 
 function extractIncome (text) {
@@ -183,13 +193,14 @@ function assembleUserContext (raw) {
   const age = extractAge(sixqText) != null ? extractAge(sixqText) : extractAge(message)
   const education = extractEducation(sixqText) || extractEducation(message)
 
-  if (occupation) evidenceMap.occupation = sixqText.includes(occupation) ? 'SIX_Q' : 'CURRENT_USER_MESSAGE'
+  const srcOf = (tok) => sixqText.includes(tok) ? 'SIX_Q' : 'CURRENT_USER_MESSAGE'
+  if (occupation) evidenceMap.occupation = srcOf(occupation)
   else missingFields.push('occupation')
-  if (income != null) evidenceMap.income = 'SIX_Q'
+  if (income != null) evidenceMap.income = extractIncome(sixqText) != null ? 'SIX_Q' : 'CURRENT_USER_MESSAGE'
   else missingFields.push('income')
-  if (age != null) evidenceMap.age = 'SIX_Q'
+  if (age != null) evidenceMap.age = extractAge(sixqText) != null ? 'SIX_Q' : 'CURRENT_USER_MESSAGE'
   else missingFields.push('age')
-  if (education) evidenceMap.education = 'SIX_Q'
+  if (education) evidenceMap.education = srcOf(education)
   else missingFields.push('education')
 
   // skills / capital are NEVER invented — absent unless the message states them.

@@ -16,6 +16,7 @@ const fs = require('fs')
 
 const ALL = [
   'context-authority.test.js',
+  'golden-cases.test.js',
 ]
 const TESTS = ALL.filter((t) => fs.existsSync(path.join(__dirname, t)))
 

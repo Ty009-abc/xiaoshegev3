@@ -1,43 +1,23 @@
 {
-  "taskId": "RC8_10A_CONTEXT_MEMORY_SCENARIO_ASK_XIAOSHIGE",
-  "stage": "C",
-  "phase": "Wire 直接问小事哥 (ai-chat) to the same grounded context authority: carry the scenario key (ask / quick-scenario) into the coaching call so answers speak to the user's real 6Q/profile/challenge/report evidence.",
+  "taskId": "RC8_10A2_SIX_SCENARIOS_AND_ASK_XIAOSHIGE_CONTEXT_WIRING",
+  "stage": "B",
+  "phase": "STAGE_B (six scenario runtime): harden the shared user context authority (longest-token occupation recognition; evidence source tagging) and add the 22-case golden corpus across the 10 required occupations proving each scenario reads the real 6Q.",
   "baseCommit": "70a6d4f",
   "branch": "feature/rc8.9d-funnel-authority",
-  "scope": "pages/ai-chat/ai-chat.js (scenario passthrough). Client-only; no cloudfunction change.",
-  "architecture": {
-    "deployedAiEntryPoint": "generateAiReport (type=coaching) — SAME path for the six home chips and 直接问小事哥",
-    "contextAuthority": "lib/context/userContextBuilder.js (UCB) — L0 6Q > L1 profile > L2 challenge > L3 report > L4 memory [gated] > L5 message",
-    "evidencePolicy": "SIX_Q/PROFILE/CHALLENGE/REPORT/MEMORY/CURRENT_USER_MESSAGE only; MODEL_GUESS forbidden; missing → conditional advice + one ask",
-    "sixQAuthority": "latest ai_reports{openid, reportType:turnaround_6q} orderBy createdAt desc limit 1"
-  },
-  "implementation": {
-    "USER_CONTEXT_BUILDER": "YES (assembleUserContext pure + buildUserContext async loader)",
-    "SIX_SCENARIO_RULES": "career/money_logic/side_hustle/ai_track/cognition/traffic + ask (names frozen)",
-    "VALIDATOR": "validateScenarioResponse (negation/conditional aware) + coachingContextRuntime regenerate-once",
-    "MEMORY_READ_GATE": "generateAiReport checks memoryEngine.isMemoryEnabled BEFORE the grounded turn; L4 empty when false",
-    "MEMORY_WRITE_GATE": "unchanged (after success; isMemoryEnabled; allow-list; dedup)",
-    "SIX_Q_INDEPENDENT_OF_MEMORY": "YES (memoryEnabled gates ONLY L4; 6Q/profile always applied)"
-  },
+  "scope": "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js (extraction hardening), tests/rc8.10/*. No payment/entitlement/replay/profile/report/challenge/DB-schema/env change.",
   "filesChanged": [
-    "pages/ai-chat/ai-chat.js",
+    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
+    "tests/rc8.10/golden-cases.test.js",
+    "tests/rc8.10/run.js",
     ".changes/current-change.json"
   ],
-  "invariants": {
-    "REPLAY_CHANGED": "NO",
-    "PROFILE_AUTHORITY_CHANGED": "NO",
-    "PAYMENT_CHANGED": "NO",
-    "ENTITLEMENT_CHANGED": "NO",
-    "CHALLENGE_SCORING_CHANGED": "NO",
-    "REPORT_GENERATION_PROMPT_CHANGED": "NO (challenge_final/diagnostic/6Q untouched)",
-    "DB_SCHEMA_CHANGED": "NO",
-    "ENV_CHANGED": "NO"
-  },
-  "deployTargets": [],
+  "deployTargets": [
+    "generateAiReport"
+  ],
   "requiredTests": [
     "node tests/rc8.10/run.js",
     "node tests/rc8.9/run.js",
     "node tests/rc8.8/run.js"
   ],
-  "rollbackPlan": "git revert <commit> + redeploy prior generateAiReport. No schema/payment impact."
+  "priority": "P0_PRODUCT_CORE"
 }
