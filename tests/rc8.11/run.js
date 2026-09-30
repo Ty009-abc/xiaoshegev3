@@ -12,6 +12,7 @@ const ALL = [
   'access-authority.test.js',
   'stage1b.test.js',
   'stage2a.test.js',
+  'stage2bc.test.js',
 ]
 
 const dir = __dirname

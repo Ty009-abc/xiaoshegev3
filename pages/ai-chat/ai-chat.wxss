@@ -257,3 +257,93 @@
   box-shadow: 0 6rpx 20rpx rgba(127,86,217,0.5);
 }
 .send-btn:active { transform: scale(0.92); }
+
+/* ═══════════ RC8_11_STAGE2：免费额度条 ═══════════ */
+.quota-bar {
+  padding: 12rpx 32rpx;
+  font-size: 24rpx;
+  color: #7F56D9;
+  background: #F4EBFF;
+  text-align: center;
+}
+
+/* ═══════════ RC8_11_STAGE2：追问区 ═══════════ */
+.follow-section {
+  background: #FAFAFF;
+  border-top: 1rpx solid #EAECF0;
+}
+
+/* ═══════════ RC8_11_STAGE2：会员付费墙 ═══════════ */
+.pw-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(16,24,40,0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.pw-card {
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.pw-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #101828;
+  text-align: center;
+  margin-bottom: 24rpx;
+}
+
+.pw-summary, .pw-directions {
+  margin-bottom: 24rpx;
+}
+
+.pw-summary-label {
+  display: block;
+  font-size: 24rpx;
+  color: #667085;
+  margin-bottom: 12rpx;
+}
+
+.pw-fact {
+  display: flex;
+  gap: 10rpx;
+  font-size: 26rpx;
+  color: #344054;
+  line-height: 1.7;
+}
+
+.pw-dot { color: #7F56D9; }
+
+.pw-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  padding: 24rpx;
+  background: #F9FAFB;
+  border-radius: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.pw-benefit {
+  font-size: 26rpx;
+  color: #475467;
+}
+
+.pw-skip {
+  width: 100%;
+  margin-top: 16rpx;
+  background: transparent;
+  border: none;
+  color: #667085;
+  font-size: 28rpx;
+}
+.pw-skip::after { border: none; }

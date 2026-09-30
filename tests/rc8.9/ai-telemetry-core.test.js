@@ -97,7 +97,7 @@ function loadGenAiReport(db, canned, cons) {
     if (id === './lib/memoryExtractor.js') return { extractFromMessage: () => null }
     if (id === './lib/raw6qStore.js') return { persistRaw6Q: async () => ({ ok: true, rawId: 'raw_test' }), loadLatestRaw6Q: async () => null }
     if (id === './lib/context/coachingContextRuntime.js') return { runCoachingTurn: async () => ({ ok: true, aiResult: { success: true, content: '{}' }, ctx: {}, attempts: 1, validation: { ok: true } }) }
-    if (id === './lib/context/userContextBuilder.js') return { SCENARIO_NAME_TO_KEY: {} }
+    if (id === './lib/context/userContextBuilder.js') return { SCENARIO_NAME_TO_KEY: {}, buildUserContext: async () => ({ raw6Q: null, explicitProfile: null }) }
     if (id === './lib/quotaAuthority.js') return require(path.join(GEN, 'lib', 'quotaAuthority.js'))
     if (id === './lib/context/coachingFollowUps.js') return require(path.join(GEN, 'lib', 'context', 'coachingFollowUps.js'))
     return require(id)

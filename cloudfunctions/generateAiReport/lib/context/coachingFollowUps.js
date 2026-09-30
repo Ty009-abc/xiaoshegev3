@@ -136,4 +136,30 @@ function fallbackFollowUps (excludeTexts, n) {
   return pickQuestions(n || 3, excludeTexts || []).map((q) => ({ icon: q.icon, text: q.text }))
 }
 
-module.exports = { buildFollowUps, fallbackFollowUps, _occupation }
+/**
+ * buildPaywallSummary — ≤3 concise facts for the quota-exhausted paywall.
+ * Derived from active RAW_6Q (primary) + the current conversation (current ask).
+ * Privacy-safe: only the user's own already-authorized facts.
+ */
+function buildPaywallSummary (opts) {
+  const a = opts || {}
+  const raw6Q = a.raw6Q || {}
+  const profile = a.profile || {}
+  const facts = []
+  const job = _clean(raw6Q.job) || _clean(profile.occupation || profile.job)
+  const income = _clean(raw6Q.income)
+  const anxiety = _clean(raw6Q.anxiety)
+  const rootCause = _clean(raw6Q.rootCause)
+  if (job) facts.push('职业：' + job)
+  if (income) facts.push('月收入：' + income)
+  if (anxiety) facts.push('当前最焦虑：' + anxiety)
+  else if (rootCause) facts.push('卡点：' + rootCause)
+  if (facts.length < 3) {
+    const occ = _occupation(raw6Q, profile, a.message || '', '')
+    const focus = _firstAttr(_clean(a.message), FOCUS_PHRASES)
+    if (occ && focus && facts.length < 3) facts.push('近期关注：' + focus)
+  }
+  return facts.slice(0, 3)
+}
+
+module.exports = { buildFollowUps, fallbackFollowUps, buildPaywallSummary, _occupation }

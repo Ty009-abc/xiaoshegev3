@@ -19,8 +19,9 @@ const memoryEngine = require('./lib/memoryEngine.js')
 const { extractFromMessage } = require('./lib/memoryExtractor.js')
 const { runCoachingTurn } = require('./lib/context/coachingContextRuntime.js')
 const { SCENARIO_NAME_TO_KEY } = require('./lib/context/userContextBuilder.js')
+const { buildUserContext } = require('./lib/context/userContextBuilder.js')
 const quotaAuthority = require('./lib/quotaAuthority.js')
-const { buildFollowUps } = require('./lib/context/coachingFollowUps.js')
+const { buildFollowUps, buildPaywallSummary } = require('./lib/context/coachingFollowUps.js')
 
 // ── 长期记忆：隐私安全可观测（仅计数/状态，绝不记录记忆内容/密钥/openid）──
 function _memTelemetry (event, detail) {
@@ -90,12 +91,38 @@ exports.main = async (event, context) => {
           ? { isMember: true, unlimited: true, remaining: null, limit: null }
           : { isMember: false, remaining: qs.remaining, limit: quotaAuthority.FREE_LIMIT } })
       }
+      const scenario = SCENARIO_NAME_TO_KEY[event.scenario] || (typeof event.scenario === 'string' ? event.scenario : '') || 'ask'
       const quotaBefore = await quotaAuthority.getQuotaStatus(db, openid, { isMember })
       if (!isMember && !quotaBefore.allowed) {
+        // ═══ RC8_11_STAGE2 — 4th attempt: BLOCK before any model call ═══
+        // Paywall payload = ≤ 3 concise facts from active RAW_6Q (+ current ask)
+        // + 3 next directions (latest follow-up thread). Privacy-safe: only the
+        // user's own already-authorized facts; membership offer = monthly/annual.
+        let paywallSummary = []
+        let nextDirections = []
+        try {
+          const payCtx = await buildUserContext(db, openid, { scenario, message: promptInput, memoryEnabled: false })
+          paywallSummary = buildPaywallSummary({ raw6Q: payCtx.raw6Q, profile: payCtx.explicitProfile, message: promptInput })
+        } catch (_) {}
+        try {
+          nextDirections = buildFollowUps({ message: promptInput, answer: '', raw6Q: null, scenario }).followUps
+        } catch (_) {}
         return {
           code: CODES.QUOTA_EXHAUSTED,
           message: '今天的3次免费深度问答已用完',
-          data: { quotaExhausted: true, remaining: 0, limit: quotaAuthority.FREE_LIMIT, isMember: false, needPay: true },
+          data: {
+            quotaExhausted: true, remaining: 0, limit: quotaAuthority.FREE_LIMIT, isMember: false, needPay: true,
+            paywall: {
+              title: '今天的3次免费深度问答已用完',
+              summary: paywallSummary,
+              nextDirections,
+              offer: {
+                monthly: { productId: 'vip_month_39_9', display: '¥39.9/月' },
+                annual: { productId: 'vip_year_299', display: '¥299/年' },
+              },
+              benefits: ['AI问小事哥持续深挖', '30天认知翻身挑战', '完整世界模型报告', '长期记忆', '6个个性化场景', '历史报告与复盘'],
+            },
+          },
         }
       }
 
@@ -104,7 +131,6 @@ exports.main = async (event, context) => {
       // → L5 current message) → grounded prompt → ONE model call → scenario
       // validator (≤1 regeneration). memoryEnabled=false disables ONLY L4;
       // 6Q / profile personalization always stays ON.
-      const scenario = SCENARIO_NAME_TO_KEY[event.scenario] || (typeof event.scenario === 'string' ? event.scenario : '') || 'ask'
       const memEnabled = await memoryEngine.isMemoryEnabled(openid).catch(() => true)
       if (!memEnabled) _memTelemetry('memory_read_skipped_disabled', {})
       else _memTelemetry('memory_read_attempt', {})
