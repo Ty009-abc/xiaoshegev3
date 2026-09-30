@@ -1,29 +1,96 @@
-<!-- challenge-result -->
+<!-- challenge-result — 世界模型控制台（深色，owner 参考截图金标） -->
 <view class="page">
-  <xsg-navbar title="挑战结果" light />
+  <!-- 深色渐变背景 + ambient glow -->
+  <view class="bg-base"></view>
+  <view class="ambient">
+    <view class="orb orb-1"></view>
+    <view class="orb orb-2"></view>
+  </view>
+
+  <xsg-navbar title="挑战结果" light transparent />
+
   <xsg-loading text="正在分析你的认知画像..." wx:if="{{loading}}" />
+
   <block wx:elif="{{result}}">
-    <view class="result-hero anim-fade-in">
-      <text class="r-type">{{result.mainType||'认知探索者'}}</text>
-      <text class="r-sub">你的世界模型初步类型</text>
-    </view>
-    <xsg-card theme="light" class="anim-fade-in">
-      <view class="scores-title">九维评分</view>
-      <view class="scores-grid">
-        <view class="score" wx:for="{{['laborMindset','probabilityMindset','systemThinking','leverageThinking','capitalThinking','riskAwareness','informationSensitivity','longTermism','decisionStability']}}" wx:key="*this">
-          <text class="sc-num">{{result.profile[item]||50}}</text>
-          <text class="sc-label">{{item==='laborMindset'?'劳动':item==='probabilityMindset'?'概率':item==='systemThinking'?'系统':item==='leverageThinking'?'杠杆':item==='capitalThinking'?'资本':item==='riskAwareness'?'风险':item==='informationSensitivity'?'信息':item==='longTermism'?'长期':'决策'}}</text>
+    <view class="content">
+      <!-- ═══ 1. Hero 世界模型 ═══ -->
+      <view class="hero anim-fade-up">
+        <text class="hero-eyebrow">WORLD MODEL PROFILE</text>
+        <view class="hero-orb">
+          <view class="orb-ring ring-1"></view>
+          <view class="orb-ring ring-2"></view>
+          <view class="orb-ring ring-3"></view>
+          <view class="orb-core"></view>
+          <view class="orb-halo"></view>
+        </view>
+        <text class="hero-type">{{result.mainType||'认知探索者'}}</text>
+        <text class="hero-sub">你的世界模型初步类型</text>
+        <text class="hero-concl" wx:if="{{result.summary}}">{{result.summary}}</text>
+      </view>
+
+      <!-- ═══ 2. 九维世界模型雷达 ═══ -->
+      <view class="panel radar-panel anim-fade-up anim-d1">
+        <view class="panel-head">
+          <text class="panel-title">九维世界模型</text>
+          <text class="panel-hint">满分 100</text>
+        </view>
+
+        <view class="radar-stage">
+          <canvas wx:if="{{!radarFail}}" canvas-id="radarCanvas" id="radarCanvas" class="radar-canvas"></canvas>
+
+          <!-- fallback：雷达不可用时不留白 -->
+          <view class="radar-fallback" wx:if="{{radarFail}}">
+            <view class="fb-row" wx:for="{{result.dims}}" wx:for-item="d" wx:key="key">
+              <view class="fb-bar"><view class="fb-fill" style="width:{{d.value}}%"></view></view>
+              <text class="fb-label">{{d.label}}</text>
+              <text class="fb-val">{{d.value}}</text>
+            </view>
+          </view>
+          <view class="radar-skew" wx:if="{{!radarOk && !radarFail}}"></view>
+        </view>
+
+        <!-- 突出 Top2 / Bottom2，不再放 9 个 pills -->
+        <view class="dim-highlights">
+          <view class="dh-line dh-strong">
+            <text class="dh-tag">优势维度</text>
+            <text class="dh-items"><text wx:for="{{result.topDims}}" wx:for-item="d" wx:key="key" class="dh-item dh-hi">{{d.label}} {{d.value}}</text></text>
+          </view>
+          <view class="dh-line dh-weak">
+            <text class="dh-tag">待突破</text>
+            <text class="dh-items"><text wx:for="{{result.bottomDims}}" wx:for-item="d" wx:key="key" class="dh-item dh-lo">{{d.label}} {{d.value}}</text></text>
+          </view>
         </view>
       </view>
-    </xsg-card>
-    <xsg-card theme="light" wx:if="{{result.tags&&result.tags.length}}" class="anim-fade-in">
-      <view class="scores-title">核心标签</view>
-      <view class="tag-row"><xsg-tag wx:for="{{result.tags}}" wx:for-item="t" wx:key="*this" text="{{t}}" type="gold" /></view>
-    </xsg-card>
-        <!-- CTA 区块 -->
-    <xsg-button type="ai" text="生成我的世界模型报告" bind:tapbutton="goReport" class="anim-fade-in" />
-    <xsg-card type="premium" theme="light" clickable bindtap="goShare" class="anim-fade-in anim-delay-1">
-      <view class="share-cta"><text class="scta-icon">📤</text><text class="scta-text">保存认知海报 · 分享翻身概率</text><text class="scta-arrow">→</text></view>
-    </xsg-card>
+
+      <!-- ═══ 3. 世界模型判断 ═══ -->
+      <view class="panel judge-panel anim-fade-up anim-d2" wx:if="{{result.judgement}}">
+        <view class="judge-badge">世界模型判断</view>
+        <text class="judge-text">{{result.judgement}}</text>
+      </view>
+
+      <!-- ═══ 4. 核心特征（权重标签：主×3 / 次×5，最多 8）═══ -->
+      <view class="panel tags-panel anim-fade-up anim-d2" wx:if="{{result.coreTraits && result.coreTraits.length}}">
+        <view class="panel-head"><text class="panel-title">核心特征</text></view>
+        <view class="trait-row">
+          <view class="trait-chip {{index < 3 ? 'trait-primary' : 'trait-secondary'}}" wx:for="{{result.coreTraits}}" wx:for-item="t" wx:key="*this">
+            <text class="tc-text">{{t}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- ═══ 5. 主 CTA — 生成我的世界模型报告 ═══ -->
+      <view class="cta-wrap anim-fade-up anim-d3">
+        <xsg-button type="ai" text="生成我的世界模型报告" bind:tapbutton="goReport" />
+      </view>
+
+      <!-- ═══ 6. 认知海报入口（保留）═══ -->
+      <view class="entry-card anim-fade-up anim-d3" bindtap="goShare" hover-class="entry-card-hover">
+        <view class="entry-left">
+          <text class="entry-title">保存认知海报 · 分享翻身概率</text>
+          <text class="entry-desc">生成属于你的认知画像卡片</text>
+        </view>
+        <text class="entry-arrow">→</text>
+      </view>
+    </view>
   </block>
 </view>

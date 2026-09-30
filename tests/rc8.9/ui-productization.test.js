@@ -192,18 +192,18 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // C — golden 09-26 challenge-result UI: report CTA + poster entry present
+  // C — owner-screenshot challenge-result UI: report CTA + poster entry present
   // ═════════════════════════════════════════════════════════════════════════
   {
     const w = fs.readFileSync(RESULT_WXML, 'utf8')
     const js = fs.readFileSync(RESULT_JS, 'utf8')
-    ok(w.indexOf('生成我的世界模型报告') >= 0, 'C report CTA = 生成我的世界模型报告 (golden)')
-    ok(w.indexOf('保存认知海报') >= 0, 'C poster entry present (golden)')
-    ok(w.indexOf('goShare') >= 0, 'C goShare binding present (golden)')
-    ok(js.indexOf('goShare') >= 0, 'C goShare handler present (golden)')
-    ok(js.indexOf('share-poster') >= 0, 'C share-poster navigation present (golden)')
-    ok(w.indexOf('核心标签') >= 0, 'C tag section heading = 核心标签 (golden)')
-    ok(w.indexOf('九维评分') >= 0, 'C nine-dim score grid present (golden)')
+    ok(w.indexOf('生成我的世界模型报告') >= 0, 'C report CTA = 生成我的世界模型报告 (owner screenshot)')
+    ok(w.indexOf('保存认知海报') >= 0, 'C poster entry present (owner screenshot)')
+    ok(w.indexOf('goShare') >= 0, 'C goShare binding present')
+    ok(js.indexOf('goShare') >= 0, 'C goShare handler present')
+    ok(js.indexOf('share-poster') >= 0, 'C share-poster navigation present')
+    ok(w.indexOf('核心特征') >= 0, 'C feature section heading = 核心特征 (owner screenshot)')
+    ok(w.indexOf('九维世界模型') >= 0, 'C nine-dim radar panel present (owner screenshot)')
   }
 
   // ═════════════════════════════════════════════════════════════════════════

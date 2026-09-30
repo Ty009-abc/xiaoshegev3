@@ -1,122 +1,299 @@
 @import '../../styles/tokens.wxss';
-/* ══════════════════════════════════════
-   pages/challenge-result — 亮底灰白质感
-   R7: reconcile WXML classes with real definitions + light theme tokens.
-   Root cause was class drift (WXML classes undefined → inherited page
-   near-black text on dark xsg-card). No hardcoded white masking.
-   ══════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════════
+   pages/challenge-result — 世界模型控制台（深色）
+   视觉金标 = OWNER_REFERENCE_SCREENSHOT（2026-09-30 10:24 真机）
+   Deep Navy + Glass Panel + Neon Purple + Controlled Glow
+   背景 #070B14 / #0B1020 / #111827
+   紫#7C5CFF 粉#D64BFF 蓝#5B8CFF 金#E9C46A（仅少量）
+   本版修复：为 WXML 全部 class 提供定义（无 undefined layout class）。
+   ══════════════════════════════════════════════════════════════ */
 
-page { background: #f4f5f7; }
-
-.container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #f8f9fa;
-  padding: 40rpx 32rpx;
-  box-sizing: border-box;
-}
+page { background: #070B14; }
 
 .page {
+  position: relative;
   min-height: 100vh;
-  padding: 32rpx 24rpx;
-  padding-top: calc(32rpx + env(safe-area-inset-top));
+  box-sizing: border-box;
+  padding-bottom: calc(64rpx + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+}
+
+/* ── 深色渐变背景 + ambient glow ── */
+.bg-base {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(124,92,255,0.22), rgba(7,11,20,0) 62%),
+    linear-gradient(180deg, #0B1020 0%, #070B14 46%, #0B1020 100%);
+}
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90rpx);
+  opacity: 0.45;
+}
+.orb-1 {
+  width: 520rpx; height: 520rpx;
+  top: -140rpx; left: -160rpx;
+  background: radial-gradient(circle, rgba(124,92,255,0.60), rgba(124,92,255,0));
+  animation: drift 16s ease-in-out infinite alternate;
+}
+.orb-2 {
+  width: 460rpx; height: 460rpx;
+  top: 260rpx; right: -180rpx;
+  background: radial-gradient(circle, rgba(214,75,255,0.38), rgba(214,75,255,0));
+  animation: drift 20s ease-in-out infinite alternate-reverse;
+}
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to   { transform: translate3d(24rpx, 20rpx, 0) scale(1.08); }
+}
+
+/* ── 内容层 ── */
+.content {
+  position: relative;
+  z-index: 1;
+  padding: 0 32rpx;
+}
+
+/* ══════════ 1. Hero ══════════ */
+.hero {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  background: #f8f9fa;
+  padding: 20rpx 0 12rpx;
 }
-
-/* ── hero / world-model type ── */
-.result-hero {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 16rpx 0 32rpx;
-}
-.r-type {
-  font-size: 48rpx;
-  font-weight: 800;
-  color: #101828;            /* dark text on light bg */
-  line-height: 1.3;
-  display: block;
-}
-.r-sub {
-  font-size: 28rpx;
-  color: #667085;
-  margin-top: 12rpx;
-  display: block;
-}
-
-/* ── scores ── */
-.scores-title {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #101828;
-  text-align: left;
-  margin-bottom: 24rpx;
-}
-.scores-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16rpx;
-  justify-content: space-between;
-}
-.score {
-  width: 30%;
-  padding: 20rpx 0;
-  border-radius: 24rpx;
-  background: #F9FAFB;
-  border: 1rpx solid #EAECF0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
-.sc-num {
-  font-size: 40rpx;
-  font-weight: 800;
-  color: #7F56D9;            /* purple accent, readable on light */
-  font-variant-numeric: tabular-nums;
-  display: block;
-}
-.sc-label {
-  font-size: 24rpx;
-  color: #667085;
-  margin-top: 4rpx;
-  display: block;
-}
-
-/* ── tags ── */
-.tag-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-}
-
-/* ── share / poster CTA ── */
-.share-cta {
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-.scta-icon { font-size: 36rpx; margin-right: 16rpx; }
-.scta-text {
-  flex: 1;
-  text-align: left;
-  font-size: 30rpx;
+.hero-eyebrow {
+  font-size: 22rpx;
+  letter-spacing: 6rpx;
+  color: #8B7BFF;
   font-weight: 600;
-  color: #101828;
+  opacity: 0.9;
 }
-.scta-arrow { font-size: 32rpx; color: #7F56D9; }
+.hero-orb {
+  position: relative;
+  width: 260rpx; height: 260rpx;
+  display: flex; align-items: center; justify-content: center;
+  margin: 24rpx 0 20rpx;
+}
+.orb-core {
+  width: 120rpx; height: 120rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #B9A6FF, #7C5CFF 45%, #D64BFF 100%);
+  box-shadow: 0 0 60rpx rgba(124,92,255,0.65), inset 0 0 32rpx rgba(255,255,255,0.28);
+}
+.orb-halo {
+  position: absolute;
+  width: 220rpx; height: 220rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,92,255,0.32), rgba(124,92,255,0));
+  filter: blur(18rpx);
+}
+.orb-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2rpx solid rgba(124,92,255,0.30);
+  box-sizing: border-box;
+}
+.ring-1 { width: 170rpx; height: 170rpx; border-top-color: rgba(214,75,255,0.7); animation: spin 24s linear infinite; }
+.ring-2 { width: 214rpx; height: 214rpx; border-left-color: rgba(91,140,255,0.7); animation: spin 36s linear infinite reverse; }
+.ring-3 { width: 256rpx; height: 256rpx; border-bottom-color: rgba(233,196,106,0.45); animation: spin 52s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-/* ── legacy aliases kept for safety (harmless) ── */
-.icon { font-size: 120rpx; display: block; margin-bottom: 24rpx; }
-.title { font-size: 48rpx; font-weight: 800; color: #101828; display: block; margin-bottom: 12rpx; }
-.sub { font-size: 30rpx; color: #667085; display: block; margin-bottom: 32rpx; line-height: 1.6; }
-.scores { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 32rpx; justify-content: center; }
-.score-item { padding: 16rpx 24rpx; border-radius: 32rpx; background: #FFFFFF; border: 1rpx solid #eaecf0; text-align: center; min-width: 120rpx; box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.03); }
-.si-label { font-size: 24rpx; color: #667085; display: block; }
-.si-value { font-size: 40rpx; font-weight: 800; color: #7F56D9; display: block; margin-top: 4rpx; }
+.hero-type {
+  display: block;
+  font-size: 56rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  background: linear-gradient(120deg, #A78BFA, #7C5CFF 45%, #D64BFF);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero-sub {
+  display: block;
+  font-size: 26rpx;
+  color: #8A94AD;
+  margin-top: 12rpx;
+}
+.hero-concl {
+  display: block;
+  margin-top: 22rpx;
+  max-width: 620rpx;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #C3CBDD;
+}
+
+/* ══════════ 通用 glass panel ══════════ */
+.panel {
+  margin-top: 30rpx;
+  padding: 32rpx 30rpx;
+  border-radius: 28rpx;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1rpx solid rgba(124, 92, 255, 0.18);
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(12rpx);
+}
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 22rpx;
+}
+.panel-title { font-size: 30rpx; font-weight: 700; color: #FFFFFF; }
+.panel-hint { font-size: 22rpx; color: #64708A; }
+
+/* ══════════ 2. 雷达 ══════════ */
+.radar-panel { border-color: rgba(124, 92, 255, 0.24); }
+.radar-stage {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.radar-canvas { width: 560rpx; height: 520rpx; }
+.radar-skew {
+  position: absolute;
+  inset: 0;
+  border-radius: 24rpx;
+  background: linear-gradient(120deg, rgba(124,92,255,0.05), rgba(124,92,255,0.0));
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.55; } }
+
+.radar-fallback {
+  width: 100%;
+  padding: 8rpx 0;
+}
+.fb-row {
+  display: flex;
+  align-items: center;
+  margin: 12rpx 0;
+}
+.fb-bar {
+  flex: 1;
+  height: 14rpx;
+  border-radius: 8rpx;
+  background: rgba(124,92,255,0.12);
+  overflow: hidden;
+  margin-right: 16rpx;
+}
+.fb-fill {
+  height: 100%;
+  border-radius: 8rpx;
+  background: linear-gradient(90deg, #7C5CFF, #D64BFF);
+}
+.fb-label { width: 72rpx; font-size: 24rpx; color: #8A94AD; text-align: right; }
+.fb-val { width: 64rpx; font-size: 26rpx; font-weight: 800; color: #E9C46A; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ══════════ 2b. Top2 / Bottom2 高亮 ══════════ */
+.dim-highlights { margin-top: 24rpx; }
+.dh-line { display: flex; align-items: baseline; margin-top: 14rpx; }
+.dh-tag {
+  flex-shrink: 0;
+  width: 132rpx;
+  font-size: 24rpx;
+  color: #8A94AD;
+}
+.dh-strong .dh-tag { color: #7CE0C0; }
+.dh-weak .dh-tag { color: #E9C46A; }
+.dh-items { flex: 1; }
+.dh-item {
+  display: inline-block;
+  margin-right: 24rpx;
+  font-size: 30rpx;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dh-hi { color: #7CE0C0; }
+.dh-lo { color: #E9C46A; }
+
+/* ══════════ 3. 世界模型判断 ══════════ */
+.judge-panel {
+  background: linear-gradient(135deg, rgba(30,27,64,0.85), rgba(15,23,42,0.85));
+  border-color: rgba(124,92,255,0.32);
+}
+.judge-badge {
+  display: inline-block;
+  font-size: 22rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  color: #C6B1FF;
+  padding: 8rpx 20rpx;
+  border-radius: 18rpx;
+  background: rgba(124,92,255,0.16);
+  border: 1rpx solid rgba(124,92,255,0.30);
+  margin-bottom: 20rpx;
+}
+.judge-text {
+  display: block;
+  font-size: 28rpx;
+  line-height: 1.8;
+  color: #D8DEEA;
+}
+
+/* ══════════ 4. 核心特征（权重标签：主×3 / 次×5）══════════ */
+.tags-panel { border-color: rgba(124, 92, 255, 0.22); }
+.trait-row { display: flex; flex-wrap: wrap; gap: 16rpx; }
+.trait-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 20rpx;
+}
+.trait-primary {
+  padding: 16rpx 30rpx;
+  background: linear-gradient(135deg, rgba(124,92,255,0.26), rgba(214,75,255,0.18));
+  border: 1rpx solid rgba(124,92,255,0.60);
+  box-shadow: 0 0 22rpx rgba(124,92,255,0.34), inset 0 0 14rpx rgba(124,92,255,0.14);
+}
+.trait-primary .tc-text { font-size: 30rpx; font-weight: 800; color: #F3E4C4; }
+.trait-secondary {
+  padding: 12rpx 22rpx;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1rpx solid rgba(124,92,255,0.22);
+}
+.trait-secondary .tc-text { font-size: 24rpx; font-weight: 600; color: #E9C46A; }
+
+/* ══════════ 5. 主 CTA —— 生成我的世界模型报告 ══════════ */
+.cta-wrap { margin-top: 34rpx; }
+
+/* ══════════ 6. 认知海报入口卡（保留）══════════ */
+.entry-card {
+  margin-top: 24rpx;
+  padding: 30rpx 32rpx;
+  border-radius: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(20,26,48,0.9), rgba(15,23,42,0.9));
+  border: 1rpx solid rgba(124,92,255,0.36);
+  box-shadow: 0 0 30rpx rgba(124,92,255,0.20);
+  transition: transform 0.15s ease-out;
+}
+.entry-card-hover { transform: scale(0.985); opacity: 0.96; }
+.entry-left { flex: 1; min-width: 0; }
+.entry-title { display: block; font-size: 32rpx; font-weight: 700; color: #FFFFFF; }
+.entry-desc { display: block; font-size: 24rpx; color: #8A94AD; margin-top: 10rpx; }
+.entry-arrow { font-size: 40rpx; color: #9E8BFF; margin-left: 20rpx; }
+
+/* ══════════ 动效（克制）══════════ */
+.anim-fade-up { animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-d1 { animation-delay: 0.06s; }
+.anim-d2 { animation-delay: 0.12s; }
+.anim-d3 { animation-delay: 0.18s; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24rpx); }
+  to   { opacity: 1; transform: translateY(0); }
+}

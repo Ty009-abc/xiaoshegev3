@@ -1,13 +1,15 @@
 {
-  "taskId": "RC8_9_PRELAUNCH_UI_0926_GOLDEN_RECOVERY",
-  "phase": "restore 2026-09-26 golden challenge-result product UI (light theme, presenter-wired) over the unaccepted R9/R9.1 dark world-model console; onboarding already at golden (no change)",
-  "baseCommit": "0d06255",
+  "taskId": "RC8_9_CHALLENGE_RESULT_SCREENSHOT_GOLDEN_REBUILD",
+  "phase": "rebuild pages/challenge-result to match the OWNER reference screenshot (2026-09-30 10:24 real-device). Golden-authority = owner screenshot.",
+  "baseCommit": "aa773aa",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "pages/challenge-result/* (+ reconciled UI regression tests). Onboarding untouched (already == 09-26 golden). No backend.",
+  "pageScope": "pages/challenge-result/* (+ UI regression tests). Onboarding LOCKED at 70a901c (NO_CHANGE). No backend.",
+  "goldenSource": "OWNER_REFERENCE_SCREENSHOT (dark 世界模型控制台): nav 挑战结果, eyebrow WORLD MODEL PROFILE, purple orb, 普通觉醒型, 你的世界模型初步类型, 九维世界模型 radar (满分100), 优势维度/待突破, deep-navy ground.",
   "changes": {
-    "RESULT_RESTORE": "Restored pages/challenge-result/{js,wxml,wxss,json} to the c41be06 golden 09-26 light product UI: hero type via canonical presenter (worldModelTypeLabel), 九维评分 3x3 grid, 核心标签 (xsg-tag), report CTA 生成我的世界模型报告 → /pages/report-preview?type=challenge_final, poster entry 保存认知海报·分享翻身概率 → /pages/share-poster. Light theme #f8f9fa, no raw enum, classes fully defined in wxss (no drift).",
-    "ONBOARDING": "NO CHANGE — HEAD onboarding == 70a901c 09-26 golden (git diff 70a901c HEAD -- pages/onboarding empty). Per ONLY_IF_FILES_DIFFER the onboarding commit was skipped.",
-    "TESTS": "tests/rc8.9/challenge-result-visual.test.js rewritten to CHALLENGE_RESULT_0926_GOLDEN (light golden: hero, 9-dim grid, tags, CTA, poster entry, no R9 dark console, no class drift, no raw enum). tests/rc8.9/ui-productization.test.js section A/C reconciled to golden (raw tags preserved, report CTA present, poster entry present, 核心标签 heading)."
+    "RESULT_REBUILD": "Rebuilt pages/challenge-result to the owner-screenshot dark console: hero orb + WORLD MODEL PROFILE eyebrow + gradient type via presenter; 九维世界模型 radar panel + fallback + 优势维度/待突破; 核心特征 weighted chips (≤8, primary×3); CTA 生成我的世界模型报告 → report-preview?type=challenge_final; poster entry 保存认知海报·分享翻身概率 → share-poster.",
+    "CLASS_DRIFT_FIX": "Defined the 5 classes the prior 9469e78 dark console left undefined (radar-panel, dh-strong, dh-weak, tags-panel, entry-left) — no undefined layout classes remain.",
+    "ONBOARDING": "NO CHANGE (LOCKED at 70a901c).",
+    "TESTS": "challenge-result-visual.test.js rewritten → CHALLENGE_RESULT_OWNER_SCREENSHOT_GOLDEN. ui-productization.test.js section C reconciled (核心特征 / 九维世界模型 / owner-screenshot CTA+poster)."
   },
   "invariants": {
     "PAYMENT_LOGIC_UNCHANGED": "YES",
@@ -15,10 +17,9 @@
     "REPLAY_CONTRACT_UNCHANGED": "YES",
     "REPORT_GENERATION_UNCHANGED": "YES",
     "REPORT_HISTORY_UNCHANGED": "YES",
-    "OLD_PAID_RECORDS_PRESERVED": "YES",
+    "PAYCALLBACK_FIX_PRESERVED": "YES",
     "POSTER_RECOVERY_R10_4_PRESERVED": "YES",
     "SERVER_DATA_AUTHORITY_PRESERVED": "YES",
-    "SCORING_UNCHANGED": "YES",
     "NO_RECOMPUTE_RESULT": "YES"
   },
   "boundaries": {
