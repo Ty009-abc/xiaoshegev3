@@ -163,7 +163,7 @@ page { background: #070B14; }
   align-items: center;
   justify-content: center;
 }
-.radar-canvas { width: 560rpx; height: 520rpx; }
+.radar-canvas { width: 600rpx; height: 540rpx; }
 .radar-skew {
   position: absolute;
   inset: 0;

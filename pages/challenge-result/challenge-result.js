@@ -103,22 +103,42 @@ Page({ data:{
     const result = this.data.result
     if (!result || !result.profile) return
     const data = radar.buildRadarData(result.profile, DIM_ORDER, DIM_LABELS)
-    if (data.length < 3) { this.setData({ radarFail:true }); return }
+    if (data.length < 3) { this._radarFail('data_lt_3'); return }
     this._radarData = data
     // 等 canvas 进入布局后再绘制
     setTimeout(() => this._paintRadar(0), 80)
   },
+  // ── 雷达真机调试：仅开发态（__wxConfig.envVersion==='develop'）时记录，非页面可见 ──
+  _radarFail(reason){
+    this.setData({ radarFail:true, radarOk:false })
+    this._radarDebugLog({ RADAR_DRAW_SUCCESS:false, RADAR_FAIL_REASON:reason })
+  },
+  _radarDebugLog(extra){
+    try{
+      const env=(typeof __wxConfig!=='undefined'&&__wxConfig.envVersion)||(wx.getAccountInfoSync&&wx.getAccountInfoSync().miniProgram.envVersion)
+      if(env!=='develop') return
+      const r=this._radarDiag||{}
+      console.log('RADAR_DEBUG', Object.assign({
+        RADAR_CANVAS_NODE_FOUND:!!r.found,
+        RADAR_CANVAS_CSS_SIZE:r.css??null,
+        RADAR_CANVAS_PIXEL_SIZE:r.px??null,
+        RADAR_DPR:r.dpr??null,
+        RADAR_DRAW_CALLED:!!r.draw,
+        RADAR_POINTS_COUNT:r.pts??null,
+      }, extra))
+    }catch(_){}
+  },
   _paintRadar(attempt){
     const data = this._radarData
-    if (!data) { this.setData({ radarFail:true }); return }
-    if (!wx.createCanvasContext) { this.setData({ radarFail:true }); return }
+    if (!data) { this._radarFail('no_data'); return }
+    if (!wx.createCanvasContext) { this._radarFail('no_createCanvasContext'); return }
     if (!wx.createSelectorQuery) { this._paintDirect(data); return }
     let settled = false
     const failTimer = setTimeout(() => {
       if (settled) return
       settled = true
       if (attempt < 2) this._paintRadar(attempt + 1)
-      else this.setData({ radarFail:true, radarOk:false })
+      else this._radarFail('init_timeout')
     }, 700)
     try {
       wx.createSelectorQuery().in(this).select('#radarCanvas').boundingClientRect((rect) => {
@@ -127,7 +147,7 @@ Page({ data:{
         clearTimeout(failTimer)
         if (!rect || !rect.width || !rect.height) {
           if (attempt < 3) { setTimeout(() => this._paintRadar(attempt + 1), 140); return }
-          this.setData({ radarFail:true }); return
+          this._radarFail('invalid_size'); return
         }
         this._drawFrames(data, rect.width, rect.height)
       }).exec()
@@ -137,14 +157,22 @@ Page({ data:{
       this._paintDirect(data)
     }
   },
-  // selectorQuery 不可用时的兜底：按 CSS 设计尺寸(560rpx≈) 直接画
+  // selectorQuery 不可用时的兜底：按 CSS 设计尺寸 600rpx×540rpx 直接画
   _paintDirect(data){
-    try { this._drawFrames(data, 280, 280) } catch (e) { this.setData({ radarFail:true }) }
+    try { this._drawFrames(data, 300, 270) } catch (e) { this._radarFail('direct_paint_error') }
   },
   _drawFrames(data, cssW, cssH){
     try {
       const ctx = wx.createCanvasContext('radarCanvas', this)
+      if (!ctx) { this._radarFail('ctx_null'); return }
       const total = 24
+      const dpr = (wx.getSystemInfoSync && wx.getSystemInfoSync().pixelRatio) || 1
+      this._radarDiag = {
+        found: true, draw: true, pts: data.length,
+        css: cssW + 'x' + cssH,
+        px: Math.round(cssW * dpr) + 'x' + Math.round(cssH * dpr),
+        dpr,
+      }
       if (this._radarTimer) { clearInterval(this._radarTimer); this._radarTimer = null }
       this._frame = 0
       const paint = (p) => {
@@ -158,10 +186,11 @@ Page({ data:{
         if (this._frame >= total) {
           clearInterval(this._radarTimer); this._radarTimer = null
           this.setData({ radarOk: true, radarFail: false })
+          this._radarDebugLog({ RADAR_DRAW_SUCCESS: true })
         }
       }, 16)
     } catch (e) {
-      this.setData({ radarFail:true, radarOk:false })
+      this._radarFail('draw_error')
     }
   },
 

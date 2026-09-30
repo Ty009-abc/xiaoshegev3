@@ -16,7 +16,7 @@
  */
 
 const RADAR_TOKENS = Object.freeze({
-  levels: 4,               // 网格环数（不含中心）
+  levels: 3,               // 网格环数（不含中心）
   max: 100,                // 分值上限
   startAngle: -Math.PI / 2, // 第一个轴指向正上方
   labelGap: 16,            // 标签距最外环的像素距离
