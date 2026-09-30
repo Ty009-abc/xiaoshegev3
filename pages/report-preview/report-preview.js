@@ -29,6 +29,7 @@ Page({
     report:null, locked:true, loading:true, generating:false,
     showGenerating:false, showUpgradeModal:false,
     posterGenerating:false,
+    retryCreating:false,
     qrcodePath: '/images/qrcode.png',
     titlesReady: false,
     contentVisible: true,
@@ -642,24 +643,46 @@ Page({
     })
   },
 
-  // R10.5 重新挑战 — 确认后跳转规范挑战入口。
-  // challenge-start 已注册为 tabBar 页（app.json tabBar.list[1]），wx.navigateTo 对 tabBar 页
-  // 会被框架静默拒绝 → 必须用 wx.switchTab。不触碰支付 / 不改既有报告 / 不清空历史。
+  // R10.7 重新挑战 — OPTION_C：报告页直接调用服务端显式重放。
+  // 服务端校验权益后创建【全新】unlocked 记录并返回新 recordId；客户端跳 challenge-play。
+  // 不再走 switchTab / challenge-start 常规入口；不触碰支付 / 权益写入 / 既有报告。
   onRetryChallenge() {
     wx.showModal({
       title: '重新挑战一次？',
-      content: '将开启新一轮挑战，当前报告会继续保留，不影响已购权益。',
+      content: '将开启一轮新的挑战，当前挑战结果和世界模型报告都会保留，不影响已购权益。',
       cancelText: '取消',
       confirmText: '确认重新挑战',
       success: (res) => {
         if (!res.confirm) return
+        if (this.data.retryCreating) return   // 快速双击 / 重复确认防抖
+        this.setData({ retryCreating: true })
         analytics.track('challenge_retry_open')
-        wx.switchTab({
-          url: '/pages/challenge-start/challenge-start',
-          fail: (err) => {
-            console.error('[retry] switchTab challenge-start fail:', err)
-            wx.showToast({ title: '跳转失败，请重试', icon: 'none' })
-          },
+
+        // 每次确认生成唯一 replayRequestId（服务端据此幂等）
+        const replayRequestId = 'RP' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+
+        wx.cloud.callFunction({
+          name: 'startChallenge',
+          data: { mode: 'challenge', replay: true, replayRequestId, replaySource: 'world_model_report' },
+        }).then((r) => {
+          const result = r && r.result
+          if (!result || result.code !== 0 || !result.data || !result.data.recordId) {
+            throw new Error((result && result.message) || 'replay failed')
+          }
+          if (result.data.trialMode !== false) throw new Error('replay not entitled')
+
+          wx.navigateTo({
+            url: '/pages/challenge-play/challenge-play?mode=challenge&recordId=' + encodeURIComponent(result.data.recordId),
+            fail: (err) => {
+              console.error('[retry] navigateTo challenge-play fail:', err)
+              wx.showToast({ title: '无法进入挑战，请重试', icon: 'none' })
+            },
+            complete: () => { this.setData({ retryCreating: false }) },
+          })
+        }).catch((err) => {
+          console.error('[retry] replay startChallenge fail:', err)
+          wx.showToast({ title: '无法开始新挑战，请重试', icon: 'none' })
+          this.setData({ retryCreating: false })
         })
       },
     })

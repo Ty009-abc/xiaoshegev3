@@ -122,7 +122,7 @@ const spacerRule = rule('.safe-area-spacer')
 
   ok(/generatePoster\s*\(/.test(js), 'POSTER_HANDLER_UNCHANGED')
   ok(/onRetryChallenge\s*\(/.test(js), 'RETRY_HANDLER_UNCHANGED')
-  ok(js.indexOf('/pages/challenge-start/challenge-start') >= 0, 'retry canonical route unchanged')
+  ok(js.indexOf('/pages/challenge-play/challenge-play') >= 0, 'retry target = challenge-play (R10.7 OPTION_C)')
   ok(js.indexOf('createOrder') < 0, 'PAYMENT_LOGIC_UNCHANGED (no createOrder)')
   ok(js.indexOf('verifyPayment') < 0, 'PAYMENT_LOGIC_UNCHANGED (no verifyPayment)')
   ok(js.indexOf('paymentFinalizer') < 0, 'PAYMENT_LOGIC_UNCHANGED (no paymentFinalizer)')

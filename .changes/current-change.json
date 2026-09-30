@@ -1,9 +1,9 @@
 {
-  "taskId": "PAYMENT_STAGE5A_R10_WORLD_MODEL_REPORT_PAGE_PRODUCTIZATION",
-  "phase": "client UI/UX productization — world-model report page (report-preview challenge_final) + poster + retry",
-  "baseCommit": "247b938",
+  "taskId": "PAYMENT_STAGE5A_R10_7_EXPLICIT_REPLAY_CONTRACT",
+  "phase": "explicit replay contract (OPTION_C) — report retry creates a NEW entitled challenge record via server authority; normal entry unchanged",
+  "baseCommit": "9469e78",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "pages/report-preview/* (STEP_1: real carrier of challenge_final full report; challenge-result routes here, ai-analysis retired)",
+  "pageScope": "pages/report-preview/* (retry entry) + cloudfunctions/startChallenge/* (replay branch)",
   "changes": {
     "HERO": "REPORT_HERO: SMALL_BADGE=AI诊断 + PAGE_TITLE=世界模型报告 + CORE_CONCLUSION(heroConclusion=report.fatalLine) + ONE_LINE_INTERPRETATION(heroInterpretation=summary||coreProblem||static). 紫色强调 + 清晰层级.",
     "CARDS": "5 content cards unified dark-glass style (01 致命一句话 02 核心问题 03 系统困局 04 翻身路径 05 行动建议).",
@@ -11,17 +11,21 @@
     "POSTER": "NEW utils/worldModelPosterContent.js (映射) + utils/worldModelPosterRenderer.js (1080x1920 深色导航蓝+霓虹+红/橙/绿章节编码+QR). 生成→预览→保存相册; 失败/权限/QR/空文本 fallback. SOURCE_ONLY_FROM_CURRENT_REPORT, AI_REGEN_FORBIDDEN.",
     "RETRY": "onRetryChallenge 确认弹窗 → 既有 /pages/challenge-start/challenge-start (canonical startChallenge 服务端权威入口). 不触碰支付/权益/既有报告.",
     "LEGACY": "旧半成品入口「保存认知海报 / 分享翻身概率」全部移除.",
-    "TESTS": "NEW tests/rc8.9/world-model-report-ui.test.js, world-model-poster.test.js, world-model-retry.test.js; 更新 3 个既有 report-preview vm shim; 注册 run.js."
+    "TESTS": "NEW tests/rc8.9/world-model-report-ui.test.js, world-model-poster.test.js; NEW poster-recovery.test.js (R10.4), replay-contract.test.js (R10.7 server), retry-navigation removed; updated world-model-retry.test.js to OPTION_C; 注册 run.js.",
+    "RETRY_R10_7": "onRetryChallenge 确认 → 直接调用 startChallenge (replay:true, replayRequestId, source=world_model_report) → 服务端校验权益后新建全新 unlocked 记录 (trialMode:false/status:processing/idx:0) → navigateTo challenge-play?recordId=NEW. 删除 switchTab/challenge-start 常规入口; 双击防抖 retryCreating; 服务端幂等按 replayRequestId.",
+    "SERVER_R10_7": "startChallenge 新增显式重放分支 _handleExplicitReplay (replay===true): 认证→校验 replayRequestId→服务端权益校验(hasChallengeEntitlement)→幂等→复用 _buildRecord 初始化器新建 unlocked 记录 (绝不复制旧数据). 非权益 fail-closed. NORMAL_ENTRY 语义不变."
   },
   "invariants": {
+    "NORMAL_ENTRY_SEMANTICS_CHANGED": "NO",
     "PAYMENT_LOGIC_UNCHANGED": "YES", "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
-    "ROUTE_TO_FULL_REPORT_UNCHANGED_EXCEPT_UI": "YES", "REAL_PAYMENT_NOT_PERFORMED": "YES"
+    "ROUTE_TO_FULL_REPORT_UNCHANGED_EXCEPT_UI": "YES", "REAL_PAYMENT_NOT_PERFORMED": "YES",
+    "OLD_RECORD_PRESERVED": "YES", "OLD_REPORT_PRESERVED": "YES", "ENTITLEMENT_PRESERVED": "YES"
   },
   "boundaries": {
-    "BACKEND_CHANGED": "NO", "PAYMENT_CHANGED": "NO", "AUTHORITY_CHANGED": "NO",
-    "CLOUD_FUNCTIONS": "NO", "SKU_PRICE": "NO", "SCHEMA": "NO", "DB_MUTATION": "NONE", "REAL_PAYMENT": "NO"
+    "BACKEND_CHANGED": "YES (startChallenge replay branch only)", "PAYMENT_CHANGED": "NO", "AUTHORITY_CHANGED": "NO",
+    "CLOUD_FUNCTIONS": "startChallenge (replay branch)", "SKU_PRICE": "NO", "SCHEMA": "NO", "DB_MUTATION": "NEW_RECORD_ONLY_ON_CONFIRMED_REPLAY", "REAL_PAYMENT": "NO"
   },
-  "deployTargets": [],
+  "deployTargets": ["startChallenge"],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],
   "rollbackPlan": "git revert <client-commit>; rebuild preview. Pure client; no server/schema/env impact."
 }

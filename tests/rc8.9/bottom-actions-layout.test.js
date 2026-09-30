@@ -124,7 +124,7 @@ const abBlock = (wxss.split('.action-bar {')[1] || '').split('}')[0]
   ok(/_generateWorldModelPoster\s*\(/.test(js), 'world-model poster impl present')
   ok(/onRetryChallenge\s*\(/.test(js), 'RETRY_HANDLER_UNCHANGED (onRetryChallenge present)')
   ok(/bind\s*:\s*'?unlock'?\s*:\s*'onGenerate'/.test(js) || js.indexOf('onGenerate') >= 0, 'unlock -> onGenerate unchanged')
-  ok(js.indexOf('/pages/challenge-start/challenge-start') >= 0, 'retry canonical route unchanged')
+  ok(js.indexOf('/pages/challenge-play/challenge-play') >= 0, 'retry target = challenge-play (R10.7 OPTION_C)')
   ok(js.indexOf('createOrder') < 0, 'PAYMENT_LOGIC_UNCHANGED (no createOrder)')
   ok(js.indexOf('verifyPayment') < 0, 'PAYMENT_LOGIC_UNCHANGED (no verifyPayment)')
   ok(js.indexOf('paymentFinalizer') < 0, 'PAYMENT_LOGIC_UNCHANGED (no paymentFinalizer)')

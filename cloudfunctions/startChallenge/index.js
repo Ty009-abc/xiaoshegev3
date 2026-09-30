@@ -16,6 +16,19 @@
  *     B. 无已拥有记录但持有 challenge_39_9 权益（entitlements.challenge_full）
  *        → 全新一轮只能以 entitled 身份开始（trialMode=false），绝不降级为 trial。
  *     C. 既无已拥有记录也无权益 → trialMode=true（免费前 3 题）。
+ *
+ * PAYMENT_STAGE5A_R10_7_EXPLICIT_REPLAY_CONTRACT
+ *   显式「重新挑战一次」（OPTION_C：客户端直接调用服务端）：
+ *     当 event.replay === true 时，走独立重放分支（优先于 A/B/C）：
+ *       1. 认证 openid（已在上方）
+ *       2. 校验 replayRequestId（replay=true 时必填）
+ *       3. 服务端权威校验 challenge 权益（hasChallengeEntitlement）
+ *          → 无权益：FAIL_CLOSED（不建 unlocked 记录、不授予权益、不触发支付）
+ *       4. 幂等：同一 openid + replayRequestId 已存在 → 返回既有记录，不新建
+ *       5. 新建一条【全新】unlocked 记录（trialMode=false / status=processing /
+ *          currentEventIndex=0），使用既有 _buildRecord 初始化器（不复制旧数据）
+ *   不变式：NORMAL_ENTRY (replay!==true) 语义完全不变。
+ *   客户端 replay 标志仅为意图，服务端为唯一权威。
  */
 
 const cloud = require('wx-server-sdk')
@@ -74,12 +87,18 @@ exports.main = async (event, context) => {
   // 请求级时间戳 —— 同一个请求内所有时间字段使用同一个 ts
   const ts = now()
 
-  const { mode = 'default' } = event
+  const { mode = 'default', replay = false, replayRequestId = '', replaySource = '' } = event
   const isDiagnostic = mode === 'diagnostic'
 
   try {
     const userRes = await db.collection('users').where({ openid }).limit(1).get()
     if (!userRes.data[0]) return fail(CODES.AUTH_FAILED, '用户不存在')
+
+    // ── R10.7 显式重放分支（OPTION_C）——优先于常规入口 A/B/C ──
+    // 仅 challenge 模式支持；客户端 replay 仅为意图，权益由服务端权威判定。
+    if (replay === true && !isDiagnostic) {
+      return await _handleExplicitReplay({ db, openid, ts, replayRequestId, replaySource })
+    }
 
     // 服务端权威权益（一次性解析，后续复用）
     const hasAccess = isDiagnostic ? false : await _resolveChallengeAccess(openid, ts)
@@ -187,7 +206,7 @@ exports.main = async (event, context) => {
   }
 }
 
-function _buildRecord({ recordId, openid, ts, trialMode, mode }) {
+function _buildRecord({ recordId, openid, ts, trialMode, mode, extra }) {
   return {
     recordId,
     openid,
@@ -205,5 +224,82 @@ function _buildRecord({ recordId, openid, ts, trialMode, mode }) {
     finishedAt: null,
     createdAt: ts,
     updatedAt: ts,
+    ...(extra || {}),
   }
+}
+
+/**
+ * R10.7 —— 显式重放（OPTION_C）：为「已拥有权益」用户创建一轮【全新】解锁挑战。
+ * 不触碰支付/权益写入/旧记录/旧报告；非权益用户 fail-closed。幂等按 replayRequestId。
+ *
+ * @returns {Promise<object>} ok(...) | fail(...)
+ */
+async function _handleExplicitReplay ({ db, openid, ts, replayRequestId, replaySource }) {
+  // 1) 校验 replayRequestId（必填）
+  if (!replayRequestId || typeof replayRequestId !== 'string' || !replayRequestId.trim()) {
+    return fail(CODES.PARAM_ERROR, '缺少 replayRequestId')
+  }
+  const rid = replayRequestId.trim()
+
+  // 2) 服务端权威权益校验（绝不信任客户端 unlocked/trialMode/membership 声明）
+  const entitled = await _resolveChallengeAccess(openid, ts)
+  if (!entitled) {
+    // fail-closed：不建 unlocked 记录、不授予权益、不触发支付
+    console.warn(`[startChallenge] replay denied (no entitlement) openid=${openid}`)
+    return fail(CODES.NEED_PAYMENT, '当前账号暂无挑战权益，无法开启新一轮')
+  }
+
+  // 3) 幂等：同一 openid + replayRequestId 已存在 → 返回既有记录，不新建
+  const existingRes = await db.collection('challenge_records')
+    .where({ openid, replayRequestId: rid })
+    .limit(1)
+    .get()
+  const existing = existingRes.data[0]
+  if (existing) {
+    console.log(`[startChallenge] replay idempotent hit recordId=${existing.recordId} rid=${rid}`)
+    return ok({
+      recordId: existing.recordId,
+      currentDay: existing.currentDay,
+      currentEventIndex: existing.currentEventIndex,
+      trialMode: false,
+      unlocked: true,
+      mode: 'challenge',
+      scoringVersion: existing.scoringVersion || 'normalized_v2',
+      rawScores: existing.rawScores,
+      replay: true,
+      replayed: true,
+      idempotent: true,
+    })
+  }
+
+  // 4) 新建一轮全新 unlocked 记录（复用既有初始化器，绝不复制旧数据/旧答案/旧报告）
+  const recordId = genRecordId(ts)
+  const record = _buildRecord({
+    recordId,
+    openid,
+    ts,
+    trialMode: false,
+    mode: 'challenge',
+    extra: {
+      unlocked: true,
+      replayRequestId: rid,
+      replaySource: replaySource || 'world_model_report',
+      replayAt: ts,
+    },
+  })
+  await db.collection('challenge_records').add({ data: record })
+  console.log(`[startChallenge] replay created new record recordId=${recordId} rid=${rid}`)
+
+  return ok({
+    recordId,
+    currentDay: 1,
+    currentEventIndex: 0,
+    trialMode: false,
+    unlocked: true,
+    mode: 'challenge',
+    scoringVersion: 'normalized_v2',
+    rawScores: { ...DEFAULT_INIT },
+    replay: true,
+    replayRequestId: rid,
+  })
 }
