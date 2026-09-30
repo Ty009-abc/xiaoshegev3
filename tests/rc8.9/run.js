@@ -45,6 +45,7 @@ const ALL = [
   'bottom-actions-layout.test.js',
   'bottom-whitespace.test.js',
   'world-model-poster.test.js',
+  'poster-recovery.test.js',
   'world-model-retry.test.js',
   'order-entitlement-guard.test.js',
 ]

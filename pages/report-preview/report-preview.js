@@ -29,7 +29,7 @@ Page({
     report:null, locked:true, loading:true, generating:false,
     showGenerating:false, showUpgradeModal:false,
     posterGenerating:false,
-    qrcodePath: '/images/gh_qrcode.png',
+    qrcodePath: '/images/qrcode.png',
     titlesReady: false,
     contentVisible: true,
     // ── R10: 世界模型报告 Hero + 海报预览 ──
@@ -533,44 +533,87 @@ Page({
 
   onClosePoster() { this.setData({ showPoster: false }) },
 
+  /* R10.4 统一收尾（幂等）。所有 success / fail / timeout / exception 路径都必须会聚到这里。
+     职责：清绘制/导出定时器 · 解除 loading · 复位 posterGenerating。 */
+  _finishPosterGeneration(_ok, msg) {
+    if (this._drawWatchdogTimer) { clearTimeout(this._drawWatchdogTimer); this._drawWatchdogTimer = null }
+    if (this._exportWatchdogTimer) { clearTimeout(this._exportWatchdogTimer); this._exportWatchdogTimer = null }
+    try { wx.hideLoading() } catch (e) {}
+    this._posterDone = true
+    this.setData({ posterGenerating: false })
+    if (msg) { try { wx.showToast({ title: msg, icon: 'none' }) } catch (e) {} }
+  },
+
   /* ═══════════════════════════════════════
      R10 世界模型报告海报（1080×1920）
      SOURCE_ONLY_FROM_CURRENT_REPORT · AI_REGEN_FORBIDDEN
+     状态机：idle → preparing → drawing → exporting → success|failed
+     不变式：终态后 posterGenerating 必为 false；每步均有终态守卫。
      ═══════════════════════════════════════ */
   _generateWorldModelPoster() {
-    if (this.data.posterGenerating) return
-    this.setData({ posterGenerating: true })
-    wx.showLoading({ title: '正在生成海报...', mask: true })
+    if (this.data.posterGenerating) return   // STEP_01 防重入
+    this._posterDone = false
+    this.setData({ posterGenerating: true })  // STEP_02
+    wx.showLoading({ title: '正在生成海报...', mask: true })  // STEP_03
     const self = this
+
+    // STEP_04 内容映射
+    let content
     try {
-      const content = posterContent.buildPosterContent(this.data.reportData, {
+      content = posterContent.buildPosterContent(this.data.reportData, {
         mainType: (this.data._cfMeta && this.data._cfMeta.worldModelType) || '',
       })
-      const ctx = wx.createCanvasContext('posterCanvas', this)
-      const out = posterRenderer.drawPoster(ctx, content, { qrPath: this.data.qrcodePath || '/images/qrcode.png' })
-      const W = out.width
-      const H = out.height
-      ctx.draw(false, () => {
-        wx.canvasToTempFilePath({
-          canvasId: 'posterCanvas', x: 0, y: 0, width: W, height: H, destWidth: W, destHeight: H,
-          success: (res) => {
-            self.setData({ posterGenerating: false, posterPath: res.tempFilePath, posterImageUrl: res.tempFilePath, showPoster: true })
-            wx.hideLoading()
-          },
-          fail: (err) => {
-            console.error('[worldModelPoster] canvasToTempFilePath fail:', err)
-            self.setData({ posterGenerating: false })
-            wx.hideLoading()
-            wx.showToast({ title: '海报生成失败，请重试', icon: 'none' })
-          },
-        }, self)
-      })
+    } catch (e) {
+      console.error('[worldModelPoster] content build fail:', e)
+      return this._finishPosterGeneration(false, '海报生成失败，请重试')
+    }
+
+    // STEP_05 画布上下文（posterCanvas 常驻页面根节点，调用前必已挂载）
+    let ctx, out, W, H
+    try {
+      ctx = wx.createCanvasContext('posterCanvas', this)
+      // STEP_06 绘制指令；QR 缺失不致命（渲染器内部已 try/catch）
+      out = posterRenderer.drawPoster(ctx, content, { qrPath: this.data.qrcodePath || '/images/qrcode.png' })
+      W = out.width
+      H = out.height
     } catch (e) {
       console.error('[worldModelPoster] render fail:', e)
-      this.setData({ posterGenerating: false })
-      wx.hideLoading()
-      wx.showToast({ title: '海报生成失败，请重试', icon: 'none' })
+      return this._finishPosterGeneration(false, '海报生成失败，请重试')
     }
+
+    // 绘制看门狗：即便 ctx.draw 回调永不触发，也能落入终态
+    this._drawWatchdogTimer = setTimeout(() => {
+      if (self._posterDone) return
+      console.error('[worldModelPoster] draw watchdog timeout')
+      self._finishPosterGeneration(false, '海报生成超时，请重试')
+    }, 4000)
+
+    // STEP_07 提交绘制
+    ctx.draw(false, () => {
+      if (self._posterDone) return
+      if (self._drawWatchdogTimer) { clearTimeout(self._drawWatchdogTimer); self._drawWatchdogTimer = null }
+
+      // STEP_08 导出（导出看门狗：避免 canvasToTempFilePath 回调挂起）
+      self._exportWatchdogTimer = setTimeout(() => {
+        if (self._posterDone) return
+        console.error('[worldModelPoster] export watchdog timeout')
+        self._finishPosterGeneration(false, '海报导出超时，请重试')
+      }, 6000)
+
+      wx.canvasToTempFilePath({
+        canvasId: 'posterCanvas', x: 0, y: 0, width: W, height: H, destWidth: W, destHeight: H,
+        success: (res) => {
+          if (self._posterDone) return
+          // STEP_09 预览
+          self.setData({ posterPath: res.tempFilePath, posterImageUrl: res.tempFilePath, showPoster: true })
+          self._finishPosterGeneration(true)   // STEP_10 统一收尾（不弹 toast）
+        },
+        fail: (err) => {
+          console.error('[worldModelPoster] canvasToTempFilePath fail:', err)
+          self._finishPosterGeneration(false, '海报生成失败，请重试')
+        },
+      }, self)
+    })
   },
 
   savePoster() {

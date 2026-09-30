@@ -1,6 +1,10 @@
 <!-- report-preview — v3.16 统帅指令：red-card + reportData统一绑定 -->
 <view class="page">
 
+  <!-- R10.4 共用离屏海报画布：常驻页面根节点（diagnostic / challenge_final 共用）
+       必须是离屏（left/top -9999px）而非 display:none，否则 legacy ctx.draw 回调不触发 -->
+  <canvas canvas-id="posterCanvas" style="position:fixed;left:-9999px;top:-9999px;width:1080px;height:1920px;pointer-events:none;opacity:0;overflow:hidden;"></canvas>
+
   <!-- ═══════ diagnostic 5字段报告 ═══════ -->
   <block wx:if="{{reportType==='diagnostic'}}">
     <xsg-navbar title="翻身策略报告" showBack light />
@@ -82,9 +86,6 @@
     </block>
 
     <xsg-empty icon="📄" title="报告加载失败" desc="请返回首页重新开始诊断" wx:elif="{{!loading && !report}}" />
-
-    <!-- 🛠 隐藏 Canvas 2D 画布 -->
-    <canvas canvas-id="posterCanvas" style="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;"></canvas>
   </block>
 
   <!-- ═══════ challenge_final 世界模型报告（R10：HERO + 五卡 + 底部动作栏） ═══════ -->
