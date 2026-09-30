@@ -1,17 +1,15 @@
 {
-  "taskId": "RC8_10B_RAW_6Q_AUTHORITY_AND_PERSONALIZED_30DAY_CHALLENGE",
-  "stage": "E1",
-  "priority": "P0_PRODUCT_CORE",
-  "ruleId": "RAW_6Q_LATEST_SET_ONLY",
-  "phase": "ADD_RULE (latest completed raw 6Q set only): the active L0 authority is WHERE openid=current AND status=completed ORDER BY completedAt desc,createdAt desc LIMIT 1. Whole set is one version (sixQRecordId/sixQVersion); zero cross-version field mixing; no backfill from older sets or report text; old sets retained for history/audit only; context exposes activeSixQRecordId/activeSixQVersion/activeSixQCompletedAt; retake invalidates stale context.",
+  "taskId": "RC8_10B1_LATEST_RAW_6Q_SNAPSHOT_AUTHORITY_HARDENING",
+  "stage": "H1",
+  "priority": "P0_DATA_AUTHORITY",
+  "phase": "Harden the raw 6Q store to ONE immutable canonical snapshot per completed submission (flat fields), strict latest-completed selector with deterministic tie-break (completedAt DESC, createdAt DESC, sixQVersion DESC), atomic-set no-merge rule, sixQAuthorityType trace, immediate cache invalidation on retake, legacy DERIVED_LEGACY fallback with NO reverse-engineering.",
   "baseCommit": "76cbf06",
-  "scope": "raw6qStore.js (status+versioning+loadActiveRaw6Q) + userContextBuilder.js L0 selector/version output/no-backfill + getChallengeEvent/lib copy + tests. No payment/entitlement/replay/profile/report/DB-schema/env change.",
+  "scope": "cloudfunctions/generateAiReport/lib/raw6qStore.js + lib/context/userContextBuilder.js + getChallengeEvent/lib/context copy + tests. No memory/replay/profile/report-authority/payment/entitlement/DB-schema/env change.",
   "filesChanged": [
     "cloudfunctions/generateAiReport/lib/raw6qStore.js",
     "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
     "cloudfunctions/getChallengeEvent/lib/context/userContextBuilder.js",
     "tests/rc8.10/raw6q-authority.test.js",
-    "tests/rc8.10/golden-cases.test.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [

@@ -175,9 +175,12 @@ function assembleUserContext (raw) {
 
   // ── L0 RAW 6Q (highest authority; server-persisted raw answers) ──
   const rawDoc = r.raw6q || null
-  // Accept either the stored DB doc ({facts:{...}}) or an already-normalized set
-  // (flat fields) — both represent ONE indivisible raw 6Q version.
-  const rf = (rawDoc && (rawDoc.facts || rawDoc)) || {}
+  // Canonical snapshot: six answers stored FLAT on the doc. Backward-compatible
+  // with the legacy {facts:{...}} shape. Either way it is ONE indivisible version.
+  const rs = rawDoc || {}
+  const rf = (rs.facts && rs.job == null && rs.age == null) ? rs.facts : rs
+  // Atomic set: present iff at least one of the six answers is non-empty. A gap
+  // inside the set stays a gap (never backfilled from another version).
   const hasRaw = !!(clean(rf.job) || clean(rf.rootCause) || clean(rf.anxiety) || clean(rf.income) || clean(rf.education) || clean(rf.age))
   const raw6Q = hasRaw ? {
     // whole set used as ONE version — never field-mixed with older sets
@@ -326,6 +329,8 @@ function assembleUserContext (raw) {
     activeSixQVersion: hasRaw ? (clean(rawDoc.sixQVersion) || clean(rawDoc.diagnosticVersion) || SIXQ_VERSION) : null,
     activeSixQCompletedAt: hasRaw ? (rawDoc.completedAt || null) : null,
     activeSixQSource: sixQSource,
+    // authority trace: RAW_6Q | DERIVED_LEGACY | NONE
+    sixQAuthorityType: sixQSource || 'NONE',
     sixQText: sixqText,
     profile: profileEvidence,
     challengeEvidence,
@@ -540,11 +545,16 @@ async function buildUserContext (db, openid, opts) {
     profile = (pr.data && pr.data[0]) || null
   } catch (_) { profile = null }
   try {
-    // L0 RAW 6Q — LATEST_COMPLETED_SET_ONLY (strict; never merges old sets)
+    // L0 RAW 6Q — LATEST_COMPLETED_SET_ONLY (strict; never merges old sets).
+    // PRIMARY completedAt DESC, SECONDARY createdAt DESC, TERTIARY sixQVersion DESC.
     const rr = await db.collection(RAW6Q_COLLECTION)
       .where({ openid, status: 'completed' })
-      .orderBy('completedAt', 'desc').limit(1).get()
-    raw6qReport = (rr.data && rr.data[0]) || null
+      .get()
+    const docs = (rr.data || []).slice().sort((a, b) =>
+      ((b.completedAt || 0) - (a.completedAt || 0)) ||
+      ((b.createdAt || 0) - (a.createdAt || 0)) ||
+      String(b.sixQVersion || '').localeCompare(String(a.sixQVersion || '')))
+    raw6qReport = docs[0] || null
   } catch (_) { raw6qReport = null }
   try {
     const sr = await db.collection('ai_reports')

@@ -21,7 +21,9 @@ const RAW_VERSION = 'turnaround_strategy_6q_v1'
 const RAW_SOURCE = 'RAW_6Q'
 const RAW_STATUS = 'completed'
 const RAW_FIELDS = ['age', 'job', 'education', 'income', 'anxiety', 'rootCause']
-const SCHEMA_VERSION = 1
+// Canonical snapshot schema: ONE document per completed submission with the six
+// answers stored FLAT at the top level (no per-question docs, no nested bags).
+const SCHEMA_VERSION = 2
 
 function s (v) { return (v === undefined || v === null) ? '' : String(v).trim() }
 
@@ -55,22 +57,29 @@ async function persistRaw6Q (db, { openid, requestId, answers, ts }) {
       if (dup.data && dup.data[0]) return { ok: true, rawId: dup.data[0].rawId || dup.data[0]._id }
     }
     const rawId = 'raw6q_' + (requestId || String(ts))
+    // ONE immutable versioned snapshot per completed submission — the six
+    // answers are the atomic set (never split/merged across versions).
     await db.collection(RAW_COLLECTION).add({
       data: {
-        rawId,
-        // ── versioning (RAW_6Q_LATEST_SET_ONLY contract) ──
+        // ── canonical snapshot fields (flat) ──
+        openid,
         sixQRecordId: rawId,
         sixQVersion: RAW_VERSION,
-        // ── authority binding + status ──
-        openid,
-        requestId: requestId || '',
         status: RAW_STATUS,
-        source: RAW_SOURCE,
-        diagnosticVersion: RAW_VERSION,
-        facts: norm.facts,
+        age: norm.facts.age,
+        job: norm.facts.job,
+        education: norm.facts.education,
+        income: norm.facts.income,
+        anxiety: norm.facts.anxiety,
+        rootCause: norm.facts.rootCause,
         completedAt: ts,
-        schemaVersion: SCHEMA_VERSION,
         createdAt: ts,
+        source: RAW_SOURCE,
+        schemaVersion: SCHEMA_VERSION,
+        // ── transport/idempotency metadata ──
+        rawId,
+        requestId: requestId || '',
+        diagnosticVersion: RAW_VERSION,
         updatedAt: ts,
       },
     })
@@ -94,13 +103,15 @@ async function loadActiveRaw6Q (db, openid) {
   try {
     const r = await db.collection(RAW_COLLECTION)
       .where({ openid, status: RAW_STATUS })
-      .orderBy('completedAt', 'desc')
-      .limit(1)
       .get()
     let docs = (r.data || [])
+    if (!docs.length) return null
+    // PRIMARY completedAt DESC, SECONDARY createdAt DESC, TERTIARY sixQVersion DESC.
     if (docs.length > 1) {
-      // tie-break on createdAt desc (same completedAt)
-      docs = docs.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+      docs = docs.slice().sort((a, b) =>
+        ((b.completedAt || 0) - (a.completedAt || 0)) ||
+        ((b.createdAt || 0) - (a.createdAt || 0)) ||
+        String(b.sixQVersion || '').localeCompare(String(a.sixQVersion || '')))
     }
     return docs[0] || null
   } catch (_) { return null }

@@ -164,6 +164,40 @@ async function main () {
   })
   ok(cG.explicitProfile.occupation === '厨师' && cG.evidenceMap.sixQ === 'RAW_6Q', 'G: active 6Q beats contradicting memory')
 
+  // ── RC8_10B1 — deterministic tie-break + single-version drift checks ──
+
+  // H: same completedAt → newer createdAt wins
+  const dbH = makeFakeDb({ user_6q_raw: [
+    { openid: 'H', status: 'completed', completedAt: 500, createdAt: 500, facts: { age: '1', job: '旧职业', education: 'x', income: '1', anxiety: 'a', rootCause: 'b' } },
+    { openid: 'H', status: 'completed', completedAt: 500, createdAt: 900, facts: { age: '2', job: '新职业', education: 'x', income: '2', anxiety: 'a', rootCause: 'b' } },
+  ] })
+  const cH = await buildUserContext(dbH, 'H', { scenario: 'career', message: '' })
+  ok(cH.raw6Q.job === '新职业' && cH.raw6Q.completedAt === 500, 'H: same completedAt → newer createdAt wins')
+
+  // I: same completedAt + createdAt → deterministic sixQVersion DESC
+  const dbI = makeFakeDb({ user_6q_raw: [
+    { openid: 'I', status: 'completed', completedAt: 500, createdAt: 500, sixQVersion: 'turnaround_strategy_6q_v1', facts: { age: '1', job: 'AA', education: 'x', income: '1', anxiety: 'a', rootCause: 'b' } },
+    { openid: 'I', status: 'completed', completedAt: 500, createdAt: 500, sixQVersion: 'turnaround_strategy_6q_v2', facts: { age: '2', job: 'BB', education: 'x', income: '2', anxiety: 'a', rootCause: 'b' } },
+  ] })
+  const cI = await buildUserContext(dbI, 'I', { scenario: 'career', message: '' })
+  ok(cI.raw6Q.job === 'BB', 'I: tie-break deterministic on sixQVersion desc')
+  ok(cI.sixQAuthorityType === 'RAW_6Q', 'I: sixQAuthorityType = RAW_6Q')
+
+  // J/K/L: six scenarios + ask + challenge all resolve the SAME activeSixQRecordId
+  const dbJ = makeFakeDb({ user_6q_raw: [
+    { openid: 'J', status: 'completed', sixQRecordId: 'the-active-id', completedAt: 700, createdAt: 700, facts: { age: '30', job: '厨师', education: '初中', income: '7000', anxiety: 'a', rootCause: 'b' } },
+  ] })
+  const ids = new Set()
+  for (const sc of ['career', 'ai_track', 'side_hustle', 'promotion', 'boss', 'anxiety', 'ask']) {
+    const cx = await buildUserContext(dbJ, 'J', { scenario: sc, message: '' })
+    ids.add(cx.activeSixQRecordId)
+  }
+  ok(ids.size === 1 && ids.has('the-active-id'), 'J/K: six scenarios + ask share one activeSixQRecordId')
+  // challenge path uses the same UCB copy (getChallengeEvent/lib) → same active id
+  const UCB_GC = require(path.join(__dirname, '../../cloudfunctions/getChallengeEvent/lib/context/userContextBuilder.js'))
+  const gcCtx = await UCB_GC.buildUserContext(dbJ, 'J', { scenario: 'career', message: '' })
+  ok(gcCtx.activeSixQRecordId === 'the-active-id', 'L: challenge-path UCB resolves the same activeSixQRecordId')
+
   console.log('  _TEST pass=' + pass + ' fail=' + fail)
   if (fail > 0) process.exit(1)
 }
