@@ -11,6 +11,7 @@ const fs = require('fs')
 const ALL = [
   'access-authority.test.js',
   'stage1b.test.js',
+  'stage2a.test.js',
 ]
 
 const dir = __dirname

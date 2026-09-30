@@ -19,6 +19,8 @@ const memoryEngine = require('./lib/memoryEngine.js')
 const { extractFromMessage } = require('./lib/memoryExtractor.js')
 const { runCoachingTurn } = require('./lib/context/coachingContextRuntime.js')
 const { SCENARIO_NAME_TO_KEY } = require('./lib/context/userContextBuilder.js')
+const quotaAuthority = require('./lib/quotaAuthority.js')
+const { buildFollowUps } = require('./lib/context/coachingFollowUps.js')
 
 // ── 长期记忆：隐私安全可观测（仅计数/状态，绝不记录记忆内容/密钥/openid）──
 function _memTelemetry (event, detail) {
@@ -75,6 +77,28 @@ exports.main = async (event, context) => {
       const promptInput = message || ''
       if (!promptInput) return fail(CODES.PARAM_ERROR, '请提供要分析的话题')
 
+      // ═══ RC8_11_STAGE2 — server-authoritative free AI quota (success-only) ═══
+      // Membership bypasses the free quota. Free users get exactly 3 COMPLETED
+      // answers/day (Asia/Shanghai). The 4th attempt is blocked BEFORE any model
+      // call. Client counters are NEVER trusted. Consumption happens ONLY after
+      // a successful AI turn (below) — failed/blocked turns consume 0.
+      const isMember = await checkVip(db, openid).catch(() => false)
+      // Lightweight quota probe (NO model call, NO consumption) for the client counter.
+      if (event.action === 'quota_status') {
+        const qs = await quotaAuthority.getQuotaStatus(db, openid, { isMember })
+        return ok({ quota: isMember
+          ? { isMember: true, unlimited: true, remaining: null, limit: null }
+          : { isMember: false, remaining: qs.remaining, limit: quotaAuthority.FREE_LIMIT } })
+      }
+      const quotaBefore = await quotaAuthority.getQuotaStatus(db, openid, { isMember })
+      if (!isMember && !quotaBefore.allowed) {
+        return {
+          code: CODES.QUOTA_EXHAUSTED,
+          message: '今天的3次免费深度问答已用完',
+          data: { quotaExhausted: true, remaining: 0, limit: quotaAuthority.FREE_LIMIT, isMember: false, needPay: true },
+        }
+      }
+
       // RC8_10A — grounded coaching turn: USER CONTEXT (L0 6Q → L1 profile →
       // L2 challenge → L3 report → L4 long-term memory [gated by memoryEnabled]
       // → L5 current message) → grounded prompt → ONE model call → scenario
@@ -111,6 +135,21 @@ exports.main = async (event, context) => {
 
       const replyText = aiResult.content || '换个说法试试？'
 
+      // ── RC8_11_STAGE2：仅【成功完成】的回答才消耗一次免费额度（原子/并发安全）──
+      const consume = await quotaAuthority.consumeQuota(db, openid, { isMember })
+      const quotaOut = isMember
+        ? { isMember: true, unlimited: true, remaining: null, limit: null }
+        : { isMember: false, remaining: Math.max(0, consume.remaining), limit: quotaAuthority.FREE_LIMIT }
+
+      // ── RC8_11_STAGE2：3 条【同一决策线程】的追问（主：当前问答+建议+6Q+场景）──
+      const fu = buildFollowUps({
+        message: promptInput, answer: replyText,
+        raw6Q: (turn.ctx && turn.ctx.raw6Q) || null,
+        profile: (turn.ctx && turn.ctx.explicitProfile) || null,
+        scenario,
+      })
+      try { console.log('[coachingFollowUps] ' + JSON.stringify({ source: fu.source, count: fu.count })) } catch (_) {}
+
       // ── 长期记忆写入（仅成功调用后；门控 + allow-list + 去重）──
       await _writeLongTermMemory(openid, promptInput)
 
@@ -132,6 +171,9 @@ exports.main = async (event, context) => {
       return ok({
         content: replyText,
         personality: pMeta ? { name: pMeta.name, emoji: pMeta.emoji } : undefined,
+        followUps: fu.followUps,
+        followUpSource: fu.source,
+        quota: quotaOut,
       })
     }
 

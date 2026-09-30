@@ -86,6 +86,8 @@ function loadGenAiReport(db, canned) {
     if (id === './lib/raw6qStore.js') return { persistRaw6Q: async () => ({ ok: true, rawId: 'raw_test' }), loadLatestRaw6Q: async () => null }
     if (id === './lib/context/coachingContextRuntime.js') return { runCoachingTurn: async () => ({ ok: true, aiResult: { success: true, content: '{}' }, ctx: {}, attempts: 1, validation: { ok: true } }) }
     if (id === './lib/context/userContextBuilder.js') return { SCENARIO_NAME_TO_KEY: {} }
+    if (id === './lib/quotaAuthority.js') return require(path.join(CF, 'generateAiReport', 'lib', 'quotaAuthority.js'))
+    if (id === './lib/context/coachingFollowUps.js') return require(path.join(CF, 'generateAiReport', 'lib', 'context', 'coachingFollowUps.js'))
     return require(id)
   }
   const ctx = { module: mod, exports: mod.exports, require: fakeRequire, console, process, setTimeout, Promise, Object, Date, Math, JSON, Array, String, Number, RegExp, parseInt }
