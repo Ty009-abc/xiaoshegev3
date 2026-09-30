@@ -338,10 +338,15 @@ async function _downgradeEntitlements(db, openid, ts) {
       .get()
 
     if (otherMember.data.length === 0) {
-      // 无有效会员 → 降级到 free
-      await db.collection('entitlements').where({ openid }).update({
-        data: { permissions: FREE_PERMISSIONS, sources: [], updatedAt: ts },
-      })
+      // RC8_11：只回收会员派生权限；永久 legacy sources(expiresAt:0) 必须保留。
+      const entRes = await db.collection('entitlements').where({ openid }).limit(1).get()
+      const ent = entRes.data[0]
+      if (ent) {
+        const permanent = (ent.sources || []).filter((s) => s && !s.expiresAt)
+        await db.collection('entitlements').doc(ent._id).update({
+          data: { permissions: _rebuildPermissions(permanent), sources: permanent, updatedAt: ts },
+        })
+      }
       await db.collection('users').where({ openid }).update({
         data: { membershipLevel: 'free', membershipExpiredAt: 0, updatedAt: ts },
       })
@@ -354,6 +359,9 @@ function _rebuildPermissions(sources) {
   for (const src of (sources || [])) {
     const perms = PRODUCT_PERMISSIONS[src.productId] || []
     perms.forEach(p => permSet.add(p))
+    // RC8_11：legacy 永久商品的解锁权限字符串（保底）
+    if (src.productId === 'report_9_9') permSet.add('report_unlock')
+    if (src.productId === 'challenge_39_9') permSet.add('challenge_unlock')
   }
   return [...permSet]
 }

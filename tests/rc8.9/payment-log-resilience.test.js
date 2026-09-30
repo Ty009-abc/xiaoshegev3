@@ -126,7 +126,8 @@ function resetStore (extra) {
   for (const k of Object.keys(DB._store)) DB._store[k].length = 0
   CTRL.failOn = {}
   CTRL.openid = 'oUser'
-  DB._store.products.push({ _id: 'p1', productId: 'report_9_9', name: '认知报告', price: 990, status: 'active', type: 'one_time' })
+  // RC8_11: report_9_9 is retired from new sales → use the saleable member SKU.
+  DB._store.products.push({ _id: 'p1', productId: 'vip_month_39_9', name: '认知会员月卡', price: 3990, status: 'active', type: 'membership', durationDays: 30 })
   if (extra) extra()
 }
 function seedOrder (over) {
@@ -139,7 +140,7 @@ const PREPAY_OK = { success: true, prepayId: 'wx28173500000000000000000000', pay
   // ── A: prepay success + log OK ──
   {
     resetStore(); CTRL.prepay = PREPAY_OK
-    const r = await createOrder.main({ productId: 'report_9_9' })
+    const r = await createOrder.main({ productId: 'vip_month_39_9' })
     eq(r.code, 0, 'A1: success')
     eq(DB._store.orders[0].status, 'pending_payment', 'A2: order pending_payment')
     ok(!!(r.data && r.data.paymentParams && r.data.paymentParams.package), 'A3: paymentParams returned')
@@ -149,7 +150,7 @@ const PREPAY_OK = { success: true, prepayId: 'wx28173500000000000000000000', pay
   // ── B: prepay success + payment_logs collection MISSING ──
   {
     resetStore(); CTRL.prepay = PREPAY_OK; CTRL.failOn = { payment_logs: 'MISSING' }
-    const r = await createOrder.main({ productId: 'report_9_9' })
+    const r = await createOrder.main({ productId: 'vip_month_39_9' })
     eq(r.code, 0, 'B1: still success (log missing must not break prepay)')
     eq(DB._store.orders[0].status, 'pending_payment', 'B2: order still pending_payment')
     ok(!!(r.data && r.data.paymentParams && r.data.paymentParams.package), 'B3: paymentParams still returned')
@@ -159,7 +160,7 @@ const PREPAY_OK = { success: true, prepayId: 'wx28173500000000000000000000', pay
   // ── C: prepay success + payment_logs.add THROWS ──
   {
     resetStore(); CTRL.prepay = PREPAY_OK; CTRL.failOn = { payment_logs: 'THROW' }
-    const r = await createOrder.main({ productId: 'report_9_9' })
+    const r = await createOrder.main({ productId: 'vip_month_39_9' })
     eq(r.code, 0, 'C1: still success (generic throw must not break prepay)')
     eq(DB._store.orders[0].status, 'pending_payment', 'C2: order still pending_payment')
     ok(!!(r.data && r.data.paymentParams && r.data.paymentParams.package), 'C3: paymentParams still returned')
@@ -168,7 +169,7 @@ const PREPAY_OK = { success: true, prepayId: 'wx28173500000000000000000000', pay
   // ── D: prepay FAILS + log missing → not converted to success ──
   {
     resetStore(); CTRL.prepay = { success: false, error: 'WECHAT_DOWNSTREAM_ERROR' }; CTRL.failOn = { payment_logs: 'MISSING' }
-    const r = await createOrder.main({ productId: 'report_9_9' })
+    const r = await createOrder.main({ productId: 'vip_month_39_9' })
     eq(r.code, CODES.PAYMENT_ERROR, 'D1: failure preserved as PAYMENT_ERROR')
     eq(DB._store.orders[0].status, 'failed', 'D2: order marked failed (not pending_payment, not paid)')
     ok(!(r.data && r.data.paymentParams), 'D3: no paymentParams on failure')

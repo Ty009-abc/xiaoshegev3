@@ -244,12 +244,30 @@ async function _upsertEntitlements(db, openid, newPerms, productId, expiresAt, t
 }
 
 async function _downgradeToFree(db, openid) {
-  await db.collection('entitlements').where({ openid }).update({
-    data: { permissions: FREE_PERMISSIONS, sources: [], updatedAt: now() },
-  })
+  const ts = now()
+  // RC8_11 HARD_INVARIANT：只回收会员派生权限；永久 legacy sources(expiresAt:0) 永不删除。
+  const entRes = await db.collection('entitlements').where({ openid }).limit(1).get()
+  const ent = entRes.data[0]
+  if (ent) {
+    const permanent = (ent.sources || []).filter((s) => s && !s.expiresAt)
+    await db.collection('entitlements').doc(ent._id).update({
+      data: { permissions: _rebuildPermissions(permanent), sources: permanent, updatedAt: ts },
+    })
+  }
   await db.collection('users').where({ openid }).update({
-    data: { membershipLevel: 'free', membershipExpiredAt: 0, updatedAt: now() },
+    data: { membershipLevel: 'free', membershipExpiredAt: 0, updatedAt: ts },
   })
+}
+
+// 由留存 sources 重建权限（永久 legacy 商品仍授其权益）
+function _rebuildPermissions (sources) {
+  const set = new Set(FREE_PERMISSIONS)
+  for (const s of (sources || [])) {
+    for (const p of (PRODUCT_PERMISSIONS[s.productId] || [])) set.add(p)
+    if (s.productId === 'report_9_9') set.add('report_unlock')
+    if (s.productId === 'challenge_39_9') set.add('challenge_unlock')
+  }
+  return [...set]
 }
 
 function _productIdToLevel(productId) {

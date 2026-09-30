@@ -1,20 +1,33 @@
 {
   "taskId": "RC8_11_STAGE1_MEMBERSHIP_AUTHORITY_AND_SKU_MIGRATION",
-  "stage": "1A",
+  "stage": "1B",
   "priority": "P0_COMMERCIAL_CORE",
-  "phase": "Canonical membership/legacy access resolver (accessAuthority) + additive product catalog migration: add vip_month_39_9 (¥39.9/30d), retain vip_year_299 (¥299/365d), mark report_9_9/challenge_39_9/vip_month_99 notNewSale (retired from new sales, NOT deleted).",
-  "baseCommit": "bb4c3a0",
-  "scope": "cloudfunctions/common/accessAuthority.js (new, canonical) + cloudfunctions/initDatabase/data/products.js (catalog) + tests/rc8.11. No payment-provider/DB-schema/env/RAW_6Q/memory/free-quota/followup change.",
+  "phase": "Payment grant + membership write + expiry safety. createOrder rejects NEW purchases of retired SKUs; grantEntitlements routes membership properly with 30d/365d expiry-aware entitlement sources; expireMemberships downgrade preserves permanent legacy sources.",
+  "baseCommit": "9d5dbb4",
+  "scope": "cloudfunctions/common/{permissionEngine,entitlementService}.js + payCallback/verifyPayment/startChallenge/expireMemberships lib copies + createOrder (+lib/accessAuthority) + tests/rc8.11 + tests/rc8.9/payment-log-resilience. No payment-provider/DB-schema/env/RAW_6Q/memory/free-quota/followup change.",
   "filesChanged": [
-    "cloudfunctions/common/accessAuthority.js",
-    "cloudfunctions/initDatabase/data/products.js",
-    "tests/rc8.11/access-authority.test.js",
+    "cloudfunctions/common/permissionEngine.js",
+    "cloudfunctions/common/entitlementService.js",
+    "cloudfunctions/payCallback/lib/permissionEngine.js",
+    "cloudfunctions/payCallback/lib/entitlementService.js",
+    "cloudfunctions/verifyPayment/lib/permissionEngine.js",
+    "cloudfunctions/verifyPayment/lib/entitlementService.js",
+    "cloudfunctions/startChallenge/lib/permissionEngine.js",
+    "cloudfunctions/expireMemberships/lib/permissionEngine.js",
+    "cloudfunctions/expireMemberships/lib/entitlementService.js",
+    "cloudfunctions/createOrder/index.js",
+    "cloudfunctions/createOrder/lib/accessAuthority.js",
+    "tests/rc8.11/stage1b.test.js",
     "tests/rc8.11/run.js",
-    ".gitignore",
+    "tests/rc8.9/payment-log-resilience.test.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [
-    "initDatabase"
+    "createOrder",
+    "payCallback",
+    "verifyPayment",
+    "startChallenge",
+    "expireMemberships"
   ],
   "requiredTests": [
     "node tests/rc8.11/run.js",

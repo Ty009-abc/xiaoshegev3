@@ -40,6 +40,17 @@ const PERM = {
 
 const MEMBERSHIP_TYPES = ['subscription', 'membership', 'bundle']
 
+// RC8_11：会员 rights token（与 accessAuthority.MEMBERSHIP_RIGHTS 一致）
+const MEMBERSHIP_RIGHTS_BY_PRODUCT = {
+  vip_month_39_9: ['ai_member', 'report_member', 'challenge_member', 'memory_member', 'scenario_member'],
+  vip_month_99: ['ai_member', 'report_member', 'challenge_member', 'memory_member', 'scenario_member'],
+  vip_year_299: ['ai_member', 'report_member', 'challenge_member', 'memory_member', 'scenario_member', 'hard_truth_mode', 'advanced_reports', 'priority_model'],
+}
+function _membershipRights (productId) {
+  const r = MEMBERSHIP_RIGHTS_BY_PRODUCT[productId]
+  return r ? r.slice() : (PRODUCT_PERMISSIONS[productId] || [PERM.VIP])
+}
+
 // 审计集合（缺失时静默失败，绝不影响权威结果）
 async function _audit (db, doc, ts) {
   try {
@@ -163,33 +174,39 @@ async function applyMembership (db, order, ts) {
   // ── 幂等闸门：该 orderId 是否已发放过会员权益 ──
   const byOrder = await db.collection('memberships').where({ openid, orderId }).limit(1).get()
   if (byOrder && byOrder.data && byOrder.data.length > 0) {
-    return { ok: true, applied: true, idempotent: true, reason: 'MEMBERSHIP_ALREADY_GRANTED_FOR_ORDER' }
+    return { ok: true, applied: true, idempotent: true, reason: 'MEMBERSHIP_ALREADY_GRANTED_FOR_ORDER', expiredAt: byOrder.data[0].expiredAt || 0 }
   }
 
   const existingMember = await db.collection('memberships')
     .where({ openid, status: 'active', expiredAt: db.command.gt(ts) })
     .limit(1).get()
 
+  let effectiveExpiredAt
   if (existingMember && existingMember.data && existingMember.data.length > 0) {
+    // 续费：从当前 expiredAt 延长（RC8_11 renewal rule）
     const old = existingMember.data[0]
     const newExpires = Math.max(old.expiredAt || 0, ts) + durationDays * DAY_MS
+    const mergedRights = [...new Set([...(old.rights || []), ..._membershipRights(order.productId)])]
     await db.collection('memberships').doc(old._id).update({
-      data: { expiredAt: newExpires, lastOrderId: orderId, updatedAt: ts },
+      data: { expiredAt: newExpires, rights: mergedRights, lastOrderId: orderId, updatedAt: ts },
     })
+    effectiveExpiredAt = newExpires
   } else {
     const expiresAt = durationDays > 0 ? ts + durationDays * DAY_MS : 0
     await db.collection('memberships').add({
       data: {
         openid, status: 'active', level,
         memberType: order.productId, permissions: PRODUCT_PERMISSIONS[order.productId] || [PERM.VIP],
+        rights: _membershipRights(order.productId),
         orderId, startedAt: ts, expiredAt: expiresAt,
         createdAt: ts, updatedAt: ts,
       },
     })
+    effectiveExpiredAt = expiresAt
   }
 
   await db.collection('users').where({ openid }).update({
-    data: { membershipLevel: level, updatedAt: ts },
+    data: { membershipLevel: level, membershipExpiredAt: effectiveExpiredAt || 0, updatedAt: ts },
   })
 
   // 回读证明：本订单已在 memberships 留痕
@@ -198,7 +215,7 @@ async function applyMembership (db, order, ts) {
     await _audit(db, { orderId, openid, action: 'membership_proof_failed' }, ts)
     return { ok: false, applied: false, reason: 'PROOF_FAILED' }
   }
-  return { ok: true, applied: true, reason: 'APPLIED' }
+  return { ok: true, applied: true, reason: 'APPLIED', expiredAt: effectiveExpiredAt }
 }
 
 /**
@@ -218,8 +235,14 @@ async function grantEntitlements (db, order, ts = now()) {
 
     let target = { ok: true, applied: true, reason: 'NO_TARGET_REQUIRED' }
     const granted = []
+    let sourceExpiresAt = 0 // 一次/退休商品 = 永久(0)；会员 = 会员到期时间
 
     // ── 显式商品权益权威（非 permList 推断）──
+    // RC8_11：会员商品优先判定（vip_month_39_9/year 等），避免 legacy 'vip' permission
+    //          误入报告/挑战专用分支；同时保证 vip_year_299 即使 permission 为 vip 也走会员分支。
+    // 路由顺序：报告(显式 permission/report_9_9) → 挑战(显式 permission/challenge_39_9) → 会员(type=membership)
+    // —— report_9_9/challenge_39_9 的 permission 为 report_unlock/challenge_unlock，必先命中；
+    //    会员商品(permission='vip', type='membership') 自然落入会员分支。
     if (product.permission === PERM.REPORT_UNLOCK || productId === 'report_9_9') {
       target = await applyReportUnlock(db, order, ts)
       if (!target.ok) return _fail(target, '报告权益未发放（目标未证明）')
@@ -231,15 +254,17 @@ async function grantEntitlements (db, order, ts = now()) {
     } else if (MEMBERSHIP_TYPES.includes(product.type)) {
       target = await applyMembership(db, order, ts)
       if (!target.ok) return _fail(target, '会员权益未发放（目标未证明）')
-      granted.push(...perms)
+      granted.push(..._membershipRights(productId))
+      // 会员来源随会员到期时间失效（legacy 永久商品恒为 0）
+      sourceExpiresAt = target.expiredAt || 0
     } else {
-      // 其它一次性 / 咨询：仅登记权限字符串，无存储目标
+      // 其它一次性 / 咨询：仅登记权限字符串，无存储目标（永久）
       granted.push(...perms)
     }
 
     // ── entitlements 权限缓存 ──
     const uniquePerms = [...new Set(granted)]
-    await _upsertEntitlements(db, openid, uniquePerms, productId, ts)
+    await _upsertEntitlements(db, openid, uniquePerms, productId, sourceExpiresAt, ts)
 
     return {
       success: true,
@@ -371,13 +396,15 @@ async function getEntitlementState (db, openid) {
 // 辅助
 // ═══════════════════════════
 
-async function _upsertEntitlements (db, openid, newPerms, productId, ts) {
+async function _upsertEntitlements (db, openid, newPerms, productId, expiresAt, ts) {
   const entRes = await db.collection('entitlements').where({ openid }).limit(1).get()
-  const newSource = { productId, expiresAt: 0 }
+  // 会员来源写真实到期时间；一次性/退休商品为永久(0)。若同 productId 已存在，刷新其 expiresAt 而非重复追加。
+  const newSource = { productId, expiresAt: expiresAt || 0 }
   if (entRes.data.length > 0) {
     const existing = entRes.data[0]
     const mergedPerms = [...new Set([...(existing.permissions || []), ...newPerms])]
-    const mergedSources = [...(existing.sources || []), newSource]
+    const prior = (existing.sources || []).filter((s) => s && s.productId !== productId)
+    const mergedSources = [...prior, newSource]
     await db.collection('entitlements').doc(existing._id).update({
       data: { permissions: mergedPerms, sources: mergedSources, updatedAt: ts },
     })
@@ -390,18 +417,38 @@ async function _upsertEntitlements (db, openid, newPerms, productId, ts) {
 
 async function _downgradeToFree (db, openid) {
   const ts = now()
-  await db.collection('entitlements').where({ openid }).update({
-    data: { permissions: FREE_PERMISSIONS, sources: [], updatedAt: ts },
-  })
+  // RC8_11 HARD_INVARIANT：只回收会员派生权限；永久 legacy sources(expiresAt:0) 永不删除/回收。
+  const entRes = await db.collection('entitlements').where({ openid }).limit(1).get()
+  const ent = entRes.data[0]
+  if (ent) {
+    const permanent = (ent.sources || []).filter((s) => s && !s.expiresAt)
+    await db.collection('entitlements').doc(ent._id).update({
+      data: { permissions: _rebuildPermissionsFromSources(permanent), sources: permanent, updatedAt: ts },
+    })
+  }
   await db.collection('users').where({ openid }).update({
     data: { membershipLevel: 'free', membershipExpiredAt: 0, updatedAt: ts },
   })
 }
 
+// 由留存 sources 重建权限（永久 legacy 商品仍授其权益）
+function _rebuildPermissionsFromSources (sources) {
+  const set = new Set(FREE_PERMISSIONS)
+  for (const s of (sources || [])) {
+    for (const p of (PRODUCT_PERMISSIONS[s.productId] || [])) set.add(p)
+    if (s.productId === 'report_9_9') set.add(PERM.REPORT_UNLOCK)
+    if (s.productId === 'challenge_39_9') set.add(PERM.CHALLENGE_UNLOCK)
+  }
+  return [...set]
+}
+
 function _productIdToLevel (productId) {
-  if (productId.includes('MONTHLY') || productId.includes('month')) return 'monthly'
-  if (productId.includes('QUARTERLY') || productId.includes('quarter')) return 'quarterly'
-  if (productId.includes('YEARLY') || productId.includes('year')) return 'yearly'
+  if (productId.includes('month')) return 'monthly'
+  if (productId.includes('MONTHLY')) return 'monthly'
+  if (productId.includes('quarter')) return 'quarterly'
+  if (productId.includes('QUARTERLY')) return 'quarterly'
+  if (productId.includes('year')) return 'yearly'
+  if (productId.includes('YEARLY')) return 'yearly'
   if (productId.includes('bundle')) return 'yearly'
   return 'vip'
 }
