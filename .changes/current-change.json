@@ -1,68 +1,107 @@
 {
-  "taskId": "RC8_9_LOCK_REPLAY_AND_FIX_P0_2_PROFILE_DATA_CHAIN",
-  "phase": "Lock the owner-accepted replay chain (no replay code change) and fix P0-2 profile data-chain degradation: 我的 no longer shows a full default-zero state; classification no longer exposes the raw 'unclassified' enum; unknown (cv/streak) is shown as '—' not a fabricated 0; 「我的报告」reads server ai_reports (the paid world-model report is now visible). Client-only.",
-  "baseCommit": "30d690e",
+  "taskId": "RC8_9_MEMORY_SWITCH_BUSINESS_LOGIC_AUDIT_AND_OPTIMIZATION",
+  "phase": "Audit the 记忆开关 business logic vs the canonical memory contract, then optimize the profile memory UI/UX. The switch is a persisted authoritative setting with NO destructive side effects; 清除全部记忆 is a separate destructive action limited to the memory domain. Client-only.",
+  "baseCommit": "37eb278",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "pages/profile/{js,wxml}, pages/report-history/{js,wxml}, related tests, manifest. Replay handler untouched. No backend/payment/entitlement/DB/env change.",
-  "replayLock": {
-    "ownerRealDeviceAccepted": true,
-    "evidence": "retry modal rendered; confirm completed; new challenge opened; progressed to Day 5/30; no 39.9; no payment UI",
-    "replayCodeChanged": "NO",
-    "frozen": ["report-preview retry handler semantics", "replay:true payload", "replayRequestId", "replaySource", "startChallenge replay branch", "entitlement check", "challenge-play target route", "replay telemetry", "modal confirm text"]
+  "pageScope": "pages/profile/{js,wxml,wxss}, tests/rc8.9/memory-switch.test.js, tests/rc8.9/run.js, manifest. Replay untouched. No backend/payment/entitlement/DB/env change.",
+  "documentation": {
+    "canonicalMemorySpecFound": "PARTIAL",
+    "specFiles": [
+      "TECHNICAL_AUDIT_REPORT.md (§4.3 Memory system: memoryEngine/memoryCompressor/memoryExtractor/memoryPolicy; getMemory/updateMemory/clearMemory/toggleMemory)",
+      "TECHNICAL_AUDIT_REPORT_PART1.5.md (contextBuilder → Memory + RAG + 历史对话; Memory injection ~14.3% of input)",
+      "P0_FIX_ARCHITECTURE.md (MEMORY section; trim priority RAG(0) < MEMORY(1) < SYSTEM(2) < USER(3))",
+      "CLOUD_FUNCTIONS.md (getMemory/updateMemory/clearMemory/toggleMemory/summarizeConversation)",
+      "ENVIRONMENT.md (§记忆相关)"
+    ],
+    "noStandaloneMemorySpecMd": true,
+    "originalPurpose": "长期记忆系统 (四册 Part 4)：从对话/行为/成长事件中提取允许写入的长期记忆，并在 AI 对话时注入，使小事哥更懂用户认知轨迹。",
+    "originalEnableSemantics": "AI 可读取/写入长期记忆（isMemoryEnabled → 读；memoryPolicy ALLOW_LIST → 写）。",
+    "originalDisableSemantics": "getMemory 返回 memoryEnabled:false 且不返回记忆内容；产品文案为“停止读取和写入，已有记忆不自动删除”。",
+    "originalClearSemantics": "clearMemory 显式破坏性操作，删除记忆域集合（user_memory/conversation_memory/behavior_memory/growth_memory/cognition_memory）。",
+    "dataFieldsDocumented": ["memoryEnabled", "coreGoals", "riskFlags", "stableTraits", "cognition dimensions", "behavior counts", "conversationMemory.longTermSummary", "growthMemory.milestones"],
+    "storageKeysDocumented": [],
+    "cloudCollectionsDocumented": ["user_memory", "conversation_memory", "behavior_memory", "growth_memory", "cognition_memory", "memory_logs"],
+    "cloudFunctionsDocumented": ["getMemory", "updateMemory", "clearMemory", "toggleMemory", "summarizeConversation"],
+    "privacyCopyDocumented": "记忆首次说明（profile/ai-chat）“会保存你的成长记忆…可随时关闭或清除”"
   },
-  "identity": {
-    "currentDeviceOpenidMasked": "oZa463Yb***tigNo",
-    "canonicalOwnerOpenidMasked": "oZa463Yb***tigNo",
-    "sameOpenid": true,
-    "openidSource": "owner's just-created replay record binding (CR1790759397913mcwq8z, replayRequestId RP1790759397641_k943va, Day 5) + login users doc",
-    "loginState": "authenticated (app.globalData.openid populated by login cloud fn)"
+  "currentRuntime": {
+    "wxmlBinding": "pages/profile/profile.wxml switch bindchange=\"onToggleMemory\"",
+    "handlerName": "onToggleMemory / onClearMemory",
+    "currentSwitchValueSource": "getMemory() → user_memory.memoryEnabled (server), default true",
+    "switchOnWriteTarget": "user_memory.memoryEnabled = true (via toggleMemory)",
+    "switchOffWriteTarget": "user_memory.memoryEnabled = false (via toggleMemory)",
+    "localStorageKeys": [],
+    "cloudFields": ["user_memory.memoryEnabled"],
+    "cloudCollections": ["user_memory"],
+    "downstreamReaders": ["getMemory (display)"],
+    "downstreamWriters": ["toggleMemory"],
+    "aiPromptUsesMemory": "NO (common/aiEngine.buildDynamicContext references getRelevantMemories which is NOT IMPLEMENTED; ragBuildPrompt options.memory never supplied; generateAiReport/index.js does not use memory) — NOT WIRED",
+    "reportGenerationUsesMemory": "NO",
+    "qaUsesMemory": "NO (no aiQA/askXiaoshige page exists; ai-chat uses generateAiReport type=coaching)",
+    "chatUsesMemory": "NO (client never calls updateMemory/appendChat/getRelevantMemories)",
+    "homeUsesMemory": "NO",
+    "knownKeysFound": { "ai_memory_context": false, "user_profile": "user_profiles (separate; not memory-enabled-gated)", "qa_history": false, "flip_history": false, "turnaround_history": false, "strike_collection": false, "last_personality": false }
   },
-  "profileFieldAuthority": {
-    "challengeCount": "server challenge_records{openid}.count() (client direct read, owner-ACL)",
-    "reportCount": "server ai_reports{openid}.count() PRIMARY; local legacy6q_report_history SECONDARY only",
-    "paidReportCount": "server ai_reports{openid, isPaid:true}.count()",
-    "membership": "login profile cache (users.membershipLevel) — canonical; free only when server says free",
-    "classification": "worldModelTypeLabel(profile.mainType) if not 'unclassified', else worldModelTypeLabel(latest finished challenge finalType); empty when no authoritative result (UI neutral fallback). No raw enum, no client invention.",
-    "cognitionValue": "users.cv if present → value; else '—' (unknown, never fake 0). Field confirmed NOT maintained beyond default 0.",
-    "streak": "field absent in users schema → '—' (unknown, never fake 0)"
+  "rootCause": [
+    "SWITCH_LOCAL_ONLY (weak)",
+    "SWITCH_DOES_NOT_CONTROL_AI_CONTEXT",
+    "SWITCH_DOES_NOT_CONTROL_WRITES",
+    "CLEAR_MEMORY_SCOPE_UNCLEAR",
+    "DOCUMENTATION_RUNTIME_DRIFT",
+    "OTHER"
+  ],
+  "rootCauseDetail": {
+    "switch": "记忆开关 持久化到 user_memory.memoryEnabled（服务端），但服务端唯一读取方是 getMemory（仅用于展示）。没有任何内容写入长期记忆（客户端从不调用 updateMemory/appendChat/summarizeConversation），也没有任何 AI 路径注入记忆。因此开关在客户端是 UI 状态 + 服务端标记，但当前不产生实际行为差异。",
+    "clearScope": "clearMemory 默认仅清 5 个记忆域集合，不触碰挑战/报告/订单/权益 — 服务端范围正确；但客户端无二次确认字段校验、失败静默（旧代码 catch(_)）、文案未明确业务数据不受影响 → 范围对用户不清晰。",
+    "rollback": "旧 onToggleMemory 不校验 code，失败仅 toast，会导致 UI 已切换但后端未变（无回滚）。",
+    "outOfScopeDeployedBackend": "云端仅部署 getMemory/generateAiReport（+ 8 个 admin/工具函数）。toggleMemory/clearMemory/updateMemory/summarizeConversation 未部署（仓库存在但未上线）；common/aiEngine.js（记忆注入）未部署。修复这些需要 backend 部署，本任务 FORBID → 明确排除并上报。"
   },
-  "changes": {
-    "PROFILE_COUNTS_AND_CLASSIFICATION": "pages/profile/profile.js — refactored loadData: field-authority (cvText/streakText with '—'), classificationLabel via canonical mapper + latest finished challenge finalType; server counts unchanged (already server-authoritative). Counts null (not 0) when openid missing / load fails (unknown vs real 0). Added finished-challenge lookup for classification fallback.",
-    "PROFILE_UI": "pages/profile/profile.wxml — level-badge/subtitle use classificationLabel (never raw 'unclassified'); stats use cvText/streakText/cvNextText ('—' when unknown); growth-panel hidden when cv unknown; menu counts show '—' when loadError OR null.",
-    "REPORT_HISTORY_SERVER_AUTHORITY": "pages/report-history/report-history.js — reads server ai_reports{openid} (createdAt desc); lists only report types with a canonical client route (challenge_final via report-preview; 6Q diagnostic via legacy6q-report handoff); local legacy6q_report_history demoted to compatibility fallback only; explicit loadError; no empty-openid query; no AI call.",
-    "REPORT_HISTORY_UI": "pages/report-history/report-history.wxml — server-failure banner when showing local fallback; title field binding.",
-    "TESTS": "Rewrote tests/rc8.9/profile-authority.test.js (matrix A–I + source invariants; 30/0). NEW tests/rc8.9/report-history-authority.test.js (matrix D/K/L + fallbacks + source invariants; 25/0). Registered both in tests/rc8.9/run.js. Reconciled legacy tests/rc8.8/report-history.test.js D4b assertion for the shorthand where({openid}) form."
+  "productContract": {
+    "memoryOn": "AI 可读取/写入长期记忆（读：isMemoryEnabled；写：memoryPolicy ALLOW_LIST）。",
+    "memoryOff": "停止读取与写入长期记忆；不自动删除已有记忆；不删除挑战/报告/认知/订单/权益数据。",
+    "clearMemory": "独立的显式破坏性操作，仅清记忆域数据，保留业务/历史/报告/支付数据，需二次确认。",
+    "invariant": "MEMORY_SWITCH != CLEAR_MEMORY"
   },
-  "dataIntegrity": {
-    "serverChallengeCountOwner": 28,
-    "serverReportCountOwner": 128,
-    "ownerReplayRecordVisibleInList": true,
-    "ownerPaidReportVisibleInList": true,
-    "historyMutated": "NO"
+  "implementation": {
+    "serverAuthorityAdded": "NO (user_memory.memoryEnabled is already the server setting; source of truth unchanged)",
+    "localCacheRole": "cache only (memoryEnabled is a transient UI mirror of getMemory; server read on each onShow)",
+    "aiEntryPointsGated": "NO_OP — no AI entry point consumes long-term memory today (deployed runtime). Documented + reported.",
+    "clearMemorySeparated": "YES",
+    "failureRollbackAdded": "YES",
+    "changes": {
+      "TOGGLE_ROLLBACK": "pages/profile/profile.js onToggleMemory — validates result.code===0; on failure rolls back UI to previous authoritative value; explicit console.warn + visible error toast. No silent catch; UI can never say ON while backend is OFF.",
+      "CLEAR_SEPARATION_AND_COPY": "onClearMemory — confirmation copy now states reports/challenges/订单/权益 unaffected; validates result.code; explicit failure toast.",
+      "UI_COPY_AND_STATE": "pages/profile/profile.wxml — 记忆开关 shows 已开启/已关闭 status pill + contract subtext (ON: 开启后可在后续对话中使用长期记忆; OFF: 停止读取和写入长期记忆，已有记忆不会自动删除). 清除全部记忆 kept as separate destructive_secondary item.",
+      "UI_STYLE": "pages/profile/profile.wxss — two-line memory toggle layout + status pill styles."
+    }
   },
+  "filesChanged": [
+    "pages/profile/profile.js",
+    "pages/profile/profile.wxml",
+    "pages/profile/profile.wxss",
+    "tests/rc8.9/memory-switch.test.js (NEW)",
+    "tests/rc8.9/run.js",
+    ".changes/current-change.json"
+  ],
   "invariants": {
     "REPLAY_CHANGED": "NO",
-    "REPLAY_BUSINESS_LOGIC_UNCHANGED": "YES",
-    "PAYMENT_LOGIC_UNCHANGED": "YES",
-    "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
-    "REPORT_GENERATION_UNCHANGED": "YES",
-    "WORLD_MODEL_CONSOLE_GOLDEN_2823F55_UNCHANGED": "YES",
-    "WORLD_MODEL_REPORT_PRODUCTIZED_UI_UNCHANGED": "YES",
-    "ONBOARDING_70A901C_UNCHANGED": "YES",
-    "POSTER_GENERATION_UNCHANGED": "YES",
-    "PAYCALLBACK_FIX_PRESERVED": "YES"
+    "PROFILE_AUTHORITY_CHANGED": "NO",
+    "PAYMENT_CHANGED": "NO",
+    "ENTITLEMENT_CHANGED": "NO",
+    "REPORT_GENERATION_CHANGED": "NO",
+    "WORLD_MODEL_CONSOLE_UNCHANGED": "YES",
+    "ONBOARDING_UNCHANGED": "YES",
+    "POSTER_UNCHANGED": "YES",
+    "PAYCALLBACK_UNCHANGED": "YES"
   },
   "boundaries": {
     "BACKEND_CHANGED": "NO",
-    "PAYMENT_CHANGED": "NO",
-    "ENTITLEMENT_CHANGED": "NO",
-    "REPLAY_CHANGED": "NO",
-    "DB_SCHEMA_CHANGED": "NO",
     "DEPLOY": "NO",
+    "DB_SCHEMA_CHANGED": "NO",
     "ENV_CHANGED": "NO",
     "REAL_PAYMENT": "NO",
     "DB_MUTATION": "NONE",
-    "CLIENT_UI_CHANGED": "YES (profile + report-history only)"
+    "CLIENT_UI_CHANGED": "YES (profile only)"
   },
   "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],

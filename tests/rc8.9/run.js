@@ -53,6 +53,7 @@ const ALL = [
   'retry-tap-dispatch.test.js',
   'profile-authority.test.js',
   'report-history-authority.test.js',
+  'memory-switch.test.js',
   'order-entitlement-guard.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)

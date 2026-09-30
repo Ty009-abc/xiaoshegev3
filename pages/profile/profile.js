@@ -166,29 +166,45 @@ Page({
     })
   },
 
+  // 记忆开关：切换 = 持久化权威设置（绝不删除任何数据）。
+  // 立即更新 UI；持久化失败则回滚到上一个权威值（绝不留下“UI 开/后端关”的不一致）。
   async onToggleMemory(e) {
     const enabled = e.detail.value
-    this.setData({ memoryEnabled: enabled })
+    const prev = this.data.memoryEnabled
+    this.setData({ memoryEnabled: enabled })          // 立即反馈
     try {
-      await wx.cloud.callFunction({ name: 'toggleMemory', data: { enabled } })
+      const res = await wx.cloud.callFunction({ name: 'toggleMemory', data: { enabled } })
+      if (!res || !res.result || res.result.code !== 0) {
+        throw new Error((res && res.result && res.result.message) || 'toggleMemory failed')
+      }
+      this.setData({ memoryEnabled: enabled })        // 权威确认
       wx.showToast({ title: enabled ? '记忆已开启' : '记忆已关闭', icon: 'none' })
     } catch (err) {
-      console.warn('[profile] toggleMemory failed:', err && err.message)
+      console.warn('[profile] toggleMemory persist failed:', err && err.message)
+      this.setData({ memoryEnabled: prev })           // 回滚（权威未变）
       wx.showToast({ title: '设置失败，请重试', icon: 'none' })
     }
   },
+
+  // 清除记忆：与开关分离的显式破坏性操作，仅限记忆域数据，需二次确认。
+  // 服务端 clearMemory 默认只清 user_memory/conversation_memory/behavior_memory/
+  // growth_memory/cognition_memory，绝不触碰挑战/报告/订单/权益。
   onClearMemory() {
     wx.showModal({
       title: '清除全部记忆',
-      content: '将清除小事哥对你的所有记忆记录。包括基本信息、对话摘要、成长轨迹等。此操作不可恢复。',
+      content: '将清除小事哥对你的记忆记录（长期记忆、对话摘要、成长轨迹等）。\n\n你的挑战记录、世界模型报告、订单与已购权益不受影响。此操作不可恢复。',
       confirmText: '确认清除',
       confirmColor: '#e74c3c',
       success: async (res) => {
         if (!res.confirm) return
         try {
-          await wx.cloud.callFunction({ name: 'clearMemory', data: {} })
+          const r = await wx.cloud.callFunction({ name: 'clearMemory', data: {} })
+          if (!r || !r.result || r.result.code !== 0) {
+            throw new Error((r && r.result && r.result.message) || 'clearMemory failed')
+          }
           wx.showToast({ title: '记忆已清除', icon: 'success' })
-        } catch (_) {
+        } catch (err) {
+          console.warn('[profile] clearMemory failed:', err && err.message)
           wx.showToast({ title: '清除失败，请稍后再试', icon: 'none' })
         }
       },

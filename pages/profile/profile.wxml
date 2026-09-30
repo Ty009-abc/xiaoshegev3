@@ -106,9 +106,15 @@
         <text class="menu-text">我的认知档案</text>
         <text class="menu-arrow">›</text>
       </view>
-      <view class="menu-item">
+      <view class="menu-item memory-toggle-item">
         <text class="menu-icon">💾</text>
-        <text class="menu-text">记忆开关</text>
+        <view class="memory-toggle-body">
+          <view class="memory-toggle-head">
+            <text class="menu-text memory-toggle-title">记忆开关</text>
+            <text class="memory-state {{memoryEnabled ? 'on' : 'off'}}">{{memoryEnabled ? '已开启' : '已关闭'}}</text>
+          </view>
+          <text class="memory-subtext">{{memoryEnabled ? '开启后，小事哥可在后续对话中使用你的长期记忆。' : '关闭后，将停止读取和写入长期记忆，已有记忆不会自动删除。'}}</text>
+        </view>
         <switch checked="{{memoryEnabled}}" bindchange="onToggleMemory" color="#7F56D9" />
       </view>
       <view class="menu-item menu-item-danger" bindtap="onClearMemory">

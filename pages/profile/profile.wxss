@@ -160,6 +160,31 @@
 
 .menu-item-danger:active { background: #FFF5F5; margin: 0 -32rpx; padding: 0 32rpx; }
 
+/* ── 记忆开关（两行：标题+状态 / 说明）── */
+.memory-toggle-item {
+  height: auto;
+  padding: 26rpx 0;
+  align-items: flex-start;
+}
+.memory-toggle-body { flex: 1; min-width: 0; margin-left: 16rpx; }
+.memory-toggle-head { display: flex; align-items: center; gap: 12rpx; }
+.memory-toggle-title { margin-left: 0; }
+.memory-state {
+  font-size: 22rpx;
+  font-weight: 600;
+  padding: 2rpx 14rpx;
+  border-radius: 999rpx;
+}
+.memory-state.on { color: #7F56D9; background: #F4F3FF; }
+.memory-state.off { color: #98A2B3; background: #F2F4F7; }
+.memory-subtext {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  color: #98A2B3;
+}
+
 /* ── 版本 ── */
 .version-footer {
   text-align: center;
