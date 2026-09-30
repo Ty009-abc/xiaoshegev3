@@ -1,30 +1,25 @@
 {
-  "taskId": "RC8_10_P0_PERSISTENT_REPORT_ENTITLEMENT_AND_CHALLENGE_DECOUPLE",
-  "stage": "P0",
-  "priority": "P0_RELEASE_BLOCKER",
-  "phase": "Resolve report access by the owner's permanent report_9_9 entitlement (not only report.isPaid), so retaking 6Q never re-charges ¥9.90; keep the challenge entry governed solely by the independent challenge entitlement (challenge_full) so report payment never gates it.",
-  "baseCommit": "bbf53d7",
-  "scope": "cloudfunctions/common/reportAccess.js (canonical) + generateAiReport/getAiReport copies + NEW getAiReport/lib/reportEntitlement.js + generateAiReport copy + getAiReport/index.js + generateAiReport/lib/challengeReportIdempotency.js + tests. No RAW_6Q/memory/payment-provider/DB-schema/env change; no fake isPaid; no order/payment/entitlement deletion.",
+  "taskId": "RC8_11_STAGE1_MEMBERSHIP_AUTHORITY_AND_SKU_MIGRATION",
+  "stage": "1A",
+  "priority": "P0_COMMERCIAL_CORE",
+  "phase": "Canonical membership/legacy access resolver (accessAuthority) + additive product catalog migration: add vip_month_39_9 (¥39.9/30d), retain vip_year_299 (¥299/365d), mark report_9_9/challenge_39_9/vip_month_99 notNewSale (retired from new sales, NOT deleted).",
+  "baseCommit": "bb4c3a0",
+  "scope": "cloudfunctions/common/accessAuthority.js (new, canonical) + cloudfunctions/initDatabase/data/products.js (catalog) + tests/rc8.11. No payment-provider/DB-schema/env/RAW_6Q/memory/free-quota/followup change.",
   "filesChanged": [
-    "cloudfunctions/common/reportAccess.js",
-    "cloudfunctions/generateAiReport/lib/reportAccess.js",
-    "cloudfunctions/getAiReport/lib/reportAccess.js",
-    "cloudfunctions/getAiReport/lib/reportEntitlement.js",
-    "cloudfunctions/generateAiReport/lib/reportEntitlement.js",
-    "cloudfunctions/getAiReport/index.js",
-    "cloudfunctions/generateAiReport/lib/challengeReportIdempotency.js",
-    "tests/rc8.9/persistent-report-entitlement.test.js",
-    "tests/rc8.9/run.js",
+    "cloudfunctions/common/accessAuthority.js",
+    "cloudfunctions/initDatabase/data/products.js",
+    "tests/rc8.11/access-authority.test.js",
+    "tests/rc8.11/run.js",
+    ".gitignore",
     ".changes/current-change.json"
   ],
   "deployTargets": [
-    "getAiReport",
-    "generateAiReport"
+    "initDatabase"
   ],
   "requiredTests": [
-    "node tests/rc8.9/persistent-report-entitlement.test.js",
-    "node tests/rc8.9/run.js",
+    "node tests/rc8.11/run.js",
     "node tests/rc8.10/run.js",
+    "node tests/rc8.9/run.js",
     "node tests/rc8.8/run.js"
   ]
 }
