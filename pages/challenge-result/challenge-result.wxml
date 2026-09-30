@@ -7,7 +7,7 @@
     <view class="orb orb-2"></view>
   </view>
 
-  <xsg-navbar title="挑战结果" light transparent />
+  <xsg-navbar title="挑战结果" transparent />
 
   <xsg-loading text="正在分析你的认知画像..." wx:if="{{loading}}" />
 
@@ -68,7 +68,7 @@
         <text class="judge-text">{{result.judgement}}</text>
       </view>
 
-      <!-- ═══ 4. 核心特征（权重标签：主×3 / 次×5，最多 8）═══ -->
+      <!-- ═══ 4. 核心特征（权重标签：主×3 / 次×5）═══ -->
       <view class="panel tags-panel anim-fade-up anim-d2" wx:if="{{result.coreTraits && result.coreTraits.length}}">
         <view class="panel-head"><text class="panel-title">核心特征</text></view>
         <view class="trait-row">
@@ -78,16 +78,11 @@
         </view>
       </view>
 
-      <!-- ═══ 5. 主 CTA — 生成我的世界模型报告 ═══ -->
-      <view class="cta-wrap anim-fade-up anim-d3">
-        <xsg-button type="ai" text="生成我的世界模型报告" bind:tapbutton="goReport" />
-      </view>
-
-      <!-- ═══ 6. 认知海报入口（保留）═══ -->
-      <view class="entry-card anim-fade-up anim-d3" bindtap="goShare" hover-class="entry-card-hover">
+      <!-- ═══ 5. 世界模型报告入口（卡片式，非促销按钮）═══ -->
+      <view class="entry-card anim-fade-up anim-d3" bindtap="goReport" hover-class="entry-card-hover">
         <view class="entry-left">
-          <text class="entry-title">保存认知海报 · 分享翻身概率</text>
-          <text class="entry-desc">生成属于你的认知画像卡片</text>
+          <text class="entry-title">世界模型深度报告</text>
+          <text class="entry-desc">查看你的系统困局、翻身路径与行动建议</text>
         </view>
         <text class="entry-arrow">→</text>
       </view>

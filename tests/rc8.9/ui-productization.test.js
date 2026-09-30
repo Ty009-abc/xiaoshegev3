@@ -192,16 +192,17 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  // C — owner-screenshot challenge-result UI: report CTA + poster entry present
+  // C — owner-screenshot challenge-result UI: report entry + core sections present
   // ═════════════════════════════════════════════════════════════════════════
   {
     const w = fs.readFileSync(RESULT_WXML, 'utf8')
     const js = fs.readFileSync(RESULT_JS, 'utf8')
-    ok(w.indexOf('生成我的世界模型报告') >= 0, 'C report CTA = 生成我的世界模型报告 (owner screenshot)')
-    ok(w.indexOf('保存认知海报') >= 0, 'C poster entry present (owner screenshot)')
-    ok(w.indexOf('goShare') >= 0, 'C goShare binding present')
-    ok(js.indexOf('goShare') >= 0, 'C goShare handler present')
-    ok(js.indexOf('share-poster') >= 0, 'C share-poster navigation present')
+    ok(w.indexOf('世界模型深度报告') >= 0, 'C report entry = 世界模型深度报告 (owner screenshot)')
+    ok(w.indexOf('查看你的系统困局、翻身路径与行动建议') >= 0, 'C report entry desc (owner screenshot)')
+    ok(w.indexOf('bindtap="goReport"') >= 0, 'C report entry bound to goReport')
+    ok(js.indexOf('goReport') >= 0, 'C goReport handler present')
+    ok(js.indexOf('report-preview') >= 0, 'C report-preview navigation present')
+    ok(w.indexOf('保存认知海报') < 0, 'C legacy 保存认知海报 CTA removed (golden)')
     ok(w.indexOf('核心特征') >= 0, 'C feature section heading = 核心特征 (owner screenshot)')
     ok(w.indexOf('九维世界模型') >= 0, 'C nine-dim radar panel present (owner screenshot)')
   }
@@ -272,7 +273,7 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     ok(/xsg-navbar title="世界模型报告"/.test(w), 'I report-preview navbar = 世界模型报告')
     ok(w.indexOf('AI诊断报告') < 0, 'I AI诊断报告 removed from report-preview')
     const rw = fs.readFileSync(RESULT_WXML, 'utf8')
-    ok(rw.indexOf('生成我的世界模型报告') >= 0, 'I challenge-result report CTA = 世界模型报告 (golden)')
+    ok(rw.indexOf('世界模型深度报告') >= 0, 'I challenge-result report entry = 世界模型报告 (golden)')
     const mjs = fs.readFileSync(MEMBERSHIP_JS, 'utf8')
     ok(/productId === 'report_9_9' \? '世界模型报告'/.test(mjs), 'I membership displays 世界模型报告 for report_9_9')
     const hw = fs.readFileSync(HOME_WXML, 'utf8')

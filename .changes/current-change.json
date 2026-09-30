@@ -6,7 +6,7 @@
   "pageScope": "pages/challenge-result/* (+ UI regression tests). Onboarding LOCKED at 70a901c (NO_CHANGE). No backend.",
   "goldenSource": "OWNER_REFERENCE_SCREENSHOT (dark 世界模型控制台): nav 挑战结果, eyebrow WORLD MODEL PROFILE, purple orb, 普通觉醒型, 你的世界模型初步类型, 九维世界模型 radar (满分100), 优势维度/待突破, deep-navy ground.",
   "changes": {
-    "RESULT_REBUILD": "Rebuilt pages/challenge-result to the owner-screenshot dark console: hero orb + WORLD MODEL PROFILE eyebrow + gradient type via presenter; 九维世界模型 radar panel + fallback + 优势维度/待突破; 核心特征 weighted chips (≤8, primary×3); CTA 生成我的世界模型报告 → report-preview?type=challenge_final; poster entry 保存认知海报·分享翻身概率 → share-poster.",
+    "RESULT_REBUILD": "Rebuilt pages/challenge-result to the owner-screenshot dark console: hero orb + WORLD MODEL PROFILE eyebrow + gradient type via presenter; 九维世界模型 radar panel + fallback + 优势维度/待突破; 世界模型判断 card; 核心特征 weighted chips (≤8, primary×3); 世界模型深度报告 entry card → report-preview?type=challenge_final. Matches the two owner screenshots (top + bottom). Legacy 保存认知海报 CTA intentionally NOT shown (golden screenshot has none; entry is the report card).",
     "CLASS_DRIFT_FIX": "Defined the 5 classes the prior 9469e78 dark console left undefined (radar-panel, dh-strong, dh-weak, tags-panel, entry-left) — no undefined layout classes remain.",
     "ONBOARDING": "NO CHANGE (LOCKED at 70a901c).",
     "TESTS": "challenge-result-visual.test.js rewritten → CHALLENGE_RESULT_OWNER_SCREENSHOT_GOLDEN. ui-productization.test.js section C reconciled (核心特征 / 九维世界模型 / owner-screenshot CTA+poster)."

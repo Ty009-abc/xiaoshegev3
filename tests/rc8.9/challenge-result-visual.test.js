@@ -5,7 +5,13 @@
  *
  * CHALLENGE_RESULT_OWNER_SCREENSHOT_GOLDEN — deterministic structural checks for
  * the rebuilt pages/challenge-result ("世界模型控制台", DARK) that matches the
- * OWNER_REFERENCE_SCREENSHOT (2026-09-30 10:24真机). Golden source = owner screenshot.
+ * OWNER_REFERENCE_SCREENSHOT (2026-09-30 10:24真机, two shots: top + bottom).
+ *
+ * Golden source = owner screenshot. The screenshot (and the R9.1 console it depicts,
+ * 9469e78) shows: nav 挑战结果; eyebrow WORLD MODEL PROFILE; purple hero orb;
+ * 普通觉醒型; 你的世界模型初步类型; conclusion line; 九维世界模型 radar (满分100)
+ * with 优势维度/待突破; 世界模型判断 card; 核心特征 chips; and a
+ * "世界模型深度报告" entry card (NOT a 保存认知海报 button).
  *
  * NOTE: source/test PASS is NOT visual PASS. Real-device visual acceptance is the
  * owner's call; this file only guards structure + behaviour.
@@ -15,8 +21,8 @@
  *   B  hero world-model block (WORLD MODEL PROFILE eyebrow + orb + gradient type)
  *   C  nine-dimension radar panel + fallback (Top2/Bottom2 highlights)
  *   D  core features ≤ 8 (weighted trait chips, primary×3)
- *   E  report CTA 生成我的世界模型报告 → canonical report-preview challenge_final
- *   F  poster entry 保存认知海报 → share-poster
+ *   E  "世界模型深度报告" entry card → report-preview?type=challenge_final
+ *   F  legacy 保存认知海报 poster CTA removed from the golden
  *   G  dark console theme (owner screenshot) with NO undefined layout classes
  *   H  no debug-style layout (every WXML class defined)
  *   I  data intact + no payment/authority side effect
@@ -39,7 +45,6 @@ const TAGS_JS = path.join(ROOT, 'utils', 'worldModelTags.js')
 const RADAR_JS = path.join(ROOT, 'utils', 'radarChart.js')
 
 const RAW_ENUMS = ['normal_awakened', 'strategic', 'effort_trap', 'high_risk', 'opportunity_hunter', 'system_thinker']
-const DIM_CLASSES = ['laborMindset', 'probabilityMindset', 'systemThinking', 'leverageThinking', 'capitalThinking', 'riskAwareness', 'informationSensitivity', 'longTermism', 'decisionStability']
 
 let pass = 0, fail = 0
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) } }
@@ -90,9 +95,10 @@ function loadResult (record, opts) {
   return inst
 }
 
+// Authoritative server scores for the golden record CR1790632776226vtmih6.
 const RECORD = {
   recordId: 'CR1790632776226vtmih6', finalType: 'normal_awakened', scoringVersion: 'normalized_v2',
-  scores: { laborMindset: 0, probabilityMindset: 90, systemThinking: 66, leverageThinking: 40, capitalThinking: 55, riskAwareness: 80, informationSensitivity: 65, longTermism: 47, decisionStability: 58 },
+  scores: { laborMindset: 0, probabilityMindset: 90, systemThinking: 66, leverageThinking: 64, capitalThinking: 55, riskAwareness: 80, informationSensitivity: 51, longTermism: 47, decisionStability: 62 },
   tags: ['行动派', '低成本试错', '杠杆升级', '系统思维', '自动化思维', '开源杠杆', '系统化', '能力复制', '能力护城河', '价值链升级'],
 }
 
@@ -112,7 +118,7 @@ const RECORD = {
     RAW_ENUMS.forEach((e) => ok(wxml.indexOf(e) < 0, 'A WXML clean of raw enum: ' + e))
   }
 
-  // ── B — hero world-model block ──
+  // ── B — hero world-model block (owner screenshot) ──
   {
     ok(wxml.indexOf('WORLD MODEL PROFILE') >= 0, 'B hero eyebrow present (owner screenshot)')
     ok(wxml.indexOf('hero-orb') >= 0, 'B hero orb present')
@@ -123,7 +129,7 @@ const RECORD = {
     ok(/@keyframes spin/.test(wxss), 'B orb rings rotate')
   }
 
-  // ── C — nine-dimension radar panel + fallback ──
+  // ── C — nine-dimension radar panel + fallback + Top2/Bottom2 ──
   {
     ok(/<canvas[^>]*canvas-id="radarCanvas"/.test(wxml), 'C radar canvas present')
     ok(wxml.indexOf('九维世界模型') >= 0, 'C panel titled 九维世界模型')
@@ -139,6 +145,7 @@ const RECORD = {
     eq(p.data.result.topDims.length, 2, 'C top2 dims')
     eq(p.data.result.bottomDims.length, 2, 'C bottom2 dims')
     eq(p.data.result.topDims[0].label, '概率', 'C top dim = 概率 (90)')
+    eq(p.data.result.bottomDims[0].label, '劳动', 'C bottom dim = 劳动 (0)')
     eq(p.data.result.dims.length, 9, 'C nine dims bound')
     // ctx missing → fallback, no crash
     const pf = loadResult(RECORD, 'noctx'); await pf.load(); pf._flushTimers()
@@ -150,35 +157,35 @@ const RECORD = {
     const p = loadResult(RECORD)
     await p.load()
     ok(p.data.result.coreTraits.length <= 8, 'D core features ≤ 8')
+    eq(p.data.result.coreTraits.slice(0, 3).join('|'), '杠杆升级|开源杠杆|自动化思维', 'D chip order matches golden screenshot')
+    ok(p.data.result.coreTraits.indexOf('系统化') >= 0 && p.data.result.coreTraits.indexOf('能力复制') >= 0, 'D golden chips present')
     ok(/index < 3 \? 'trait-primary' : 'trait-secondary'/.test(wxml), 'D primary×3 / secondary binding')
     ok(/\.trait-primary\s*\{/.test(wxss) && /\.trait-secondary\s*\{/.test(wxss), 'D weighted chip styles defined')
     ok(wxml.indexOf('核心特征') >= 0, 'D section titled 核心特征')
-    ok(wxml.indexOf('result.tags') < 0 || wxml.indexOf('result.coreTraits') >= 0, 'D renders curated traits not full pool')
   }
 
-  // ── E — report CTA ──
+  // ── E — 世界模型深度报告 entry card (owner screenshot) ──
   {
-    ok(wxml.indexOf('生成我的世界模型报告') >= 0, 'E CTA copy 生成我的世界模型报告')
-    ok(/bind:tapbutton="goReport"/.test(wxml), 'E CTA bound to goReport')
+    ok(wxml.indexOf('世界模型深度报告') >= 0, 'E entry title 世界模型深度报告 (owner screenshot)')
+    ok(wxml.indexOf('查看你的系统困局、翻身路径与行动建议') >= 0, 'E entry desc matches screenshot')
+    ok(/bindtap="goReport"/.test(wxml), 'E entry card bound to goReport')
     const p = loadResult(RECORD)
     await p.load(); p.setData({ recordId: RECORD.recordId }); p._calls.length = 0
     p.goReport()
-    eq(p._calls.length, 1, 'E one navigation from CTA')
+    eq(p._calls.length, 1, 'E one navigation from report entry')
     ok(p._calls[0].url.indexOf('/pages/report-preview/report-preview') >= 0, 'E → report-preview')
     ok(p._calls[0].url.indexOf('type=challenge_final') >= 0, 'E → explicit challenge_final')
     ok(p._calls[0].url.indexOf('recordId=' + RECORD.recordId) >= 0, 'E → recordId carried')
   }
 
-  // ── F — poster entry ──
+  // ── F — legacy poster CTA removed (golden screenshot has no 保存认知海报) ──
   {
-    ok(wxml.indexOf('保存认知海报') >= 0, 'F poster entry copy present')
-    ok(/bindtap="goShare"/.test(wxml), 'F bound to goShare')
-    ok(js.indexOf('share-poster') >= 0, 'F → share-poster route')
+    ok(wxml.indexOf('保存认知海报') < 0, 'F legacy 保存认知海报 CTA removed from WXML (golden)')
+    ok(js.indexOf('goShare') >= 0, 'F goShare handler retained (unused, non-breaking)')
     const p = loadResult(RECORD)
-    await p.load(); p.setData({ recordId: RECORD.recordId }); p._calls.length = 0
-    p.goShare()
-    eq(p._calls.length, 1, 'F one navigation from poster entry')
-    ok(p._calls[0].url.indexOf('/pages/share-poster/share-poster') >= 0, 'F → share-poster')
+    await p.load(); p._calls.length = 0
+    p.goReport()
+    ok(p._calls.every((c) => c.url.indexOf('share-poster') < 0), 'F report entry does not route to share-poster')
   }
 
   // ── G — dark console theme (owner screenshot) ──
