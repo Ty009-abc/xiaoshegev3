@@ -1,13 +1,13 @@
 {
   "taskId": "RC8_10A2_SIX_SCENARIOS_AND_ASK_XIAOSHIGE_CONTEXT_WIRING",
-  "stage": "B",
-  "phase": "STAGE_B (six scenario runtime): harden the shared user context authority (longest-token occupation recognition; evidence source tagging) and add the 22-case golden corpus across the 10 required occupations proving each scenario reads the real 6Q.",
+  "stage": "C",
+  "phase": "STAGE_C (AI问小事哥 runtime): refine 直接问小事哥 to a light free-form reply structure (distinct from the six-scenario report scaffold) while sharing the SAME context authority (L0 6Q → challenge/report → memory[gated] → conversation); add dedicated ask tests.",
   "baseCommit": "70a6d4f",
   "branch": "feature/rc8.9d-funnel-authority",
-  "scope": "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js (extraction hardening), tests/rc8.10/*. No payment/entitlement/replay/profile/report/challenge/DB-schema/env change.",
+  "scope": "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js (ask output structure), tests/rc8.10/ask-xiaoshige.test.js + run.js. No payment/entitlement/replay/profile/report/challenge/DB-schema/env change.",
   "filesChanged": [
     "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
-    "tests/rc8.10/golden-cases.test.js",
+    "tests/rc8.10/ask-xiaoshige.test.js",
     "tests/rc8.10/run.js",
     ".changes/current-change.json"
   ],

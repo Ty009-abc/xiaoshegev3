@@ -353,7 +353,13 @@ function composeScenarioPrompt (scenario, ctx) {
   if (mustRules[scenario]) lines.push(mustRules[scenario])
 
   lines.push('')
-  lines.push('【输出结构】当前判断 / 为什么 / 最适合你的方向 / 不建议你做什么 / 7天可执行动作')
+  // RC8_10A2 (stage C) — 直接问小事哥 is free-form chat: use a LIGHT reply
+  // structure (not the heavy five-part report scaffold the six scenarios use).
+  if (scenario === 'ask') {
+    lines.push('【输出结构】用一个自然段直接回答用户问题：先给结论/判断，再给一句依据（可引用用户自己的事实），必要时最后给一条可执行建议。不要套用固定报告标题，不要长篇大论。')
+  } else {
+    lines.push('【输出结构】当前判断 / 为什么 / 最适合你的方向 / 不建议你做什么 / 7天可执行动作')
+  }
   if (c.missingFields && c.missingFields.length) {
     lines.push('缺失信息（需用条件式或反问处理）：' + c.missingFields.join('、'))
   }
