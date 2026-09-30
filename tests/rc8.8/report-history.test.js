@@ -105,7 +105,7 @@ const HANDOFF = { requestId: 'r6q_X1', answers: { age: 30, job: '厨师', income
   //   (it made a paid world-model report user show 0).
   const prof = fs.readFileSync(path.join(ROOT, 'pages/profile/profile.js'), 'utf8')
   ok(/reportHistory\.count\(\)/.test(prof), 'profile keeps reportHistory.count() as secondary compatibility source')
-  ok(/ai_reports'\)\.where\(\{ openid: openid \}\)\.count\(\)/.test(prof), 'profile reportCount (primary) counts ai_reports')
+  ok(/ai_reports'\)\.where\(\{ openid(: openid)? \}\)\.count\(\)/.test(prof), 'profile reportCount (primary) counts ai_reports')
   ok(/serverReportCount > 0 \? serverReportCount : localCount/.test(prof), 'local 6Q history cannot override non-zero server count')
   ok(/goReports[^\n]*report-history/.test(prof), 'profile goReports -> report-history')
   ok(/goReports[^\n]*report-preview/.test(prof) === false, 'profile goReports no longer -> report-preview')

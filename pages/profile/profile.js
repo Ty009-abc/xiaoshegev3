@@ -12,56 +12,84 @@
 const app = getApp()
 const analytics = require('../../utils/analytics.js')
 const reportHistory = require('../../utils/reportHistory.js')
+const { worldModelTypeLabel } = require('../../utils/worldModelLabels.js')
+
+// 未分类 / 未知展示占位（绝不显示裸 enum 'unclassified'，绝不把未知当真实 0）
+const UNKNOWN = '—'
 
 Page({
   data: {
     user: {}, profile: {}, isVip: false,
-    challengeCount: 0, reportCount: 0, paidReportCount: 0, badges: [], streak: 0,
+    // 服务端权威计数。null = 未知/未加载（展示 '—'）；数字 = 真实计数。
+    challengeCount: null, reportCount: null, paidReportCount: null,
+    badges: [], streak: null,
+    classificationLabel: '',
+    cvText: UNKNOWN, streakText: UNKNOWN, cvNextText: UNKNOWN,
     countsLoaded: false, loadError: false,
     adminTapCount: 0, adminTimer: null,
     memoryEnabled: true,
   },
   onShow() { this.loadData() },
   onUnload() { analytics.flush() },
+
   async loadData() {
     const gd = (app && app.globalData) || {}
     const user = gd.userInfo || {}
+    const profile = gd.profile || {}
+
+    // ── 字段级权威 ──
+    // cv：users 文档中的真实字段（存在即权威）。缺失 → '—'（未知，绝不伪造 0）。
+    const cvText = (user && typeof user.cv === 'number') ? String(user.cv) : UNKNOWN
+    // streak：服务端 users 模式无此字段 → 未知，展示 '—'（绝不伪造 0）。
+    const streakText = (user && user.streak !== undefined && user.streak !== null) ? String(user.streak) : UNKNOWN
+
     this.setData({
       user,
-      profile: gd.profile || {},
-      isVip: user.membershipLevel !== 'free',
-      // 无服务端权威 streak 字段 —— 明确展示 0，而非伪造计算
-      streak: user.streak || 0,
+      profile,
+      isVip: user.membershipLevel !== 'free',   // 会员权威 = 登录/profile 缓存（canonical）
+      streak: streakText === UNKNOWN ? null : user.streak,
+      cvText,
+      streakText,
+      cvNextText: (typeof user.cv === 'number') ? String(user.cv % 100) + '/100' : UNKNOWN,
+      classificationLabel: this._resolveClassificationLabel(profile),
     })
-    // 加载记忆开关状态（best-effort，但不再静默吞错）
+
+    // 加载记忆开关状态（best-effort，但不静默吞错）
     try {
       const mRes = await wx.cloud.callFunction({ name: 'getMemory' })
       this.setData({ memoryEnabled: mRes.result?.data?.memoryEnabled !== false })
-      // 首次记忆说明
       this._maybeShowMemoryNotice()
     } catch (err) {
       console.warn('[profile] getMemory failed:', err && err.message)
     }
 
-    // 服务端权威计数 —— 必须使用已认证 openid
+    // 服务端权威计数 —— 必须使用已认证 openid（绝不以空 openid 查询）
     const openid = gd.openid || ''
     if (!openid) {
-      // 不静默返回 0：显式失败态（登录尚未完成 / 会话缺失）
-      console.error('[profile] openid missing — authoritative counts unavailable')
-      this.setData({ countsLoaded: false, loadError: true })
+      console.error('[profile] openid missing — authoritative data unavailable')
+      this.setData({
+        countsLoaded: false, loadError: true,
+        challengeCount: null, reportCount: null, paidReportCount: null,
+      })
       return
     }
+
     try {
       const db = wx.cloud.database()
-      const [cRes, arRes, paidRes, bRes] = await Promise.all([
+      const [cRes, arRes, paidRes, bRes, finRes] = await Promise.all([
         db.collection('challenge_records').where({ openid }).count(),
-        db.collection('ai_reports').where({ openid: openid }).count(),
-        db.collection('ai_reports').where({ openid: openid, isPaid: true }).count(),
+        db.collection('ai_reports').where({ openid }).count(),
+        db.collection('ai_reports').where({ openid, isPaid: true }).count(),
         db.collection('badges').limit(10).get(),
+        // 最近一次已完成挑战 → 权威 finalType（用于分类回退）
+        db.collection('challenge_records').where({ openid, status: 'finished' })
+          .orderBy('createdAt', 'desc').limit(1).get(),
       ])
+
       const badgeDefs = bRes.data || []
-      const earned = gd.profile?.badges || []
+      const earned = (profile && profile.badges) || []
       const badges = badgeDefs.map(b => ({ ...b, unlocked: earned.includes(b.id || b._id) }))
+
       // 本地 6Q 历史 = 次要兼容来源；服务端计数 > 0 时绝不覆盖
       let localCount = 0
       try { localCount = reportHistory.count() } catch (err) {
@@ -69,19 +97,38 @@ Page({
       }
       const serverReportCount = (arRes && arRes.total) || 0
       const reportCount = serverReportCount > 0 ? serverReportCount : localCount
+
+      // 分类：画像 mainType（若已被权威填写）否则最近一次已完成挑战 finalType
+      // （两者均通过既有 canonical 映射 worldModelLabels，无客户端臆造）
+      const fin = (finRes && finRes.data && finRes.data[0]) || null
+      const classificationLabel = this._resolveClassificationLabel(profile, fin && fin.finalType)
+
       this.setData({
         challengeCount: (cRes && cRes.total) || 0,
         reportCount,
         paidReportCount: (paidRes && paidRes.total) || 0,
+        classificationLabel,
         badges,
         countsLoaded: true,
         loadError: false,
       })
     } catch (err) {
-      // 显式失败：记录错误 + 暴露失败态，保留页面可用（不静默吞掉）
-      console.error('[profile] authoritative counts load failed:', err && err.message)
-      this.setData({ countsLoaded: false, loadError: true })
+      // 显式失败：记录错误 + 暴露失败态（'—'），保留页面可用（不静默吞零）
+      console.error('[profile] authoritative data load failed:', err && err.message)
+      this.setData({
+        countsLoaded: false, loadError: true,
+        challengeCount: null, reportCount: null, paidReportCount: null,
+      })
     }
+  },
+
+  // 分类标签：绝不显示裸 enum 'unclassified'。
+  // 优先级：画像 mainType（非 unclassified）> 最近权威 finalType > 中性兜底。
+  _resolveClassificationLabel(profile, finalType) {
+    const mainType = profile && profile.mainType
+    if (mainType && mainType !== 'unclassified') return worldModelTypeLabel(mainType)
+    if (finalType) return worldModelTypeLabel(finalType)
+    return ''   // 无权威结果 → 交由 UI 使用中性兜底（绝不显示 'unclassified'）
   },
 
   goDaily()       { wx.navigateTo({ url: '/pages/cognition-strike-records/cognition-strike-records' }) },

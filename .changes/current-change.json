@@ -1,45 +1,68 @@
 {
-  "taskId": "RC8_9_P0_REPLAY_MODAL_CONFIRMTEXT_FIX",
-  "phase": "Fix replay confirmation modal not rendering on device (report-preview onRetryChallenge). wx.showModal confirmText '确认重新挑战' = 6 chars exceeds the WeChat documented max of 4 chars -> showModal fails before render -> success/confirm never fires -> no startChallenge call, no nav, no new record. Client-only.",
-  "baseCommit": "7f8ec12",
+  "taskId": "RC8_9_LOCK_REPLAY_AND_FIX_P0_2_PROFILE_DATA_CHAIN",
+  "phase": "Lock the owner-accepted replay chain (no replay code change) and fix P0-2 profile data-chain degradation: 我的 no longer shows a full default-zero state; classification no longer exposes the raw 'unclassified' enum; unknown (cv/streak) is shown as '—' not a fabricated 0; 「我的报告」reads server ai_reports (the paid world-model report is now visible). Client-only.",
+  "baseCommit": "30d690e",
   "branch": "feature/rc8.9d-funnel-authority",
-  "pageScope": "pages/report-preview/report-preview.js (modal config + fail handler only) + utils/analytics.js (event registration) + related tests + manifest. No replay business-logic change; no backend.",
-  "goldenSource": "GOLDEN_SHA 2823f55 (uploaded). challenge-result visual golden + onboarding 70a901c untouched. Replay payload/contract untouched.",
-  "provenRootCause": {
-    "class": "MODAL_CONFIRM_NOT_COMPLETED",
-    "proof": "funnel_events challenge_retry_tap=41, challenge_retry_modal_confirm=0 (all downstream replay events 0). onRetryChallenge entered (tap telemetry works after 7f8ec12), but wx.showModal confirmText was 6 chars > WeChat limit 4 -> dialog fails before render -> success callback never runs. No fail handler => fully silent.",
-    "apiConstraint": "developers.weixin.qq.com/miniprogram/dev/api/ui/interaction/wx.showModal.html : confirmText/cancelText «最多 4 个字符»"
+  "pageScope": "pages/profile/{js,wxml}, pages/report-history/{js,wxml}, related tests, manifest. Replay handler untouched. No backend/payment/entitlement/DB/env change.",
+  "replayLock": {
+    "ownerRealDeviceAccepted": true,
+    "evidence": "retry modal rendered; confirm completed; new challenge opened; progressed to Day 5/30; no 39.9; no payment UI",
+    "replayCodeChanged": "NO",
+    "frozen": ["report-preview retry handler semantics", "replay:true payload", "replayRequestId", "replaySource", "startChallenge replay branch", "entitlement check", "challenge-play target route", "replay telemetry", "modal confirm text"]
+  },
+  "identity": {
+    "currentDeviceOpenidMasked": "oZa463Yb***tigNo",
+    "canonicalOwnerOpenidMasked": "oZa463Yb***tigNo",
+    "sameOpenid": true,
+    "openidSource": "owner's just-created replay record binding (CR1790759397913mcwq8z, replayRequestId RP1790759397641_k943va, Day 5) + login users doc",
+    "loginState": "authenticated (app.globalData.openid populated by login cloud fn)"
+  },
+  "profileFieldAuthority": {
+    "challengeCount": "server challenge_records{openid}.count() (client direct read, owner-ACL)",
+    "reportCount": "server ai_reports{openid}.count() PRIMARY; local legacy6q_report_history SECONDARY only",
+    "paidReportCount": "server ai_reports{openid, isPaid:true}.count()",
+    "membership": "login profile cache (users.membershipLevel) — canonical; free only when server says free",
+    "classification": "worldModelTypeLabel(profile.mainType) if not 'unclassified', else worldModelTypeLabel(latest finished challenge finalType); empty when no authoritative result (UI neutral fallback). No raw enum, no client invention.",
+    "cognitionValue": "users.cv if present → value; else '—' (unknown, never fake 0). Field confirmed NOT maintained beyond default 0.",
+    "streak": "field absent in users schema → '—' (unknown, never fake 0)"
   },
   "changes": {
-    "CONFIRM_TEXT": "pages/report-preview/report-preview.js onRetryChallenge: confirmText '确认重新挑战' (6) -> '确认' (2), within the 4-char limit. cancelText '取消' (2) kept. title/content kept unchanged.",
-    "MODAL_FAIL_HANDLER_ADDED": "Added wx.showModal fail handler -> console.error + toast '弹窗打开失败，请重试'. Explicit observability if the dialog cannot open.",
-    "MODAL_FAIL_TELEMETRY_ADDED": "New funnel event challenge_retry_modal_fail (registered in utils/analytics.js FUNNEL_EVENTS -> existing trackFunnelEvent -> funnel_events infra). Payload: safe_error_code, safe_error_message (openid redacted), route=pages/report-preview. No full openid, no secrets, no payment credentials.",
-    "REPLAY_LOGIC_LOCK": "replayRequestId generation, replay:true, replaySource:'world_model_report', startChallenge call, response envelope read, new-record validation, navigateTo challenge-play target, entitlement behavior — ALL byte-identical / semantically equivalent. No navigation contract or payload change.",
-    "TESTS": "Updated tests/rc8.9/world-model-retry.test.js (confirmText 确认 + <=4 char asserts); extended tests/rc8.9/replay-observability.test.js with matrix A (modal config char limits) and F (showModal fail -> challenge_retry_modal_fail + toast, zero server calls)."
+    "PROFILE_COUNTS_AND_CLASSIFICATION": "pages/profile/profile.js — refactored loadData: field-authority (cvText/streakText with '—'), classificationLabel via canonical mapper + latest finished challenge finalType; server counts unchanged (already server-authoritative). Counts null (not 0) when openid missing / load fails (unknown vs real 0). Added finished-challenge lookup for classification fallback.",
+    "PROFILE_UI": "pages/profile/profile.wxml — level-badge/subtitle use classificationLabel (never raw 'unclassified'); stats use cvText/streakText/cvNextText ('—' when unknown); growth-panel hidden when cv unknown; menu counts show '—' when loadError OR null.",
+    "REPORT_HISTORY_SERVER_AUTHORITY": "pages/report-history/report-history.js — reads server ai_reports{openid} (createdAt desc); lists only report types with a canonical client route (challenge_final via report-preview; 6Q diagnostic via legacy6q-report handoff); local legacy6q_report_history demoted to compatibility fallback only; explicit loadError; no empty-openid query; no AI call.",
+    "REPORT_HISTORY_UI": "pages/report-history/report-history.wxml — server-failure banner when showing local fallback; title field binding.",
+    "TESTS": "Rewrote tests/rc8.9/profile-authority.test.js (matrix A–I + source invariants; 30/0). NEW tests/rc8.9/report-history-authority.test.js (matrix D/K/L + fallbacks + source invariants; 25/0). Registered both in tests/rc8.9/run.js. Reconciled legacy tests/rc8.8/report-history.test.js D4b assertion for the shorthand where({openid}) form."
+  },
+  "dataIntegrity": {
+    "serverChallengeCountOwner": 28,
+    "serverReportCountOwner": 128,
+    "ownerReplayRecordVisibleInList": true,
+    "ownerPaidReportVisibleInList": true,
+    "historyMutated": "NO"
   },
   "invariants": {
-    "REPLAY_BUSINESS_LOGIC_CHANGED": "NO",
-    "REPLAY_PAYLOAD_CHANGED": "NO",
-    "NAVIGATION_CONTRACT_CHANGED": "NO",
+    "REPLAY_CHANGED": "NO",
+    "REPLAY_BUSINESS_LOGIC_UNCHANGED": "YES",
     "PAYMENT_LOGIC_UNCHANGED": "YES",
     "ENTITLEMENT_LOGIC_UNCHANGED": "YES",
-    "REPORT_AUTHORITY_UNCHANGED": "YES",
-    "STARTCHALLENGE_UNCHANGED": "YES",
-    "CHALLENGE_RESULT_GOLDEN_2823F55_UNCHANGED": "YES",
+    "REPORT_GENERATION_UNCHANGED": "YES",
+    "WORLD_MODEL_CONSOLE_GOLDEN_2823F55_UNCHANGED": "YES",
+    "WORLD_MODEL_REPORT_PRODUCTIZED_UI_UNCHANGED": "YES",
     "ONBOARDING_70A901C_UNCHANGED": "YES",
-    "PROFILE_AUTHORITY_FIX_4A28C04_PRESERVED": "YES",
-    "RETRY_TAP_DISPATCH_7F8EC12_PRESERVED": "YES"
+    "POSTER_GENERATION_UNCHANGED": "YES",
+    "PAYCALLBACK_FIX_PRESERVED": "YES"
   },
   "boundaries": {
     "BACKEND_CHANGED": "NO",
-    "STARTCHALLENGE_CHANGED": "NO",
     "PAYMENT_CHANGED": "NO",
-    "CLOUD_FUNCTIONS": "NONE",
-    "DB_MUTATION": "NONE",
+    "ENTITLEMENT_CHANGED": "NO",
+    "REPLAY_CHANGED": "NO",
+    "DB_SCHEMA_CHANGED": "NO",
     "DEPLOY": "NO",
     "ENV_CHANGED": "NO",
     "REAL_PAYMENT": "NO",
-    "CLIENT_UI_CHANGED": "YES (report-preview modal button text + fail handling only)"
+    "DB_MUTATION": "NONE",
+    "CLIENT_UI_CHANGED": "YES (profile + report-history only)"
   },
   "deployTargets": [],
   "requiredTests": ["node tests/rc8.9/run.js", "node tests/rc8.8/run.js"],

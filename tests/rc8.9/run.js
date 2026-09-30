@@ -52,6 +52,7 @@ const ALL = [
   'replay-observability.test.js',
   'retry-tap-dispatch.test.js',
   'profile-authority.test.js',
+  'report-history-authority.test.js',
   'order-entitlement-guard.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)

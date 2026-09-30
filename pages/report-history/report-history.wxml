@@ -3,6 +3,7 @@
   <xsg-navbar title="我的报告" light />
 
   <view class="content">
+    <view wx:if="{{loadError && reports.length}}" style="margin:16rpx 24rpx;padding:12rpx 20rpx;border-radius:12rpx;background:rgba(244,63,94,0.10);color:#f43f5e;font-size:22rpx;text-align:center;">服务端数据加载失败，当前显示本地记录</view>
     <block wx:if="{{reports.length}}">
       <view class="report-list">
         <view
@@ -16,7 +17,7 @@
         >
           <view class="report-head">
             <text class="report-date">{{item.dateText}}</text>
-            <text class="report-persona" wx:if="{{item.persona}}">{{item.persona}}</text>
+            <text class="report-persona" wx:if="{{item.title}}">{{item.title}}</text>
           </view>
           <text class="report-preview">{{item.preview || '认知翻身报告'}}</text>
           <text class="report-summary" wx:if="{{item.summary}}">{{item.summary}}</text>

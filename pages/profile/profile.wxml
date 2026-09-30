@@ -10,23 +10,23 @@
       <view class="user-meta">
         <view class="username-line">
           <text class="username">{{user.nickname||'觉醒者'}}</text>
-          <text class="level-badge">LV{{user.level||1}} {{profile.mainType||'认知探索者'}}</text>
+          <text class="level-badge">LV{{user.level||1}} {{classificationLabel||'认知探索者'}}</text>
         </view>
-        <text class="user-status">{{isVip?'⭐VIP':'免费用户'}} · {{profile.mainType||'unclassified'}}</text>
+        <text class="user-status">{{isVip?'⭐VIP':'免费用户'}}<block wx:if="{{classificationLabel}}"> · {{classificationLabel}}</block></text>
       </view>
     </view>
 
     <view class="stats-grid">
       <view class="stats-item">
-        <text class="stats-num">{{user.cv||0}}</text>
+        <text class="stats-num">{{cvText}}</text>
         <text class="stats-label">认知值</text>
       </view>
       <view class="stats-item">
-        <text class="stats-num">{{user.streak||0}}</text>
+        <text class="stats-num">{{streakText}}</text>
         <text class="stats-label">连续学习(天)</text>
       </view>
       <view class="stats-item">
-        <text class="stats-num">{{(user.cv||0) % 100}}/100</text>
+        <text class="stats-num">{{cvNextText}}</text>
         <text class="stats-label">距下一级</text>
       </view>
     </view>
@@ -35,8 +35,8 @@
   <!-- RC8.9_P0_PROFILE_AUTHORITY — 显式失败态（登录未完成 / 会话缺失 / 读取失败） -->
   <view wx:if="{{loadError}}" style="margin:16rpx 32rpx;padding:16rpx 24rpx;border-radius:12rpx;background:rgba(244,63,94,0.12);color:#f43f5e;font-size:24rpx;text-align:center;">数据加载失败，请稍后重试</view>
 
-  <!-- 成长面板 -->
-  <growth-panel cv="{{user.cv||0}}" level="{{user.level||1}}" streak="{{user.streak||0}}" theme="light" />
+  <!-- 成长面板 —— 仅当 cv 为服务端权威值时才渲染进度，避免把未知当真实 0 -->
+  <growth-panel wx:if="{{cvText !== '—'}}" cv="{{user.cv||0}}" level="{{user.level||1}}" streak="{{streak||0}}" theme="light" />
 
   <!-- 勋章 -->
   <view class="badges-card" wx:if="{{badges.length}}">
@@ -50,12 +50,12 @@
       <view class="menu-item" bindtap="goChallenges">
         <text class="menu-icon">🎯</text>
         <text class="menu-text">挑战记录</text>
-        <text class="menu-arrow">{{loadError ? '—' : challengeCount + '次'}}  ›</text>
+        <text class="menu-arrow">{{(loadError || challengeCount === null) ? '—' : challengeCount + '次'}}  ›</text>
       </view>
       <view class="menu-item" bindtap="goReports">
         <text class="menu-icon">📄</text>
         <text class="menu-text">我的报告</text>
-        <text class="menu-arrow">{{loadError ? '—' : reportCount + '份'}}  ›</text>
+        <text class="menu-arrow">{{(loadError || reportCount === null) ? '—' : reportCount + '份'}}  ›</text>
       </view>
       <view class="menu-item" bindtap="goDaily">
         <text class="menu-icon">📅</text>
