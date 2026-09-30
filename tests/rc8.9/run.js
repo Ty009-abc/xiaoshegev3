@@ -56,6 +56,7 @@ const ALL = [
   'memory-switch.test.js',
   'memory-runtime-wiring.test.js',
   'order-entitlement-guard.test.js',
+  'persistent-report-entitlement.test.js',
 ]
 // only run tests that exist (so partial batches stay runnable)
 const TESTS = ALL.filter((t) => fs.existsSync(path.join(__dirname, t)))

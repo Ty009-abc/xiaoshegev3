@@ -1,24 +1,30 @@
 {
-  "taskId": "RC8_10B1_LATEST_RAW_6Q_SNAPSHOT_AUTHORITY_HARDENING",
-  "stage": "H1",
-  "priority": "P0_DATA_AUTHORITY",
-  "phase": "Harden the raw 6Q store to ONE immutable canonical snapshot per completed submission (flat fields), strict latest-completed selector with deterministic tie-break (completedAt DESC, createdAt DESC, sixQVersion DESC), atomic-set no-merge rule, sixQAuthorityType trace, immediate cache invalidation on retake, legacy DERIVED_LEGACY fallback with NO reverse-engineering.",
-  "baseCommit": "76cbf06",
-  "scope": "cloudfunctions/generateAiReport/lib/raw6qStore.js + lib/context/userContextBuilder.js + getChallengeEvent/lib/context copy + tests. No memory/replay/profile/report-authority/payment/entitlement/DB-schema/env change.",
+  "taskId": "RC8_10_P0_PERSISTENT_REPORT_ENTITLEMENT_AND_CHALLENGE_DECOUPLE",
+  "stage": "P0",
+  "priority": "P0_RELEASE_BLOCKER",
+  "phase": "Resolve report access by the owner's permanent report_9_9 entitlement (not only report.isPaid), so retaking 6Q never re-charges ¥9.90; keep the challenge entry governed solely by the independent challenge entitlement (challenge_full) so report payment never gates it.",
+  "baseCommit": "bbf53d7",
+  "scope": "cloudfunctions/common/reportAccess.js (canonical) + generateAiReport/getAiReport copies + NEW getAiReport/lib/reportEntitlement.js + generateAiReport copy + getAiReport/index.js + generateAiReport/lib/challengeReportIdempotency.js + tests. No RAW_6Q/memory/payment-provider/DB-schema/env change; no fake isPaid; no order/payment/entitlement deletion.",
   "filesChanged": [
-    "cloudfunctions/generateAiReport/lib/raw6qStore.js",
-    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
-    "cloudfunctions/getChallengeEvent/lib/context/userContextBuilder.js",
-    "tests/rc8.10/raw6q-authority.test.js",
+    "cloudfunctions/common/reportAccess.js",
+    "cloudfunctions/generateAiReport/lib/reportAccess.js",
+    "cloudfunctions/getAiReport/lib/reportAccess.js",
+    "cloudfunctions/getAiReport/lib/reportEntitlement.js",
+    "cloudfunctions/generateAiReport/lib/reportEntitlement.js",
+    "cloudfunctions/getAiReport/index.js",
+    "cloudfunctions/generateAiReport/lib/challengeReportIdempotency.js",
+    "tests/rc8.9/persistent-report-entitlement.test.js",
+    "tests/rc8.9/run.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [
-    "generateAiReport",
-    "getChallengeEvent"
+    "getAiReport",
+    "generateAiReport"
   ],
   "requiredTests": [
-    "node tests/rc8.10/run.js",
+    "node tests/rc8.9/persistent-report-entitlement.test.js",
     "node tests/rc8.9/run.js",
+    "node tests/rc8.10/run.js",
     "node tests/rc8.8/run.js"
   ]
 }

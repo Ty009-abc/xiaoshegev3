@@ -54,8 +54,16 @@
 const crypto = require('crypto')
 const { ok, fail, CODES } = require('./response.js')
 // PAYMENT_STAGE5A_R8_P0 — 唯一权威「完整报告查看权限」判定（report.isPaid || VIP）。
-// 绝不用 membership-only 权限去覆盖 report.isPaid。
+// RC8_10_P0 — 追加永久 report_9_9 产品权益通道（一次购买·永久解锁）。
+// 绝不用 membership-only 权限去覆盖 report.isPaid / report_9_9 权益。
 const { canAccessFullReport, reportAccessFields } = require('./reportAccess.js')
+const { hasReport9_9Entitlement } = require('./reportEntitlement.js')
+
+// 解析永久 report_9_9 权益（可按需注入 deps.hasReport9_9 以便测试）。
+async function resolveReport9_9 (db, openid, deps) {
+  const fn = (deps && deps.hasReport9_9) || hasReport9_9Entitlement
+  try { return (await fn(db, openid)) === true } catch (_) { return false }
+}
 
 // Stale-generation takeover window. A `generating` entity older than this is
 // considered abandoned (λ killed mid-AI) and may be re-claimed, reusing the
@@ -185,16 +193,18 @@ async function readEntity (db, reportId) {
 // Entitlement is derived from the SERVER authority, never from the client.
 // canonical: report.isPaid (single-purchase) OR membership/VIP (checkVip).
 // report.isPaid is NEVER overridden by membershipLevel='free'.
-async function isEntitled (db, openid, entity, checkVip) {
+async function isEntitled (db, openid, entity, checkVip, deps) {
   const vip = await checkVip(db, openid)
-  return canAccessFullReport(entity, vip === true)
+  const owned9_9 = await resolveReport9_9(db, openid, deps)
+  return canAccessFullReport(entity, vip === true, owned9_9)
 }
 
 // Response for an already-materialised (ready) entity. Preserves the existing
 // response shape + summary semantics exactly.
-async function respondReady (db, openid, entity, checkVip) {
+async function respondReady (db, openid, entity, checkVip, deps) {
   const vip = await checkVip(db, openid)
-  const access = reportAccessFields(entity, vip === true)
+  const owned9_9 = await resolveReport9_9(db, openid, deps)
+  const access = reportAccessFields(entity, vip === true, owned9_9)
   if (access.canViewFullReport) {
     return ok({
       reportId: entity.reportId,
@@ -332,7 +342,7 @@ async function runChallengeFinalReport (opts) {
   }
 
   if (entity && entity.status === 'ready') {
-    return respondReady(db, openid, entity, checkVip)
+    return respondReady(db, openid, entity, checkVip, deps)
   }
 
   if (!claimed && entity && entity.status === 'generating') {
@@ -348,7 +358,7 @@ async function runChallengeFinalReport (opts) {
       if (!claimed) {
         // someone else took over (or it completed) → reflect current state
         entity = await readEntity(db, reportId)
-        if (entity && entity.status === 'ready') return respondReady(db, openid, entity, checkVip)
+        if (entity && entity.status === 'ready') return respondReady(db, openid, entity, checkVip, deps)
         return respondGenerating(reportId)
       }
     } else {
@@ -363,12 +373,12 @@ async function runChallengeFinalReport (opts) {
     claimed = !!(res && res.stats && res.stats.updated === 1)
     if (!claimed) {
       entity = await readEntity(db, reportId)
-      if (entity && entity.status === 'ready') return respondReady(db, openid, entity, checkVip)
+      if (entity && entity.status === 'ready') return respondReady(db, openid, entity, checkVip, deps)
       return respondGenerating(reportId)
     }
   } else if (!claimed && entity) {
     // legacy/unknown state with no content → allow a controlled retry
-    if (entity.content) return respondReady(db, openid, entity, checkVip)
+    if (entity.content) return respondReady(db, openid, entity, checkVip, deps)
     const res = await db.collection('ai_reports')
       .where({ _id: reportId, status: entity.status })
       .update({ data: { status: 'generating', claimToken, claimAt: ts, updatedAt: ts } })
@@ -462,7 +472,7 @@ async function runChallengeFinalReport (opts) {
   if (!completed) {
     // Either we lost the claim (a newer winner completed) OR persistence threw.
     const cur = await readEntity(db, reportId).catch(() => null)
-    if (cur && cur.status === 'ready') return respondReady(db, openid, cur, checkVip)
+    if (cur && cur.status === 'ready') return respondReady(db, openid, cur, checkVip, deps)
     if (persistError) {
       // Persistence failed while we still own the row → explicit retryable state.
       await persistFailed(db, reportId, claimToken, '报告持久化失败：' + persistError, { persistFailed: true }, ts)
@@ -483,7 +493,7 @@ async function runChallengeFinalReport (opts) {
   })
 
   const finalEntity = { reportId, openid, status: 'ready', content: parsedReport, isPaid: false }
-  return respondReady(db, openid, finalEntity, checkVip)
+  return respondReady(db, openid, finalEntity, checkVip, deps)
 }
 
 module.exports = {
