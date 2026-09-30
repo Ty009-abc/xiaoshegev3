@@ -86,8 +86,8 @@ async function main () {
 
   // R4 — newest raw 6Q beats historical
   const db2 = makeFakeDb({ user_6q_raw: [
-    { openid: 'oZ', source: 'RAW_6Q', completedAt: 100, facts: { age: '25', job: '学生', education: '本科', income: '0', anxiety: 'old', rootCause: 'oldc' } },
-    { openid: 'oZ', source: 'RAW_6Q', completedAt: 300, facts: { age: '30', job: '个体老板', education: '大专', income: '15000', anxiety: 'new', rootCause: 'newc' } },
+    { openid: 'oZ', status: 'completed', source: 'RAW_6Q', completedAt: 100, createdAt: 100, facts: { age: '25', job: '学生', education: '本科', income: '0', anxiety: 'old', rootCause: 'oldc' } },
+    { openid: 'oZ', status: 'completed', source: 'RAW_6Q', completedAt: 300, createdAt: 300, facts: { age: '30', job: '个体老板', education: '大专', income: '15000', anxiety: 'new', rootCause: 'newc' } },
   ] })
   const latest = await buildUserContext(db2, 'oZ', { scenario: 'career', message: '' })
   ok(latest.raw6Q.job === '个体老板' && latest.raw6Q.completedAt === 300, 'R4: newest raw 6Q selected')
@@ -107,6 +107,62 @@ async function main () {
   // R7 — no cross-user raw context
   const other = await buildUserContext(db2, 'stranger', { scenario: 'career', message: '' })
   ok(!other.hasSixQ && other.raw6Q === null, 'R7: no cross-user raw context')
+
+  // ── ADD_RULE RAW_6Q_LATEST_SET_ONLY — cases A–G ──
+
+  // A: one user one 6Q → that set selected
+  const dbA = makeFakeDb({ user_6q_raw: [
+    { openid: 'A', status: 'completed', sixQRecordId: 'r-A', sixQVersion: 'turnaround_strategy_6q_v1', completedAt: 10, createdAt: 10, source: 'RAW_6Q', facts: { age: '28', job: '销售', education: '本科', income: '9000', anxiety: 'a', rootCause: 'b' } },
+  ] })
+  const cA = await buildUserContext(dbA, 'A', { scenario: 'career', message: '' })
+  ok(cA.activeSixQRecordId === 'r-A' && cA.explicitProfile.occupation === '销售', 'A: single set selected')
+
+  // B: three completed sets → newest completedAt selected
+  const dbB = makeFakeDb({ user_6q_raw: [
+    { openid: 'B', status: 'completed', completedAt: 100, createdAt: 100, facts: { age: '20', job: '学生', education: '高中', income: '0', anxiety: 'x', rootCause: 'y' } },
+    { openid: 'B', status: 'completed', completedAt: 300, createdAt: 300, facts: { age: '24', job: '快递员', education: '大专', income: '6000', anxiety: 'x', rootCause: 'y' } },
+    { openid: 'B', status: 'completed', completedAt: 200, createdAt: 200, facts: { age: '22', job: '外卖员', education: '大专', income: '5000', anxiety: 'x', rootCause: 'y' } },
+  ] })
+  const cB = await buildUserContext(dbB, 'B', { scenario: 'career', message: '' })
+  ok(cB.raw6Q.completedAt === 300 && cB.explicitProfile.occupation === '快递员', 'B: newest completedAt selected')
+
+  // C: newest createdAt but NOT completed → latest COMPLETED set selected
+  const dbC = makeFakeDb({ user_6q_raw: [
+    { openid: 'C', status: 'completed', completedAt: 100, createdAt: 100, facts: { age: '30', job: '厨师', education: '初中', income: '7000', anxiety: 'x', rootCause: 'y' } },
+    { openid: 'C', status: 'draft', completedAt: 0, createdAt: 999, facts: { age: '31', job: '餐饮店老板', education: '初中', income: '20000', anxiety: 'x', rootCause: 'y' } },
+  ] })
+  const cC = await buildUserContext(dbC, 'C', { scenario: 'career', message: '' })
+  ok(cC.explicitProfile.occupation === '厨师' && cC.activeSixQCompletedAt === 100, 'C: incomplete newest ignored → latest completed used')
+
+  // D: newest 6Q contradicts old occupation → newest used everywhere
+  const dCareer = assembleUserContext({ scenario: 'career', message: '', raw6q: cC.raw6Q, memoryEnabled: true })
+  const dHustle = assembleUserContext({ scenario: 'side_hustle', message: '', raw6q: cC.raw6Q, memoryEnabled: true })
+  ok(dCareer.explicitProfile.occupation === '厨师' && dHustle.explicitProfile.occupation === '厨师', 'D: newest occupation used in every scenario')
+
+  // E: newest set has an empty optional field → NO backfill from old 6Q, mark missing
+  const dbE = makeFakeDb({ user_6q_raw: [
+    { openid: 'E', status: 'completed', completedAt: 100, createdAt: 100, facts: { age: '32', job: '程序员', education: '本科', income: '25000', anxiety: 'old', rootCause: 'old' } },
+    { openid: 'E', status: 'completed', completedAt: 300, createdAt: 300, facts: { age: '33', job: '餐饮店老板', education: '', income: '30000', anxiety: '新焦虑', rootCause: '新原因' } },
+  ] })
+  const cE = await buildUserContext(dbE, 'E', { scenario: 'career', message: '' })
+  ok(cE.raw6Q.job === '餐饮店老板' && cE.explicitProfile.occupation !== '程序员', 'E: newest set wins (old 程序员 not used)')
+  ok(cE.raw6Q.education === '' && cE.explicitProfile.education === null && cE.missingFields.includes('education'), 'E: empty field stays missing (no backfill from old 本科)')
+  ok(cE.explicitProfile.education !== '本科', 'E: old-set education NOT merged in')
+  ok(cE.evidenceMap.sixQ === 'RAW_6Q', 'E: still a single RAW set')
+
+  // F: new 6Q completed while cache exists → cache invalidated (version key changes)
+  const before = await buildUserContext(dbE, 'E', { scenario: 'career', message: '' })
+  await rawStore.persistRaw6Q(dbE, { openid: 'E', requestId: 'E-new', answers: { age: '40', job: '投资人', education: '硕士', income: '50000', anxiety: 'c', rootCause: 'd' }, ts: 500 })
+  const after = await buildUserContext(dbE, 'E', { scenario: 'career', message: '' })
+  ok(before.raw6Q.completedAt === 300 && after.raw6Q.completedAt === 500 && after.raw6Q.job === '投资人', 'F: retake changes active set (stale context invalidated)')
+  ok(before.activeSixQRecordId !== after.activeSixQRecordId || after.activeSixQRecordId === 'raw6q_E-new', 'F: active set id advances on retake')
+
+  // G: old memory contradicts new 6Q → new 6Q wins
+  const cG = assembleUserContext({
+    scenario: 'career', message: '', raw6q: cC.raw6Q,
+    memories: [{ content: '用户是餐饮店老板，收入20000' }], memoryEnabled: true,
+  })
+  ok(cG.explicitProfile.occupation === '厨师' && cG.evidenceMap.sixQ === 'RAW_6Q', 'G: active 6Q beats contradicting memory')
 
   console.log('  _TEST pass=' + pass + ' fail=' + fail)
   if (fail > 0) process.exit(1)

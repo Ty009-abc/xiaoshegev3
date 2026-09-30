@@ -175,9 +175,14 @@ function assembleUserContext (raw) {
 
   // ── L0 RAW 6Q (highest authority; server-persisted raw answers) ──
   const rawDoc = r.raw6q || null
-  const rf = (rawDoc && rawDoc.facts) || {}
+  // Accept either the stored DB doc ({facts:{...}}) or an already-normalized set
+  // (flat fields) — both represent ONE indivisible raw 6Q version.
+  const rf = (rawDoc && (rawDoc.facts || rawDoc)) || {}
   const hasRaw = !!(clean(rf.job) || clean(rf.rootCause) || clean(rf.anxiety) || clean(rf.income) || clean(rf.education) || clean(rf.age))
   const raw6Q = hasRaw ? {
+    // whole set used as ONE version — never field-mixed with older sets
+    sixQRecordId: clean(rawDoc.sixQRecordId) || clean(rawDoc.rawId) || null,
+    sixQVersion: clean(rawDoc.sixQVersion) || clean(rawDoc.diagnosticVersion) || SIXQ_VERSION,
     source: 'RAW_6Q',
     diagnosticVersion: clean(rawDoc.diagnosticVersion) || SIXQ_VERSION,
     job: clean(rf.job), income: clean(rf.income), age: clean(rf.age),
@@ -210,27 +215,32 @@ function assembleUserContext (raw) {
   // When RAW 6Q exists, explicit facts come from the RAW answers ONLY — no model
   // extraction from the generated report text. Otherwise derive from the user's
   // own message (+ report text as a DERIVED_LEGACY fallback).
+  // When RAW 6Q is active, the report text is NEVER used to backfill facts
+  // (RAW_6Q_LATEST_SET_ONLY case E: a gap in the latest set stays a gap — the
+  // user's own CURRENT message may still supply it, nothing else).
   const textPool = (hasRaw ? '' : reportText + '\n') + message
   const rawOcc = hasRaw ? firstToken(raw6Q.job, OCCUPATION_TOKENS) : ''
   let occupation = rawOcc || firstToken(textPool, OCCUPATION_TOKENS)
   if (!occupation && profile && typeof profile.occupation === 'string') occupation = clean(profile.occupation)
   const rawIncomeNum = hasRaw ? parseInt(raw6Q.income, 10) : NaN
-  const repIncome = extractIncome(reportText)
+  const repIncome = hasRaw ? null : extractIncome(reportText)
   const income = Number.isFinite(rawIncomeNum) ? rawIncomeNum : (repIncome != null ? repIncome : extractIncome(message))
   const rawAgeNum = hasRaw ? parseInt(raw6Q.age, 10) : NaN
-  const repAge = extractAge(reportText)
+  const repAge = hasRaw ? null : extractAge(reportText)
   const age = Number.isFinite(rawAgeNum) ? rawAgeNum : (repAge != null ? repAge : extractAge(message))
   const rawEdu = hasRaw ? firstToken(raw6Q.education, EDUCATION_TOKENS) : ''
-  const education = rawEdu || extractEducation(reportText) || extractEducation(message)
+  const education = rawEdu || (hasRaw ? extractEducation(message) : (extractEducation(reportText) || extractEducation(message)))
 
-  if (occupation) evidenceMap.occupation = rawOcc ? 'RAW_6Q' : (reportText.includes(occupation) ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
+  if (occupation) evidenceMap.occupation = rawOcc ? 'RAW_6Q' : ((!hasRaw && reportText.includes(occupation)) ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('occupation')
   if (income != null) evidenceMap.income = Number.isFinite(rawIncomeNum) ? 'RAW_6Q' : (repIncome != null ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('income')
   if (age != null) evidenceMap.age = Number.isFinite(rawAgeNum) ? 'RAW_6Q' : (repAge != null ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('age')
-  if (education) evidenceMap.education = rawEdu ? 'RAW_6Q' : (extractEducation(reportText) ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
+  if (education) evidenceMap.education = rawEdu ? 'RAW_6Q' : ((!hasRaw && extractEducation(reportText)) ? 'DERIVED_LEGACY' : 'CURRENT_USER_MESSAGE')
   else missingFields.push('education')
+  if (hasRaw && !raw6Q.anxiety) missingFields.push('anxiety')
+  if (hasRaw && !raw6Q.rootCause) missingFields.push('rootCause')
 
   // skills / capital are NEVER invented — absent unless the message states them.
   const skills = []
@@ -311,6 +321,11 @@ function assembleUserContext (raw) {
     sixQ,
     raw6Q,
     sixQSource,
+    // active-set version output (RAW_6Q_LATEST_SET_ONLY)
+    activeSixQRecordId: hasRaw ? (clean(rawDoc.sixQRecordId) || clean(rawDoc.rawId) || null) : null,
+    activeSixQVersion: hasRaw ? (clean(rawDoc.sixQVersion) || clean(rawDoc.diagnosticVersion) || SIXQ_VERSION) : null,
+    activeSixQCompletedAt: hasRaw ? (rawDoc.completedAt || null) : null,
+    activeSixQSource: sixQSource,
     sixQText: sixqText,
     profile: profileEvidence,
     challengeEvidence,
@@ -525,9 +540,9 @@ async function buildUserContext (db, openid, opts) {
     profile = (pr.data && pr.data[0]) || null
   } catch (_) { profile = null }
   try {
-    // L0 RAW 6Q — newest completed raw answers (highest authority)
+    // L0 RAW 6Q — LATEST_COMPLETED_SET_ONLY (strict; never merges old sets)
     const rr = await db.collection(RAW6Q_COLLECTION)
-      .where({ openid })
+      .where({ openid, status: 'completed' })
       .orderBy('completedAt', 'desc').limit(1).get()
     raw6qReport = (rr.data && rr.data[0]) || null
   } catch (_) { raw6qReport = null }

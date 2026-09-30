@@ -19,6 +19,7 @@ const RAW_COLLECTION = 'user_6q_raw'
 const RAW_TYPE = 'raw_6q'
 const RAW_VERSION = 'turnaround_strategy_6q_v1'
 const RAW_SOURCE = 'RAW_6Q'
+const RAW_STATUS = 'completed'
 const RAW_FIELDS = ['age', 'job', 'education', 'income', 'anxiety', 'rootCause']
 const SCHEMA_VERSION = 1
 
@@ -57,8 +58,13 @@ async function persistRaw6Q (db, { openid, requestId, answers, ts }) {
     await db.collection(RAW_COLLECTION).add({
       data: {
         rawId,
+        // ── versioning (RAW_6Q_LATEST_SET_ONLY contract) ──
+        sixQRecordId: rawId,
+        sixQVersion: RAW_VERSION,
+        // ── authority binding + status ──
         openid,
         requestId: requestId || '',
+        status: RAW_STATUS,
         source: RAW_SOURCE,
         diagnosticVersion: RAW_VERSION,
         facts: norm.facts,
@@ -75,22 +81,32 @@ async function persistRaw6Q (db, { openid, requestId, answers, ts }) {
 }
 
 /**
- * Load the LATEST raw 6Q for the authenticated openid (newest first).
+ * LATEST_COMPLETED_SET_ONLY (RAW_6Q_LATEST_SET_ONLY):
+ *   WHERE openid = current_authenticated_openid AND status = 'completed'
+ *   ORDER BY completedAt desc, createdAt desc
+ *   LIMIT 1
+ * Returns the single active set — old sets are NEVER merged/filled/used for
+ * current reasoning. A set is one indivisible version (no cross-version mixing).
  * @returns {Promise<object|null>}
  */
-async function loadLatestRaw6Q (db, openid) {
+async function loadActiveRaw6Q (db, openid) {
   if (!openid) return null
   try {
     const r = await db.collection(RAW_COLLECTION)
-      .where({ openid })
+      .where({ openid, status: RAW_STATUS })
       .orderBy('completedAt', 'desc')
       .limit(1)
       .get()
-    return (r.data && r.data[0]) || null
+    let docs = (r.data || [])
+    if (docs.length > 1) {
+      // tie-break on createdAt desc (same completedAt)
+      docs = docs.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+    }
+    return docs[0] || null
   } catch (_) { return null }
 }
 
 module.exports = {
-  RAW_COLLECTION, RAW_TYPE, RAW_VERSION, RAW_SOURCE, RAW_FIELDS, SCHEMA_VERSION,
-  normalizeRaw6Q, persistRaw6Q, loadLatestRaw6Q,
+  RAW_COLLECTION, RAW_TYPE, RAW_VERSION, RAW_SOURCE, RAW_STATUS, RAW_FIELDS, SCHEMA_VERSION,
+  normalizeRaw6Q, persistRaw6Q, loadActiveRaw6Q, loadLatestRaw6Q: loadActiveRaw6Q,
 }

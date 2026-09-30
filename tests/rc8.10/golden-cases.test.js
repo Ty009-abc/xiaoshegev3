@@ -122,8 +122,9 @@ function sixqRow (openid, content, createdAt) {
 
 function raw6qRow (openid, cse, completedAt) {
   return {
-    openid, rawId: 'raw6q_' + completedAt, source: 'RAW_6Q',
-    diagnosticVersion: 'turnaround_strategy_6q_v1', completedAt,
+    openid, rawId: 'raw6q_' + completedAt, sixQRecordId: 'raw6q_' + completedAt,
+    sixQVersion: 'turnaround_strategy_6q_v1', status: 'completed', source: 'RAW_6Q',
+    diagnosticVersion: 'turnaround_strategy_6q_v1', completedAt, createdAt: completedAt,
     facts: {
       age: String(cse.age || 30), job: cse.job, education: cse.edu,
       income: String(cse.income), anxiety: cse.problem, rootCause: cse.fatal,

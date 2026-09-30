@@ -1,17 +1,21 @@
 {
   "taskId": "RC8_10B_RAW_6Q_AUTHORITY_AND_PERSONALIZED_30DAY_CHALLENGE",
-  "stage": "D3",
+  "stage": "E1",
   "priority": "P0_PRODUCT_CORE",
-  "phase": "STAGE_D3 (adaptive 5-day reevaluation): the selector re-evaluates every 5 days from ACTUAL prior choices across risk_behavior/short_termism/execution/verification/leverage/capital_discipline and front-loads events matching the observed weakness; never rewrites past answers, invents progress, or changes scores.",
-  "baseCommit": "8671211",
-  "scope": "cloudfunctions/common/challengePersonalization.js + getChallengeEvent/lib copy + tests. No payment/entitlement/replay/profile/report/DB-schema/env change; event bank unchanged.",
+  "ruleId": "RAW_6Q_LATEST_SET_ONLY",
+  "phase": "ADD_RULE (latest completed raw 6Q set only): the active L0 authority is WHERE openid=current AND status=completed ORDER BY completedAt desc,createdAt desc LIMIT 1. Whole set is one version (sixQRecordId/sixQVersion); zero cross-version field mixing; no backfill from older sets or report text; old sets retained for history/audit only; context exposes activeSixQRecordId/activeSixQVersion/activeSixQCompletedAt; retake invalidates stale context.",
+  "baseCommit": "76cbf06",
+  "scope": "raw6qStore.js (status+versioning+loadActiveRaw6Q) + userContextBuilder.js L0 selector/version output/no-backfill + getChallengeEvent/lib copy + tests. No payment/entitlement/replay/profile/report/DB-schema/env change.",
   "filesChanged": [
-    "cloudfunctions/common/challengePersonalization.js",
-    "cloudfunctions/getChallengeEvent/lib/challengePersonalization.js",
-    "tests/rc8.10/personalized-challenge.test.js",
+    "cloudfunctions/generateAiReport/lib/raw6qStore.js",
+    "cloudfunctions/generateAiReport/lib/context/userContextBuilder.js",
+    "cloudfunctions/getChallengeEvent/lib/context/userContextBuilder.js",
+    "tests/rc8.10/raw6q-authority.test.js",
+    "tests/rc8.10/golden-cases.test.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [
+    "generateAiReport",
     "getChallengeEvent"
   ],
   "requiredTests": [
