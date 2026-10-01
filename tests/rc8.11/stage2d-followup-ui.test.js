@@ -91,12 +91,13 @@ function countingCloud (resp) {
   const cd = OWN.completeFollowUps(['重复', '重复', '另问'], { scenario: 'ask', selectedText: '重复' })
   ok(cd.followUps.every((x) => x !== '重复'), 'dedupe drops duplicates and the selected text')
   ok(new Set(cd.followUps).size === cd.followUps.length, 'no duplicate items after complete')
-  // ladder intents
+  // ladder roles (structural slots) + semantic intent keys
   const cl = OWN.completeFollowUps(['a', 'b', 'c'], { scenario: 'ask', topicAnchorId: 'anchor_x' })
-  eq(cl.followUpLadder.length, 3, 'ladder 3 intents')
-  eq(cl.followUpLadder[0].intent, 'action_entry', 'ladder[0]=action_entry')
-  eq(cl.followUpLadder[1].intent, 'cognitive_gap', 'ladder[1]=cognitive_gap')
-  eq(cl.followUpLadder[2].intent, 'validation_loop', 'ladder[2]=validation_loop')
+  eq(cl.followUpLadder.length, 3, 'ladder 3 entries')
+  eq(cl.followUpLadder[0].role, 'action_entry', 'ladder[0].role=action_entry')
+  eq(cl.followUpLadder[1].role, 'cognitive_gap', 'ladder[1].role=cognitive_gap')
+  eq(cl.followUpLadder[2].role, 'validation_loop', 'ladder[2].role=validation_loop')
+  ok(cl.followUpLadder.every((x) => !!x.intent), 'ladder entries carry a semantic intent key')
   ok(cl.followUpLadder.every((x) => x.topicAnchorId === 'anchor_x'), 'ladder shares topicAnchorId')
 }
 

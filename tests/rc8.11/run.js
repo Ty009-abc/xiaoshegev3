@@ -15,6 +15,7 @@ const ALL = [
   'stage2bc.test.js',
   'stage2d.test.js',
   'stage2d-followup-ui.test.js',
+  'stage2d-dynamic-queue.test.js',
 ]
 
 const dir = __dirname

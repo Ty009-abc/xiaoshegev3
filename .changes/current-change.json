@@ -1,17 +1,15 @@
 {
-  "taskId": "RC8_11_STAGE2D_FOLLOWUP_FLOW_UI_STABILITY",
+  "taskId": "RC8_11_STAGE2D_DYNAMIC_FOLLOWUP_QUEUE",
   "stage": "2D",
   "priority": "P0_PRODUCT_UX",
-  "phase": "Follow-up ownership + in-flow rendering. Follow-up sets are bound to exactly ONE assistant answer (parentMessageId) from ONE generation (generationId) + sourceAnswerId; only the LATEST answer renders its set. Tapping any follow-up synchronously invalidates the previous set (no old Q2/Q3 surviving), appends the selected question, and enters a loading state; the new answer then renders with the new set directly BELOW it, in normal document flow (position: static, no overlay). Final rendered count is always exactly 3 (server items -> scenario fallback -> deterministic filler; dedup + exclude selected; shared topicAnchorId; ladder action_entry/cognitive_gap/validation_loop). Rapid double/triple tap guarded to one request.",
-  "baseCommit": "7373fb1",
-  "scope": "pages/ai-chat/ai-chat.js (message ids, ownership state, tap guard, exact-3 completion, scroll-into-view) + pages/ai-chat/ai-chat.wxml (follow-ups rendered inside the answer block within the scroll-view) + pages/ai-chat/ai-chat.wxss (.follow-section position:static) + pages/ai-chat/followupOwnership.js (new pure helper) + tests/rc8.11/stage2d-followup-ui.test.js (new, matrix A-I) + tests/rc8.11/stage2bc.test.js (updated to ownership fields) + tests/rc8.11/run.js + .changes/current-change.json. No server logic, payment, membership, memory, RAW_6Q, replay, profile, or free-3 quota change.",
+  "phase": "Dynamic follow-up queue. Asked questions are removed permanently from the current thread (marked ASKED, tracked by text + semantic intentKey); each successful answer replenishes the visible queue back to TARGET_COUNT=3 by retaining surviving unasked items, then merging fresh server candidates, then depth-ordered deterministics — never re-offering an asked question or an already-present/asked intent. Depth level advances monotonically (direction→constraint→validation→first_result→repeatability→scale). New topic expires the previous thread's queue. Quota: tapping a follow-up does not consume; only a completed answer does; when quota hits 0 the wall shows next directions and blocks further free sends.",
+  "baseCommit": "94a7fe9",
+  "scope": "pages/ai-chat/followupOwnership.js (dynamic queue: asked history, intent dedup, refill, depth, expire) + pages/ai-chat/ai-chat.js (asked/pending/depth state, consumeOnTap, refillQueue on success, quota-exhausted reset) + tests/rc8.11/stage2d-dynamic-queue.test.js (new, matrix A-I + depth) + tests/rc8.11/stage2d-followup-ui.test.js (ladder role/intent split) + tests/rc8.11/run.js + .changes/current-change.json. No server logic, payment, membership, memory, RAW_6Q, replay, profile, or free-3 quota change.",
   "filesChanged": [
-    "pages/ai-chat/ai-chat.js",
-    "pages/ai-chat/ai-chat.wxml",
-    "pages/ai-chat/ai-chat.wxss",
     "pages/ai-chat/followupOwnership.js",
+    "pages/ai-chat/ai-chat.js",
+    "tests/rc8.11/stage2d-dynamic-queue.test.js",
     "tests/rc8.11/stage2d-followup-ui.test.js",
-    "tests/rc8.11/stage2bc.test.js",
     "tests/rc8.11/run.js",
     ".changes/current-change.json"
   ],
