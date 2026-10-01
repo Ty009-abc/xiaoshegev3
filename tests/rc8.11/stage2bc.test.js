@@ -36,6 +36,7 @@ function loadChat (cloudImpl) {
   const sandbox = {
     require: (r) => {
       if (r.indexOf('data/aiChatSuggestions.js') >= 0) return require(path.join(ROOT, 'data', 'aiChatSuggestions.js'))
+      if (r.indexOf('followupOwnership.js') >= 0) return require(path.join(ROOT, 'pages', 'ai-chat', 'followupOwnership.js'))
       if (r.indexOf('utils/userTrack.js') >= 0) return { event: () => {} }
       if (r.indexOf('../../utils/userTrack.js') >= 0) return { event: () => {} }
       throw new Error('unexpected require: ' + r)
@@ -64,7 +65,7 @@ function loadChat (cloudImpl) {
   {
     const w = fs.readFileSync(CHAT_WXML, 'utf8')
     ok(w.indexOf('接下来你可以继续问') >= 0, 'UI follow-up section present')
-    ok(/wx:for="\{\{followUps\}\}"/.test(w), 'UI renders followUps')
+    ok(/wx:for="\{\{item\.followUps\}\}"/.test(w), 'UI renders answer-owned followUps')
     ok(w.indexOf('今日免费还可问') >= 0, 'UI remaining quota copy')
     ok(/wx:if="\{\{showPaywall\}\}"/.test(w), 'UI paywall gated by showPaywall')
     ok(w.indexOf('¥39.9/月') >= 0 || /monthly\.display/.test(w), 'UI monthly offer')
@@ -95,7 +96,8 @@ function loadChat (cloudImpl) {
     const p = loadChat()
     p.onLoad()
     eq(p.data.starters.length, 3, 'starters count 3')
-    eq(p.data.followUps.length, 0, 'no followUps before any answer')
+    eq(p.data.activeFollowUps.length, 0, 'no followUps before any answer')
+    eq(p.data.activeFollowUpParentId, '', 'no follow-up parent before any answer')
   }
 
   // ── runtime: answer returns 3 followUps + quota decrement ──
@@ -109,7 +111,9 @@ function loadChat (cloudImpl) {
     p.onLoad()
     p.setData({ inputValue: '我是程序员，想做副业' })
     await p.onSend()
-    eq(p.data.followUps.length, 3, 'answer → 3 followUps')
+    eq(p.data.activeFollowUps.length, 3, 'answer → 3 followUps')
+    ok(!!p.data.activeFollowUpParentId, 'answer → follow-up set bound to parent message')
+    ok(p.data.activeFollowUpParentId === p.data.messages[p.data.messages.length - 1].id, 'follow-up parent == latest assistant message')
     eq(p.data.remaining, 2, 'answer → remaining 2')
     eq(p.data.quotaKnown, true, 'quota known after answer')
     eq(p.data.showPaywall, false, 'no paywall while remaining')

@@ -267,10 +267,17 @@
   text-align: center;
 }
 
-/* ═══════════ RC8_11_STAGE2：追问区 ═══════════ */
+/* ═══════════ RC8_11_STAGE2D：追问区（回答下方，随滚动内容）═══════════ */
+/* 位置契约：static —— 绝不 fixed/sticky/absolute，绝不悬浮或覆盖答案。
+   追问作为滚动内容的一部分，紧跟在所属回答之下、下一条消息之前。 */
 .follow-section {
-  background: #FAFAFF;
+  position: static;
+  flex: none;
+  margin: 0 0 8rpx;
+  padding: 16rpx 0 8rpx;
+  background: transparent;
   border-top: 1rpx solid #EAECF0;
+  box-sizing: border-box;
 }
 
 /* ═══════════ RC8_11_STAGE2：会员付费墙 ═══════════ */

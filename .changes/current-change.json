@@ -1,20 +1,21 @@
 {
-  "taskId": "RC8_11_STAGE2D_STRUCTURED_ACTION_ADVICE",
+  "taskId": "RC8_11_STAGE2D_FOLLOWUP_FLOW_UI_STABILITY",
   "stage": "2D",
-  "priority": "P0_PRODUCT_QUALITY",
-  "phase": "Structured internal actionAdvice (hidden HTML-comment JSON, server schema-validated + stripped) feeds the EXISTING coachingFollowUps engine as PRIMARY; same-topic Q1 action_entry -> Q2 cognitive_gap -> Q3 validation_loop; added followupTrace (ids only). Fallbacks unchanged (deterministic extraction -> RAW_6Q+scenario -> 100-question bank).",
-  "baseCommit": "a0a1fba",
-  "scope": "cloudfunctions/generateAiReport/index.js (advice request + parse/strip + feed + trace) + lib/context/coachingFollowUps.js (advice schema/parse + structured trio + topicAnchorId/actionAdviceSource) + tests/rc8.11/stage2d.test.js + tests/rc8.11/run.js + .changes/current-change.json. No payment/legacy/RAW_6Q/memory/replay/profile authority change; free-3 quota + paywall untouched.",
+  "priority": "P0_PRODUCT_UX",
+  "phase": "Follow-up ownership + in-flow rendering. Follow-up sets are bound to exactly ONE assistant answer (parentMessageId) from ONE generation (generationId) + sourceAnswerId; only the LATEST answer renders its set. Tapping any follow-up synchronously invalidates the previous set (no old Q2/Q3 surviving), appends the selected question, and enters a loading state; the new answer then renders with the new set directly BELOW it, in normal document flow (position: static, no overlay). Final rendered count is always exactly 3 (server items -> scenario fallback -> deterministic filler; dedup + exclude selected; shared topicAnchorId; ladder action_entry/cognitive_gap/validation_loop). Rapid double/triple tap guarded to one request.",
+  "baseCommit": "7373fb1",
+  "scope": "pages/ai-chat/ai-chat.js (message ids, ownership state, tap guard, exact-3 completion, scroll-into-view) + pages/ai-chat/ai-chat.wxml (follow-ups rendered inside the answer block within the scroll-view) + pages/ai-chat/ai-chat.wxss (.follow-section position:static) + pages/ai-chat/followupOwnership.js (new pure helper) + tests/rc8.11/stage2d-followup-ui.test.js (new, matrix A-I) + tests/rc8.11/stage2bc.test.js (updated to ownership fields) + tests/rc8.11/run.js + .changes/current-change.json. No server logic, payment, membership, memory, RAW_6Q, replay, profile, or free-3 quota change.",
   "filesChanged": [
-    "cloudfunctions/generateAiReport/index.js",
-    "cloudfunctions/generateAiReport/lib/context/coachingFollowUps.js",
-    "tests/rc8.11/stage2d.test.js",
+    "pages/ai-chat/ai-chat.js",
+    "pages/ai-chat/ai-chat.wxml",
+    "pages/ai-chat/ai-chat.wxss",
+    "pages/ai-chat/followupOwnership.js",
+    "tests/rc8.11/stage2d-followup-ui.test.js",
+    "tests/rc8.11/stage2bc.test.js",
     "tests/rc8.11/run.js",
     ".changes/current-change.json"
   ],
-  "deployTargets": [
-    "generateAiReport"
-  ],
+  "deployTargets": [],
   "requiredTests": [
     "node tests/rc8.11/run.js",
     "node tests/rc8.10/run.js",

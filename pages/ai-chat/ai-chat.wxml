@@ -1,4 +1,4 @@
-<!-- ai-chat — v3.15 上下文追问 + 免费额度（RC8_11_STAGE2） -->
+<!-- ai-chat — v3.16 追问归属 + 免费额度（RC8_11_STAGE2D_FOLLOWUP_FLOW_UI_STABILITY） -->
 <view class="page">
   <xsg-navbar title="直接问小事哥" showBack="{{false}}" light />
 
@@ -8,54 +8,58 @@
     <text wx:else>今日免费次数已用完</text>
   </view>
 
-  <!-- 消息列表 -->
-  <scroll-view scroll-y class="msg-list" scroll-top="{{scrollTop}}" enhanced show-scrollbar="{{false}}">
-    <view class="msg {{item.role}}" wx:for="{{messages}}" wx:key="index">
-      <view class="msg-avatar">{{item.role === 'assistant' ? '🧠' : '👤'}}</view>
-      <view class="msg-bubble">
-        <text>{{item.content}}</text>
-        <view class="compliance-tips" wx:if="{{item.role === 'assistant'}}">系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出</view>
+  <!-- 消息列表（追问随所属回答一起渲染在滚动内容内，不悬浮、不覆盖答案） -->
+  <scroll-view scroll-y class="msg-list" scroll-into-view="{{scrollIntoView}}" scroll-with-animation enhanced show-scrollbar="{{false}}">
+    <block wx:for="{{messages}}" wx:key="id">
+      <view class="msg {{item.role}}" id="{{item.id}}">
+        <view class="msg-avatar">{{item.role === 'assistant' ? '🧠' : '👤'}}</view>
+        <view class="msg-bubble">
+          <text>{{item.content}}</text>
+          <view class="compliance-tips" wx:if="{{item.role === 'assistant'}}">系统提示：当前页面呈现的内容由自动化算法与人工智能生成技术推演得出</view>
+        </view>
       </view>
-    </view>
+
+      <!-- 追问区：仅当这段追问属于「最新一条回答」且已渲染完成时，紧随该回答下方 -->
+      <view class="quick-section follow-section" wx:if="{{item.role === 'assistant' && item.id === activeFollowUpParentId && item.followUps.length > 0 && !sending && !followUpLoading}}">
+        <view class="quick-header">
+          <text class="quick-title">接下来你可以继续问</text>
+        </view>
+        <view class="quick-list">
+          <view class="quick-card" wx:for="{{item.followUps}}" wx:for-item="fq" wx:key="*this" data-q="{{fq}}" bindtap="onSelectFollowUp">
+            <view class="qc-left">
+              <text class="qc-icon">💡</text>
+              <text class="qc-text">{{fq}}</text>
+            </view>
+            <text class="qc-arrow">→</text>
+          </view>
+        </view>
+      </view>
+    </block>
+
     <view class="typing" wx:if="{{sending}}">
       <view class="typing-dot"></view><view class="typing-dot"></view><view class="typing-dot"></view>
     </view>
+
+    <!-- 起始问题（100 题库 fallback；仅在没有回答时展示） -->
+    <view class="quick-section" wx:if="{{messages.length <= 1 && !followUpLoading}}">
+      <view class="quick-header">
+        <text class="quick-title">你可以从这里开始</text>
+        <button class="quick-refresh-btn" bindtap="onRefreshStarters">换一批</button>
+      </view>
+
+      <view class="quick-list">
+        <view class="quick-card" wx:for="{{starters}}" wx:key="text" data-q="{{item.text}}" bindtap="onQuickAsk">
+          <view class="qc-left">
+            <text class="qc-icon">{{item.icon}}</text>
+            <text class="qc-text">{{item.text}}</text>
+          </view>
+          <text class="qc-arrow">→</text>
+        </view>
+      </view>
+    </view>
+
     <view style="height:200rpx;"></view>
   </scroll-view>
-
-  <!-- 追问区（每次回答后 3 条，同一决策线程） -->
-  <view class="quick-section follow-section" wx:if="{{followUps.length > 0 && !sending}}">
-    <view class="quick-header">
-      <text class="quick-title">接下来你可以继续问</text>
-    </view>
-    <view class="quick-list">
-      <view class="quick-card" wx:for="{{followUps}}" wx:key="*this" data-q="{{item}}" bindtap="onSelectFollowUp">
-        <view class="qc-left">
-          <text class="qc-icon">💡</text>
-          <text class="qc-text">{{item}}</text>
-        </view>
-        <text class="qc-arrow">→</text>
-      </view>
-    </view>
-  </view>
-
-  <!-- 起始问题（100 题库 fallback；仅在没有回答时展示） -->
-  <view class="quick-section" wx:if="{{messages.length <= 1 && followUps.length === 0}}">
-    <view class="quick-header">
-      <text class="quick-title">你可以从这里开始</text>
-      <button class="quick-refresh-btn" bindtap="onRefreshStarters">换一批</button>
-    </view>
-
-    <view class="quick-list">
-      <view class="quick-card" wx:for="{{starters}}" wx:key="text" data-q="{{item.text}}" bindtap="onQuickAsk">
-        <view class="qc-left">
-          <text class="qc-icon">{{item.icon}}</text>
-          <text class="qc-text">{{item.text}}</text>
-        </view>
-        <text class="qc-arrow">→</text>
-      </view>
-    </view>
-  </view>
 
   <!-- 输入栏 -->
   <view class="input-bar">
