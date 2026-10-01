@@ -1,20 +1,15 @@
 {
-  "taskId": "RC8_11_STAGE2_FREE3_AND_CONTEXTUAL_FOLLOWUPS",
-  "stage": "2BC",
-  "priority": "P0_GROWTH_AND_MONETIZATION",
-  "phase": "AI-chat follow-up UI (contextual 3) + remaining quota counter + membership paywall (server-grounded ≤3 facts + 3 next directions). Retired standalone CTAs removed.",
-  "baseCommit": "aba3016",
-  "scope": "pages/ai-chat/* + generateAiReport/index.js (paywall payload, buildUserContext import) + lib/context/coachingFollowUps.js (buildPaywallSummary) + tests/rc8.11/stage2bc.test.js + tests/rc8.9 VM loader whitelists. No payment/legacy/RAW_6Q/memory/replay/profile authority change.",
+  "taskId": "RC8_11_STAGE2D_STRUCTURED_ACTION_ADVICE",
+  "stage": "2D",
+  "priority": "P0_PRODUCT_QUALITY",
+  "phase": "Structured internal actionAdvice (hidden HTML-comment JSON, server schema-validated + stripped) feeds the EXISTING coachingFollowUps engine as PRIMARY; same-topic Q1 action_entry -> Q2 cognitive_gap -> Q3 validation_loop; added followupTrace (ids only). Fallbacks unchanged (deterministic extraction -> RAW_6Q+scenario -> 100-question bank).",
+  "baseCommit": "a0a1fba",
+  "scope": "cloudfunctions/generateAiReport/index.js (advice request + parse/strip + feed + trace) + lib/context/coachingFollowUps.js (advice schema/parse + structured trio + topicAnchorId/actionAdviceSource) + tests/rc8.11/stage2d.test.js + tests/rc8.11/run.js + .changes/current-change.json. No payment/legacy/RAW_6Q/memory/replay/profile authority change; free-3 quota + paywall untouched.",
   "filesChanged": [
-    "pages/ai-chat/ai-chat.js",
-    "pages/ai-chat/ai-chat.wxml",
-    "pages/ai-chat/ai-chat.wxss",
     "cloudfunctions/generateAiReport/index.js",
     "cloudfunctions/generateAiReport/lib/context/coachingFollowUps.js",
-    "tests/rc8.11/stage2bc.test.js",
+    "tests/rc8.11/stage2d.test.js",
     "tests/rc8.11/run.js",
-    "tests/rc8.9/report-entity.test.js",
-    "tests/rc8.9/ai-telemetry-core.test.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [

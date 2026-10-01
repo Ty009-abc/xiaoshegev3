@@ -21,7 +21,7 @@ const { runCoachingTurn } = require('./lib/context/coachingContextRuntime.js')
 const { SCENARIO_NAME_TO_KEY } = require('./lib/context/userContextBuilder.js')
 const { buildUserContext } = require('./lib/context/userContextBuilder.js')
 const quotaAuthority = require('./lib/quotaAuthority.js')
-const { buildFollowUps, buildPaywallSummary } = require('./lib/context/coachingFollowUps.js')
+const { buildFollowUps, buildPaywallSummary, adviceInstruction, parseActionAdvice } = require('./lib/context/coachingFollowUps.js')
 
 // ── 长期记忆：隐私安全可观测（仅计数/状态，绝不记录记忆内容/密钥/openid）──
 function _memTelemetry (event, detail) {
@@ -135,12 +135,24 @@ exports.main = async (event, context) => {
       if (!memEnabled) _memTelemetry('memory_read_skipped_disabled', {})
       else _memTelemetry('memory_read_attempt', {})
 
+      // RC8_11_STAGE2D — request the hidden structured actionAdvice block.
+      // Wrapped (never mutates the require'd lib): we append the instruction to
+      // the prompt and strip the block from the model content before anything
+      // downstream (validator, replyText, telemetry) sees it.
+      const callAIWithAdvice = async (args) => {
+        const r = await callAI(Object.assign({}, args, { systemPrompt: (args.systemPrompt || '') + '\n' + adviceInstruction() }))
+        if (r && r.success && typeof r.content === 'string') {
+          const p = parseActionAdvice(r.content)
+          if (p.hadBlock) r.content = p.prose
+        }
+        return r
+      }
       const turn = await runCoachingTurn({
         db, openid, scenario, message: promptInput,
         personality, personalityEmoji, personalityStyle,
         maxTokens: 2048, temperature: 0.7,
         memoryEnabled: memEnabled,
-        callAI,
+        callAI: callAIWithAdvice,
       })
       const aiResult = turn.aiResult
       const pMeta = { name: personality || 'unknown', emoji: personalityEmoji || '' }
@@ -159,7 +171,11 @@ exports.main = async (event, context) => {
         }))
       } catch (_) {}
 
-      const replyText = aiResult.content || '换个说法试试？'
+      // ── RC8_11_STAGE2D：从原始回答解析结构化 actionAdvice（解析后剥离，不入正文）──
+      const advParse = parseActionAdvice(aiResult.content || '')
+      const structuredAdvice = advParse.advice || null
+      // 双保险：若上面 callAI 包装漏剥（如再生路径），此处再剥一次，确保用户可见正文永不含标记。
+      const replyText = advParse.prose || '换个说法试试？'
 
       // ── RC8_11_STAGE2：仅【成功完成】的回答才消耗一次免费额度（原子/并发安全）──
       const consume = await quotaAuthority.consumeQuota(db, openid, { isMember })
@@ -173,8 +189,19 @@ exports.main = async (event, context) => {
         raw6Q: (turn.ctx && turn.ctx.raw6Q) || null,
         profile: (turn.ctx && turn.ctx.explicitProfile) || null,
         scenario,
+        actionAdvice: structuredAdvice,
       })
-      try { console.log('[coachingFollowUps] ' + JSON.stringify({ source: fu.source, count: fu.count })) } catch (_) {}
+      // RC8_11_STAGE2D trace — ids/flags only (NO raw 6Q, NO plaintext openid, NO prompt).
+      const followupTrace = {
+        activeSixQRecordId: (turn.ctx && turn.ctx.activeSixQRecordId) || null,
+        activeSixQVersion: (turn.ctx && turn.ctx.activeSixQVersion) || null,
+        sixQAuthorityType: (turn.ctx && turn.ctx.sixQAuthorityType) || 'NONE',
+        topicAnchorId: fu.topicAnchorId || null,
+        actionAdviceSource: fu.actionAdviceSource || 'none',
+        followupSource: fu.source,
+        scenario,
+      }
+      try { console.log('[coachingFollowUps] ' + JSON.stringify({ source: fu.source, count: fu.count, advice: fu.actionAdviceSource })) } catch (_) {}
 
       // ── 长期记忆写入（仅成功调用后；门控 + allow-list + 去重）──
       await _writeLongTermMemory(openid, promptInput)
@@ -199,6 +226,7 @@ exports.main = async (event, context) => {
         personality: pMeta ? { name: pMeta.name, emoji: pMeta.emoji } : undefined,
         followUps: fu.followUps,
         followUpSource: fu.source,
+        followupTrace,
         quota: quotaOut,
       })
     }
