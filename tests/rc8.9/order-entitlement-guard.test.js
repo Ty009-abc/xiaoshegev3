@@ -103,7 +103,8 @@ function makeDb (rows) {
   // G12: client handles DUPLICATE gracefully
   {
     const cli = require('fs').readFileSync(path.join(ROOT, 'pages', 'membership', 'membership.js'), 'utf8')
-    ok(/10020/.test(cli) && /r\.data\.entitled/.test(cli), 'G12.1: client detects entitled duplicate and backs out')
+    ok(typeof cli === 'string' && !/createOrder/.test(cli), 'G12.1: RC8_12 membership page has no purchase path (no createOrder)')
+    ok(!/onPay|onSelectPlan|10020/.test(cli), 'G12.1: no purchase handler on membership page (FREE_ONLY)')
   }
 
   console.log(`ORDER_ENTITLEMENT_GUARD_TEST pass=*** fail=${fail}`)

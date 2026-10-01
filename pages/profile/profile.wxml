@@ -74,11 +74,6 @@
   <view class="menu-section">
     <text class="section-title">高级功能</text>
     <view class="menu-group-card">
-      <view class="menu-item" bindtap="goMembership" wx:if="{{!isVip}}">
-        <text class="menu-icon">⭐</text>
-        <text class="menu-text">升级会员</text>
-        <text class="menu-arrow">›</text>
-      </view>
       <view class="menu-item" bindtap="goInvite">
         <text class="menu-icon">🎁</text>
         <text class="menu-text">邀请好友</text>

@@ -360,7 +360,8 @@ async function runReady (reportEntity, vipGranted) {
   {
     const w = fs.readFileSync(PREVIEW_WXML, 'utf8')
     ok(/report-lock-card\s+wx:if="\{\{locked\}\}"/.test(w), 'H lock card gated by locked')
-    ok(/btnText="开通认知会员 · 解锁完整报告"/.test(w), 'G single unlock CTA = 开通认知会员 · 解锁完整报告')
+    ok(/btnText="更多深度分析持续开放中"/.test(w), 'G locked CTA = neutral notice (RC8_12 FREE_ONLY)')
+    ok(!/btnText="开通认知会员/.test(w), 'G no membership purchase CTA on lock card')
     ok(/wx:if="\{\{showUpgradeModal && locked\}\}"/.test(w), 'H upgrade modal gated by (showUpgradeModal && locked)')
     ok(/wx:if="\{\{!locked\}\}"/.test(w), 'full-content block gated by !locked')
     ok(w.indexOf('查看完整报告') < 0, 'G/H no 查看完整报告 button anywhere')

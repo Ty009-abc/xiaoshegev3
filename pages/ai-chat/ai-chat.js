@@ -1,13 +1,13 @@
 /**
- * pages/ai-chat - AI 对话页 v3.17（RC8_11_STAGE2D_DYNAMIC_FOLLOWUP_QUEUE）
+ * pages/ai-chat - AI 对话页 v3.18（RC8_12_FREE_LAUNCH）
  * - 回答后展示 3 条【同一决策线程】的追问（主：服务端 contextual）
  * - 无回答时用 100 题库的 3 条起始问题（fallback）
  * - 动态追问队列：已提问的追问永久移出本线程推荐；每次成功回答后补齐到 3 条；
  *   同一 intent 绝不重复推荐；随线程逐层加深（direction→constraint→validation→…）
  * - 追问归属（ownership）：每条追问集只属于「最新一条 AI 回答」，点击立即作废上一组
  * - 追问固定渲染在滚动内容内（答案下方），不悬浮、不覆盖答案
- * - 免费额度：今日免费还可问 X 次；3 次用完后弹会员付费墙
- * - 付费墙：月卡 vip_month_39_9 / 年卡 vip_year_299（无 ¥9.9/¥39.9/¥99 独立 CTA）
+ * - 免费额度：每日 3 次；用尽后【无付费墙】——展示「明天继续」，无任何购买 CTA。
+ *   RC8_12 FREE_ONLY：本版本不提供任何虚拟商品/会员新售（非审核检测、非远程开关）。
  */
 const app = getApp()
 const { pickQuestions } = require('../../data/aiChatSuggestions.js')
@@ -39,9 +39,10 @@ Page({
     remaining: null,       // null = 未知/会员无限
     limit: 3,
     quotaKnown: false,
-    // 付费墙
-    showPaywall: false,
-    paywall: null,
+    // 免费额度用尽（RC8_12 FREE_ONLY：无付费墙，引导明天继续）
+    quotaExhausted: false,
+    exhaustedTitle: '',
+    exhaustedBody: [],
   },
 
   onLoad() {
@@ -203,9 +204,8 @@ Page({
       const r = await wx.cloud.callFunction({ name: 'generateAiReport', data: payload })
       const code = r.result?.code
 
-      // ── 免费额度用完 → 会员付费墙（服务端 BLOCK，未调用模型）──
-      // 答案与追问都为空；付费墙不得与任何旧追问混排。剩余推荐可作为「next directions」
-      // 展示在付费墙内（由服务端 paywall.nextDirections 提供），点击进入会员转化。
+      // ── 免费额度用完 → 免费额度用尽态（RC8_12：无付费墙、无支付入口）──
+      // 答案与追问都为空；免费额度用尽态不得与任何旧追问混排。无任何购买 CTA。
       if (code === 10006 || (r.result?.data && r.result.data.quotaExhausted)) {
         this.setData(Object.assign({}, ownership.expireThread(), {
           messages: msgs,
@@ -213,8 +213,9 @@ Page({
           remaining: 0,
           isMember: false,
           quotaKnown: true,
-          showPaywall: true,
-          paywall: r.result?.data?.paywall || null,
+          quotaExhausted: true,
+          exhaustedTitle: '今天的3次免费深度问答已用完',
+          exhaustedBody: ['明天可继续获得3次免费深度问答', '你的历史对话和认知档案会继续保留'],
           scrollIntoView: userMsg.id,
         }))
         userTrack.event('qa_quota_exhausted')
@@ -270,14 +271,15 @@ Page({
     }
   },
 
-  // ── 会员付费墙 ──
-  onGoMember(e) {
-    const productId = (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.productid) || 'vip_month_39_9'
-    userTrack.event('qa_paywall_member_click', { productId })
-    wx.navigateTo({ url: '/pages/membership/membership?source=ai_quota&productId=' + encodeURIComponent(productId) })
+  // ── 免费额度用尽态（RC8_12）：关闭 / 返回首页；无任何购买入口 ──
+  onContinueTomorrow() {
+    userTrack.event('qa_quota_continue_tomorrow')
+    this.setData({ quotaExhausted: false })
   },
-  onClosePaywall() {
-    this.setData({ showPaywall: false })
+  onBackHome() {
+    userTrack.event('qa_quota_back_home')
+    this.setData({ quotaExhausted: false })
+    wx.switchTab({ url: '/pages/home/home', fail: () => wx.reLaunch({ url: '/pages/home/home' }) })
   },
 
   onShareAppMessage() {

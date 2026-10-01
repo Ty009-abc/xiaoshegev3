@@ -67,33 +67,19 @@
     <view class="send-btn {{inputValue ? 'active' : ''}}" bindtap="onSend"><text>↑</text></view>
   </view>
 
-  <!-- 会员付费墙（免费额度用完） -->
-  <view class="pw-mask" wx:if="{{showPaywall}}" catchtouchmove="true">
+  <!-- 免费额度用尽（RC8_12 FREE_ONLY）：无付费墙、无价格、无支付入口 -->
+  <view class="pw-mask" wx:if="{{quotaExhausted}}" catchtouchmove="true">
     <view class="pw-card anim-fade-in">
-      <text class="pw-title">{{paywall.title || '今天的3次免费深度问答已用完'}}</text>
+      <text class="pw-title">{{exhaustedTitle || '今天的3次免费深度问答已用完'}}</text>
 
-      <view class="pw-summary" wx:if="{{paywall.summary.length > 0}}">
-        <text class="pw-summary-label">根据你的情况</text>
-        <view class="pw-fact" wx:for="{{paywall.summary}}" wx:key="*this">
-          <text class="pw-dot">•</text><text>{{item}}</text>
+      <view class="pw-summary" wx:if="{{exhaustedBody.length > 0}}">
+        <view class="pw-fact" wx:for="{{exhaustedBody}}" wx:key="*this">
+          <text class="pw-dot">·</text><text>{{item}}</text>
         </view>
       </view>
 
-      <view class="pw-directions" wx:if="{{paywall.nextDirections.length > 0}}">
-        <text class="pw-summary-label">接下来你可以继续</text>
-        <view class="pw-fact" wx:for="{{paywall.nextDirections}}" wx:key="*this">
-          <text class="pw-dot">→</text><text>{{item}}</text>
-        </view>
-      </view>
-
-      <view class="pw-benefits">
-        <text class="pw-benefit" wx:for="{{paywall.benefits}}" wx:key="*this">✓ {{item}}</text>
-      </view>
-
-      <xsg-button type="primary" text="开通月卡 {{paywall.offer.monthly.display}}" data-productid="{{paywall.offer.monthly.productId}}" bind:tapbutton="onGoMember" />
-      <xsg-button type="ghost" text="开通年卡 {{paywall.offer.annual.display}}" data-productid="{{paywall.offer.annual.productId}}" bind:tapbutton="onGoMember" />
-
-      <button class="pw-skip" bindtap="onClosePaywall">我再想想</button>
+      <xsg-button type="primary" text="明天继续" bind:tapbutton="onContinueTomorrow" />
+      <button class="pw-skip" bindtap="onBackHome">返回首页</button>
     </view>
   </view>
 </view>

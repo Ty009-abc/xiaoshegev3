@@ -40,6 +40,21 @@ const MEMBERSHIP_PRODUCT_IDS = ['vip_month_39_9', 'vip_month_99', 'vip_year_299'
 const LEGACY_REPORT_PRODUCT = 'report_9_9'
 const LEGACY_CHALLENGE_PRODUCT = 'challenge_39_9'
 
+// ── RC8_12_STAGE_FREE_LAUNCH — 发售模式（服务端权威）────────────────────
+// FREE_ONLY：本版本真实关闭【全部】虚拟商品新销售（含会员/报告/挑战/月卡）。
+//   这是产品/发版策略 —— 绝不是审核账号检测、reviewer openid 识别、
+//   或审核后远程重新打开的开关。历史已购权益/回调/校验一律不受影响。
+// SALE_ENABLED：正常销售模式（非本版本）。
+const RELEASE_SALES_MODE_FREE_ONLY = 'FREE_ONLY'
+const RELEASE_SALES_MODE_SALE_ENABLED = 'SALE_ENABLED'
+// 单一权威来源：环境变量 RELEASE_SALES_MODE；未设置时默认 FREE_ONLY（失败闭合，绝不放行新售）。
+function currentSalesMode (env) {
+  const e = env || (typeof process !== 'undefined' ? process.env : {}) || {}
+  const v = e.RELEASE_SALES_MODE
+  return v === RELEASE_SALES_MODE_SALE_ENABLED ? RELEASE_SALES_MODE_SALE_ENABLED : RELEASE_SALES_MODE_FREE_ONLY
+}
+function isFreeOnly (env) { return currentSalesMode(env) === RELEASE_SALES_MODE_FREE_ONLY }
+
 // free 每日 AI 问答上限（本阶段仅定义，不接线）
 const FREE_AI_DAILY_LIMIT = 3
 
@@ -174,6 +189,27 @@ function isRetiredNewSale (productId) {
   return RETIRED_NEW_SALE_PRODUCTS.indexOf(productId) >= 0
 }
 
+/**
+ * 虚拟商品「新售」判定（RC8_12）。
+ * 本版本（FREE_ONLY）关闭全部虚拟商品新售：任何虚拟商品的新订单一律拒绝。
+ * 权威输入：服务端 RELEASE_SALES_MODE + 服务端商品文档（product.type/notNewSale）。
+ * 绝不接受客户端声明；绝不因审核身份/环境差异而改变。
+ * @returns {{isVirtual:boolean, blocked:boolean, reason:string}}
+ */
+const VIRTUAL_PRODUCT_TYPES = ['membership', 'subscription', 'one_time', 'single', 'consumable', 'bundle']
+function classifyVirtualNewSale (product, productId, env) {
+  const pid = productId || (product && product.productId) || ''
+  const type = (product && product.type) || ''
+  const isVirtual = VIRTUAL_PRODUCT_TYPES.indexOf(type) >= 0 || !!product
+  if (isFreeOnly(env)) {
+    return { isVirtual: isVirtual, blocked: true, reason: 'PRODUCT_INACTIVE_OR_SALES_DISABLED' }
+  }
+  if ((product && product.notNewSale === true) || isRetiredNewSale(pid)) {
+    return { isVirtual: isVirtual, blocked: true, reason: 'RETIRED_NEW_SALE' }
+  }
+  return { isVirtual: isVirtual, blocked: false, reason: '' }
+}
+
 module.exports = {
   MEMBERSHIP_RIGHTS,
   ANNUAL_EXCLUSIVES,
@@ -182,6 +218,12 @@ module.exports = {
   LEGACY_CHALLENGE_PRODUCT,
   RETIRED_NEW_SALE_PRODUCTS,
   FREE_AI_DAILY_LIMIT,
+  RELEASE_SALES_MODE_FREE_ONLY,
+  RELEASE_SALES_MODE_SALE_ENABLED,
+  VIRTUAL_PRODUCT_TYPES,
+  currentSalesMode,
+  isFreeOnly,
+  classifyVirtualNewSale,
   isActiveMembership,
   sourceActive,
   hasLegacySource,

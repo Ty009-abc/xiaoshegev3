@@ -171,8 +171,9 @@ const RA = require(COMMON)
 // ── §5 UI copy: keep 一次购买 · 永久解锁 ─────────────────────────────────────
 {
   const mw = fs.readFileSync(path.join(ROOT, 'pages', 'membership', 'membership.wxml'), 'utf8')
-  ok(/认知会员/.test(mw), 'UI advertises 认知会员 (RC8_11 membership)')
-  ok(/会员权益/.test(mw), 'UI shows membership rights')
+  ok(/认知会员/.test(mw), 'UI keeps 认知会员 naming (RC8_12, info-only)')
+  ok(/能力说明|相关功能持续开放中/.test(mw), 'UI shows capability info + coming-soon copy (no purchase)')
+  ok(!/微信支付|开通月卡|开通年卡|报告价|¥39\.9|¥299/.test(mw), 'UI no purchase CTA or price (RC8_12 FREE_ONLY)')
   ok(!/一次购买 · 永久解锁/.test(mw), 'UI no longer advertises the retired standalone permanent unlock')
 }
 

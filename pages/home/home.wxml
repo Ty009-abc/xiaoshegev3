@@ -75,7 +75,7 @@
           <text class="sg-num">🔥{{streak}}天</text>
           <text class="sg-label">连续</text>
         </view>
-        <view class="sg-item" bindtap="goMembership">
+        <view class="sg-item">
           <text class="sg-num">{{user.membershipLevel==='free'?'觉醒':'VIP'}}</text>
           <text class="sg-label">身份</text>
         </view>
@@ -149,29 +149,8 @@
         <text class="home-card-arrow">›</text>
       </view>
 
-      <!-- 9.9元解锁报告 → 浅金橙色底 -->
-      <view class="home-card value-card" bindtap="goReports" wx:if="{{showFreeValue}}">
-        <view class="home-card-icon">
-          <text class="home-card-emoji">🧬</text>
-        </view>
-        <view class="home-card-body">
-          <text class="home-card-title">世界模型报告 · 9.9元解锁完整版</text>
-          <text class="home-card-sub">九维评分 · 翻身概率 · 30天计划</text>
-        </view>
-        <text class="home-card-arrow">›</text>
-      </view>
-
       <!-- Growth Panel -->
       <growth-panel cv="{{user.cv||0}}" level="{{user.level||1}}" streak="{{streak}}" theme="light" />
-
-      <!-- 开通会员 -->
-      <view class="home-card member-card" bindtap="goMembership" wx:if="{{showFreeValue}}">
-        <view class="home-card-emoji" style="font-size:36rpx;flex-shrink:0;">⭐</view>
-        <view class="home-card-body">
-          <text class="home-card-title">开通会员 · 解锁全部认知系统 · 年卡299</text>
-        </view>
-        <text class="home-card-arrow">›</text>
-      </view>
     </view>
 
     <view class="version" bindtap="onTapVersion">v3.7 · 认知操作系统</view>

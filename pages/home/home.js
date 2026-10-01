@@ -87,7 +87,6 @@ Page({
 
   goChallenge()   { analytics.track('challenge_start'); wx.switchTab({ url:'/pages/challenge-start/challenge-start' }) },
   goWorldRules()  { cognitionEntry.openWorldRules() },
-  goMembership()  { analytics.track('membership_visit'); wx.navigateTo({ url:'/pages/membership/membership' }) },
   goProfile()     { wx.switchTab({ url:'/pages/profile/profile' }) },
   goReports()     { wx.navigateTo({ url:'/pages/report-preview/report-preview' }) },
   goInvite()      { wx.navigateTo({ url:'/pages/invite/invite' }) },

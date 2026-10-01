@@ -467,18 +467,17 @@ Page({
     this._requestChallengeReport()
   },
 
-  // RC8_11：报告解锁入口统一导向会员（会员含 report_member）。仅在服务端
-  // 确认报告已生成（ready）时可用；历史已购报告由服务端放行，本入口不会出现。
+  // RC8_12 FREE_ONLY：本版本不提供购买入口。报告解锁入口不再跳转会员/支付，
+  // 仅作中性提示（更多深度分析持续开放中）。历史已购报告由服务端放行，不受影响。
   onGenerate(){
     const reportId = this._cfReportId || (this.data.report && this.data.report.reportId)
     if (this.data.cfState !== 'ready'){
       wx.showToast({ title:'报告正在生成中，请稍候', icon:'none' })
       return
     }
-    analytics.track('report_unlock_click')
-    let url = '/pages/membership/membership?source=report&productId=vip_month_39_9'
-    if (reportId) url += '&recordId=' + encodeURIComponent(reportId)
-    wx.navigateTo({ url })
+    analytics.track('report_locked_ta_view')
+    wx.showToast({ title:'更多深度分析持续开放中', icon:'none', duration: 2000 })
+    if (this.data.locked) this.setData({ showUpgradeModal: true })
   },
 
   onUnlock(){ return this.onGenerate() },
@@ -502,7 +501,7 @@ Page({
     return false
   },
 
-  onUpgrade(){ analytics.track('membership_visit'); wx.navigateTo({ url:'/pages/membership/membership' }) },
+  onUpgrade(){ this.setData({ showUpgradeModal: false }) },
 
   // R9: 升级弹窗仅在未解锁态可用；「先看报告」只是关闭弹窗回到摘要（不再有二级跳转）。
   onCloseUpgrade(){ this.setData({ showUpgradeModal: false }) },

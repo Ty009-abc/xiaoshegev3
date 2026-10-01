@@ -20,7 +20,8 @@ const { checkDuplicateOrder, checkPrice, expirePendingOrders } = require('./lib/
 const { checkAlreadyEntitled } = require('./lib/entitlementGuard.js')
 const { safeWritePaymentLog } = require('./lib/paymentLog.js')
 // RC8_11_STAGE1 — 退休商品新售拒绝（退休 ≠ 删除：历史订单/权益/回调仍完整识别）
-const { isRetiredNewSale } = require('./lib/accessAuthority.js')
+// RC8_12 — 发售模式权威：FREE_ONLY 时【全部】虚拟商品新售关闭（产品策略，非审核检测）
+const { isRetiredNewSale, classifyVirtualNewSale, currentSalesMode } = require('./lib/accessAuthority.js')
 
 exports.main = async (event) => {
   // ═══ 部署/运行时签名自查（PAYMENT_STAGE4B）═══
@@ -80,11 +81,17 @@ exports.main = async (event) => {
       .limit(1).get()
     const product = prodRes.data[0]
     if (!product) return fail(CODES.NOT_FOUND, '商品不存在或已下架')
-    // RC8_11：退休商品（report_9_9 / challenge_39_9 / vip_month_99）拒绝【新】购买。
-    //   权威 = 服务端商品文档 notNewSale 标记（+ canonical list 兜底）；
-    //   绝不影响历史订单支付回调/校验/幂等（那些走 payCallback/verifyPayment）。
-    if (product.notNewSale === true || isRetiredNewSale(productId)) {
-      return fail(CODES.PRODUCT_INACTIVE, '该商品已停售，请选择会员方案', { retiredProduct: true })
+    // RC8_11 + RC8_12：虚拟商品新售拒绝。
+    //   RC8_12 FREE_ONLY（服务端 RELEASE_SALES_MODE 权威，默认 FREE_ONLY）→ 拒绝【全部】虚拟商品新订单；
+    //   RC8_11 退休商品（report_9_9 / challenge_39_9 / vip_month_99）→ 拒绝新售；
+    //   历史订单支付回调/校验/幂等（payCallback/verifyPayment）一律不受影响。
+    const saleDecision = classifyVirtualNewSale(product, productId, process.env)
+    if (saleDecision.blocked) {
+      console.warn(`[createOrder] new virtual sale blocked: productId=${productId} mode=${currentSalesMode(process.env)} reason=${saleDecision.reason}`)
+      return fail(CODES.PRODUCT_INACTIVE, '当前版本暂不提供该商品的购买', {
+        salesDisabled: true, reason: saleDecision.reason,
+        retiredProduct: isRetiredNewSale(productId) || product.notNewSale === true,
+      })
     }
     if (product.status === 'draft') {
       console.warn(`[createOrder] ⚠️ 草稿商品下单: ${productId}`)

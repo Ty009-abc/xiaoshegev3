@@ -206,18 +206,17 @@ function serverReply (list, extra) {
     eq(p.data.messages[p.data.messages.length - 1].content, '最后一次免费回答', 'G: answer visible when quota hits 0')
     eq(p.data.remaining, 0, 'G: remaining 0')
 
-    // 4th attempt → wall with next directions, no new free answer
-    const cc2 = async () => ({ result: { code: 10006, message: 'wall', data: {
+    // 4th attempt → free-exhaustion state, no new free answer, no paid surface
+    const cc2 = async () => ({ result: { code: 10006, message: '今天的3次免费深度问答已用完', data: {
       quotaExhausted: true, remaining: 0,
-      paywall: { title: 'x', summary: ['职业：厨师'], nextDirections: ['接下来该验证什么？', '第一个客户从哪来？', '怎么定价？'], offer: { monthly: { productId: 'vip_month_39_9', display: '¥39.9/月' }, annual: { productId: 'vip_year_299', display: '¥299/年' } }, benefits: ['y'] },
     } } })
     const p2 = loadChat(cc2)
     p2.onLoad()
     p2.setData({ inputValue: '再来一次' })
     await p2.onSend()
-    eq(p2.data.showPaywall, true, 'G: membership wall shown')
+    eq(p2.data.quotaExhausted, true, 'G: free-exhaustion state shown')
     eq(p2.data.remaining, 0, 'G: remaining 0')
-    ok(p2.data.paywall.nextDirections.length === 3, 'G: next directions visible on wall')
+    ok((p2.data.exhaustedBody || []).length >= 1, 'G: tomorrow-continue body present')
     const lastMsg = p2.data.messages[p2.data.messages.length - 1]
     ok(lastMsg.role === 'user', 'G: no free AI answer appended (free send blocked)')
   }

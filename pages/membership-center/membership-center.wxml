@@ -24,10 +24,10 @@
       <text class="xp-next">距 {{nextLevel || '下一级'}} 还需 {{xpToNext}} XP</text>
     </view>
 
-    <!-- 会员到期提示 -->
-    <view class="expiry-chip" wx:if="{{daysUntilExpiry <= 7 && daysUntilExpiry > 0}}" bindtap="goMembership">
+    <!-- RC8_12 FREE_ONLY：会员到期提示仅展示，无续费入口 -->
+    <view class="expiry-chip" wx:if="{{daysUntilExpiry <= 7 && daysUntilExpiry > 0}}">
       <text class="expiry-icon">⏳</text>
-      <text>会员还剩 {{daysUntilExpiry}} 天 — 续费保留成长记录</text>
+      <text>会员还剩 {{daysUntilExpiry}} 天</text>
     </view>
   </view>
 
@@ -105,14 +105,8 @@
         <text class="perk-exclusive" wx:if="{{item.exclusive}}">年卡独享</text>
       </view>
       <view class="perk-empty" wx:if="{{perks.length === 0}}">
-        <text>升级会员解锁更多权益</text>
+        <text>相关功能持续开放中</text>
       </view>
     </view>
-  </view>
-
-  <!-- 升级入口 -->
-  <view class="upgrade-bar" bindtap="goMembership">
-    <text class="upgrade-text">{{isExpiring ? '🔥 会员即将到期，立即续费' : '🚀 升级会员解锁全部权益'}}</text>
-    <text class="upgrade-arrow">→</text>
   </view>
 </view>

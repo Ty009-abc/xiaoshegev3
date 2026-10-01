@@ -84,94 +84,85 @@ function loadPage (file, globals, stubs) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 ;(async () => {
-  // ── membership page ──────────────────────────────────────────────────────
-  function loadMembership (productList, createOrderImpl) {
+  // ── membership page (RC8_12 FREE_ONLY) ──────────────────────────────────
+  function loadMembership (membershipImpl, createOrderImpl) {
+    const membershipService = {
+      getMembership: membershipImpl || (async () => ({ code: 0, data: { level: 'free' } })),
+    }
     const paymentService = {
-      getProductList: async () => productList,
+      getProductList: async () => { CALLS.push({ m: 'getProductList' }); return { code: 0, data: { products: [] } } },
       createOrder: createOrderImpl || (async (p, r) => { CALLS.push({ m: 'createOrder', p, r }); return { code: 0, data: { orderId: 'O1' } } }),
-      requestPayment: async () => ({ success: true }),
+      requestPayment: async () => { CALLS.push({ m: 'requestPayment' }); return { success: true } },
       verifyPayment: async () => ({ code: 0, data: { status: 'paid' } }),
     }
     return loadPage(MEMBERSHIP, {}, {
+      'services/membershipService.js': membershipService,
       'services/paymentService.js': paymentService,
       'utils/userTrack.js': { event: () => {} },
     })
   }
 
-  const SERVER_PRODUCTS = { code: 0, data: { products: [
-    { productId: 'vip_month_39_9', name: '认知会员月卡', price: 3990, originalPrice: 5990, type: 'membership', permission: 'vip', durationDays: 30 },
-    { productId: 'vip_year_299', name: '认知会员年卡', price: 29900, originalPrice: 49900, type: 'membership', permission: 'vip', durationDays: 365 },
-  ] } }
-
-  // M1: retired standalone report_9_9 request → mapped to membership offer
+  // M1: retired report_9_9 deep link → info-only; no product, no price, no order
   {
     CALLS = []
-    const m = loadMembership(SERVER_PRODUCTS)
+    const m = loadMembership()
     m.onLoad({ productId: 'report_9_9', recordId: 'ARCFabc123', source: 'report' })
     await new Promise((r) => setTimeout(r, 0))
-    eq(m.data.productId, 'vip_month_39_9', 'M1 retired report_9_9 → membership productId')
-    eq(m.data.plan, 'monthly', 'M1 defaults to monthly plan')
-    eq(m.data.product && m.data.product.productId, 'vip_month_39_9', 'M1 product = monthly membership')
-    eq(m.data.priceDisplay, '39.90', 'M1 price from server config (3990→39.90)')
+    eq(m.data.productId, undefined, 'M1 retired deep link → NO productId (no sale)')
+    eq(m.data.product, undefined, 'M1 no purchasable product loaded')
+    eq(m.data.priceDisplay, undefined, 'M1 no price displayed')
+    ok(!CALLS.some((c) => c.m === 'createOrder'), 'M1 no createOrder from deep link')
+    ok(!CALLS.some((c) => c.m === 'requestPayment'), 'M1 no requestPayment from deep link')
   }
 
-  // M2: retired request WITHOUT recordId → still membership, no block, no standalone order
+  // M2: deep link to vip_month_39_9 → still FREE_ONLY (no sale, no order)
   {
     CALLS = []
     let createCalled = false
-    const m = loadMembership(SERVER_PRODUCTS, async () => { createCalled = true; return { code: 0, data: {} } })
-    m.onLoad({ productId: 'report_9_9', source: 'report' })
+    const m = loadMembership(null, async () => { createCalled = true; return { code: 0, data: {} } })
+    m.onLoad({ productId: 'vip_month_39_9', source: 'report' })
     await new Promise((r) => setTimeout(r, 0))
-    eq(m.data.blockedNoRecord, undefined, 'M2 no block for retired request')
-    eq(m.data.product && m.data.product.productId, 'vip_month_39_9', 'M2 membership product loaded')
-    ok(!createCalled, 'M2 createOrder NOT called before onPay')
+    ok(!createCalled, 'M2 createOrder NOT called before any action')
+    ok(typeof m.onPay === 'undefined', 'M2 no onPay handler (purchase removed)')
+    ok(!CALLS.some((c) => c.m === 'createOrder'), 'M2 no order path on membership page')
   }
 
-  // M3: monthly subscription absent from server list → fail closed, no fabricated price
+  // M3: membership page exposes NO purchase API at all
   {
-    const m = loadMembership({ code: 0, data: { products: [
-      { productId: 'vip_year_299', name: '年卡', price: 29900, type: 'membership' },
-    ] } })
-    m.onLoad({ productId: 'report_9_9', recordId: 'ARCFxyz' })
-    await new Promise((r) => setTimeout(r, 0))
-    ok(!!m.data.loadError, 'M3 loadError set when monthly plan missing')
-    eq(m.data.product, null, 'M3 no product (no fabricated fallback)')
+    const m = loadMembership()
+    ok(typeof m.onPay === 'undefined', 'M3 no onPay')
+    ok(typeof m.onSelectPlan === 'undefined', 'M3 no plan selection')
+    ok(typeof m.loadProducts === 'undefined', 'M3 no product loading')
   }
 
-  // M4: onPay → createOrder('vip_month_39_9', relatedId)
+  // M4: legacy entitlement display only (read-only state, no sale)
   {
     CALLS = []
-    const m = loadMembership(SERVER_PRODUCTS)
-    m.onLoad({ productId: 'report_9_9', recordId: 'ARCF_report_id' })
+    const m = loadMembership(async () => ({ code: 0, data: { level: 'vip', active: true, sources: [{ productId: 'report_9_9', expiresAt: 0 }] } }))
+    m.onLoad({ source: 'profile' })
     await new Promise((r) => setTimeout(r, 0))
-    await m.onPay()
-    const co = CALLS.find((c) => c.m === 'createOrder')
-    ok(!!co, 'M4 createOrder called')
-    eq(co.p, 'vip_month_39_9', 'M4 productId = membership monthly')
+    eq(m.data.hasLegacy, true, 'M4 legacy entitlement reflected (read-only)')
+    ok(!CALLS.some((c) => c.m === 'createOrder'), 'M4 legacy display does not create orders')
   }
 
-  // M5: challenge_39_9 retired → membership offer as well
+  // M5: challenge_39_9 deep link → info-only (no sale)
   {
     CALLS = []
-    const m = loadMembership(SERVER_PRODUCTS)
+    const m = loadMembership()
     m.onLoad({ productId: 'challenge_39_9', recordId: 'REC1', source: 'challenge' })
     await new Promise((r) => setTimeout(r, 0))
-    eq(m.data.productId, 'vip_month_39_9', 'M5 retired challenge_39_9 → membership')
-    await m.onPay()
-    const co = CALLS.find((c) => c.m === 'createOrder')
-    eq(co.p, 'vip_month_39_9', 'M5 createOrder product membership')
+    eq(m.data.productId, undefined, 'M5 challenge deep link → NO sale')
+    ok(!CALLS.some((c) => c.m === 'createOrder'), 'M5 no createOrder')
   }
 
-  // M6: annual plan selection → annual product + price
+  // M6: annual deep link → still info-only
   {
     CALLS = []
-    const m = loadMembership(SERVER_PRODUCTS)
+    const m = loadMembership()
     m.onLoad({ productId: 'vip_year_299' })
     await new Promise((r) => setTimeout(r, 0))
-    eq(m.data.productId, 'vip_year_299', 'M6 annual productId')
-    eq(m.data.priceDisplay, '299.00', 'M6 annual price 299.00')
-    m.onSelectPlan({ currentTarget: { dataset: { plan: 'monthly' } } })
-    eq(m.data.productId, 'vip_month_39_9', 'M6 switch back to monthly')
+    eq(m.data.productId, undefined, 'M6 annual deep link → NO sale')
+    ok(!CALLS.some((c) => c.m === 'createOrder'), 'M6 no createOrder')
   }
 
   // ── report-preview page ──────────────────────────────────────────────────
@@ -210,14 +201,13 @@ function loadPage (file, globals, stubs) {
     eq(p.data.locked, true, 'P1 locked true (from server)')
     eq(p.data.cfReportId, 'ARCF_1', 'P1 server reportId stored')
     ok(p.data.cfSummaryText, 'P1 summary text present')
-    // 9.9 entry → membership?productId=report_9_9&recordId=<reportId>
+    // RC8_12: locked entry → neutral notice; NO membership redirect, NO purchase nav
     p.onGenerate()
     const nav = CALLS.find((c) => c.m === 'navigateTo')
-    ok(!!nav, 'P1 navigates on 9.9 entry')
-    ok(nav.url.indexOf('/pages/membership/membership') >= 0, 'P1 → membership page')
-    ok(nav.url.indexOf('productId=vip_month_39_9') >= 0, 'P1 → membership offer')
-    ok(nav.url.indexOf('recordId=' + encodeURIComponent('ARCF_1')) >= 0, 'P1 → recordId = server reportId')
-    ok(nav.url.indexOf('REC1') < 0, 'P1 never leaks challenge recordId as relatedId')
+    ok(!nav, 'P1 locked entry does NOT navigate to any purchase page')
+    const toast = CALLS.find((c) => c.m === 'showToast')
+    ok(!!toast, 'P1 locked entry shows a neutral notice')
+    ok(p.data.showUpgradeModal === true, 'P1 neutral info modal shown (no price/CTA)')
   }
 
   // P2: ready(unlocked) → locked=false; onGenerate not applicable (goFull path)

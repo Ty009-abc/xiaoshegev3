@@ -99,10 +99,9 @@
           <text class="lock-icon-text">🔒</text>
         </view>
         <text class="lock-title">免费体验已完成</text>
-        <text class="lock-desc">你已完成3道认知挑战\n解锁完整30天挑战，继续建立九维认知模型</text>
+        <text class="lock-desc">更多认知训练能力持续开放中</text>
 
-        <button class="btn-primary-action" bindtap="onUnlock" hover-class="btn-press">解锁完整挑战</button>
-        <button class="btn-secondary-action" bindtap="onGoHome" hover-class="btn-press">返回首页</button>
+        <button class="btn-primary-action" bindtap="onGoHome" hover-class="btn-press">返回首页</button>
       </view>
     </block>
 

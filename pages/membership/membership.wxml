@@ -1,71 +1,41 @@
-<!-- membership — 认知会员购买页（RC8_11 会员权威） -->
+<!-- membership — RC8_12 FREE_ONLY 审核冻结版（无价格 / 无购买 / 无支付） -->
 <view class="page">
-  <xsg-navbar title="开通认知会员" light />
+  <xsg-navbar title="认知会员" light />
 
-  <xsg-loading text="加载方案..." wx:if="{{loading}}" />
+  <!-- 权益/能力说明（非商品，无价格、无购买按钮） -->
+  <view class="hero">
+    <text class="hero-icon">🧠</text>
+    <text class="hero-title">认知会员</text>
+    <text class="hero-desc">认知系统持续开放中</text>
+  </view>
 
-  <block wx:elif="{{loadError}}">
-    <view class="error-card">
-      <text class="error-text">{{loadError}}</text>
-      <xsg-button type="primary" text="重试" bind:tapbutton="onRetry" />
+  <view class="perks-card">
+    <text class="perks-title">能力说明：</text>
+    <view class="perk-list">
+      <view class="perk"><text>🤖</text><text>AI问小事哥</text></view>
+      <view class="perk"><text>🎯</text><text>6个个性化场景</text></view>
+      <view class="perk"><text>🧬</text><text>长期记忆</text></view>
+      <view class="perk"><text>🏆</text><text>30天认知挑战</text></view>
+      <view class="perk"><text>📄</text><text>世界模型报告</text></view>
+      <view class="perk"><text>📚</text><text>历史报告与复盘</text></view>
     </view>
-  </block>
+    <text class="perks-note">相关功能持续开放中</text>
+  </view>
 
-  <block wx:else>
-    <!-- 头部 -->
-    <view class="hero">
-      <text class="hero-icon">🧠</text>
-      <text class="hero-title">认知会员</text>
-      <text class="hero-desc">解锁完整认知系统 · 持续进化的认知操作系统</text>
-    </view>
-
-    <!-- 权益说明 -->
+  <!-- 已有权益（只读展示；历史已购用户） -->
+  <block wx:if="{{hasLegacy}}">
     <view class="perks-card">
-      <text class="perks-title">会员权益：</text>
+      <text class="perks-title">你已拥有：</text>
       <view class="perk-list">
-        <view class="perk"><text>🤖</text><text>AI问小事哥</text></view>
-        <view class="perk"><text>🎯</text><text>6个个性化场景</text></view>
-        <view class="perk"><text>🧬</text><text>长期记忆</text></view>
-        <view class="perk"><text>🏆</text><text>30天认知挑战</text></view>
-        <view class="perk"><text>📄</text><text>完整世界模型报告</text></view>
-        <view class="perk"><text>📚</text><text>历史报告与复盘</text></view>
-      </view>
-      <text class="perks-note" wx:if="{{plan === 'annual'}}">年卡另含：硬核真相模式 · 进阶报告 · 优先模型</text>
-    </view>
-
-    <!-- 方案选择 -->
-    <view class="plans">
-      <view class="plan-card {{plan === 'monthly' ? 'active' : ''}}" data-plan="monthly" bindtap="onSelectPlan">
-        <view class="plan-badge" wx:if="{{monthly.hasOriginalPrice}}">限时优惠</view>
-        <text class="plan-name">{{monthly.name || '认知会员月卡'}}</text>
-        <view class="plan-price-row">
-          <text class="plan-price">¥{{monthly.priceDisplay || '39.90'}}</text>
-          <text class="plan-original" wx:if="{{monthly.hasOriginalPrice}}">¥{{monthly.originalPriceDisplay}}</text>
-        </view>
-        <text class="plan-unit">/ 月</text>
-      </view>
-
-      <view class="plan-card {{plan === 'annual' ? 'active' : ''}}" data-plan="annual" bindtap="onSelectPlan" wx:if="{{annual}}">
-        <view class="plan-badge year">超值年卡</view>
-        <text class="plan-name">{{annual.name || '认知会员年卡'}}</text>
-        <view class="plan-price-row">
-          <text class="plan-price">¥{{annual.priceDisplay || '299.00'}}</text>
-          <text class="plan-original" wx:if="{{annual.hasOriginalPrice}}">¥{{annual.originalPriceDisplay}}</text>
-        </view>
-        <text class="plan-unit" wx:if="{{annual.perMonth}}">约 ¥{{annual.perMonth}} / 月</text>
-        <text class="plan-unit" wx:else>/ 年</text>
+        <view class="perk"><text>✅</text><text>历史权益持续有效</text></view>
+        <view class="perk"><text>📄</text><text>历史报告与复盘可继续访问</text></view>
+        <view class="perk"><text>🏆</text><text>已有挑战权益继续有效</text></view>
       </view>
     </view>
-
-    <!-- 支付按钮 -->
-    <view class="pay-section">
-      <xsg-button type="primary" text="{{paying ? '正在唤起微信支付...' : '微信支付 ¥' + (priceDisplay || '')}}" loading="{{paying}}" disabled="{{paying || !product}}" bind:tapbutton="onPay" />
-
-      <button class="cancel-unlock-btn" bindtap="onCancelUnlock" disabled="{{paying}}" hover-class="cancel-press">暂不开通</button>
-
-      <text class="safe-hint">🔒 支付由微信安全保障</text>
-    </view>
-
-    <view style="height:80rpx;"></view>
   </block>
+
+  <!-- RC8_12：无任何购买入口 / 价格展示 -->
+  <view class="safe-hint">当前版本不提供任何购买功能</view>
+
+  <view style="height:80rpx;"></view>
 </view>

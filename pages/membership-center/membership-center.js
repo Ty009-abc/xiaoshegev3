@@ -104,10 +104,9 @@ Page({
     wx.navigateTo({ url: '/pages/report-preview/report-preview' })
   },
 
+  // RC8_12 FREE_ONLY：本版本不提供会员新售；保留方法作中性提示（无购买入口）。
   goMembership() {
-    analytics.track('membership_view')
-    userTrack.event('membership_view')
-    wx.navigateTo({ url: '/pages/membership/membership' })
+    wx.showToast({ title: '相关功能持续开放中', icon: 'none', duration: 2000 })
   },
 
   _getLevelName(level) {

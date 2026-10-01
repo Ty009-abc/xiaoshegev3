@@ -135,7 +135,6 @@ Page({
   goRules()       { wx.navigateTo({ url: '/pages/world-rules/world-rules?favorites=1' }) },
   goChallenges()  { wx.navigateTo({ url: '/pages/challenge-records/challenge-records' }) },
   goReports()     { wx.navigateTo({ url: '/pages/report-history/report-history' }) },
-  goMembership()  { wx.navigateTo({ url: '/pages/membership/membership' }) },
   goInvite()      { wx.navigateTo({ url: '/pages/invite/invite' }) },
   goRanking()     { wx.navigateTo({ url: '/pages/growth-ranking/growth-ranking' }) },
   goSettings()       { wx.showToast({ title: '设置页待上线', icon: 'none' }) },

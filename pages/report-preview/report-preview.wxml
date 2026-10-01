@@ -124,11 +124,11 @@
         <text class="rh-sub" wx:if="{{heroInterpretation}}">{{heroInterpretation}}</text>
       </view>
 
-      <!-- UNPAID：摘要 + 唯一解锁 CTA（会员权威） -->
+      <!-- UNPAID：摘要 + 免费体验说明（RC8_12 FREE_ONLY：无购买 CTA） -->
       <block wx:if="{{locked}}">
         <report-lock-card wx:if="{{locked}}" title="完整世界模型报告已生成"
           benefits="{{['九维能力深度评分','翻身概率预测','最大认知漏洞分析','未来3年风险预警','30天定制行动建议','小事哥的最终认知暴击']}}"
-          btnText="开通认知会员 · 解锁完整报告"
+          btnText="更多深度分析持续开放中"
           bind:unlock="onGenerate" />
       </block>
 
@@ -187,20 +187,18 @@
       <view class="safe-area-spacer" wx:if="{{!locked}}"></view>
     </block>
 
-    <!-- 升级弹窗仅在未解锁时出现 -->
+    <!-- 深度能力待开放提示（RC8_12 FREE_ONLY：无价格、无购买 CTA） -->
     <view class="upgrade-mask" wx:if="{{showUpgradeModal && locked}}">
       <view class="upgrade-modal anim-fade-in">
         <text class="um-icon">🧬</text>
-        <text class="um-title">你的完整世界模型已生成</text>
+        <text class="um-title">更多深度分析持续开放中</text>
         <view class="um-benefits">
-          <text class="umb">🧠 无限AI认知分析</text>
+          <text class="umb">🧠 AI 认知分析</text>
           <text class="umb">📄 历史认知报告库</text>
-          <text class="umb">🎯 30天挑战完整解锁</text>
-          <text class="umb">📜 世界规则库全权限</text>
+          <text class="umb">🎯 30天挑战体验</text>
+          <text class="umb">📜 世界规则库</text>
         </view>
-        <text class="um-price">¥39.9/月 · 认知会员</text>
-        <xsg-button type="primary" text="开通会员" bind:tapbutton="onUpgrade" />
-        <button class="um-skip" bindtap="onCloseUpgrade">先看报告 →</button>
+        <xsg-button type="primary" text="知道了" bind:tapbutton="onCloseUpgrade" />
       </view>
     </view>
 

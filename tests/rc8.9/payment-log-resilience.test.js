@@ -116,6 +116,9 @@ Module._load = function (request, parent, isMain) {
 }
 
 // load real handlers AFTER stubs are installed
+// RC8_12: this suite exercises the historical order/verify/callback pipeline, which
+// remains supported — set SALE_ENABLED so FREE_ONLY does not block order creation.
+process.env.RELEASE_SALES_MODE = 'SALE_ENABLED'
 const createOrder = require(path.join(CO, 'index.js'))
 const verifyPayment = require(path.join(VP, 'index.js'))
 const payCallback = require(path.join(PC, 'index.js'))

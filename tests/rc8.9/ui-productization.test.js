@@ -225,7 +225,8 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     // G — single membership unlock CTA copy present; retired ¥9.90 copy gone
     ok(w.indexOf('9.9元解锁完整报告') < 0, 'G old 9.9 CTA copy removed')
     ok(w.indexOf('解锁完整世界模型报告 ¥9.90') < 0, 'G retired ¥9.90 unlock CTA copy removed')
-    ok(w.indexOf('开通认知会员 · 解锁完整报告') >= 0, 'G single canonical membership unlock CTA copy present')
+    ok(w.indexOf('开通认知会员') < 0 && w.indexOf('开通会员') < 0, 'G no membership purchase CTA (RC8_12)')
+    ok(w.indexOf('更多深度分析持续开放中') >= 0, 'G neutral locked-state copy present')
 
     // H — exactly ONE unlock CTA (the lock card), no separate xsg-button CTA
     const lockCards = (w.match(/report-lock-card/g) || []).length
@@ -236,10 +237,9 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     ok(!/text="查看完整报告"/.test(w), 'E no 查看完整报告 button')
 
     // F — 开通会员 only lives inside the locked-gated upgrade modal
-    ok(/wx:if="\{\{showUpgradeModal && locked\}\}"/.test(w), 'F upgrade modal gated by (showUpgradeModal && locked)')
-    const upgradeIdx = w.indexOf('开通会员')
-    const gateIdx = w.indexOf('showUpgradeModal && locked')
-    ok(upgradeIdx > gateIdx && gateIdx >= 0, 'F 开通会员 appears only after the locked gate')
+    ok(/wx:if="\{\{showUpgradeModal && locked\}\}"/.test(w), 'F info modal gated by (showUpgradeModal && locked)')
+    ok(w.indexOf('开通会员') < 0, 'F no membership purchase CTA (RC8_12 FREE_ONLY)')
+    ok(w.indexOf('¥39.9') < 0 && w.indexOf('¥299') < 0, 'F no price copy')
   }
 
   // Runtime: paid → full content, no upgrade modal, no navigate
@@ -276,11 +276,11 @@ const UNPAID = { code: 0, data: { reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', repo
     const rw = fs.readFileSync(RESULT_WXML, 'utf8')
     ok(rw.indexOf('世界模型深度报告') >= 0, 'I challenge-result report entry = 世界模型报告 (golden)')
     const mjs = fs.readFileSync(MEMBERSHIP_JS, 'utf8')
-    ok(/vip_month_39_9/.test(mjs) && /vip_year_299/.test(mjs), 'I membership advertises the monthly/annual member SKUs')
-    ok(!/productId === 'report_9_9' \?/.test(mjs), 'I membership no longer prices a standalone report_9_9')
+    ok(!/vip_month_39_9/.test(mjs) && !/vip_year_299/.test(mjs), 'I membership page advertises NO purchasable SKU (RC8_12 FREE_ONLY)')
+    ok(!/priceDisplay/.test(mjs), 'I membership page has no price rendering')
     const hw = fs.readFileSync(HOME_WXML, 'utf8')
-    ok(hw.indexOf('世界模型报告') >= 0, 'I home entry references 世界模型报告')
-    ok(hw.indexOf('AI深度诊断') < 0, 'I home no longer advertises AI深度诊断 for the 9.9 entry')
+    ok(hw.indexOf('9.9元解锁完整版') < 0, 'I home no longer advertises the 9.9 report unlock')
+    ok(hw.indexOf('开通会员') < 0 && hw.indexOf('年卡299') < 0, 'I home no longer advertises membership sale (RC8_12)')
   }
 
   // ═════════════════════════════════════════════════════════════════════════

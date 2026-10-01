@@ -3,11 +3,14 @@
 /**
  * tests/rc8.11/stage2bc.test.js
  *
- * RC8_11_STAGE2B/2C — AI-chat follow-up UI + remaining counter + membership paywall.
+ * RC8_11_STAGE2B/2C (+ RC8_12 FREE_ONLY) — AI-chat follow-up UI + remaining
+ * counter + free-quota-exhausted state.
  *
  *  UI   : 3 contextual follow-ups after each answer; 3 starters only (no random 4);
- *         remaining counter; membership paywall (monthly/annual; NO retired CTAs).
- *  SERVER: paywall summary ≤ 3 facts; nextDirections = 3; offer = monthly/annual.
+ *         remaining counter; free-quota-exhausted state — NO paid wall, NO price,
+ *         NO purchase CTA (RC8_12 FREE_ONLY).
+ *  SERVER: paywall-summary builder still exists (grounded, ≤3 facts) but the
+ *         client no longer renders any paid surface.
  *  BANK : 100-question bank file retained as FALLBACK only.
  *
  * Node built-ins only. No network.
@@ -26,7 +29,7 @@ let pass = 0, fail = 0
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) } }
 const eq = (a, b, m) => ok(a === b, (m || 'eq') + ': ' + JSON.stringify(a) + ' !== ' + JSON.stringify(b))
 
-console.log('RC8_11_STAGE2B/2C ai-chat follow-ups + quota UI + paywall')
+console.log('RC8_11_STAGE2B/2C + RC8_12 FREE_ONLY ai-chat follow-ups + quota UI')
 
 // ── page harness ──
 let CALLS = []
@@ -67,9 +70,14 @@ function loadChat (cloudImpl) {
     ok(w.indexOf('接下来你可以继续问') >= 0, 'UI follow-up section present')
     ok(/wx:for="\{\{item\.followUps\}\}"/.test(w), 'UI renders answer-owned followUps')
     ok(w.indexOf('今日免费还可问') >= 0, 'UI remaining quota copy')
-    ok(/wx:if="\{\{showPaywall\}\}"/.test(w), 'UI paywall gated by showPaywall')
-    ok(w.indexOf('¥39.9/月') >= 0 || /monthly\.display/.test(w), 'UI monthly offer')
-    ok(/annual\.display/.test(w), 'UI annual offer')
+    ok(/wx:if="\{\{quotaExhausted\}\}"/.test(w), 'UI free-exhaustion state gated by quotaExhausted')
+    ok(w.indexOf('明天继续') >= 0, 'UI free-exhaustion primary action = 明天继续')
+    ok(w.indexOf('今天的3次免费深度问答已用完') >= 0, 'UI free-exhaustion title present')
+    // RC8_12 FREE_ONLY: absolutely no paid surface in the client
+    ok(w.indexOf('showPaywall') < 0, 'UI removed paywall flag')
+    ok(w.indexOf('开通月卡') < 0 && w.indexOf('开通年卡') < 0, 'UI no membership purchase CTA')
+    ok(w.indexOf('¥39.9') < 0 && w.indexOf('¥299') < 0, 'UI no price copy')
+    ok(!/paywall\.offer/.test(w), 'UI no pricing offer block')
     // retired CTAs forbidden
     ok(w.indexOf('¥9.9') < 0, 'UI no ¥9.9 CTA')
     ok(w.indexOf('¥39.9/次') < 0 && w.indexOf('解锁完整挑战') < 0, 'UI no standalone challenge CTA')
@@ -85,8 +93,10 @@ function loadChat (cloudImpl) {
     ok(/onSelectFollowUp/.test(j), 'JS follow-up tap handler')
     ok(/quota_status/.test(j), 'JS probes quota status')
     ok(/10006/.test(j) && /quotaExhausted/.test(j), 'JS handles QUOTA_EXHAUSTED')
-    ok(/pages\/membership\/membership\?source=ai_quota/.test(j), 'JS paywall routes to membership')
-    ok(j.indexOf('vip_month_39_9') >= 0 && j.indexOf('vip_year_299') >= 0, 'JS offers monthly/annual member SKUs')
+    ok(/onContinueTomorrow/.test(j), 'JS 明天继续 action present')
+    ok(j.indexOf('pages/membership/membership') < 0, 'JS no membership purchase route (RC8_12)')
+    ok(j.indexOf('vip_month_39_9') < 0 && j.indexOf('vip_year_299') < 0, 'JS no member SKUs (RC8_12)')
+    ok(j.indexOf('showPaywall') < 0, 'JS no paywall flag')
     ok(j.indexOf('report_9_9') < 0 && j.indexOf('challenge_39_9') < 0, 'JS offers no retired standalone SKU')
   }
 
@@ -116,26 +126,27 @@ function loadChat (cloudImpl) {
     ok(p.data.activeFollowUpParentId === p.data.messages[p.data.messages.length - 1].id, 'follow-up parent == latest assistant message')
     eq(p.data.remaining, 2, 'answer → remaining 2')
     eq(p.data.quotaKnown, true, 'quota known after answer')
-    eq(p.data.showPaywall, false, 'no paywall while remaining')
+    eq(p.data.quotaExhausted, false, 'no exhaustion state while remaining')
   }
 
-  // ── runtime: quota exhausted → paywall, no AI reply ──
+  // ── runtime: quota exhausted → free-exhaustion state, no AI reply, no paid wall ──
   {
     CALLS = []
     const p = loadChat(async () => ({ result: { code: 10006, message: '今天的3次免费深度问答已用完', data: {
       quotaExhausted: true, remaining: 0, needPay: true,
-      paywall: { title: '今天的3次免费深度问答已用完', summary: ['职业：程序员'], nextDirections: ['a', 'b', 'c'], offer: { monthly: { productId: 'vip_month_39_9', display: '¥39.9/月' }, annual: { productId: 'vip_year_299', display: '¥299/年' } }, benefits: ['x'] },
     } } }))
     p.onLoad()
     p.setData({ inputValue: '再来一个问题' })
     await p.onSend()
-    eq(p.data.showPaywall, true, 'paywall shown on quota exhausted')
+    eq(p.data.quotaExhausted, true, 'free-exhaustion state shown on quota exhausted')
     eq(p.data.remaining, 0, 'remaining 0')
+    ok(p.data.exhaustedBody.length >= 1, 'exhaustion body copy present')
+    ok(JSON.stringify(p.data.exhaustedBody).indexOf('明天可继续') >= 0 || p.data.exhaustedBody.join('').indexOf('明天') >= 0, 'exhaustion body mentions tomorrow')
     const assistantMsgs = p.data.messages.filter((m) => m.role === 'assistant')
     ok(assistantMsgs.every((m) => m.content !== '再来一个问题'), 'no echoed AI reply on block')
   }
 
-  // ── runtime: member → no reminder, no paywall ──
+  // ── runtime: member → no reminder, no exhaustion state ──
   {
     const p = loadChat(async () => ({ result: { code: 0, data: { content: 'ok', followUps: ['a', 'b', 'c'], quota: { isMember: true, unlimited: true } } } }))
     p.onLoad()
@@ -143,7 +154,7 @@ function loadChat (cloudImpl) {
     await p.onSend()
     eq(p.data.isMember, true, 'member flag set')
     eq(p.data.remaining, null, 'member remaining null (unlimited)')
-    eq(p.data.showPaywall, false, 'member no paywall')
+    eq(p.data.quotaExhausted, false, 'member no exhaustion state')
   }
 
   // ── server paywall summary ≤ 3 facts + grounded ──

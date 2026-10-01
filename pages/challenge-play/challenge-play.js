@@ -223,13 +223,10 @@ Page({
     this.nextEvent()
   },
   onUnlock() {
-    const recordId = this.data.recordId
-    // RC8_11：挑战解锁统一导向会员（会员含 challenge_member）。
-    wx.navigateTo({
-      url: '/pages/membership/membership?source=challenge&recordId='
-        + encodeURIComponent(recordId)
-        + '&productId=vip_month_39_9',
-    })
+    // RC8_12 FREE_ONLY：本版本不提供虚拟商品购买，挑战解锁入口已移除。
+    // 保留方法（兼容旧缓存引用），行为为中性提示 + 返回首页。
+    wx.showToast({ title: '更多认知训练能力持续开放中', icon: 'none', duration: 2000 })
+    this.onGoHome()
   },
   onGoHome() {
     wx.switchTab({

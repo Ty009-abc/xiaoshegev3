@@ -236,23 +236,22 @@ function countingCloud (resp) {
     const last = p.data.messages[p.data.messages.length - 1]
     eq(last.content, '第三次回答内容', 'H: third answer visible')
     ok(last.followUps.length === 3, 'H: third answer still shows follow-ups')
-    eq(p.data.showPaywall, false, 'H: no wall while answer delivered')
+    eq(p.data.quotaExhausted, false, 'H: no exhaustion while answer delivered')
   }
 
-  // ── I: quota exhausted → wall, no mixing with old follow-ups ──
+  // ── I: quota exhausted → free-exhaustion state, no mixing with old follow-ups ──
   {
     CALLS = []
     const p = loadChat(async () => ({ result: { code: 10006, message: '今天的3次免费深度问答已用完', data: {
       quotaExhausted: true, remaining: 0,
-      paywall: { title: 'x', summary: ['a'], nextDirections: ['b'], offer: { monthly: { productId: 'vip_month_39_9', display: '¥39.9/月' }, annual: { productId: 'vip_year_299', display: '¥299/年' } }, benefits: ['y'] },
     } } }))
     p.onLoad()
     p.setData({ inputValue: '再来' })
     await p.onSend()
-    eq(p.data.showPaywall, true, 'I: wall shown')
-    eq(p.data.activeFollowUps.length, 0, 'I: old follow-ups cleared on wall')
-    eq(p.data.followUpLoading, false, 'I: loading cleared on wall')
-    ok(!OWN.shouldRenderFollowUps(p.data), 'I: no follow-ups render with wall')
+    eq(p.data.quotaExhausted, true, 'I: free-exhaustion state shown')
+    eq(p.data.activeFollowUps.length, 0, 'I: old follow-ups cleared on exhaustion')
+    eq(p.data.followUpLoading, false, 'I: loading cleared on exhaustion')
+    ok(!OWN.shouldRenderFollowUps(p.data), 'I: no follow-ups render with exhaustion state')
   }
 
   console.log(`\nstage2d-followup-ui_TEST pass=${pass} fail=${fail}`)
