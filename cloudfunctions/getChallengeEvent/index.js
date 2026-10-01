@@ -14,7 +14,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
-const { resolvePersonalizedEvent } = require('./lib/context/challengePersonalizationRuntime.js')
+const { resolvePersonalizedEvent, CANONICAL_TOTAL } = require('./lib/context/challengePersonalizationRuntime.js')
 
 // RC8_10B observability — counts / reason codes / domain tags / latency ONLY.
 // NEVER logs full 6Q, full memory, full prompt, or plaintext openid.
@@ -62,27 +62,30 @@ exports.main = async (event, context) => {
       return ok({ finished: true, recordId, finalType: record.finalType || 'diagnostic_done', message: '诊断完成，请查看翻身策略报告' })
     }
 
-    // trialMode 限制（非诊断模式）
-    if (!isDiagnostic && record.trialMode && record.currentEventIndex >= 3) {
-      return ok({
-        recordId,
-        locked: true,
-        trialMode: true,
-        needPayment: true,
-        currentEventIndex: record.currentEventIndex,
-        message: '免费体验已结束，付费后解锁完整30天挑战',
-      })
+    // ── RC8_12 FREE_ONLY: free-3 trial paywall REMOVED ──────────────────
+    // Trial records are simply records with fewer answered events; they advance
+    // to the canonical completion like any other. No locked/needPayment is ever
+    // returned. (No membership CTA, no price; legacy entitled records unaffected.)
+    const answeredCount = (record.choices || []).length || record.currentEventIndex || 0
+
+    // Canonical completion = exactly CANONICAL_TOTAL answered events (one authority).
+    if (!isDiagnostic && answeredCount >= CANONICAL_TOTAL) {
+      await db.collection('challenge_records').doc(record._id).update({
+        data: { status: 'finished', finishedAt: record.finishedAt || Date.now(), updatedAt: Date.now() }
+      }).catch(() => {})
+      return ok({ finished: true, recordId, finalType: record.finalType, message: '挑战已完成，请查看结果' })
     }
 
-    // ── RC8_10B: personalized selection (occupation/capital/cognition aware) ──
-    // Primary path resolves the event from the user's REAL situation; on any
-    // failure we fall back to the legacy day-ordered bank (behavior preserved).
+    // ── RC8_10B: personalized selection (SINGLE authority, no repeats) ──
+    // Primary path resolves the event from the user's REAL situation AND excludes
+    // every already-answered event; on any failure we fall back to the legacy
+    // day-ordered bank, which ALSO excludes seen events (never recycles).
     let ce = null
-    let total = 0
+    let total = isDiagnostic ? diagLimit : CANONICAL_TOTAL
     const pr = await resolvePersonalizedEvent({ db, openid, record })
-    if (!pr.fallback && pr.event) {
+    if (!pr.fallback && !pr.exhausted && pr.event) {
       ce = pr.event
-      total = (pr.metrics && pr.metrics.total) || 0
+      total = isDiagnostic ? diagLimit : CANONICAL_TOTAL
       const filtered = (pr.filteredOut || [])
       if (filtered.length) {
         _logPersonalization('challenge_event_filtered', {
@@ -92,30 +95,45 @@ exports.main = async (event, context) => {
         })
       }
       _logPersonalization('challenge_personalization_success', {
-        position: record.currentEventIndex + 1,
+        position: answeredCount + 1,
         total: total,
         domains: (pr.metrics && pr.metrics.domains) || [],
         filteredOutCount: filtered.length,
         personalizedRatio: pr.metrics && pr.metrics.personalizedRatio,
         latencyMs: pr.latencyMs,
       })
+    } else if (!pr.fallback && pr.exhausted) {
+      // Plan / bank genuinely exhausted (no UNSEEN event remains) → finish, never recycle.
+      _logPersonalization('challenge_plan_exhausted', {
+        position: answeredCount + 1,
+        seenEventRejected: pr.seenEventRejected || null,
+        latencyMs: pr.latencyMs,
+      })
+      await db.collection('challenge_records').doc(record._id).update({
+        data: { status: 'finished', finishedAt: record.finishedAt || Date.now(), updatedAt: Date.now() }
+      }).catch(() => {})
+      return ok({ finished: true, recordId, finalType: record.finalType, message: '挑战已完成，请查看结果' })
     } else {
       _logPersonalization('challenge_personalization_fallback', {
         reasonCode: pr.reasonCode || 'UNKNOWN',
-        position: record.currentEventIndex + 1,
+        position: answeredCount + 1,
         latencyMs: pr.latencyMs,
       })
-      const eventsRes = await db.collection('challenge_events')
+      // Legacy day-ordered bank — STILL exclude seen events + canonical total (hard no-repeat).
+      const seen = new Set((record.choices || []).map(c => c.eventId))
+      const bankRes = await db.collection('challenge_events')
         .where({ status: 'active' })
         .orderBy('day', 'asc')
-        .skip(record.currentEventIndex)
-        .limit(1)
+        .limit(100)
         .get()
-      ce = eventsRes.data[0]
-      const totalEventsRes = await db.collection('challenge_events')
-        .where({ status: 'active' })
-        .count()
-      total = totalEventsRes.total
+      ce = (bankRes.data || []).find(e => !seen.has(e.eventId)) || null
+      total = isDiagnostic ? diagLimit : CANONICAL_TOTAL
+      if (!ce) {
+        await db.collection('challenge_records').doc(record._id).update({
+          data: { status: 'finished', finishedAt: record.finishedAt || Date.now(), updatedAt: Date.now() }
+        }).catch(() => {})
+        return ok({ finished: true, recordId, finalType: record.finalType, message: '挑战已完成，请查看结果' })
+      }
     }
 
     if (!ce) return fail(CODES.NOT_FOUND, '题目已用完，恭喜完成挑战！')
@@ -136,12 +154,11 @@ exports.main = async (event, context) => {
       choices,
       difficulty: ce.difficulty,
       progress: {
-        current: record.currentEventIndex + 1,
+        current: answeredCount + 1,
         total: total,
         day: ce.day,
       },
       trialMode: record.trialMode || false,
-      ...(record.trialMode ? { trialRemaining: Math.max(0, 3 - record.currentEventIndex) } : {}),
     })
   } catch (err) {
     console.error('[getChallengeEvent] 异常:', err)

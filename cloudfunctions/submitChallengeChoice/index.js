@@ -93,12 +93,12 @@ exports.main = async (event, context) => {
       },
     ]
 
-    // 7. 计算进度
+    // 7. 计算进度 — RC8_12: ONE canonical authority (30), not the raw bank count.
     const newIndex = record.currentEventIndex + 1
     const isDiagnostic = record.mode === 'diagnostic'
     const diagLimit = 6
-    const totalRes = await db.collection('challenge_events').where({ status: 'active' }).count()
-    const totalEvents = totalRes.total
+    const CANONICAL_TOTAL = 30 // RC8_12 — single 30-question challenge authority
+    const totalEvents = isDiagnostic ? diagLimit : CANONICAL_TOTAL
     const isLast = isDiagnostic ? newIndex >= diagLimit : newIndex >= totalEvents
 
     // 8. 更新 record — 兼容旧字段

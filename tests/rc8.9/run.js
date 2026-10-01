@@ -37,6 +37,7 @@ const ALL = [
   'challenge-resume-authority.test.js',
   'challenge-entry-authority.test.js',
   'challenge-start-routing.test.js',
+  'challenge-30-integrity.test.js',
   'world-model-labels.test.js',
   'challenge-worldmodel-e2e.test.js',
   'report-unlock-authority.test.js',

@@ -173,13 +173,16 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
 
   const filteredOut = []
   const kept = []
+  // RC8_12 — single 30-question authority + no-repeat guard inputs.
+  const demoted = []                 // contraindicated-but-unseen (pad-eligible)
+  const excludeSeen = o.excludeSeen === true
+  const seenIds = new Set()
+  if (excludeSeen) for (const ch of (priorChoices || [])) { if (ch && ch.eventId) seenIds.add(ch.eventId) }
+  const padToTotal = (typeof o.padToTotal === 'number' && o.padToTotal > 0) ? o.padToTotal : 0
+  let excludedSeenCount = 0
+  let paddedCount = 0
   for (const raw of list) {
     const ev = catalog.decorateEvent(raw)
-    // STEP_1 filter contraindicated events
-    if (occupation && ev.contraindications.includes(occupation)) {
-      filteredOut.push({ eventId: ev.eventId, reasonCode: 'CONTRAINDICATED_OCCUPATION', domains: ev.domains })
-      continue
-    }
     // score
     let score = 10
     const adjacent = ev.occupationAffinity.includes(occupation)
@@ -208,6 +211,20 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
     // = the abstract cognition-principle events. Occupation relevance is already
     // enforced by the contraindication gate + the capital/theme scoring above.
     ev._personal = ev.domains.some((d) => d !== 'universal')
+    // STEP_1a (RC8_12) hard-exclude previously ANSWERED events — never recycle.
+    if (excludeSeen && seenIds.has(ev.eventId)) {
+      filteredOut.push({ eventId: ev.eventId, reasonCode: 'SEEN_EVENT', domains: ev.domains })
+      excludedSeenCount++
+      continue
+    }
+    // STEP_1b filter contraindicated events. When padding is requested, keep an
+    // UNSEEN contraindicated event aside (demoted to the tail) so the canonical
+    // challenge length is preserved instead of silently shrinking the plan.
+    if (occupation && ev.contraindications.includes(occupation)) {
+      filteredOut.push({ eventId: ev.eventId, reasonCode: 'CONTRAINDICATED_OCCUPATION', domains: ev.domains })
+      if (padToTotal && !seenIds.has(ev.eventId)) demoted.push(ev)
+      continue
+    }
     kept.push(ev)
   }
 
@@ -268,6 +285,18 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
     }
   }
 
+  // ── RC8_12: pad to the canonical challenge length with DEMOTED (contraindicated
+  // but never-seen) events. Guarantees ONE coherent N-question authority: the plan
+  // always carries exactly `padToTotal` unique events (no repeats, no phantom tail).
+  if (padToTotal && plan.length < padToTotal) {
+    demoted.sort((a, b) => (b._score - a._score) || (a.day - b.day))
+    for (const ev of demoted) {
+      if (plan.length >= padToTotal) break
+      if (plan.some((p) => p.eventId === ev.eventId)) continue
+      plan.push(ev); paddedCount++
+    }
+  }
+
   const capitalHeavyCount = plan.filter(capHeavy).length
   const capHeavyRatio = total ? capitalHeavyCount / total : 0
   const metrics = {
@@ -278,6 +307,9 @@ function buildPersonalizedPlan (events, ctx, priorChoices, opts) {
     capitalHeavyCount,
     capitalHeavyRatio: +capHeavyRatio.toFixed(3),
     filteredOutCount: filteredOut.length,
+    excludedSeenCount,
+    paddedCount,
+    canonicalLength: padToTotal || plan.length,
     adaptPhase,
     reevaluation: adaptPhase >= 1 ? { applied: true, weakDimensions: weakDims, matchedTags: Array.from(signals.tags) } : { applied: false },
     domains: userDomains,
