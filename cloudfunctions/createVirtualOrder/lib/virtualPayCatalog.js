@@ -42,6 +42,15 @@ function getCatalog (productId) {
   return e ? Object.assign({}, e) : null
 }
 
+// 反向查找：virtualProductId（MP 道具ID）→ 本地商品；用于发货推送/查单的商品校验。
+function findByVirtualProductId (virtualProductId) {
+  const vid = String(virtualProductId)
+  for (const k of Object.keys(CATALOG)) {
+    if (String(CATALOG[k].virtualProductId) === vid) return Object.assign({}, CATALOG[k])
+  }
+  return null
+}
+
 // 发售模式（服务端权威，失败闭合）：VIRTUAL_PAY_SALES_MODE==='ENABLED' 才允许新售。
 function salesMode (env) {
   const e = env || (typeof process !== 'undefined' ? process.env : {}) || {}
@@ -72,6 +81,7 @@ function resolveVirtualPayConfig (env) {
 module.exports = {
   CATALOG,
   getCatalog,
+  findByVirtualProductId,
   salesMode,
   isVirtualSaleEnabled,
   resolveEnvFlag,
