@@ -172,6 +172,30 @@
       "installDependency": false
     },
     {
+      "name": "createVirtualOrder",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {}
+    },
+    {
+      "name": "virtualPayCallback",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {}
+    },
+    {
+      "name": "verifyVirtualPayment",
+      "runtime": "Nodejs18.15",
+      "timeout": 15,
+      "handler": "index.main",
+      "installDependency": false,
+      "envVariables": {}
+    },
+    {
       "name": "payCallback",
       "runtime": "Nodejs18.15",
       "timeout": 15,
