@@ -8,7 +8,7 @@ const { spawnSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 
-const ALL = ['virtual-payment.test.js']
+const ALL = ['virtual-payment.test.js', 'client-wiring.test.js']
 const dir = __dirname
 const results = []
 for (const t of ALL.filter((t) => fs.existsSync(path.join(dir, t)))) {

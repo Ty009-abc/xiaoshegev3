@@ -1,10 +1,11 @@
 /**
  * pages/membership/membership.js — 认知会员购买页（RC8_11 会员权威）
  *
- * 新主售：认知会员月卡 ¥39.9 / 年卡 ¥299。
+ * 新主售：认知会员月卡 ¥39.9 / 年卡 ¥299（微信虚拟支付 short_series_goods）。
  * 退役商品（report_9_9 / challenge_39_9 / vip_month_99）不再新售 ——
  *   历史用户权益由服务端权威保留（本页不参与其放行判定，客户端绝不覆盖）。
- * 价格/权益一律以服务端商品配置为准，客户端不编造价格。
+ * 价格/权益一律以服务端商品配置为准，客户端不编造价格；
+ * 虚拟支付通道失败闭合 —— 绝不回退普通 wx.requestPayment。
  */
 const paymentService = require('../../services/paymentService.js')
 const userTrack = require('../../utils/userTrack.js')
@@ -103,61 +104,81 @@ Page({
   async onPay() {
     const product = this.data.product
     if (!product || this.data.paying) return
-    this.setData({ paying: true })
+    return this._payVirtual(product)
+  },
 
+  // ── 微信虚拟支付（RC8_13 会员新售唯一通道）──
+  //   仅上送本地 productId + jsCode；价格/offerId/virtualProductId/openid 由服务端权威。
+  //   客户端 success 仅进入「确认中」；权益一律以服务端 verifyVirtualPayment 为准。
+  //   绝不回退普通 wx.requestPayment；不本地发放权益。
+  async _payVirtual(product) {
+    this.setData({ paying: true })
+    userTrack.event('payment_create', { productId: product.productId })
     try {
-      // relatedId 仅作上下文记录（会员不绑定单条报告/挑战实体）。
-      const relatedId = this.data.recordId || ''
-      const r = await paymentService.createOrder(product.productId, relatedId)
+      const login = await new Promise((resolve, reject) => {
+        wx.login({ success: resolve, fail: reject })
+      })
+      if (!login || !login.code) throw new Error('wx.login 未返回 code')
+
+      const r = await paymentService.createVirtualOrder(product.productId, login.code)
 
       if (r && r.code === 10020 && r.data && r.data.entitled) {
         // 服务端已拥有权益（防重复扣款）— 友好提示并返回，不再次扣款。
-        console.log('[Membership] already entitled, skip payment', { source: r.data.source })
+        console.log('[Membership] already entitled, skip virtual payment', { source: r.data.source })
         wx.showToast({ title: r.message || '已开通，无需重复购买', icon: 'none', duration: 2000 })
-        this.setData({ paying: false })
         this._navTimer = setTimeout(() => { wx.navigateBack() }, 1500)
         return
       }
 
-      if (!r || r.code !== 0) {
-        throw new Error((r && r.message) || '创建订单失败')
+      if (!r || r.code !== 0 || !r.data) {
+        // 失败闭合：不编造价格、不回落普通支付
+        console.warn('[Membership] createVirtualOrder rejected', { code: r && r.code, reason: r && r.data && r.data.reason })
+        wx.showToast({ title: (r && r.message) || '当前暂无法购买', icon: 'none' })
+        userTrack.event('payment_fail', { reason: 'create_virtual_order' })
+        return
       }
 
       const order = r.data
-      console.log('[Membership] order created', { orderId: order.orderId })
-      userTrack.event('payment_create', { productId: product.productId })
+      userTrack.event('virtual_pay_invoke', { productId: product.productId, outTradeNo: order.outTradeNo })
 
-      if (order.paymentParams && !order.paymentParams._mock) {
-        const paymentResult = await paymentService.requestPayment(order.paymentParams)
-        if (!paymentResult.success) {
-          wx.showToast({ title: '支付已取消', icon: 'none' })
-          userTrack.event('payment_fail', { reason: 'cancel' })
-          return
-        }
-      } else if (order.paymentParams && order.paymentParams._mock) {
-        console.log('[Membership] mock payment')
-        wx.showToast({ title: '测试支付完成', icon: 'success' })
+      // signData 原样透传（服务端已序列化一次；客户端不得再序列化）
+      const pay = await paymentService.requestVirtualPayment(order)
+      if (!pay.success) {
+        const cancelled = pay.errCode === -2 // 用户取消
+        wx.showToast({ title: cancelled ? '支付已取消' : '支付未完成，请重试', icon: 'none' })
+        userTrack.event('payment_fail', { reason: 'virtual_pay', errCode: pay.errCode })
+        return
       }
 
-      const verifyRes = await paymentService.verifyPayment(order.orderId)
-      console.log('[Membership] verifyPay', verifyRes)
+      // 客户端 success ≠ 权益权威 → 仅进入「确认中」，轮询服务端权威
+      wx.showToast({ title: '支付确认中…', icon: 'none' })
+      const verifyRes = await this._pollVirtual(order.outTradeNo)
 
-      if (verifyRes.code === 0 && verifyRes.data && verifyRes.data.status === 'paid') {
+      if (verifyRes && verifyRes.code === 0 && verifyRes.data && verifyRes.data.status === 'paid') {
         wx.showToast({ title: '会员已开通！', icon: 'success' })
-        userTrack.event('payment_success', { productId: product.productId })
+        userTrack.event('payment_success', { productId: product.productId, outTradeNo: order.outTradeNo })
         this._navTimer = setTimeout(() => { wx.navigateBack() }, 800)
-      } else if (verifyRes.code === 0 && verifyRes.data && verifyRes.data.status === 'pending') {
-        wx.showToast({ title: '支付确认中，请稍后查看', icon: 'none' })
       } else {
-        wx.showToast({ title: '支付确认中，请稍后重试', icon: 'none' })
+        wx.showToast({ title: '支付确认中，请稍后查看', icon: 'none' })
       }
     } catch (err) {
-      console.error('[Membership] pay fail', err)
+      console.error('[Membership] virtual pay fail', err)
       userTrack.event('payment_fail', { reason: 'error' })
       wx.showToast({ title: '支付未完成，请重试', icon: 'none' })
     } finally {
       this.setData({ paying: false })
     }
+  },
+
+  // 服务端权威确认轮询（回调/查单最终一致；不在本地发放权益）
+  async _pollVirtual(orderId, attempts = 4) {
+    let last = null
+    for (let i = 0; i < attempts; i++) {
+      last = await paymentService.verifyVirtualPayment(orderId)
+      if (last && last.code === 0 && last.data && last.data.status === 'paid') return last
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+    }
+    return last
   },
 
   onRetry() {

@@ -66,6 +66,58 @@ function verifyPayment(orderId) {
   return call('verifyPayment', { orderId })
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 微信虚拟支付（short_series_goods）— RC8_13 会员新售唯一通道
+//   仅用于 vip_month_39_9 / vip_year_299。
+//   铁律：客户端只传本地 productId + jsCode；
+//         价格 / offerId / virtualProductId / openid 一律由服务端权威决定；
+//         绝不回退普通 wx.requestPayment。
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 虚拟支付下单（服务端签名）
+ * @param {string} productId 本地商品ID（仅此 + jsCode）
+ * @param {string} jsCode    wx.login 得到的 code（服务端换 session_key）
+ */
+function createVirtualOrder(productId, jsCode) {
+  return call('createVirtualOrder', { productId, jsCode })
+}
+
+/**
+ * 调起虚拟支付（wx.requestVirtualPayment）
+ * signData 必须为服务端返回的「原串」，原样透传：
+ *   严禁 JSON.parse(signData) / JSON.stringify(signData)（字节不一致 → 签名校验失败）。
+ */
+function requestVirtualPayment(payload) {
+  const mode = payload && payload.mode
+  const signData = payload && payload.signData
+  const paySig = payload && payload.paySig
+  const signature = payload && payload.signature
+  if (!signData || !paySig || !signature) {
+    return Promise.reject(new Error('缺少虚拟支付签名参数'))
+  }
+  return new Promise((resolve) => {
+    wx.requestVirtualPayment({
+      mode,          // 'short_series_goods'
+      signData,      // 原串（服务器序列化一次，客户端不得再序列化）
+      paySig,
+      signature,
+      success: (res) => resolve({ success: true, providerResult: res }),
+      fail: (err) => {
+        // -2 用户取消 / -1 失败 / -4 风控；一律不本地发放权益
+        resolve({ success: false, errCode: err && err.errCode, errMsg: err && err.errMsg })
+      },
+    })
+  })
+}
+
+/**
+ * 虚拟支付查单确认（服务端权威；回调/查单共用同一 exactly-once finalizer）
+ */
+function verifyVirtualPayment(orderId) {
+  return call('verifyVirtualPayment', { orderId })
+}
+
 /**
  * 恢复未支付订单 — 用户支付中退出小程序后重新打开
  */
@@ -191,6 +243,9 @@ module.exports = {
   createOrder,
   requestPayment,
   verifyPayment,
+  createVirtualOrder,
+  requestVirtualPayment,
+  verifyVirtualPayment,
   restorePendingOrder,
   getPendingOrders,
   savePendingOrderLocally,
