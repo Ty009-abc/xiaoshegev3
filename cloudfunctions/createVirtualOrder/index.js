@@ -20,6 +20,11 @@ const { ok, fail, CODES } = require('./lib/response.js')
 const { getCatalog, resolveVirtualPayConfig } = require('./lib/virtualPayCatalog.js')
 
 exports.main = async (event) => {
+  // ── 配置自检（值永不外泄，仅布尔；无需登录态，便于 owner/运维核对）──
+  if (event && event.__selfcheck === true) {
+    return ok({ virtualPay: resolveVirtualPayConfig(process.env), service: 'createVirtualOrder', stage: 'bootstrap' })
+  }
+
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
   if (!openid) return fail(CODES.AUTH_FAILED, '未认证用户')
@@ -28,11 +33,6 @@ exports.main = async (event) => {
   if (!productId) return fail(CODES.PARAM_ERROR, '缺少 productId')
 
   const cfg = resolveVirtualPayConfig(process.env)
-
-  // ── 配置自检（值永不外泄，仅布尔）──
-  if (event && event.__selfcheck === true) {
-    return ok({ virtualPay: cfg, service: 'createVirtualOrder', stage: 'bootstrap' })
-  }
 
   const product = getCatalog(productId)
   if (!product) return fail(CODES.NOT_FOUND, '商品不存在或未开通虚拟支付')

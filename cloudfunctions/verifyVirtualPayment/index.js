@@ -16,15 +16,16 @@ const { ok, fail, CODES } = require('./lib/response.js')
 const { resolveVirtualPayConfig } = require('./lib/virtualPayCatalog.js')
 
 exports.main = async (event) => {
+  // ── 配置自检（仅布尔；无需登录态）──
+  if (event && event.__selfcheck === true) {
+    return ok({ virtualPay: resolveVirtualPayConfig(process.env), service: 'verifyVirtualPayment', stage: 'bootstrap' })
+  }
+
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
   if (!openid) return fail(CODES.AUTH_FAILED, '未认证用户')
 
   const cfg = resolveVirtualPayConfig(process.env)
-
-  if (event && event.__selfcheck === true) {
-    return ok({ virtualPay: cfg, service: 'verifyVirtualPayment', stage: 'bootstrap' })
-  }
 
   const { orderId } = event || {}
   if (!orderId) return fail(CODES.PARAM_ERROR, '缺少 orderId')
