@@ -97,16 +97,17 @@ const HANDOFF = { requestId: 'r6q_X1', answers: { age: 30, job: '厨师', income
   const thinkSrc = fs.readFileSync(path.join(ROOT, 'pages/legacy6q-thinking/legacy6q-thinking.js'), 'utf8')
   ok(/reportHistory\.record\(this\._report, this\._handoff\)/.test(thinkSrc), 'thinking persists on success transition')
 
-  // D4b: profile count source = history, not ai_reports
-  // RC8.9_P0_PROFILE_AUTHORITY — profile is now SERVER-authoritative:
-  //   reportCount = ai_reports{openid} (server) with local 6Q history as a
-  //   secondary compatibility source that can NEVER override a non-zero server
-  //   count. The legacy "local-only, never ai_reports" D4 policy is superseded
-  //   (it made a paid world-model report user show 0).
+  // D4b: profile count source = server-authoritative stats cloud function
+  // RC8.9_P0_PROFILE_AUTHORITY + RC8_13_P0_PROFILE_HISTORY_AUTHORITY_FIX —
+  //   profile now consumes getProfileStats (identity resolved server-side from
+  //   getWXContext().OPENID). The client direct-DB count query was removed: it
+  //   read rows written by cloud functions (no _openid) under a creator-only rule
+  //   → always 0. Local 6Q history is a secondary rendering source only and can
+  //   no longer override the server count.
   const prof = fs.readFileSync(path.join(ROOT, 'pages/profile/profile.js'), 'utf8')
-  ok(/reportHistory\.count\(\)/.test(prof), 'profile keeps reportHistory.count() as secondary compatibility source')
-  ok(/ai_reports'\)\.where\(\{ openid(: openid)? \}\)\.count\(\)/.test(prof), 'profile reportCount (primary) counts ai_reports')
-  ok(/serverReportCount > 0 \? serverReportCount : localCount/.test(prof), 'local 6Q history cannot override non-zero server count')
+  ok(/name:\s*'getProfileStats'/.test(prof), 'profile reportCount (primary) comes from getProfileStats (server)')
+  ok(!/ai_reports'\)\.where\(\{ openid(: openid)? \}\)\.count\(\)/.test(prof), 'profile no longer does the broken direct client ai_reports count')
+  ok(!/reportHistory\.count\(\)/.test(prof), 'profile no longer overrides server with local history')
   ok(/goReports[^\n]*report-history/.test(prof), 'profile goReports -> report-history')
   ok(/goReports[^\n]*report-preview/.test(prof) === false, 'profile goReports no longer -> report-preview')
 

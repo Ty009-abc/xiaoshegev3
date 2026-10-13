@@ -11,7 +11,6 @@
  */
 const app = getApp()
 const analytics = require('../../utils/analytics.js')
-const reportHistory = require('../../utils/reportHistory.js')
 const { worldModelTypeLabel } = require('../../utils/worldModelLabels.js')
 
 // 未分类 / 未知展示占位（绝不显示裸 enum 'unclassified'，绝不把未知当真实 0）
@@ -69,12 +68,12 @@ function fmtExpiry (ts) {
 Page({
   data: {
     user: {}, profile: {}, isVip: false,
-    // 服务端权威计数。null = 未知/未加载（展示 '—'）；数字 = 真实计数。
-    challengeCount: null, reportCount: null, paidReportCount: null,
+    // 服务端权威计数。null = 未知/未加载（展示 '—'）；数字 = 真实计数（含 0）。
+    challengeCount: null, reportCount: null, reportTotalRecords: null, paidReportCount: null,
     badges: [], streak: null,
     classificationLabel: '',
     cvText: UNKNOWN, streakText: UNKNOWN, cvNextText: UNKNOWN,
-    countsLoaded: false, loadError: false,
+    countsLoaded: false, loadError: false, countsError: false,
     adminTapCount: 0, adminTimer: null,
     memoryEnabled: true,
     // RC8_13_P0_MEMBER_ENTRY —— 会员展示态（服务端 getMembership 权威）
@@ -124,57 +123,52 @@ Page({
     if (!openid) {
       console.error('[profile] openid missing — authoritative data unavailable')
       this.setData({
-        countsLoaded: false, loadError: true,
-        challengeCount: null, reportCount: null, paidReportCount: null,
+        countsLoaded: false, loadError: true, countsError: true,
+        challengeCount: null, reportCount: null, reportTotalRecords: null, paidReportCount: null,
       })
       return
     }
 
     try {
-      const db = wx.cloud.database()
-      const [cRes, arRes, paidRes, bRes, finRes] = await Promise.all([
-        db.collection('challenge_records').where({ openid }).count(),
-        db.collection('ai_reports').where({ openid }).count(),
-        db.collection('ai_reports').where({ openid, isPaid: true }).count(),
-        db.collection('badges').limit(10).get(),
-        // 最近一次已完成挑战 → 权威 finalType（用于分类回退）
-        db.collection('challenge_records').where({ openid, status: 'finished' })
-          .orderBy('createdAt', 'desc').limit(1).get(),
-      ])
-
-      const badgeDefs = bRes.data || []
-      const earned = (profile && profile.badges) || []
-      const badges = badgeDefs.map(b => ({ ...b, unlocked: earned.includes(b.id || b._id) }))
-
-      // 本地 6Q 历史 = 次要兼容来源；服务端计数 > 0 时绝不覆盖
-      let localCount = 0
-      try { localCount = reportHistory.count() } catch (err) {
-        console.warn('[profile] reportHistory.count failed:', err && err.message)
+      // 服务端权威统计（identity 由 getWXContext().OPENID 解析；客户端直读 DB 已废弃）
+      const statsRes = await wx.cloud.callFunction({ name: 'getProfileStats', data: {} })
+      const stats = (statsRes && statsRes.result) || {}
+      if (stats.code !== 0 || !stats.data || !stats.data.counts) {
+        throw new Error((stats && stats.message) || 'getProfileStats failed')
       }
-      const serverReportCount = (arRes && arRes.total) || 0
-      const reportCount = serverReportCount > 0 ? serverReportCount : localCount
+      const c = stats.data.counts
+      const n = (v) => (typeof v === 'number' ? v : 0)
 
-      // 分类：画像 mainType（若已被权威填写）否则最近一次已完成挑战 finalType
+      // 徽章（非权威外观集合；失败不影响计数）
+      let badges = []
+      try {
+        const db = wx.cloud.database()
+        const bRes = await db.collection('badges').limit(10).get()
+        const earned = (profile && profile.badges) || []
+        badges = (bRes.data || []).map(b => ({ ...b, unlocked: earned.includes(b.id || b._id) }))
+      } catch (err) {
+        console.warn('[profile] badges load failed:', err && err.message)
+      }
+
+      // 分类：画像 mainType（若已被权威填写）否则服务端最新已完成挑战 finalType
       // （两者均通过既有 canonical 映射 worldModelLabels，无客户端臆造）
-      const fin = (finRes && finRes.data && finRes.data[0]) || null
-      const classificationLabel = this._resolveClassificationLabel(profile, fin && fin.finalType)
+      const classificationLabel = this._resolveClassificationLabel(profile, stats.data.latestFinishedType)
 
       this.setData({
-        challengeCount: (cRes && cRes.total) || 0,
-        reportCount,
-        paidReportCount: (paidRes && paidRes.total) || 0,
+        challengeCount: n(c.challengeCount),
+        reportCount: n(c.reportCount),
+        reportTotalRecords: n(c.reportTotalRecords),
+        paidReportCount: n(c.paidReportCount),
         classificationLabel,
         badges,
         countsLoaded: true,
         loadError: false,
+        countsError: false,
       })
     } catch (err) {
-      // 显式失败：记录错误 + 暴露失败态（'—'），保留页面可用（不静默吞零）
-      console.error('[profile] authoritative data load failed:', err && err.message)
-      this.setData({
-        countsLoaded: false, loadError: true,
-        challengeCount: null, reportCount: null, paidReportCount: null,
-      })
+      // 显式失败：不静默吞零。保留上一次有效计数；若从未加载则计数保持 null（展示 '—'）。
+      console.error('[profile] getProfileStats failed:', err && err.message)
+      this.setData({ countsLoaded: false, loadError: true, countsError: true })
     }
   },
 

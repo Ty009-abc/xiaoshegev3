@@ -80,8 +80,9 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) }
   ok(APP.tabBar.list.some((i) => i.pagePath === 'pages/challenge-start/challenge-start'), 'challenge-start still a tabBar page')
   ok(APP.pages.includes('pages/challenge-records/challenge-records'), 'challenge-records registered')
 
-  // C6: count source unchanged
-  ok(/challenge_records'\)\.where\(\{ openid \}\)\.count\(\)/.test(prof), 'profile challengeCount still counts challenge_records')
+  // C6: count source is now server-authoritative
+  // (RC8_13_P0_PROFILE_HISTORY_AUTHORITY_FIX — client direct-DB count removed)
+  ok(/name:\s*'getProfileStats'/.test(prof), 'profile challengeCount comes from getProfileStats (server-authoritative)')
 
   console.log(`\nCHALLENGE_RECORDS_TEST pass=${pass} fail=${fail}`)
   process.exit(fail ? 1 : 0)

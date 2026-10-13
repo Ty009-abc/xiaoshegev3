@@ -270,9 +270,9 @@ const PAYLOADS = {
 // ── T NO_FABRICATED_COUNTS ──
 {
   const prof = fs.readFileSync(path.join(ROOT, 'pages/profile/profile.js'), 'utf8')
-  ok(/collection\('ai_reports'\)\.where\(\{ openid \}\)\.count\(\)/.test(prof), 'T report count from server ai_reports')
-  ok(/collection\('challenge_records'\)\.where\(\{ openid \}\)\.count\(\)/.test(prof), 'T challenge count from server challenge_records')
-  ok(/serverReportCount > 0 \? serverReportCount : localCount/.test(prof), 'T server count authoritative over local')
+  ok(/name:\s*'getProfileStats'/.test(prof), 'T report/challenge counts from server getProfileStats')
+  ok(!/collection\('ai_reports'\)\.where\(\{ openid \}\)\.count\(\)/.test(prof), 'T no broken direct ai_reports count')
+  ok(!/collection\('challenge_records'\)\.where\(\{ openid \}\)\.count\(\)/.test(prof), 'T no broken direct challenge_records count')
 }
 // ── U ROUTE_VALIDITY ──
 {
