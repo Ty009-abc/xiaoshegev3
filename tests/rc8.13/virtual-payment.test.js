@@ -237,6 +237,54 @@ console.log('RC8_13_STAGE1 virtual payment server wiring')
     eq(sha('cloudfunctions/common/entitlementService.js'), sha('cloudfunctions/createVirtualOrder/lib/entitlementService.js'), 'J entitlement == canonical')
   }
 
+  // ── L: OFFERID_P0_FIX — resolveVirtualPayConfig → buildSignData integration ──
+  //   Regression for the -15001 SIGNDATA_MISMATCH defect: config must expose the
+  //   ACTUAL offerId value (not just a presence boolean) so signData.offerId is valid.
+  {
+    const envOK = { VIRTUAL_PAY_OFFER_ID: '1450666840', VIRTUAL_PAY_SANDBOX_APP_KEY: 'sandbox-key', VIRTUAL_PAY_ENV: '1', VIRTUAL_PAY_SALES_MODE: 'ENABLED' }
+    const cfg = CAT.resolveVirtualPayConfig(envOK)
+    eq(cfg.offerId, '1450666840', 'L1 cfg.offerId is actual env value')
+    ok(cfg.offerIdPresent === true, 'L1 cfg.offerIdPresent boolean retained')
+    ok(cfg.sandboxAppKeyPresent === true, 'L1 sandbox presence boolean retained')
+    ok(!('sandboxAppKey' in cfg) && !('prodAppKey' in cfg), 'L1 no AppKey VALUE exposed in config')
+
+    const m = CAT.getCatalog('vip_month_39_9')
+    const sd = VPS.buildSignData(m, { offerId: cfg.offerId, envFlag: cfg.envFlag }, 'VO241001120000ABCD', '')
+    const parsed = JSON.parse(VPS.serializeSignData(sd))
+    eq(parsed.offerId, '1450666840', 'L2 signData.offerId == actual offerId')
+    ok(parsed.offerId !== 'undefined', 'L2 signData.offerId != "undefined"')
+    ok(parsed.offerId !== 'null', 'L2 signData.offerId != "null"')
+    eq(parsed.productId, '30', 'L2 productId intact')
+    eq(parsed.goodsPrice, 3990, 'L2 goodsPrice intact')
+    eq(parsed.env, 1, 'L2 env sandbox intact')
+    eq(parsed.mode === undefined, true, 'L2 mode not in signData payload')
+    // legacy defect reproduction guard: presence-only object yields 'undefined' literal
+    const legacy = CAT.resolveVirtualPayConfig({ VIRTUAL_PAY_OFFER_ID: '1450666840' })
+    ok(legacy.offerId === '1450666840', 'L3 config carries offerId (defect would give undefined)')
+  }
+
+  // ── M: NEGATIVE config validation (fail-closed before order creation) ──
+  {
+    eq(CAT.resolveVirtualPayConfig({}).offerId, '', 'M1 missing env → empty offerId')
+    eq(CAT.isValidOfferId(''), false, 'M2 empty offerId invalid')
+    eq(CAT.isValidOfferId('   '), false, 'M2 whitespace offerId invalid')
+    eq(CAT.isValidOfferId(undefined), false, 'M3 literal undefined invalid')
+    eq(CAT.isValidOfferId('undefined'), false, 'M3 string "undefined" invalid')
+    eq(CAT.isValidOfferId('null'), false, 'M3 string "null" invalid')
+    eq(CAT.isValidOfferId(null), false, 'M3 null invalid')
+    eq(CAT.isValidOfferId('NaN'), false, 'M3 NaN invalid')
+    eq(CAT.isValidOfferId('0'), false, 'M3 zero invalid')
+    eq(CAT.isValidOfferId('12ab'), false, 'M4 non-numeric invalid')
+    eq(CAT.isValidOfferId('-123'), false, 'M4 negative invalid')
+    eq(CAT.isValidOfferId(' 1450666840 '), true, 'M5 valid numeric (trimmed) accepted')
+    eq(CAT.isValidOfferId(1450666840), true, 'M5 numeric type accepted')
+    // presence projection never leaks the value
+    const proj = CAT.presenceOnly({ salesMode: 'ENABLED', envFlag: 1, offerId: '1450666840', offerIdPresent: true, sandboxAppKeyPresent: true, prodAppKeyPresent: true })
+    ok(!('offerId' in proj), 'M6 presenceOnly excludes offerId value')
+    eq(proj.offerIdPresent, true, 'M6 presenceOnly keeps offerIdPresent')
+    eq(proj.envFlag, 1, 'M6 presenceOnly keeps envFlag')
+  }
+
   // ── K: source guards ──
   {
     const cvo = fs.readFileSync(path.join(ROOT, 'cloudfunctions/createVirtualOrder/index.js'), 'utf8')

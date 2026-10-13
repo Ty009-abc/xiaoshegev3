@@ -20,7 +20,7 @@ const db = cloud.database()
 const { ok, fail, CODES } = require('./lib/response.js')
 const { finalizePaidOrder, REASONS } = require('./lib/paymentFinalizer.js')
 const { grantEntitlements } = require('./lib/entitlementService.js')
-const { resolveVirtualPayConfig } = require('./lib/virtualPayCatalog.js')
+const { resolveVirtualPayConfig, presenceOnly } = require('./lib/virtualPayCatalog.js')
 const {
   resolveEnvFlag,
   selectAppKey,
@@ -35,7 +35,7 @@ const QUERY_URI = '/xpay/query_order'
 exports.main = async (event) => {
   // ── 配置自检（仅布尔）──
   if (event && event.__selfcheck === true) {
-    return ok({ virtualPay: resolveVirtualPayConfig(process.env), service: 'verifyVirtualPayment', stage: 'stage1' })
+    return ok({ virtualPay: presenceOnly(resolveVirtualPayConfig(process.env)), service: 'verifyVirtualPayment', stage: 'stage1' })
   }
 
   const wxContext = cloud.getWXContext()

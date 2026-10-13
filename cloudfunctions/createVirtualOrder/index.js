@@ -20,7 +20,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
-const { getCatalog, resolveVirtualPayConfig } = require('./lib/virtualPayCatalog.js')
+const { getCatalog, resolveVirtualPayConfig, presenceOnly, isValidOfferId } = require('./lib/virtualPayCatalog.js')
 const {
   buildSignData,
   serializeSignData,
@@ -50,7 +50,7 @@ exports.main = async (event) => {
   // ── 配置自检（仅布尔；无需登录态）──
   if (event && event.__selfcheck === true) {
     return ok({
-      virtualPay: resolveVirtualPayConfig(process.env),
+      virtualPay: presenceOnly(resolveVirtualPayConfig(process.env)),
       service: 'createVirtualOrder', stage: 'stage1',
     })
   }
@@ -83,6 +83,12 @@ exports.main = async (event) => {
   if (envFlag === 0 && !cfgEnv.prodAppKeyPresent) missing.push('VIRTUAL_PAY_PROD_APP_KEY')
   if (envFlag === 1 && !cfgEnv.sandboxAppKeyPresent) missing.push('VIRTUAL_PAY_SANDBOX_APP_KEY')
   if (missing.length > 0) return fail(CODES.CONFIG_ERROR, '虚拟支付环境未配置', { missing })
+
+  // ── offerId 值校验（下单前失败闭合，绝不落 pending 订单）──
+  //   拒绝：缺失 / 空 / 'undefined' / 'null' / 'NaN' / 非数字。
+  if (!isValidOfferId(cfgEnv.offerId)) {
+    return fail(CODES.CONFIG_ERROR, '虚拟支付 offerId 未配置或非法', { field: 'VIRTUAL_PAY_OFFER_ID' })
+  }
 
   // ── session_key（用户态签名权威来源）──
   const sess = await getSessionKey(process.env, jsCode)

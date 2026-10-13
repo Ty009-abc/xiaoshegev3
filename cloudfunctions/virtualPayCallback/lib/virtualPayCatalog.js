@@ -66,15 +66,50 @@ function resolveEnvFlag (env) {
 
 function _nonEmpty (v) { return typeof v === 'string' && v.trim().length > 0 }
 
-// 配置存在性探测：只返回布尔，绝不返回值。
+// offerId 规范化：非字符串一律转字符串并 trim；缺失返回 ''。
+function normalizeOfferId (v) {
+  if (v == null) return ''
+  return (typeof v === 'string' ? v : String(v)).trim()
+}
+
+// 非法字面量哨兵（防止 String(undefined)/String(null) 落进 signData）。
+const OFFER_ID_BAD = new Set(['undefined', 'null', 'NaN', 'none', '0'])
+
+// offerId 值校验：官方 offerId 为数字字符串（如 '1450666840'）。
+// 拒绝：空 / 'undefined' / 'null' / 'NaN' / 纯零 / 非数字。
+function isValidOfferId (v) {
+  const s = normalizeOfferId(v)
+  if (!s) return false
+  if (OFFER_ID_BAD.has(s)) return false
+  return /^[1-9][0-9]*$/.test(s)
+}
+
+// 配置探测：返回「实际值 + 存在性布尔」。
+//   - 真实业务流（createVirtualOrder）读取 offerId 实际值参与 signData。
+//   - 存在性布尔保留给 selfcheck。
+//   - 绝不返回任何 AppKey 值。
 function resolveVirtualPayConfig (env) {
   const e = env || (typeof process !== 'undefined' ? process.env : {}) || {}
+  const offerId = normalizeOfferId(e.VIRTUAL_PAY_OFFER_ID)
   return {
     salesMode: salesMode(e),
     envFlag: resolveEnvFlag(e),
-    offerIdPresent: _nonEmpty(e.VIRTUAL_PAY_OFFER_ID),
+    offerId,
+    offerIdPresent: offerId.length > 0,
     sandboxAppKeyPresent: _nonEmpty(e.VIRTUAL_PAY_SANDBOX_APP_KEY),
     prodAppKeyPresent: _nonEmpty(e.VIRTUAL_PAY_PROD_APP_KEY),
+  }
+}
+
+// selfcheck 专用投影：仅存在性布尔 + 环境/发售（绝不外泄 offerId 实际值 / AppKey）。
+function presenceOnly (cfg) {
+  const c = cfg || {}
+  return {
+    salesMode: c.salesMode,
+    envFlag: c.envFlag,
+    offerIdPresent: !!c.offerIdPresent,
+    sandboxAppKeyPresent: !!c.sandboxAppKeyPresent,
+    prodAppKeyPresent: !!c.prodAppKeyPresent,
   }
 }
 
@@ -86,4 +121,7 @@ module.exports = {
   isVirtualSaleEnabled,
   resolveEnvFlag,
   resolveVirtualPayConfig,
+  presenceOnly,
+  normalizeOfferId,
+  isValidOfferId,
 }

@@ -19,7 +19,7 @@ const db = cloud.database()
 
 const { finalizePaidOrder } = require('./lib/paymentFinalizer.js')
 const { grantEntitlements } = require('./lib/entitlementService.js')
-const { findByVirtualProductId, resolveVirtualPayConfig } = require('./lib/virtualPayCatalog.js')
+const { findByVirtualProductId, resolveVirtualPayConfig, presenceOnly } = require('./lib/virtualPayCatalog.js')
 
 const now = () => Date.now()
 
@@ -32,7 +32,7 @@ exports.main = async (event) => {
 
   // ── 配置自检（仅布尔）──
   if (event && event.__selfcheck === true) {
-    return { ok: true, service: 'virtualPayCallback', stage: 'stage1', virtualPay: resolveVirtualPayConfig(process.env) }
+    return { ok: true, service: 'virtualPayCallback', stage: 'stage1', virtualPay: presenceOnly(resolveVirtualPayConfig(process.env)) }
   }
 
   const evt = (event && (event.Event || event.event)) || ''
