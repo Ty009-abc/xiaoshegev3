@@ -12,7 +12,7 @@
           <text class="username">{{user.nickname||'觉醒者'}}</text>
           <text class="level-badge">LV{{user.level||1}} {{classificationLabel||'认知探索者'}}</text>
         </view>
-        <text class="user-status">{{isVip?'⭐VIP':'免费用户'}}<block wx:if="{{classificationLabel}}"> · {{classificationLabel}}</block></text>
+        <text class="user-status">{{memberDisplayTitle === '升级会员' ? '免费用户' : memberDisplayTitle}}<block wx:if="{{classificationLabel}}"> · {{classificationLabel}}</block></text>
       </view>
     </view>
 
@@ -41,6 +41,24 @@
   <!-- 勋章 -->
   <view class="badges-card" wx:if="{{badges.length}}">
     <badge-list badges="{{badges}}" />
+  </view>
+
+  <!-- ═══ 会员 — RC8_13_P0_MEMBER_ENTRY（FREE/生效中/已过期 均始终可见）═══ -->
+  <view class="menu-section">
+    <text class="section-title">会员</text>
+    <view class="menu-group-card">
+      <view class="menu-item" bindtap="goMembership">
+        <text class="menu-icon">{{memberBadge}}</text>
+        <view class="member-entry-body">
+          <view class="member-entry-head">
+            <text class="menu-text member-entry-title">{{memberDisplayTitle}}</text>
+            <text class="member-state {{memberStateClass}}">{{memberStateLabel}}</text>
+          </view>
+          <text class="member-subtext">{{memberDisplaySubtitle}}</text>
+        </view>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
   </view>
 
   <!-- ═══ 认知成长 — 编组卡片 ═══ -->
@@ -74,11 +92,6 @@
   <view class="menu-section">
     <text class="section-title">高级功能</text>
     <view class="menu-group-card">
-      <view class="menu-item" bindtap="goMembership" wx:if="{{!isVip}}">
-        <text class="menu-icon">⭐</text>
-        <text class="menu-text">升级会员</text>
-        <text class="menu-arrow">›</text>
-      </view>
       <view class="menu-item" bindtap="goInvite">
         <text class="menu-icon">🎁</text>
         <text class="menu-text">邀请好友</text>

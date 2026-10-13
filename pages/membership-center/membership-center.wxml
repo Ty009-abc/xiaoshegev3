@@ -1,6 +1,7 @@
 <!-- pages/membership-center/membership-center.wxml -->
 <view class="page-container">
   <xsg-navbar title="会员中心" />
+  <view class="member-type-badge" wx:if="{{level === 'monthly' || level === 'yearly' || level === 'quarterly'}}">认知会员 · {{level === 'yearly' ? '年卡' : level === 'quarterly' ? '季卡' : '月卡'}} · 生效中</view>
 
   <!-- 等级卡片 -->
   <view class="level-card" style="border-color: {{levelColor}}">

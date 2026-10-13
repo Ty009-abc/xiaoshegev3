@@ -275,3 +275,34 @@ page {
   color: #EF4444;
   text-align: center;
 }
+
+/* ═══════════ RC8_13_P0_MEMBER_ENTRY 会员详情态 ═══════════ */
+.member-detail {
+  margin: 32rpx;
+  padding: 40rpx 32rpx;
+  background: #141B2D;
+  border: 1rpx solid rgba(139,92,246,0.25);
+  border-radius: 28rpx;
+  box-shadow: 0 0 28rpx rgba(139,92,246,0.08);
+}
+.member-detail.member-unknown { background: #0f1526; }
+.md-head { display: flex; align-items: center; justify-content: space-between; }
+.md-title { font-size: 36rpx; font-weight: 700; color: #FFFFFF; }
+.md-status {
+  font-size: 22rpx; font-weight: 600; color: #7F56D9;
+  background: #F4F3FF; padding: 4rpx 16rpx; border-radius: 999rpx;
+}
+.md-sub { display: block; margin-top: 12rpx; font-size: 26rpx; color: #B4B8C7; }
+.md-rights { margin-top: 28rpx; }
+.md-rights-label { font-size: 24rpx; color: #8B90A0; display: block; margin-bottom: 14rpx; }
+.md-rights-list { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.md-right-chip {
+  font-size: 22rpx; color: #C7CBE0; background: rgba(139,92,246,0.12);
+  padding: 8rpx 18rpx; border-radius: 10rpx;
+}
+.md-actions { margin-top: 36rpx; }
+.md-btn {
+  text-align: center; font-size: 28rpx; color: #FFFFFF;
+  padding: 22rpx; border-radius: 16rpx; background: #7F56D9;
+}
+.md-btn.primary { background: #7F56D9; }

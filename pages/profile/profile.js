@@ -17,6 +17,55 @@ const { worldModelTypeLabel } = require('../../utils/worldModelLabels.js')
 // 未分类 / 未知展示占位（绝不显示裸 enum 'unclassified'，绝不把未知当真实 0）
 const UNKNOWN = '—'
 
+// RC8_13_P0_MEMBER_ENTRY — 会员展示态。
+//   权威：getMembership（服务端 memberships 表）。未知/失败态绝不伪装为 free。
+function resolveMemberDisplay (memberState, expiryText, errText) {
+  const state = memberState || 'unknown'
+  if (state === 'unknown') {
+    return {
+      memberBadge: '⭐', memberDisplayTitle: '我的会员',
+      memberDisplaySubtitle: '正在同步会员状态',
+      memberStateLabel: '同步中', memberStateClass: 'unknown', memberIsPaid: false,
+    }
+  }
+  if (state === 'free') {
+    return {
+      memberBadge: '⭐', memberDisplayTitle: '升级会员',
+      memberDisplaySubtitle: '解锁完整认知操作系统',
+      memberStateLabel: '未开通', memberStateClass: 'free', memberIsPaid: false,
+    }
+  }
+  if (state === 'expired') {
+    return {
+      memberBadge: '⭐', memberDisplayTitle: '会员已到期',
+      memberDisplaySubtitle: '查看续费选项',
+      memberStateLabel: '已到期', memberStateClass: 'expired', memberIsPaid: false,
+    }
+  }
+  if (state === 'monthly' || state === 'yearly' || state === 'quarterly') {
+    const nameMap = { monthly: '认知会员 · 月卡', yearly: '认知会员 · 年卡', quarterly: '认知会员 · 季卡' }
+    const sub = expiryText ? ('有效期至 ' + expiryText) : (errText || '会员生效中')
+    return {
+      memberBadge: '⭐', memberDisplayTitle: nameMap[state] || '认知会员',
+      memberDisplaySubtitle: sub,
+      memberStateLabel: '生效中', memberStateClass: 'active', memberIsPaid: true,
+    }
+  }
+  return {
+    memberBadge: '⭐', memberDisplayTitle: '我的会员',
+    memberDisplaySubtitle: errText || '正在同步会员状态',
+    memberStateLabel: '同步中', memberStateClass: 'unknown', memberIsPaid: false,
+  }
+}
+
+function fmtExpiry (ts) {
+  const n = Number(ts)
+  if (!n || !isFinite(n)) return ''
+  const d = new Date(n + 8 * 3600 * 1000)
+  const p = (x) => String(x).padStart(2, '0')
+  return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' + p(d.getUTCDate())
+}
+
 Page({
   data: {
     user: {}, profile: {}, isVip: false,
@@ -28,6 +77,11 @@ Page({
     countsLoaded: false, loadError: false,
     adminTapCount: 0, adminTimer: null,
     memoryEnabled: true,
+    // RC8_13_P0_MEMBER_ENTRY —— 会员展示态（服务端 getMembership 权威）
+    memberState: 'unknown', memberExpiryText: '', memberErrText: '',
+    memberBadge: '⭐', memberDisplayTitle: '我的会员',
+    memberDisplaySubtitle: '正在同步会员状态',
+    memberStateLabel: '同步中', memberStateClass: 'unknown', memberIsPaid: false,
   },
   onShow() { this.loadData() },
   onUnload() { analytics.flush() },
@@ -62,6 +116,9 @@ Page({
     } catch (err) {
       console.warn('[profile] getMemory failed:', err && err.message)
     }
+
+    // RC8_13_P0_MEMBER_ENTRY —— 服务端会员态（权威）；未知/失败绝不伪装为 free。
+    await this.loadMemberState()
 
     // 服务端权威计数 —— 必须使用已认证 openid（绝不以空 openid 查询）
     const openid = gd.openid || ''
@@ -135,7 +192,76 @@ Page({
   goRules()       { wx.navigateTo({ url: '/pages/world-rules/world-rules?favorites=1' }) },
   goChallenges()  { wx.navigateTo({ url: '/pages/challenge-records/challenge-records' }) },
   goReports()     { wx.navigateTo({ url: '/pages/report-history/report-history' }) },
-  goMembership()  { wx.navigateTo({ url: '/pages/membership/membership' }) },
+  // ── RC8_13_P0_MEMBER_ENTRY —— 会员态服务端权威 ──
+  //   权威：getMembership（memberships 表）。优先级 active_membership > legacy_permanent > free。
+  //   绝不从客户端缓存/仅 AI 免限推断会员；不修改会员记录；不手工发放权益。
+  async loadMemberState() {
+    try {
+      const res = await wx.cloud.callFunction({ name: 'getMembership', data: {} })
+      const r = (res && res.result) || {}
+      if (r.code !== 0) throw new Error((r && r.message) || 'getMembership failed')
+      this._applyMemberState(r.data || {})
+    } catch (err) {
+      console.warn('[profile] getMembership failed:', err && err.message)
+      this._applyMemberState(null, '会员状态同步失败')
+    }
+  },
+
+  _applyMemberState(d, errText) {
+    let state = 'unknown'
+    let expiryText = ''
+    if (d) {
+      const m = d.membership
+      if (d.isActive && m && (m.status === 'active')) {
+        const lv = m.level
+        state = (lv === 'monthly' || lv === 'yearly' || lv === 'quarterly') ? lv : 'monthly'
+        expiryText = fmtExpiry(m.expiredAt)
+      } else if (m && m.status === 'expired') {
+        state = 'expired'
+      } else {
+        state = 'free'
+      }
+    }
+    const disp = resolveMemberDisplay(state, expiryText, errText)
+    const patch = {
+      memberState: state,
+      memberExpiryText: expiryText,
+      memberErrText: errText || '',
+      memberBadge: disp.memberBadge,
+      memberDisplayTitle: disp.memberDisplayTitle,
+      memberDisplaySubtitle: disp.memberDisplaySubtitle,
+      memberStateLabel: disp.memberStateLabel,
+      memberStateClass: disp.memberStateClass,
+      memberIsPaid: disp.memberIsPaid,
+    }
+    // 仅在服务端明确判定时同步 isVip；unknown 不强制改动（不误报 free）。
+    if (state === 'monthly' || state === 'yearly' || state === 'quarterly') patch.isVip = true
+    else if (state === 'free' || state === 'expired') patch.isVip = false
+    this.setData(patch)
+  },
+
+  goMembership() {
+    const s = this.data.memberState
+    if (s === 'monthly' || s === 'yearly' || s === 'quarterly') {
+      // ACTIVE_* → 会员详情（不进入购买，不强制复购）
+      wx.navigateTo({ url: '/pages/membership-center/membership-center' })
+      return
+    }
+    if (s === 'free' || s === 'expired') {
+      // FREE / EXPIRED → 会员购买/续费页
+      wx.navigateTo({ url: '/pages/membership/membership?source=profile' })
+      return
+    }
+    // LOADING_OR_UNKNOWN → 先刷新服务端会员态，再路由（刷新后仍未知则安全进入购买页）
+    this.loadMemberState().then(() => {
+      const s2 = this.data.memberState
+      if (s2 === 'monthly' || s2 === 'yearly' || s2 === 'quarterly') {
+        wx.navigateTo({ url: '/pages/membership-center/membership-center' })
+      } else {
+        wx.navigateTo({ url: '/pages/membership/membership?source=profile' })
+      }
+    })
+  },
   goInvite()      { wx.navigateTo({ url: '/pages/invite/invite' }) },
   goRanking()     { wx.navigateTo({ url: '/pages/growth-ranking/growth-ranking' }) },
   goSettings()       { wx.showToast({ title: '设置页待上线', icon: 'none' }) },

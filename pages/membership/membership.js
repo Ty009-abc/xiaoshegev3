@@ -30,6 +30,9 @@ Page({
     priceDisplay: '',
     originalPriceDisplay: '',
     hasOriginalPrice: false,
+    // RC8_13_P0_MEMBER_ENTRY — 会员态（服务端 getMembership 权威；未知绝不渲染为 free）
+    mode: '', active: false, memberLoading: false, memberLoadError: false,
+    memberDetail: null, memberExpiryText: '', memberLevelText: '', memberRights: [],
   },
 
   onLoad(opt) {
@@ -42,12 +45,14 @@ Page({
       productId = MONTHLY
     }
     const plan = productId === ANNUAL ? 'annual' : 'monthly'
-    this.setData({ source, recordId, productId, plan })
-    userTrack.event('payment_view', { productId, source: source || '' })
-    if (retiredRequested) {
-      wx.showToast({ title: '该方案已升级为会员，请选择会员方案', icon: 'none' })
-    }
+    // RC8_13_P0_MEMBER_ENTRY — 已付费会员进入会员页显示详情态；绝不自动购买。
+    const mode = opt.mode || ''
+    this.setData({ source, recordId, productId, plan, mode })
+    userTrack.event('payment_view', { productId, source: source || '', mode })
     this.loadProducts()
+    // 除显式购买入口(mode=member)外，一律先同步服务端会员态，
+    // 避免把已付费用户误当成购买者（强制复购）。
+    if (mode !== 'member') this.refreshMemberState()
   },
 
   async loadProducts() {
@@ -87,6 +92,88 @@ Page({
       : ''
   },
 
+  // ── RC8_13_P0_MEMBER_ENTRY —— 会员态（服务端权威）──
+  //   会员页必须能区分「已付费会员」与「免费用户」：会员显示详情，
+  //   绝不自动跳转购买、绝不强制复购、绝不覆盖既有到期时间。
+  async refreshMemberState() {
+    this.setData({ memberLoading: true, memberLoadError: false })
+    try {
+      const res = await wx.cloud.callFunction({ name: 'getMembership', data: {} })
+      const r = (res && res.result) || {}
+      if (r.code !== 0) throw new Error('getMembership failed')
+      this._decorateMember(r.data || {})
+    } catch (err) {
+      console.warn('[Membership] getMembership failed:', err && err.message)
+      this._setMemberUnknown()
+    }
+    if (this.data.memberLoading) this.setData({ memberLoading: false })
+  },
+
+  _setMemberUnknown() {
+    this.setData({
+      memberLoading: false, memberLoadError: true,
+      memberDetail: null, memberExpiryText: '', memberLevelText: '', memberRights: [],
+    })
+  },
+
+  // 服务端会员 → 客户端展示装饰（到期/类型文案；绝不编造状态）
+  _decorateMember(d) {
+    const m = (d && d.membership) || null
+    const isActive = !!(d && d.isActive)
+    if (!isActive || !m) {
+      this.setData({ active: false, memberLoading: false, memberDetail: null, memberExpiryText: '', memberLevelText: '', memberRights: [] })
+      return
+    }
+    const expiryText = this._formatExpiry(m.expiredAt)
+    this.setData({
+      active: true, memberLoading: false,
+      memberDetail: {
+        level: m.level || '',
+        memberType: m.memberType || '',
+        expiredAt: m.expiredAt || 0,
+        permissions: m.permissions || [],
+        orderId: m.orderId || '',
+      },
+      memberExpiryText: expiryText,
+      memberLevelText: this._memberLevelName(m.memberType || m.level || ''),
+      memberRights: this._memberRights(m.permissions || []),
+    })
+    // 权威会员缺到期时间 → 显式失败态（绝不暗默显示为免费/未知）
+    if (!expiryText) this.setData({ memberLoadError: true })
+  },
+
+  _formatExpiry(ts) {
+    const n = Number(ts)
+    if (!n || !isFinite(n)) return ''
+    const d = new Date(n + 8 * 3600 * 1000) // 展示按 GMT+8
+    const p = (x) => String(x).padStart(2, '0')
+    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`
+  },
+
+  _memberLevelName(productId) {
+    if (String(productId).indexOf('month') >= 0) return '月卡'
+    if (String(productId).indexOf('year') >= 0) return '年卡'
+    if (String(productId).indexOf('quarter') >= 0) return '季卡'
+    return '会员'
+  },
+
+  // 会员权益码 → 展示文案（仅展示，不代表放行判定；放行由服务端权限决定）
+  _memberRights(perms) {
+    const MAP = {
+      ai_member: 'AI 问小事哥',
+      report_member: '完整世界模型报告',
+      challenge_member: '30天认知挑战',
+      memory_member: '长期记忆',
+      scenario_member: '6个个性化场景',
+    }
+    return (perms || []).map((p) => MAP[p] || p)
+  },
+
+  // 会员详情入口（会员中心）—— 已付费用户查看权益/到期，不进入购买
+  openMemberDetails() {
+    wx.navigateTo({ url: '/pages/membership-center/membership-center' })
+  },
+
   onSelectPlan(e) {
     const plan = e.currentTarget.dataset.plan
     const product = plan === 'annual' && this.data.annual ? this.data.annual : this.data.monthly
@@ -112,6 +199,11 @@ Page({
   //   客户端 success 仅进入「确认中」；权益一律以服务端 verifyVirtualPayment 为准。
   //   绝不回退普通 wx.requestPayment；不本地发放权益。
   async _payVirtual(product) {
+    // RC8_13_P0_MEMBER_ENTRY — 已付费会员绝不二次扣款（服务端 10020 亦兵底）。
+    if (this.data.active) {
+      wx.showToast({ title: '你已是会员，无需重复购买', icon: 'none' })
+      return
+    }
     this.setData({ paying: true })
     userTrack.event('payment_create', { productId: product.productId })
     try {

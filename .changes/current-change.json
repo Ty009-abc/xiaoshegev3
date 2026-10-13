@@ -1,23 +1,29 @@
 {
-  "taskId": "RC8_11_STAGE2D_DYNAMIC_FOLLOWUP_QUEUE",
-  "stage": "2D",
-  "priority": "P0_PRODUCT_UX",
-  "phase": "Dynamic follow-up queue. Asked questions are removed permanently from the current thread (marked ASKED, tracked by text + semantic intentKey); each successful answer replenishes the visible queue back to TARGET_COUNT=3 by retaining surviving unasked items, then merging fresh server candidates, then depth-ordered deterministics — never re-offering an asked question or an already-present/asked intent. Depth level advances monotonically (direction→constraint→validation→first_result→repeatability→scale). New topic expires the previous thread's queue. Quota: tapping a follow-up does not consume; only a completed answer does; when quota hits 0 the wall shows next directions and blocks further free sends.",
-  "baseCommit": "94a7fe9",
-  "scope": "pages/ai-chat/followupOwnership.js (dynamic queue: asked history, intent dedup, refill, depth, expire) + pages/ai-chat/ai-chat.js (asked/pending/depth state, consumeOnTap, refillQueue on success, quota-exhausted reset) + tests/rc8.11/stage2d-dynamic-queue.test.js (new, matrix A-I + depth) + tests/rc8.11/stage2d-followup-ui.test.js (ladder role/intent split) + tests/rc8.11/run.js + .changes/current-change.json. No server logic, payment, membership, memory, RAW_6Q, replay, profile, or free-3 quota change.",
+  "taskId": "RC8_13_P0_PAID_MEMBER_ENTRY_STATE_FIX",
+  "stage": "13",
+  "priority": "P0_PAYMENT_BLOCKER",
+  "phase": "Restore the paid-member membership surface. Root cause: pages/profile/profile.wxml gated the membership entry on wx:if=\"{{!isVip}}\" so an ACTIVE member (membershipLevel='monthly') saw NO membership entry; the paid 会员中心 was registered but unreachable. Fix: an always-visible member entry driven by the SERVER authority (getMembership) with FREE / ACTIVE_MONTHLY / ACTIVE_ANNUAL / EXPIRED / UNKNOWN states; unknown/failure never rendered as free; active member is never forced to repurchase; membership page shows a detail state for paid members. No payment function change, no membership DB mutation, no manual grant.",
+  "baseCommit": "612f1b9",
+  "scope": "pages/profile/profile.{js,wxml,wxss} (always-visible member entry + goMembership routing by server state) + pages/membership/membership.{js,wxml,wxss} (paid-member detail state; no forced repurchase) + pages/membership-center/membership-center.{wxml,wxss} (member type badge) + tests/rc8.13/member-entry.test.js (new, A-L) + tests/rc8.13/run.js + .changes/current-change.json. No cloudfunctions, no payment channel, no entitlement/membership record changes.",
   "filesChanged": [
-    "pages/ai-chat/followupOwnership.js",
-    "pages/ai-chat/ai-chat.js",
-    "tests/rc8.11/stage2d-dynamic-queue.test.js",
-    "tests/rc8.11/stage2d-followup-ui.test.js",
-    "tests/rc8.11/run.js",
+    "pages/profile/profile.js",
+    "pages/profile/profile.wxml",
+    "pages/profile/profile.wxss",
+    "pages/membership/membership.js",
+    "pages/membership/membership.wxml",
+    "pages/membership/membership.wxss",
+    "pages/membership-center/membership-center.wxml",
+    "pages/membership-center/membership-center.wxss",
+    "tests/rc8.13/member-entry.test.js",
+    "tests/rc8.13/run.js",
     ".changes/current-change.json"
   ],
   "deployTargets": [],
   "requiredTests": [
+    "node tests/rc8.13/run.js",
+    "node tests/rc8.9/run.js",
     "node tests/rc8.11/run.js",
     "node tests/rc8.10/run.js",
-    "node tests/rc8.9/run.js",
     "node tests/rc8.8/run.js"
   ]
 }
