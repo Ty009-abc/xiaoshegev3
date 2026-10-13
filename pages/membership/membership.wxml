@@ -1,6 +1,6 @@
 <!-- membership — 认知会员购买页（RC8_11 会员权威） -->
 <view class="page">
-  <xsg-navbar title="开通认知会员" light />
+  <xsg-navbar title="{{navTitle}}" light />
 
   <xsg-loading text="加载方案..." wx:if="{{loading}}" />
 
@@ -12,17 +12,18 @@
   </block>
 
   <block wx:else>
-    <!-- RC8_13_P0_MEMBER_ENTRY — 已付费会员详情态（服务端 getMembership 权威；不自动购买） -->
+    <!-- RC8_13_P0_MEMBER_CENTER — 已付费会员详情态（服务端 getMembership 权威；不自动购买） -->
     <view class="member-detail" wx:if="{{mode !== 'member' && active}}">
       <view class="md-head">
         <text class="md-title">认知会员 · {{memberLevelText}}</text>
         <text class="md-status">生效中</text>
       </view>
-      <text class="md-sub">有效期至 {{memberExpiryText || '—'}}</text>
+      <text class="md-sub">有效期至 {{memberExpiryFull || '—'}}</text>
       <view class="md-rights" wx:if="{{memberRights.length}}">
-        <text class="md-rights-label">当前权益</text>
-        <view class="md-rights-list">
-          <text class="md-right-chip" wx:for="{{memberRights}}" wx:key="*this">{{item}}</text>
+        <text class="md-rights-label">我的会员权益</text>
+        <view class="md-rights-item" wx:for="{{memberRights}}" wx:key="raw">
+          <text class="md-right-dot">✓</text>
+          <text class="md-right-name">{{item.label}}</text>
         </view>
       </view>
       <view class="md-actions">
@@ -36,9 +37,9 @@
       <text class="md-sub">正在同步会员状态…</text>
     </view>
     <view class="member-detail member-unknown" wx:elif="{{mode !== 'member' && memberLoadError}}">
-      <text class="md-title">我的会员</text>
-      <text class="md-sub">会员状态同步失败，请重试</text>
-      <view class="md-btn" bindtap="refreshMemberState">重新同步</view>
+      <text class="md-title">我的认知会员</text>
+      <text class="md-sub">会员状态同步失败</text>
+      <view class="md-btn" bindtap="refreshMemberState">重新加载</view>
     </view>
 
     <!-- 购买区：仅免费用户 or 显式购买入口(mode=member)；已付费会员不展示强制复购 -->

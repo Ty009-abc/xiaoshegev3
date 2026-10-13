@@ -9,6 +9,7 @@
  */
 const paymentService = require('../../services/paymentService.js')
 const userTrack = require('../../utils/userTrack.js')
+const rights = require('../../utils/membershipRights.js')
 
 const MONTHLY = 'vip_month_39_9'
 const ANNUAL = 'vip_year_299'
@@ -32,7 +33,9 @@ Page({
     hasOriginalPrice: false,
     // RC8_13_P0_MEMBER_ENTRY — 会员态（服务端 getMembership 权威；未知绝不渲染为 free）
     mode: '', active: false, memberLoading: false, memberLoadError: false,
-    memberDetail: null, memberExpiryText: '', memberLevelText: '', memberRights: [],
+    memberDetail: null, memberExpiryText: '', memberExpiryFull: '', memberLevelText: '', memberRights: [],
+    // RC8_13_P0_MEMBER_CENTER — 导航标题按会员态分流（免费页面绝不显示"我的认知会员"以外的购买文案）
+    navTitle: '开通认知会员',
   },
 
   onLoad(opt) {
@@ -112,7 +115,8 @@ Page({
   _setMemberUnknown() {
     this.setData({
       memberLoading: false, memberLoadError: true,
-      memberDetail: null, memberExpiryText: '', memberLevelText: '', memberRights: [],
+      memberDetail: null, memberExpiryText: '', memberExpiryFull: '', memberLevelText: '', memberRights: [],
+      navTitle: '我的认知会员',
     })
   },
 
@@ -121,33 +125,43 @@ Page({
     const m = (d && d.membership) || null
     const isActive = !!(d && d.isActive)
     if (!isActive || !m) {
-      this.setData({ active: false, memberLoading: false, memberDetail: null, memberExpiryText: '', memberLevelText: '', memberRights: [] })
+      // 到期会员：导航为「续费认知会员」；免费：保持购买标题
+      const expired = !!(m && m.status === 'expired')
+      this.setData({
+        active: false, memberLoading: false, memberDetail: null,
+        memberExpiryText: '', memberExpiryFull: '', memberLevelText: '', memberRights: [],
+        navTitle: expired ? '续费认知会员' : '开通认知会员',
+      })
       return
     }
-    const expiryText = this._formatExpiry(m.expiredAt)
+    const expiry = this._formatExpiry(m.expiredAt)
     this.setData({
       active: true, memberLoading: false,
       memberDetail: {
         level: m.level || '',
         memberType: m.memberType || '',
         expiredAt: m.expiredAt || 0,
-        permissions: m.permissions || [],
         orderId: m.orderId || '',
       },
-      memberExpiryText: expiryText,
+      memberExpiryText: expiry.date,
+      memberExpiryFull: expiry.full,
       memberLevelText: this._memberLevelName(m.memberType || m.level || ''),
-      memberRights: this._memberRights(m.permissions || []),
+      // 人类可读权益文案（绝不暴露权限码）
+      memberRights: rights.memberRightsView(m.permissions || []),
+      navTitle: '我的认知会员',
     })
     // 权威会员缺到期时间 → 显式失败态（绝不暗默显示为免费/未知）
-    if (!expiryText) this.setData({ memberLoadError: true })
+    if (!expiry.full) this.setData({ memberLoadError: true })
   },
 
   _formatExpiry(ts) {
     const n = Number(ts)
-    if (!n || !isFinite(n)) return ''
+    if (!n || !isFinite(n)) return { date: '', full: '' }
     const d = new Date(n + 8 * 3600 * 1000) // 展示按 GMT+8
     const p = (x) => String(x).padStart(2, '0')
-    return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`
+    const date = `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`
+    const full = `${date} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`
+    return { date, full }
   },
 
   _memberLevelName(productId) {
@@ -155,18 +169,6 @@ Page({
     if (String(productId).indexOf('year') >= 0) return '年卡'
     if (String(productId).indexOf('quarter') >= 0) return '季卡'
     return '会员'
-  },
-
-  // 会员权益码 → 展示文案（仅展示，不代表放行判定；放行由服务端权限决定）
-  _memberRights(perms) {
-    const MAP = {
-      ai_member: 'AI 问小事哥',
-      report_member: '完整世界模型报告',
-      challenge_member: '30天认知挑战',
-      memory_member: '长期记忆',
-      scenario_member: '6个个性化场景',
-    }
-    return (perms || []).map((p) => MAP[p] || p)
   },
 
   // 会员详情入口（会员中心）—— 已付费用户查看权益/到期，不进入购买

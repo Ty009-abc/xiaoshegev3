@@ -300,6 +300,13 @@ page {
   font-size: 22rpx; color: #C7CBE0; background: rgba(139,92,246,0.12);
   padding: 8rpx 18rpx; border-radius: 10rpx;
 }
+.md-rights-item { display: flex; align-items: center; padding: 14rpx 0; }
+.md-right-dot {
+  width: 34rpx; height: 34rpx; line-height: 34rpx; text-align: center; flex-shrink: 0;
+  margin-right: 14rpx; font-size: 20rpx; font-weight: 700; color: #FFFFFF;
+  background: #7F56D9; border-radius: 50%;
+}
+.md-right-name { flex: 1; min-width: 0; font-size: 26rpx; color: #DDE1EF; }
 .md-actions { margin-top: 36rpx; }
 .md-btn {
   text-align: center; font-size: 28rpx; color: #FFFFFF;

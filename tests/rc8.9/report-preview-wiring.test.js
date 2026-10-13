@@ -12,7 +12,13 @@
  *   • generateAiReport(type='challenge_final', recordId=<挑战记录ID>)  (recordId ≠ reportId)
  *   • 9.9 entry → membership?productId=report_9_9&recordId=<服务端reportId>
  *   • createOrder(productId='report_9_9', relatedId=<reportId>)
- *   • report_9_9 (unlike challenge_39_9) has NO default 39.9 fallback
+ *   • report_9_9 has NO default 39.9 fallback
+ *
+ *  NOTE (RC8_13): the RETAIL checkout channel is now createVirtualOrder
+ *  (WeChat virtual payment). The retired createOrder is retained ONLY for
+ *  legacy report_9_9 order records; a paid RETAIL subscription (vip_month_39_9)
+ *  MUST go through createVirtualOrder. M4/M5 assert the virtual channel, not
+ *  the retired ordinary createOrder.
  *   • missing reportId blocks order creation
  *
  *  Flows asserted (report-preview state machine):
@@ -69,6 +75,8 @@ function loadPage (file, globals, stubs) {
       getStorageSync: () => '', setStorageSync: () => {}, removeStorageSync: () => {},
       createCanvasContext: () => ({}), canvasToTempFilePath: () => {},
       saveImageToPhotosAlbum: () => {}, openSetting: () => {}, showModal: () => {},
+      // RC8_13: virtual-payment checkout requires wx.login (code) — deterministic stub.
+      login: (o) => { if (o && o.success) o.success({ code: 'TEST_LOGIN_CODE' }); else if (o && o.fail) o.fail({}) },
     },
   }, globals || {})
   vm.createContext(sandbox)
@@ -91,10 +99,15 @@ function loadPage (file, globals, stubs) {
       createOrder: createOrderImpl || (async (p, r) => { CALLS.push({ m: 'createOrder', p, r }); return { code: 0, data: { orderId: 'O1' } } }),
       requestPayment: async () => ({ success: true }),
       verifyPayment: async () => ({ code: 0, data: { status: 'paid' } }),
+      // RC8_13 RETAIL channel — WeChat virtual payment.
+      createVirtualOrder: async (p, code) => { CALLS.push({ m: 'createVirtualOrder', p, code }); return { code: 0, data: { outTradeNo: 'OT1', signData: 'sd', env: 1 } } },
+      requestVirtualPayment: async () => ({ success: false, errCode: -2 }),
+      verifyVirtualPayment: async () => ({ code: 0, data: { status: 'pending' } }),
     }
     return loadPage(MEMBERSHIP, {}, {
       'services/paymentService.js': paymentService,
       'utils/userTrack.js': { event: () => {} },
+      'utils/membershipRights.js': require(path.join(ROOT, 'utils', 'membershipRights.js')),
     })
   }
 
@@ -138,16 +151,19 @@ function loadPage (file, globals, stubs) {
     eq(m.data.product, null, 'M3 no product (no fabricated fallback)')
   }
 
-  // M4: onPay → createOrder('vip_month_39_9', relatedId)
+  // M4: onPay → createVirtualOrder('vip_month_39_9')  [RC8_13 virtual-payment channel]
+  //     Obsolete assertion replaced: the retired ordinary createOrder is no longer
+  //     invoked for a retail subscription; the virtual channel is now canonical.
   {
     CALLS = []
     const m = loadMembership(SERVER_PRODUCTS)
     m.onLoad({ productId: 'report_9_9', recordId: 'ARCF_report_id' })
     await new Promise((r) => setTimeout(r, 0))
     await m.onPay()
-    const co = CALLS.find((c) => c.m === 'createOrder')
-    ok(!!co, 'M4 createOrder called')
+    const co = CALLS.find((c) => c.m === 'createVirtualOrder')
+    ok(!!co, 'M4 createVirtualOrder called (virtual channel)')
     eq(co.p, 'vip_month_39_9', 'M4 productId = membership monthly')
+    ok(!CALLS.find((c) => c.m === 'createOrder'), 'M4 retired createOrder NOT used for retail subscription')
   }
 
   // M5: challenge_39_9 retired → membership offer as well
@@ -158,8 +174,8 @@ function loadPage (file, globals, stubs) {
     await new Promise((r) => setTimeout(r, 0))
     eq(m.data.productId, 'vip_month_39_9', 'M5 retired challenge_39_9 → membership')
     await m.onPay()
-    const co = CALLS.find((c) => c.m === 'createOrder')
-    eq(co.p, 'vip_month_39_9', 'M5 createOrder product membership')
+    const co = CALLS.find((c) => c.m === 'createVirtualOrder')
+    eq(co.p, 'vip_month_39_9', 'M5 createVirtualOrder product membership')
   }
 
   // M6: annual plan selection → annual product + price

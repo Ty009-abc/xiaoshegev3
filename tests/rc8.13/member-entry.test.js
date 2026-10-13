@@ -101,6 +101,7 @@ function loadMembership (o) {
         }
       }
       if (id.indexOf('userTrack') >= 0) return { event: () => {} }
+      if (id.indexOf('membershipRights') >= 0) return require(path.join(ROOT, 'utils', 'membershipRights.js'))
       throw new Error('unexpected require: ' + id)
     },
     Page: (c) => { page = c },
@@ -211,7 +212,13 @@ function loadMembership (o) {
     const p = loadMembership()
     p._decorateMember(monthlyPayload.data)
     eq(p.data.active, true, 'I membership page active flag')
-    eq(p.data.memberExpiryText, '2026-11-12 21:48', 'I membership page expiry')
+    eq(p.data.memberExpiryText, '2026-11-12', 'I membership page expiry')
+    eq(p.data.memberExpiryFull, '2026-11-12 21:48', 'I membership page expiry full')
+    ok(Array.isArray(p.data.memberRights) && p.data.memberRights.length > 0, 'I member rights present')
+    ok(p.data.memberRights.every((r) => r && r.label && r.raw), 'I rights are {raw,label} objects (code retained internally)')
+    ok(p.data.memberRights.every((r) => !/[a-z_]{4,}/.test(r.label)), 'I no raw permission code in any label')
+    ok(p.data.memberRights.map((r) => r.label).indexOf('完整世界模型报告') >= 0, 'I full_report → 完整世界模型报告')
+    eq(p.data.navTitle, '我的认知会员', 'I paid nav title = 我的认知会员')
     eq(p.data.memberLoadError, false, 'I no error')
     // even if onPay is called, an active member never invokes payment
     p.data.product = { productId: 'vip_month_39_9' }

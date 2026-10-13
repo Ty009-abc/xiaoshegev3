@@ -107,7 +107,6 @@ Page({
       cvNextText: (typeof user.cv === 'number') ? String(user.cv % 100) + '/100' : UNKNOWN,
       classificationLabel: this._resolveClassificationLabel(profile),
     })
-
     // 加载记忆开关状态（best-effort，但不静默吞错）
     try {
       const mRes = await wx.cloud.callFunction({ name: 'getMemory' })
