@@ -118,7 +118,7 @@
   <view class="cta-bar">
     <block wx:if="{{active}}">
       <view class="cta-text">认知会员生效中</view>
-      <view class="cta-btn ghost" bindtap="goMembership">查看会员权益</view>
+      <view class="cta-btn ghost" bindtap="onViewRights">查看会员权益</view>
     </block>
     <block wx:elif="{{memberState === 'expired'}}">
       <view class="cta-text warn">会员已到期</view>

@@ -178,14 +178,19 @@ Page({
   // 服务端权威重试
   retryMember() { this.loadAll() },
 
-  // 未登录/未知 → 我的会员（不同步为 free）；显式操作才分流
-  goMembership() {
-    const s = this.data.memberState
-    if (s === 'monthly' || s === 'yearly' || s === 'quarterly') {
-      // 已付费：查看权益/续费选项（进入购买页但展示详情态，不强制复购）
-      wx.navigateTo({ url: '/pages/membership/membership' })
-      return
+  // 已付费：滚动到页内「我的会员权益」（避免跳到同一购买页造成自导航/信息重复）
+  onViewRights() {
+    try {
+      wx.pageScrollTo({ selector: '.rights-card', duration: 300, offsetTop: -160 })
+    } catch (_) {
+      // 兼容：不支持 selector 时按选择器类名节点查询后滚动
+      const q = wx.createSelectorQuery && wx.createSelectorQuery()
+      if (q) q.select('.rights-card').boundingClientRect((rect) => { if (rect) wx.pageScrollTo({ scrollTop: rect.top + (wx.getWindowInfo ? wx.getWindowInfo().scrollTop || 0 : 0) - 160, duration: 300 }) }).exec()
     }
+  },
+
+  // 免费/到期 → 会员购买/续费页；显式操作才分流
+  goMembership() {
     wx.navigateTo({ url: '/pages/membership/membership' })
   },
 
