@@ -7,6 +7,7 @@
     { "name": "startChallenge", "runtime": "Nodejs18.15", "timeout": 15, "handler": "index.main", "installDependency": true },
     { "name": "submitChallengeChoice", "runtime": "Nodejs18.15", "timeout": 30, "handler": "index.main", "installDependency": true },
     { "name": "ensureChallengeCollections", "runtime": "Nodejs18.15", "timeout": 30, "handler": "index.main", "installDependency": true },
-    { "name": "stagingIdentityProbe", "runtime": "Nodejs18.15", "timeout": 10, "handler": "index.main", "installDependency": true }
+    { "name": "stagingIdentityProbe", "runtime": "Nodejs18.15", "timeout": 10, "handler": "index.main", "installDependency": true },
+    { "name": "login", "runtime": "Nodejs18.15", "timeout": 15, "handler": "index.main", "installDependency": true }
   ]
 }
