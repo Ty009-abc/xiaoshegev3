@@ -14,6 +14,8 @@ const ALL = [
   'completion.test.js',
   'insufficient-pool.test.js',
   'legacy-compatibility.test.js',
+  'legacy-recovery-wiring.test.js',
+  'plan-persistence.test.js',
   'concurrency-resume.test.js',
   'property.test.js',
 ]

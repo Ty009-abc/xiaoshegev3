@@ -74,7 +74,21 @@ function makeDb () {
       },
     }
   }
-  return { collection, _store: store }
+  return { collection, _store: store, command: command() }
+}
+
+/** Minimal db.command with query operators the plan authority needs. */
+function command () {
+  return {
+    neq: (v) => ({ __op: 'neq', v }),
+    eq: (v) => ({ __op: 'eq', v }),
+    in: (v) => ({ __op: 'in', v }),
+    gt: (v) => ({ __op: 'gt', v }),
+    gte: (v) => ({ __op: 'gte', v }),
+    lt: (v) => ({ __op: 'lt', v }),
+    lte: (v) => ({ __op: 'lte', v }),
+    inc: (v) => ({ __op: 'inc', v }),
+  }
 }
 
 function seed (db, name, doc) {

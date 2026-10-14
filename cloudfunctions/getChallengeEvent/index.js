@@ -12,40 +12,85 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
+const _ = db.command
 
 const { ok, fail, CODES } = require('./lib/response.js')
-const { resolvePersonalizedEvent } = require('./lib/context/challengePersonalizationRuntime.js')
 const planAuthority = require('./lib/challengePlan.js')
 const catalog = require('./lib/challengeEventCatalog.js')
 const { buildPersonalizedPlan } = require('./lib/challengePersonalization.js')
 const ucb = require('./lib/context/userContextBuilder.js')
 
+// Conditional, conflict-safe persistence of a plan onto a record.
+// Single-document conditional update (MongoDB per-doc atomic). The guard
+// `planLocked != true` means: only the FIRST writer wins; a concurrent writer
+// updates nothing (stats.updated === 0) and CONVERGES to the persisted plan.
+// We never blind-overwrite an existing valid plan (no last-writer-wins).
+async function _persistPlanConditional (db, record, plan) {
+  const data = {
+    plan, planVersion: plan.planVersion, planCreatedAt: plan.createdAt,
+    planSource: plan.source, planLocked: true,
+  }
+  try {
+    const r = await db.collection('challenge_records')
+      .where({ _id: record._id, planLocked: _.neq(true) })
+      .update({ data })
+    const updated = (r && r.stats && (r.stats.updated || r.stats.modified)) || 0
+    if (updated > 0) return { plan, persisted: true, converged: false }
+  } catch (e) {
+    // fall through to convergence check
+  }
+  // Someone else already locked/persisted → adopt the persisted plan (retry converges).
+  try {
+    const fresh = await db.collection('challenge_records').where({ _id: record._id }).limit(1).get()
+    const fr = fresh.data[0]
+    if (fr && planAuthority.hasPlan(fr) && planAuthority.validatePlan(fr.plan, fr).ok) {
+      return { plan: fr.plan, persisted: true, converged: true }
+    }
+  } catch (_e) {}
+  // Could not persist and nothing to converge on → use the freshly built plan
+  // for THIS delivery only (do NOT clobber the record).
+  return { plan, persisted: false, converged: false }
+}
+
 // 保障记录拥有一个不可变的 30 题计划：
 //   - 结构有效 → 直接使用（绝不重建）
-//   - 缺失 → 显式生成（内存中，本次投递生效）
-//   - 由 startChallenge 在开始时持久化；此处为防御性生成，避免重复发题。
+//   - 有历史答题（active legacy）→ recoverLegacyPlan：严格保留已答前缀，
+//     未来题目绝不与已答事件相交；无法安全恢复 → 显式 UNRECOVERABLE
+//   - 无历史 → 全新 buildPlan
+//   - 持久化使用条件写（首个写入者胜出；并发重试收敛到已持久化计划）
 async function _ensurePlan (db, openid, record) {
   if (planAuthority.hasPlan(record)) {
     const v = planAuthority.validatePlan(record.plan, record)
-    if (v.ok) return { plan: record.plan, generated: false }
+    if (v.ok) return { plan: record.plan, generated: false, recovered: false }
   }
   let ctx = {}
   try {
     ctx = await ucb.buildUserContext(db, openid, { scenario: 'career', message: '', memoryEnabled: true })
   } catch (_) { ctx = {} }
-  const res = await planAuthority.buildPlan({
-    db, openid, record, ctx, buildPersonalizedPlan,
-  })
-  if (res.status === planAuthority.PLAN_STATUS.OK) {
-    // best-effort persist so subsequent requests reuse the same plan
-    try {
-      await db.collection('challenge_records').doc(record._id).update({
-        data: { plan: res.plan, planVersion: res.plan.planVersion, planCreatedAt: res.plan.createdAt },
+
+  const answered = (record.choices || []).map((c) => c && c.eventId).filter(Boolean)
+  const hasHistory = answered.length > 0
+
+  const res = hasHistory
+    ? await planAuthority.recoverLegacyPlan({
+        db, openid, record, ctx, buildPersonalizedPlan, eventMeta: catalog.EVENT_META,
       })
-    } catch (_) {}
-    return { plan: res.plan, generated: true }
+    : await planAuthority.buildPlan({
+        db, openid, record, ctx, buildPersonalizedPlan,
+      })
+
+  if (res.status !== planAuthority.PLAN_STATUS.OK) {
+    return {
+      plan: null,
+      status: res.status,
+      reasonCode: res.reasonCode,
+      eligibleCount: res.eligibleCount,
+      required: res.required,
+      recovered: hasHistory,
+    }
   }
-  return { plan: null, status: res.status, reasonCode: res.reasonCode, eligibleCount: res.eligibleCount, required: res.required }
+  const p = await _persistPlanConditional(db, record, res.plan)
+  return { plan: p.plan, generated: true, recovered: hasHistory, persisted: p.persisted, converged: p.converged }
 }
 
 // RC8_10B observability — counts / reason codes / domain tags / latency ONLY.
@@ -116,6 +161,13 @@ exports.main = async (event, context) => {
           code: 'INSUFFICIENT_ELIGIBLE_EVENTS',
           eligibleCount: ensured.eligibleCount,
           required: ensured.required,
+        })
+      }
+      if (ensured.status === planAuthority.PLAN_STATUS.UNRECOVERABLE) {
+        // 历史答题无法安全恢复（如已答题目重复/溢出）——绝不静默重排或重发。
+        return fail(CODES.DB_ERROR, '历史进度无法安全恢复，请联系客服', {
+          code: 'LEGACY_PLAN_UNRECOVERABLE',
+          reason: ensured.reasonCode || 'LEGACY_PLAN_UNRECOVERABLE',
         })
       }
       return fail(CODES.DB_ERROR, '挑战计划不可用', { code: ensured.reasonCode || 'PLAN_UNAVAILABLE' })
