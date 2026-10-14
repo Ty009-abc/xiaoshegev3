@@ -2,14 +2,19 @@
   "taskId": "RC8_14_G_STAGING_GUARD_HARDENING",
   "stage": "14",
   "priority": "P0",
-  "phase": "Add staging marker-initialization tooling (init-marker.sh) and document the marker workflow. init-marker.sh performs pre-write fail-closed guards (explicit STAGING_ENV_ID, allowlist membership, production rejection) before any write; then existence check with conflict-stop (existing marker reused only if staging===true and envId matches; mismatch stops without overwrite); then additive insert of the fixed doc (collection 'staging', _id 'staging', staging:true, envId, createdAt, purpose); then verify re-read. Commands are JSON-built via node to avoid shell-escaping defects. README updated with marker contract + init usage. No business logic change; no production target.",
-  "baseCommit": "dfb5c6c",
-  "scope": "+ rc814-staging/staging-infra/init-marker.sh. ~ rc814-staging/staging-infra/README.md.",
+  "phase": "Add staging deploy/import runner tooling and the consolidated R-1/R-2/R-3 result. run-guarded-deploy.sh runs preflight + deploy-guard then deploys ONLY the 3 challenge functions to staging (requires DEPLOY_CONFIRM=<env>; writes an index.js hash manifest). import-staging-data.js performs the staging-only additive idempotent import of the 34-event bank (challenge_events) + 9 synthetic fixtures (challenge_records) with pre-write env/allowlist/prod guards and IMPORT_CONFIRM. RESULT-R1R2R3.md records: R-1 deploy PASS (3 fns, hashes match D4 baseline); R-2 import PASS (34 events + 9 fixtures, candidate TEST_ONLY marking preserved); R-3 BLOCKED (functions require cloud.getWXContext().OPENID; no server-side identity path; staging HTTP routes empty). No production change; no business-logic change; no client binding.",
+  "baseCommit": "9554141",
+  "scope": "+ rc814-staging/staging-infra/run-guarded-deploy.sh. + rc814-staging/staging-infra/import-staging-data.js. + rc814-staging/staging-infra/RESULT-R1R2R3.md. + rc814-staging/staging-infra/deploy-manifest/.",
   "filesChanged": [
-    "rc814-staging/staging-infra/init-marker.sh",
-    "rc814-staging/staging-infra/README.md"
+    "rc814-staging/staging-infra/run-guarded-deploy.sh",
+    "rc814-staging/staging-infra/import-staging-data.js",
+    "rc814-staging/staging-infra/RESULT-R1R2R3.md"
   ],
-  "offlineArtifacts": [],
+  "offlineArtifacts": [
+    "rc814-staging/staging-infra/deploy-manifest/getChallengeEvent.local.sha256",
+    "rc814-staging/staging-infra/deploy-manifest/startChallenge.local.sha256",
+    "rc814-staging/staging-infra/deploy-manifest/submitChallengeChoice.local.sha256"
+  ],
   "deployTargets": [],
   "requiredTests": [
     "bash rc814-staging/staging-infra/guard-selftest.sh"
