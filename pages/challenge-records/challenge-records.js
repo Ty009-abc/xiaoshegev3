@@ -12,6 +12,9 @@
  */
 
 const challengeService = require('../../services/challengeService.js')
+// 分类标签唯一权威：internal enum (finalType) → 中文展示label。
+// 页面绝不内置自己的映射表，也绝不直接把 internal enum 暴露给用户。
+const { worldModelTypeLabel } = require('../../utils/worldModelLabels.js')
 
 const DAY_LIMIT = 30 // 产品为 30 天挑战；绝不展示 > 30 的天数
 
@@ -61,7 +64,9 @@ Page({
           statusCls: it.status === 'processing' ? 'status-processing' : (it.status === 'finished' ? 'status-finished' : ''),
           dateText: fmtDate(it.startedAt || it.finishedAt),
           dayText: day ? `第 ${day} 天` : '',
-          typeText: it.finalType || '',
+          // PHASE_3 — 经 canonical label mapper 解析；finalType 为空时留空（不臆造分类）。
+          // 原始 finalType 不用于路由（路由只看 status），故此展示转换不影响导航。
+          typeText: it.finalType ? worldModelTypeLabel(it.finalType) : '',
           action: it.action || 'none',
         }
       })

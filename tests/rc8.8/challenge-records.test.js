@@ -47,7 +47,7 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) }
   listResp = { code: 0, data: {
     items: [
       { recordId: 'CR1', status: 'processing', statusText: '进行中', day: 3, finalType: '', action: 'resume', startedAt: 1700000000000 },
-      { recordId: 'CR2', status: 'finished', statusText: '已完成', day: 0, finalType: '系统构建者', action: 'detail', startedAt: 1690000000000 },
+      { recordId: 'CR2', status: 'finished', statusText: '已完成', day: 0, finalType: 'strategic', action: 'detail', startedAt: 1690000000000 },
       { recordId: 'CR3', status: 'unknown', statusText: '未知', day: 1, finalType: '', action: 'none', createdAt: 1680000000000 },
     ],
     total: 3, finishedTotal: 1, nextCursor: null, countComplete: true,
@@ -59,9 +59,25 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) }
   ok(p.data.status === 'success', `success state (${p.data.status})`)
   ok(p.data.records.length === 3, `renders 3 (${p.data.records.length})`)
   ok(p.data.records[0].statusText === '进行中' && p.data.records[0].dayText === '第 3 天', 'processing + day')
-  ok(p.data.records[1].statusText === '已完成' && p.data.records[1].typeText === '系统构建者', 'finished + type')
+  ok(p.data.records[1].statusText === '已完成' && p.data.records[1].typeText === '战略型翻身者', 'finished + type label (canonical mapper)')
+  ok(p.data.records[0].typeText === '' , 'processing without finalType shows no fabricated type')
   ok(/\d{4}\/\d{2}\/\d{2}/.test(p.data.records[0].dateText), `date formatted (${p.data.records[0].dateText})`)
   ok(p.data.records[2].statusText === '未知', 'unknown status normalized')
+
+  // C1b: raw internal enum NEVER exposed; canonical label applied (RC8_13 PHASE_3)
+  listResp = { code: 0, data: {
+    items: [ { recordId: 'CRX', status: 'finished', statusText: '已完成', day: 0, finalType: 'system_thinker', action: 'detail' } ],
+    total: 1, finishedTotal: 1, nextCursor: null, countComplete: true,
+  } }
+  const cfgL = loadPage('pages/challenge-records/challenge-records.js')
+  const pL = mk(cfgL); pL.onShow(); await wait()
+  ok(pL.data.records[0].typeText === '系统思维型', `finalType via canonical mapper (${pL.data.records[0].typeText})`)
+  ok(!/system_thinker/.test(pL.data.records[0].typeText), 'raw enum system_thinker NOT exposed')
+  ok(pL.data.records[0].typeText !== '系统思考型', 'forbidden label 系统思考型 NOT used')
+  const pageSrcLabel = fs.readFileSync(path.join(ROOT, 'pages/challenge-records/challenge-records.js'), 'utf8')
+  ok(/worldModelLabels/.test(pageSrcLabel), 'page uses canonical worldModelLabels mapper')
+  ok(!/系统思考型/.test(pageSrcLabel), 'page does not inline forbidden label')
+  ok(!/'系统思维型'|"系统思维型"/.test(pageSrcLabel), 'page does not inline its own classification map')
 
   // C2: tap finished → challenge-result?recordId=
   p.onTapRecord({ currentTarget: { dataset: { id: 'CR2', status: 'finished' } } })
