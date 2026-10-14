@@ -1,8 +1,10 @@
 <view class="page">
   <view class="card">
     <view class="title">C1–C10 Runner (real identity)</view>
-    <button bindtap="onRun">Run C1–C10</button>
+    <button class="btn" bindtap="onIdentityCheck">身份自检（stagingIdentityProbe）</button>
+    <button class="btn" bindtap="onRun" disabled="{{!identityOk}}">Run C1–C10</button>
     <view class="row"><text class="k">status</text><text class="v">{{status}}</text></view>
+    <view class="row"><text class="k">timezone</text><text class="v">{{tz}}</text></view>
   </view>
   <view class="card">
     <view wx:for="{{lines}}" wx:key="index" class="logline">{{item}}</view>

@@ -63,6 +63,11 @@ tests/**
 # Backups
 backup/
 
+# RC8_14 staging — local identity / mapping artifacts (never commit real or synthetic identities)
+rc814-staging/staging-infra/test-client/local/
+rc814-staging/staging-infra/deploy-manifest/*.local.json
+rc814-staging/staging-infra/deploy-manifest/*.remote.json
+
 # Temp
 tmp/
 temp/

@@ -64,4 +64,12 @@ case "$RES" in
   *) fail "marker check unexpected result: $RES";;
 esac
 
-echo "[preflight] OK: $TARGET_ENV is isolated staging (marker _id=$MARKER_ID, staging=true, envId match)"
+# 6) dependency manifest check (READ-ONLY) — enabled with DEPS_PREFLIGHT=1
+if [ "${DEPS_PREFLIGHT:-0}" = "1" ]; then
+  if ! STAGING_ENV_ID="$TARGET_ENV" STAGING_ALLOWLIST="$STAGING_ALLOWLIST" TCB_BIN="$TCB_BIN" \
+       node "$(dirname "$0")/deps-preflight.js"; then
+    fail "dependency manifest unmet in $TARGET_ENV (see deps-preflight output above)"
+  fi
+fi
+
+echo "[preflight] OK: $TARGET_ENV is isolated staging (marker _id=$MARKER_ID, staging=true, envId match${DEPS_PREFLIGHT:+, deps-verified})"

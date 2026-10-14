@@ -2,20 +2,38 @@
   <view class="card">
     <view class="title">RC8.14 独立测试工程</view>
     <view class="row"><text class="k">环境</text><text class="v">{{stagingEnv}}</text></view>
-    <view class="row"><text class="k">openid</text><text class="v">{{openid}}</text></view>
-    <view class="row"><text class="k">appid</text><text class="v">{{appid}}</text></view>
-    <view class="row"><text class="k">状态</text><text class="v">{{status}}</text></view>
+    <view class="row"><text class="k">身份状态</text><text class="v">{{identityStatus}}</text></view>
+    <view class="row" wx:if="{{identityOk}}"><text class="k">openid</text><text class="v">{{openidMasked}}</text></view>
+    <view class="row" wx:if="{{identityOk}}"><text class="k">appid</text><text class="v">{{appid}}</text></view>
+    <view class="row" wx:if="{{identityOk}}"><text class="k">环境校验</text><text class="v">{{envVerified ? '✅ 匹配 staging' : '⚠ 未匹配'}}</text></view>
   </view>
 
   <view class="card">
-    <button bindtap="onStart">startChallenge</button>
-    <button bindtap="onGetEvent">getChallengeEvent</button>
-    <button bindtap="onSubmit0">submitChallengeChoice (choice #1)</button>
-    <view class="row"><text class="k">recordId</text><text class="v">{{recordId}}</text></view>
+    <view class="title">步骤 1 · 身份自检</view>
+    <button class="btn" bindtap="onIdentityCheck" disabled="{{busy}}">身份自检（stagingIdentityProbe）</button>
   </view>
 
   <view class="card">
-    <view class="title">log</view>
+    <view class="title">步骤 2 · 挑战链路</view>
+    <button class="btn" bindtap="onStart" disabled="{{busy || !identityOk}}">startChallenge</button>
+    <view class="row" wx:if="{{startStatus}}"><text class="k">状态</text><text class="v">{{startStatus}}</text></view>
+    <view class="row" wx:if="{{startError}}"><text class="k">失败原因</text><text class="v err">{{startError}}</text></view>
+    <view class="row"><text class="k">recordId</text><text class="v">{{recordId || '（空）'}}</text></view>
+
+    <button class="btn" bindtap="onGetEvent" disabled="{{busy || !recordId}}">getChallengeEvent</button>
+    <view class="row" wx:if="{{eventLabel}}"><text class="k">当前题目</text><text class="v">{{eventLabel}}</text></view>
+
+    <button class="btn btn-wide" bindtap="onSubmit0" disabled="{{busy || !recordId || !lastEvent}}">submitChallengeChoice（提交第 1 题）</button>
+    <view class="row" wx:if="{{submitStatus}}"><text class="k">提交</text><text class="v">{{submitStatus}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="title">C1–C10</view>
+    <button class="btn" bindtap="goRunner" disabled="{{busy || !identityOk}}">进入 C1–C10 Runner</button>
+  </view>
+
+  <view class="card">
+    <view class="title">log（含时区）</view>
     <view wx:for="{{log}}" wx:key="index" class="logline">{{item}}</view>
   </view>
 </view>

@@ -2,7 +2,12 @@
 .card { background: #111827; border-radius: 16rpx; padding: 24rpx; margin-bottom: 24rpx; }
 .title { font-size: 30rpx; font-weight: 600; margin-bottom: 16rpx; color: #93c5fd; }
 .row { display: flex; margin: 8rpx 0; }
-.k { width: 160rpx; color: #9ca3af; }
-.v { flex: 1; word-break: break-all; }
-button { background: #2563eb; color: #fff; margin: 12rpx 0; }
+.k { width: 160rpx; color: #9ca3af; flex-shrink: 0; }
+.v { flex: 1; word-break: break-all; color: #e5e7eb; }
+.btn {
+  margin: 12rpx 0; background: #2563eb; color: #fff;
+  height: 84rpx; line-height: 84rpx; font-size: 28rpx; padding: 0 16rpx;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 12rpx;
+}
+.btn[disabled] { background: #374151; color: #9ca3af; }
 .logline { font-size: 22rpx; color: #d1d5db; word-break: break-all; margin: 4rpx 0; }

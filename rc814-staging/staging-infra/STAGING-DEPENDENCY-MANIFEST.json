@@ -1,0 +1,44 @@
+{
+  "manifestVersion": "rc8.14_deps_v1",
+  "targetEnv": "fanshen002-d9g0rjr3b6e313af5",
+  "note": "Minimal dependency set actually read/written by the 3 challenge business functions (getChallengeEvent, startChallenge, submitChallengeChoice) plus their bundled lib/ and common/ deps, for the real C1–C10 run. Read-only collections are created EMPTY so no query can fail with -502005 'Table not exist'. Collections are NEVER dropped or cleared; data is never overwritten.",
+  "seededElsewhere": [
+    { "name": "challenge_events", "docs": 34, "why": "R-2 import (30 CE001–CE030 + 4 GAME* candidates, status=active)" },
+    { "name": "challenge_records", "docs": 9, "why": "R-2 import (STG-REC/UNREC/FIN/CONC/EXP synthetic fixtures)" }
+  ],
+  "collections": [
+    { "name": "challenge_events",  "seed": "fixtures-exist", "why": "event bank: _loadBank(.where status=active) + serve lookup" },
+    { "name": "challenge_records", "seed": "fixtures-exist", "why": "records: startChallenge add / getChallengeEvent serve / submit update" },
+    { "name": "users",             "seed": "synthetic-users", "why": "startChallenge L122 db.collection('users').where({openid}) — the -502005 root cause when absent" },
+    { "name": "user_profiles",     "seed": "empty", "why": "submitChallengeChoice profile sync (guarded); userContextBuilder L1" },
+    { "name": "entitlements",      "seed": "empty", "why": "permissionEngine.hasPermission authority (challenge_full)" },
+    { "name": "memberships",       "seed": "empty", "why": "startChallenge membership fast-path + permissionEngine fallback" },
+    { "name": "ai_reports",        "seed": "empty", "why": "userContextBuilder L0 report evidence" },
+    { "name": "user_6q_raw",       "seed": "empty", "why": "userContextBuilder L0 RAW 6Q" },
+    { "name": "ai_chats",          "seed": "empty", "why": "contextBuilder recent-chat read" },
+    { "name": "ai_cache",          "seed": "empty", "why": "aiEngine cache (lazy; only on AI path)" },
+    { "name": "ai_logs",           "seed": "empty", "why": "aiEngine observability (lazy; only on AI path)" },
+    { "name": "quota_usage",       "seed": "empty", "why": "permissionEngine.checkQuota (lazy)" }
+  ],
+  "indexes": [
+    { "collection": "users",             "name": "openid_1",             "keys": { "openid": 1 },             "unique": true,  "why": "identity lookup + uniqueness authority" },
+    { "collection": "challenge_records", "name": "openid_recordId_1",    "keys": { "openid": 1, "recordId": 1 }, "unique": false, "why": "getChallengeRecord / submit lookup" },
+    { "collection": "challenge_records", "name": "openid_createdAt_-1",  "keys": { "openid": 1, "createdAt": -1 }, "unique": false, "why": "owned-record precedence scan (orderBy createdAt desc)" },
+    { "collection": "challenge_events",  "name": "eventId_1",            "keys": { "eventId": 1 },            "unique": true,  "why": "serve lookup + bank uniqueness (_checkBankUnique)" },
+    { "collection": "challenge_events",  "name": "status_day_1",         "keys": { "status": 1, "day": 1 },   "unique": false, "why": "_loadBank where status=active orderBy day asc" },
+    { "collection": "entitlements",      "name": "openid_1",             "keys": { "openid": 1 },             "unique": false, "why": "permissionEngine entitlement lookup" },
+    { "collection": "memberships",       "name": "openid_status_1",      "keys": { "openid": 1, "status": 1 }, "unique": false, "why": "membership fast-path + active/expiredAt query" },
+    { "collection": "user_profiles",     "name": "openid_1",             "keys": { "openid": 1 },             "unique": true,  "why": "profile lookup + upsert" }
+  ],
+  "syntheticUsers": {
+    "derivedFrom": "challenge_records docs carrying a `_fixture` marker (read live from the DB — openids are NOT guessed)",
+    "minimalFields": ["openid", "unionid", "nickname", "avatarUrl", "gender", "city", "province", "country", "phone", "email", "cv", "level", "exp", "membershipLevel", "membershipExpiredAt", "freeAiCount", "dailyAiUsed", "dailyInsightRead", "lastLoginAt", "lastActiveAt", "status", "createdAt", "updatedAt", "_synthetic", "_source"],
+    "tier": "free",
+    "idempotentKey": "openid",
+    "forbidden": [
+      "copying any production user / order",
+      "granting memberships or entitlements to any synthetic user",
+      "blanket membership for all test identities"
+    ]
+  }
+}
