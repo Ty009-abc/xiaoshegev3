@@ -2,23 +2,16 @@
   "taskId": "RC8_14_G_STAGING_GUARD_HARDENING",
   "stage": "14",
   "priority": "P0",
-  "phase": "Harden the staging preflight/deploy guards and track the guard tooling. preflight.sh rewritten fail-closed: rejects unset STAGING_ENV_ID, production envId (exact + substring), missing/non-matching allowlist, unreachable CLI, and — for the fixed marker doc (collection 'staging', _id 'staging') — missing doc, unparseable CLI output, staging!==true, and envId!=target. No error swallowing (CLI/parse failures are non-zero exits). deploy-guard.sh: removed the built-in allowlist default (now required), removed an inert self-referencing PROD_ENV loop, kept prod-env/command-text/payment-fn/prod-secret/allowlist denials, and still runs preflight as the final gate. Added guard-selftest.sh (stub tcb; 14 local scenarios, no cloud writes: 1 pass + 5 reject + prod/allowlist/secret-var rejections). Unified collection references to the source names challenge_events / challenge_records (no parallel collections). Alignment: d3-smoke-test.js marker now reads collection 'staging' _id 'staging' and asserts staging===true + envId===target. Tooling promoted from local-only exclude to tracked: .git/info/exclude narrowed to '/rc814-staging/*' + '!/rc814-staging/staging-infra/' so ONLY staging-infra tooling+docs are versioned; all staging data/assets remain isolated. The 3 business challenge functions are unchanged.",
-  "baseCommit": "57b4e4f",
-  "scope": "~ rc814-staging/staging-infra/preflight.sh (fail-closed + hardened marker contract). ~ rc814-staging/staging-infra/deploy-guard.sh (require allowlist, drop inert loop). + rc814-staging/staging-infra/guard-selftest.sh. + rc814-staging/staging-infra/README.md. + rc814-staging/staging-infra/BASELINE-HISTORY.md. ~ rc814-staging/rc814-batch1/d3/d3-smoke-test.js (marker contract). ~ .git/info/exclude (local; narrow staging exclusion). No change to cloudfunctions/* business logic.",
+  "phase": "Add staging marker-initialization tooling (init-marker.sh) and document the marker workflow. init-marker.sh performs pre-write fail-closed guards (explicit STAGING_ENV_ID, allowlist membership, production rejection) before any write; then existence check with conflict-stop (existing marker reused only if staging===true and envId matches; mismatch stops without overwrite); then additive insert of the fixed doc (collection 'staging', _id 'staging', staging:true, envId, createdAt, purpose); then verify re-read. Commands are JSON-built via node to avoid shell-escaping defects. README updated with marker contract + init usage. No business logic change; no production target.",
+  "baseCommit": "dfb5c6c",
+  "scope": "+ rc814-staging/staging-infra/init-marker.sh. ~ rc814-staging/staging-infra/README.md.",
   "filesChanged": [
-    "rc814-staging/staging-infra/preflight.sh",
-    "rc814-staging/staging-infra/deploy-guard.sh",
-    "rc814-staging/staging-infra/guard-selftest.sh",
-    "rc814-staging/staging-infra/README.md",
-    "rc814-staging/staging-infra/BASELINE-HISTORY.md"
+    "rc814-staging/staging-infra/init-marker.sh",
+    "rc814-staging/staging-infra/README.md"
   ],
-  "offlineArtifacts": [
-    "rc814-staging/staging-infra/cloudbaserc.staging.json",
-    "rc814-staging/staging-infra/deploy-staging.sh"
-  ],
+  "offlineArtifacts": [],
   "deployTargets": [],
   "requiredTests": [
-    "bash rc814-staging/staging-infra/guard-selftest.sh",
-    "node tests/rc8.14/run.js"
+    "bash rc814-staging/staging-infra/guard-selftest.sh"
   ]
 }
