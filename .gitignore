@@ -43,6 +43,8 @@ tests/**
 !tests/rc8.11/**
 !tests/rc8.13/
 !tests/rc8.13/**
+!tests/rc8.14/
+!tests/rc8.14/**
 !tests/legacy6q/
 !tests/legacy6q/**
 !tests/turnaround6q/

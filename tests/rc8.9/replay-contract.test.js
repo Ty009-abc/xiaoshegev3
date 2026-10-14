@@ -59,7 +59,9 @@ function makeDB (seed) {
 }
 
 function run ({ dbSeed, entitled, event, openid }) {
-  const db = makeDB(dbSeed)
+  const seed = Object.assign({}, dbSeed)
+  if (!seed.challenge_events) seed.challenge_events = bank30()
+  const db = makeDB(seed)
   let page = null
   const sandbox = {
     require: (req) => {
@@ -68,6 +70,10 @@ function run ({ dbSeed, entitled, event, openid }) {
       }
       if (req.indexOf('response.js') >= 0) return require(path.join(ROOT, 'cloudfunctions', 'startChallenge', 'lib', 'response.js'))
       if (req.indexOf('challengeEntitlement.js') >= 0) return { CHALLENGE_PERMISSION: 'challenge_full', hasChallengeEntitlement: async () => entitled }
+      if (req.indexOf('challengePlan.js') >= 0) return require(path.join(ROOT, 'cloudfunctions', 'startChallenge', 'lib', 'challengePlan.js'))
+      if (req.indexOf('challengeEventCatalog.js') >= 0) return require(path.join(ROOT, 'cloudfunctions', 'startChallenge', 'lib', 'challengeEventCatalog.js'))
+      if (req.indexOf('challengePersonalization.js') >= 0) return require(path.join(ROOT, 'cloudfunctions', 'startChallenge', 'lib', 'challengePersonalization.js'))
+      if (req.indexOf('userContextBuilder.js') >= 0) return require(path.join(ROOT, 'cloudfunctions', 'startChallenge', 'lib', 'context', 'userContextBuilder.js'))
       throw new Error('unexpected require: ' + req)
     },
     module: { exports: {} },
@@ -95,6 +101,21 @@ const SEED_FINISHED = {
 const SEED_FINISHED_NOENT = JSON.parse(JSON.stringify(SEED_FINISHED))
 
 const okAsync = async (p) => { try { return await p } catch (e) { return { __err: e } } }
+
+function bank30 () {
+  const out = []
+  for (let i = 1; i <= 30; i++) {
+    out.push({
+      eventId: 'CE' + String(i).padStart(3, '0'), day: i, difficulty: 1, status: 'active',
+      title: 'Q' + i, description: 'D' + i,
+      choices: [
+        { key: 'A', text: 'a', effects: { systemThinking: 5 }, tags: ['t1'] },
+        { key: 'B', text: 'b', effects: { riskAwareness: -6 }, tags: ['t2'] },
+      ],
+    })
+  }
+  return out
+}
 
 ;(async () => {
   // ── A · normal entry (no replay) finished paid -> SAME record + result destination ──

@@ -37,7 +37,35 @@ const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
 const { hasChallengeEntitlement } = require('./lib/challengeEntitlement.js')
+const planAuthority = require('./lib/challengePlan.js')
+const catalog = require('./lib/challengeEventCatalog.js')
+const { buildPersonalizedPlan } = require('./lib/challengePersonalization.js')
+const ucb = require('./lib/context/userContextBuilder.js')
 const now = () => Date.now()
+
+// ── RC8_14_A: build an immutable, distinct 30-event plan BEFORE activation ──
+// Fail-closed: if the eligible pool < challenge length, NO record is created and
+// the caller maps the failure to INSUFFICIENT_ELIGIBLE_EVENTS (never partial/dup).
+async function _buildPlanOrFail ({ db, openid, record, isDiagnostic }) {
+  let ctx = {}
+  try {
+    ctx = await ucb.buildUserContext(db, openid, { scenario: 'career', message: '', memoryEnabled: true })
+  } catch (_) { ctx = {} }
+  const res = await planAuthority.buildPlan({
+    db, openid, record, ctx, buildPersonalizedPlan,
+  })
+  if (res.status !== planAuthority.PLAN_STATUS.OK) {
+    return {
+      ok: false,
+      code: res.status === planAuthority.PLAN_STATUS.INSUFFICIENT
+        ? 'INSUFFICIENT_ELIGIBLE_EVENTS'
+        : (res.reasonCode || 'PLAN_UNAVAILABLE'),
+      eligibleCount: res.eligibleCount,
+      required: res.required,
+    }
+  }
+  return { ok: true, plan: res.plan }
+}
 
 const VIP_LEVELS = ['vip_month', 'vip_quarter', 'vip_year', 'svip', 'lifetime']
 
@@ -168,6 +196,18 @@ exports.main = async (event, context) => {
       if (hasAccess) {
         const recordId = genRecordId(ts)
         const record = _buildRecord({ recordId, openid, ts, trialMode: false, mode: 'challenge' })
+        const planned = await _buildPlanOrFail({ db, openid, record, isDiagnostic: false })
+        if (!planned.ok) {
+          // 未消耗权益、未创建记录（entitlement 未变）
+          return fail(CODES.NEED_PAYMENT, '可用题目不足，暂无法开启完整挑战', {
+            code: 'INSUFFICIENT_ELIGIBLE_EVENTS',
+            eligibleCount: planned.eligibleCount,
+            required: planned.required,
+          })
+        }
+        record.plan = planned.plan
+        record.planVersion = planned.plan.planVersion
+        record.planCreatedAt = planned.plan.createdAt
         await db.collection('challenge_records').add({ data: record })
         return ok({
           recordId,
@@ -178,6 +218,7 @@ exports.main = async (event, context) => {
           mode: 'challenge',
           scoringVersion: 'normalized_v2',
           rawScores: { ...DEFAULT_INIT },
+          planVersion: planned.plan.planVersion,
         })
       }
     }
@@ -188,6 +229,17 @@ exports.main = async (event, context) => {
       recordId, openid, ts, trialMode,
       mode: isDiagnostic ? 'diagnostic' : 'challenge',
     })
+    const planned = await _buildPlanOrFail({ db, openid, record, isDiagnostic })
+    if (!planned.ok) {
+      return fail(CODES.NEED_PAYMENT, '可用题目不足，暂无法开启挑战', {
+        code: 'INSUFFICIENT_ELIGIBLE_EVENTS',
+        eligibleCount: planned.eligibleCount,
+        required: planned.required,
+      })
+    }
+    record.plan = planned.plan
+    record.planVersion = planned.plan.planVersion
+    record.planCreatedAt = planned.plan.createdAt
     await db.collection('challenge_records').add({ data: record })
 
     return ok({
@@ -198,6 +250,7 @@ exports.main = async (event, context) => {
       mode: isDiagnostic ? 'diagnostic' : 'challenge',
       scoringVersion: 'normalized_v2',
       rawScores: { ...DEFAULT_INIT },
+      planVersion: planned.plan.planVersion,
       ...(trialMode ? { trialLimit: 3 } : {}),
     })
   } catch (err) {
@@ -287,6 +340,18 @@ async function _handleExplicitReplay ({ db, openid, ts, replayRequestId, replayS
       replayAt: ts,
     },
   })
+  const planned = await _buildPlanOrFail({ db, openid, record, isDiagnostic: false })
+  if (!planned.ok) {
+    // fail-closed：未创建记录、未消耗权益
+    return fail(CODES.NEED_PAYMENT, '可用题目不足，暂无法开启新一轮挑战', {
+      code: 'INSUFFICIENT_ELIGIBLE_EVENTS',
+      eligibleCount: planned.eligibleCount,
+      required: planned.required,
+    })
+  }
+  record.plan = planned.plan
+  record.planVersion = planned.plan.planVersion
+  record.planCreatedAt = planned.plan.createdAt
   await db.collection('challenge_records').add({ data: record })
   console.log(`[startChallenge] replay created new record recordId=${recordId} rid=${rid}`)
 
@@ -301,5 +366,6 @@ async function _handleExplicitReplay ({ db, openid, ts, replayRequestId, replayS
     rawScores: { ...DEFAULT_INIT },
     replay: true,
     replayRequestId: rid,
+    planVersion: planned.plan.planVersion,
   })
 }

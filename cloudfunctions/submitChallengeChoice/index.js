@@ -18,6 +18,7 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
+const planAuthority = require('./lib/challengePlan.js')
 const {
   DIMS, SCORING_VERSION,
   normalizeScores, initRawScores, accumulateRawScores,
@@ -44,6 +45,27 @@ exports.main = async (event, context) => {
     const record = recRes.data[0]
     if (!record) return fail(CODES.NOT_FOUND, '挑战记录不存在')
     if (record.status === 'finished') return fail(CODES.PARAM_ERROR, '挑战已完成')
+
+    // ── RC8_14_A: index-transition / duplicate-submission authority ──
+    // When a persisted plan exists it is the ONLY authority: the submitted
+    // eventId MUST equal the plan event at the record's current index. A repeat
+    // submission (already-answered eventId) is idempotent — never re-advances.
+    const plan = (record.plan && Array.isArray(record.plan.eventIds)) ? record.plan : null
+    if (plan) {
+      const expectedId = planAuthority.eventIdAtIndex(plan, record.currentEventIndex)
+      if (!expectedId || expectedId !== eventId) {
+        const already = (record.choices || []).some((c) => c && c.eventId === eventId)
+        if (already) {
+          return ok({
+            recordId, eventId, duplicate: true, idempotent: true,
+            currentEventIndex: record.currentEventIndex,
+            status: record.status,
+            _note: '该题已提交，未重复计分',
+          })
+        }
+        return fail(CODES.PARAM_ERROR, '提交的题目与当前进度不一致')
+      }
+    }
 
     // 2. 查 event
     const evtRes = await db.collection('challenge_events').where({ eventId, status: 'active' }).limit(1).get()
@@ -93,13 +115,21 @@ exports.main = async (event, context) => {
       },
     ]
 
-    // 7. 计算进度
+    // 7. 计算进度 —— 完成以【持久化 plan 长度】为准（非 bank count）
     const newIndex = record.currentEventIndex + 1
     const isDiagnostic = record.mode === 'diagnostic'
     const diagLimit = 6
-    const totalRes = await db.collection('challenge_events').where({ status: 'active' }).count()
-    const totalEvents = totalRes.total
-    const isLast = isDiagnostic ? newIndex >= diagLimit : newIndex >= totalEvents
+    let totalEvents
+    if (plan) {
+      totalEvents = plan.eventIds.length
+    } else {
+      const totalRes = await db.collection('challenge_events').where({ status: 'active' }).count()
+      totalEvents = totalRes.total
+    }
+    const target = isDiagnostic ? Math.min(diagLimit, totalEvents || diagLimit) : totalEvents
+    const isLast = newIndex >= target
+    // 展示天数钳位：绝不超过挑战长度（永不出现 Day 31）
+    const displayDay = Math.min(newIndex + 1, target)
 
     // 8. 更新 record — 兼容旧字段
     const updateData = {
@@ -109,7 +139,7 @@ exports.main = async (event, context) => {
       tags: mergedTags,
       choices: newChoices,
       currentEventIndex: newIndex,
-      currentDay: newIndex + 1,
+      currentDay: displayDay,
       updatedAt: ts,
     }
 

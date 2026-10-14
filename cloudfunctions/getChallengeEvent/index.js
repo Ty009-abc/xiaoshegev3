@@ -15,6 +15,38 @@ const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
 const { resolvePersonalizedEvent } = require('./lib/context/challengePersonalizationRuntime.js')
+const planAuthority = require('./lib/challengePlan.js')
+const catalog = require('./lib/challengeEventCatalog.js')
+const { buildPersonalizedPlan } = require('./lib/challengePersonalization.js')
+const ucb = require('./lib/context/userContextBuilder.js')
+
+// 保障记录拥有一个不可变的 30 题计划：
+//   - 结构有效 → 直接使用（绝不重建）
+//   - 缺失 → 显式生成（内存中，本次投递生效）
+//   - 由 startChallenge 在开始时持久化；此处为防御性生成，避免重复发题。
+async function _ensurePlan (db, openid, record) {
+  if (planAuthority.hasPlan(record)) {
+    const v = planAuthority.validatePlan(record.plan, record)
+    if (v.ok) return { plan: record.plan, generated: false }
+  }
+  let ctx = {}
+  try {
+    ctx = await ucb.buildUserContext(db, openid, { scenario: 'career', message: '', memoryEnabled: true })
+  } catch (_) { ctx = {} }
+  const res = await planAuthority.buildPlan({
+    db, openid, record, ctx, buildPersonalizedPlan,
+  })
+  if (res.status === planAuthority.PLAN_STATUS.OK) {
+    // best-effort persist so subsequent requests reuse the same plan
+    try {
+      await db.collection('challenge_records').doc(record._id).update({
+        data: { plan: res.plan, planVersion: res.plan.planVersion, planCreatedAt: res.plan.createdAt },
+      })
+    } catch (_) {}
+    return { plan: res.plan, generated: true }
+  }
+  return { plan: null, status: res.status, reasonCode: res.reasonCode, eligibleCount: res.eligibleCount, required: res.required }
+}
 
 // RC8_10B observability — counts / reason codes / domain tags / latency ONLY.
 // NEVER logs full 6Q, full memory, full prompt, or plaintext openid.
@@ -74,51 +106,44 @@ exports.main = async (event, context) => {
       })
     }
 
-    // ── RC8_10B: personalized selection (occupation/capital/cognition aware) ──
-    // Primary path resolves the event from the user's REAL situation; on any
-    // failure we fall back to the legacy day-ordered bank (behavior preserved).
-    let ce = null
-    let total = 0
-    const pr = await resolvePersonalizedEvent({ db, openid, record })
-    if (!pr.fallback && pr.event) {
-      ce = pr.event
-      total = (pr.metrics && pr.metrics.total) || 0
-      const filtered = (pr.filteredOut || [])
-      if (filtered.length) {
-        _logPersonalization('challenge_event_filtered', {
-          count: filtered.length,
-          reasonCodes: Array.from(new Set(filtered.map(f => f.reasonCode))),
-          latencyMs: pr.latencyMs,
+    // ── RC8_14_A: delivery is a pure lookup into the IMMUTABLE plan ──
+    // The plan is the ONLY source of the served eventId. There is NO bank-skip
+    // fallback — that was the repeat-producing path (PLAN_EXHAUSTED → bank.skip).
+    const ensured = await _ensurePlan(db, openid, record)
+    if (!ensured.plan) {
+      if (ensured.status === planAuthority.PLAN_STATUS.INSUFFICIENT) {
+        return fail(CODES.NEED_PAYMENT, '可用题目不足，无法开始完整挑战', {
+          code: 'INSUFFICIENT_ELIGIBLE_EVENTS',
+          eligibleCount: ensured.eligibleCount,
+          required: ensured.required,
         })
       }
-      _logPersonalization('challenge_personalization_success', {
-        position: record.currentEventIndex + 1,
-        total: total,
-        domains: (pr.metrics && pr.metrics.domains) || [],
-        filteredOutCount: filtered.length,
-        personalizedRatio: pr.metrics && pr.metrics.personalizedRatio,
-        latencyMs: pr.latencyMs,
-      })
-    } else {
-      _logPersonalization('challenge_personalization_fallback', {
-        reasonCode: pr.reasonCode || 'UNKNOWN',
-        position: record.currentEventIndex + 1,
-        latencyMs: pr.latencyMs,
-      })
-      const eventsRes = await db.collection('challenge_events')
-        .where({ status: 'active' })
-        .orderBy('day', 'asc')
-        .skip(record.currentEventIndex)
-        .limit(1)
-        .get()
-      ce = eventsRes.data[0]
-      const totalEventsRes = await db.collection('challenge_events')
-        .where({ status: 'active' })
-        .count()
-      total = totalEventsRes.total
+      return fail(CODES.DB_ERROR, '挑战计划不可用', { code: ensured.reasonCode || 'PLAN_UNAVAILABLE' })
     }
 
-    if (!ce) return fail(CODES.NOT_FOUND, '题目已用完，恭喜完成挑战！')
+    const plan = ensured.plan
+    const planTotal = plan.eventIds.length
+    const idx = record.currentEventIndex || 0
+    const serveId = planAuthority.eventIdAtIndex(plan, idx)
+    // index beyond plan length → challenge is complete (NEVER re-serve / day-31)
+    if (!serveId) {
+      return ok({
+        finished: true,
+        recordId,
+        finalType: record.finalType || '',
+        progress: { current: planTotal, total: planTotal, day: planTotal },
+        message: '挑战已完成，请查看结果',
+      })
+    }
+
+    const eventsRes = await db.collection('challenge_events')
+      .where({ eventId: serveId, status: 'active' })
+      .limit(1)
+      .get()
+    const ce = eventsRes.data[0]
+    if (!ce) return fail(CODES.DB_ERROR, '计划题目不存在', { code: 'PLANNED_EVENT_MISSING', eventId: serveId })
+
+    const total = planTotal
 
     // 构造返回：不暴露 effects
     const choices = (ce.choices || []).map(c => ({
@@ -127,21 +152,25 @@ exports.main = async (event, context) => {
       tags: c.tags,
     }))
 
+    // display day clamped to the challenge length — never Day 31
+    const displayDay = Math.min((record.currentEventIndex || 0) + 1, planTotal)
+
     return ok({
       finished: false,
       eventId: ce.eventId,
-      day: ce.day,
+      day: displayDay,
       title: ce.title,
       description: ce.description,
       choices,
       difficulty: ce.difficulty,
       progress: {
-        current: record.currentEventIndex + 1,
+        current: (record.currentEventIndex || 0) + 1,
         total: total,
-        day: ce.day,
+        day: displayDay,
       },
+      planVersion: plan.planVersion,
       trialMode: record.trialMode || false,
-      ...(record.trialMode ? { trialRemaining: Math.max(0, 3 - record.currentEventIndex) } : {}),
+      ...(record.trialMode ? { trialRemaining: Math.max(0, 3 - (record.currentEventIndex || 0)) } : {}),
     })
   } catch (err) {
     console.error('[getChallengeEvent] 异常:', err)

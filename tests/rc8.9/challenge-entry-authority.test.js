@@ -84,8 +84,23 @@ const FN = path.join(ROOT, 'cloudfunctions', 'startChallenge', 'index.js')
 delete require.cache[require.resolve(FN)]
 const startChallenge = require(FN).main
 
+function bank30 () {
+  const out = []
+  for (let i = 1; i <= 30; i++) {
+    out.push({
+      eventId: 'CE' + String(i).padStart(3, '0'), day: i, difficulty: 1, status: 'active',
+      title: 'Q' + i, description: 'D' + i,
+      choices: [
+        { key: 'A', text: 'a', effects: { systemThinking: 5 }, tags: ['t1'] },
+        { key: 'B', text: 'b', effects: { riskAwareness: -6 }, tags: ['t2'] },
+      ],
+    })
+  }
+  return out
+}
+
 function reset (seed) {
-  STORE = Object.assign({ users: [], memberships: [], entitlements: [], challenge_records: [] }, seed || {})
+  STORE = Object.assign({ users: [], memberships: [], entitlements: [], challenge_records: [], challenge_events: bank30() }, seed || {})
   added = []
   OPENID = 'oUser'
 }
