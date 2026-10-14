@@ -1,0 +1,4 @@
+{
+  "desc": "RC8.14 staging test client — not indexed",
+  "rules": [{ "action": "disallow", "page": "*" }]
+}

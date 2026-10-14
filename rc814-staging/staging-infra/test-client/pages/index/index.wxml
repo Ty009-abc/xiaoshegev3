@@ -1,0 +1,21 @@
+<view class="page">
+  <view class="card">
+    <view class="title">RC8.14 独立测试工程</view>
+    <view class="row"><text class="k">环境</text><text class="v">{{stagingEnv}}</text></view>
+    <view class="row"><text class="k">openid</text><text class="v">{{openid}}</text></view>
+    <view class="row"><text class="k">appid</text><text class="v">{{appid}}</text></view>
+    <view class="row"><text class="k">状态</text><text class="v">{{status}}</text></view>
+  </view>
+
+  <view class="card">
+    <button bindtap="onStart">startChallenge</button>
+    <button bindtap="onGetEvent">getChallengeEvent</button>
+    <button bindtap="onSubmit0">submitChallengeChoice (choice #1)</button>
+    <view class="row"><text class="k">recordId</text><text class="v">{{recordId}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="title">log</view>
+    <view wx:for="{{log}}" wx:key="index" class="logline">{{item}}</view>
+  </view>
+</view>

@@ -1,22 +1,27 @@
 {
-  "taskId": "RC8_14_G_STAGING_GUARD_HARDENING",
+  "taskId": "RC8_14_H_STAGING_IDENTITY_AND_EVIDENCE",
   "stage": "14",
   "priority": "P0",
-  "phase": "Add staging deploy/import runner tooling and the consolidated R-1/R-2/R-3 result. run-guarded-deploy.sh runs preflight + deploy-guard then deploys ONLY the 3 challenge functions to staging (requires DEPLOY_CONFIRM=<env>; writes an index.js hash manifest). import-staging-data.js performs the staging-only additive idempotent import of the 34-event bank (challenge_events) + 9 synthetic fixtures (challenge_records) with pre-write env/allowlist/prod guards and IMPORT_CONFIRM. RESULT-R1R2R3.md records: R-1 deploy PASS (3 fns, hashes match D4 baseline); R-2 import PASS (34 events + 9 fixtures, candidate TEST_ONLY marking preserved); R-3 BLOCKED (functions require cloud.getWXContext().OPENID; no server-side identity path; staging HTTP routes empty). No production change; no business-logic change; no client binding.",
-  "baseCommit": "9554141",
-  "scope": "+ rc814-staging/staging-infra/run-guarded-deploy.sh. + rc814-staging/staging-infra/import-staging-data.js. + rc814-staging/staging-infra/RESULT-R1R2R3.md. + rc814-staging/staging-infra/deploy-manifest/.",
+  "phase": "Part 一 (evidence completion): records-collection audit (challenge_records correct; no typo), marker-contract unified to collection staging/doc staging (with change rationale + historical annotate), 'Exec failed: chmod' root-caused (no such failure; chmod succeeded; exit1 came from guard-selftest). Part 二 (real WeChat identity): independent test client pinned to staging env fanshen002-d9g0rjr3b6e313af5 (official client unchanged; payload openid + header identity NOT added), AppID/account/association evidence, staging config+test-data backups, map-identity.js (fixture openid mapping, staging-only, git-ignored real id), owner console steps. Part 三 (R-3 continuation): identity boundary re-confirmed 401 (no WX context server-side); C1-C10 runner prepared; C1-C10 BLOCKED pending mini-program binding. No production change; no real payment; no HTTP identity bypass.",
+  "baseCommit": "9c03bde",
+  "scope": "+ rc814-staging/staging-infra/{PART1-EVIDENCE,MARKER-CONTRACT,ASSOCIATION-EVIDENCE,OWNER-STEPS,R3-CONTINUATION}.md + map-identity.js + test-client/ (independent staging client). Historical D0/D3/D4 docs annotated (append-only).",
   "filesChanged": [
-    "rc814-staging/staging-infra/run-guarded-deploy.sh",
-    "rc814-staging/staging-infra/import-staging-data.js",
-    "rc814-staging/staging-infra/RESULT-R1R2R3.md"
+    "rc814-staging/staging-infra/PART1-EVIDENCE.md",
+    "rc814-staging/staging-infra/MARKER-CONTRACT.md",
+    "rc814-staging/staging-infra/ASSOCIATION-EVIDENCE.md",
+    "rc814-staging/staging-infra/OWNER-STEPS.md",
+    "rc814-staging/staging-infra/R3-CONTINUATION.md",
+    "rc814-staging/staging-infra/map-identity.js"
   ],
   "offlineArtifacts": [
-    "rc814-staging/staging-infra/deploy-manifest/getChallengeEvent.local.sha256",
-    "rc814-staging/staging-infra/deploy-manifest/startChallenge.local.sha256",
-    "rc814-staging/staging-infra/deploy-manifest/submitChallengeChoice.local.sha256"
+    "rc814-staging/staging-infra/test-client/app.js",
+    "rc814-staging/staging-infra/test-client/project.config.json",
+    "rc814-staging/staging-infra/test-client/lib/c1-c10-runner.js"
   ],
   "deployTargets": [],
   "requiredTests": [
+    "node --check rc814-staging/staging-infra/map-identity.js",
     "bash rc814-staging/staging-infra/guard-selftest.sh"
-  ]
+  ],
+  "notes": "No secrets. Real identity openid stays in git-ignored test-client/local/. Production untouched."
 }

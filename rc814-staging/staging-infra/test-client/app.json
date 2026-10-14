@@ -1,0 +1,14 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/runner/runner"
+  ],
+  "window": {
+    "navigationBarTitleText": "RC8.14 测试工程",
+    "navigationBarBackgroundColor": "#1f2937",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0f172a"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

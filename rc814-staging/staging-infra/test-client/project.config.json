@@ -1,0 +1,26 @@
+{
+  "description": "RC8_14 independent staging test client (pinned to fanshen002-d9g0rjr3b6e313af5). NOT the official client. No business-function or auth-logic changes.",
+  "packOptions": {
+    "ignore": [
+      { "type": "glob", "value": "cloudfunctions/**/node_modules/**" },
+      { "type": "glob", "value": "node_modules/**" },
+      { "type": "glob", "value": "*.md" }
+    ]
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": false,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "nodeModules": false
+  },
+  "cloudfunctionRoot": "cloudfunctions/",
+  "miniprogramRoot": "./",
+  "compileType": "miniprogram",
+  "libVersion": "2.32.3",
+  "appid": "wxd441fbf3b9f10aa3",
+  "projectname": "rc814-staging-test-client",
+  "condition": {}
+}
