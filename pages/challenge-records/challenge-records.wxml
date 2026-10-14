@@ -3,13 +3,27 @@
   <xsg-navbar title="挑战记录" light />
 
   <view class="content">
-    <block wx:if="{{records.length}}">
+    <!-- LOADING -->
+    <view wx:if="{{status === 'loading'}}" class="state-hint">正在加载挑战记录…</view>
+
+    <!-- UNAUTHORIZED -->
+    <view wx:elif="{{status === 'unauthorized'}}" class="state-hint state-error">身份验证失败，请重新进入</view>
+
+    <!-- ERROR（可重试） -->
+    <view wx:elif="{{status === 'error'}}" class="state-error-wrap">
+      <text class="state-error">加载失败，请重试</text>
+      <button class="state-retry" bindtap="onRetry">重试</button>
+    </view>
+
+    <!-- SUCCESS -->
+    <block wx:elif="{{status === 'success' && records.length}}">
       <view class="record-list">
         <view
           class="record-card"
           wx:for="{{records}}"
           wx:key="recordId"
           data-id="{{item.recordId}}"
+          data-status="{{item.status}}"
           bindtap="onTapRecord"
           hover-class="record-card-hover"
           hover-stay-time="80"
@@ -26,8 +40,9 @@
       </view>
     </block>
 
+    <!-- EMPTY（仅服务端确认 total===0） -->
     <xsg-empty
-      wx:elif="{{!loading}}"
+      wx:elif="{{status === 'empty'}}"
       icon="🎯"
       title="暂无挑战记录"
       desc="完成一次认知挑战后会出现在这里"

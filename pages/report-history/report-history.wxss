@@ -65,3 +65,53 @@
   font-size: 24rpx;
   color: #98A2B3;
 }
+
+/* ── 列表状态（RC8.13_P0_HISTORY_LIST_SERVER_AUTHORITY_FIX）── */
+.state-hint {
+  padding: 80rpx 0;
+  text-align: center;
+  font-size: 28rpx;
+  color: #667085;
+}
+.state-hint.state-error {
+  color: #f43f5e;
+}
+.state-error-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+  padding: 80rpx 0;
+}
+.state-error {
+  font-size: 28rpx;
+  color: #f43f5e;
+}
+.state-retry {
+  margin: 0;
+  padding: 0 48rpx;
+  height: 68rpx;
+  line-height: 68rpx;
+  font-size: 28rpx;
+  color: #FFFFFF;
+  background: #7F56D9;
+  border-radius: 999rpx;
+}
+.state-retry::after { border: none; }
+.local-notice {
+  margin: 0 0 20rpx;
+  padding: 14rpx 24rpx;
+  border-radius: 12rpx;
+  background: rgba(127, 86, 217, 0.08);
+  color: #6B4EE6;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+.report-local-tag {
+  font-size: 20rpx;
+  font-weight: 500;
+  color: #667085;
+  padding: 2rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(52, 64, 84, 0.06);
+}

@@ -15,6 +15,9 @@ const ROOT = path.resolve(__dirname, '..', '..')
 const KEY = 'legacy6q_report_history' // canonical report-history storage key (ASCII)
 
 let store = {}
+// RC8_13_P0_HISTORY_LIST_SERVER_AUTHORITY_FIX — the list page now consumes the
+// server-authoritative getReportHistory cloud function (not client-direct DB).
+let serverResp = { code: 0, data: { items: [], total: 0, nextCursor: null, countComplete: true } }
 function makeWx() {
   return {
     getStorageSync: (k) => (k in store ? store[k] : ''),
@@ -23,7 +26,7 @@ function makeWx() {
     navigateTo(o) { this._nav = this._nav || []; this._nav.push(o.url) },
     switchTab(o) { this._nav = this._nav || []; this._nav.push(o.url) },
     showToast() {}, navigateBack() {},
-    cloud: { callFunction: () => Promise.resolve({ result: { code: 0, data: {} } }) },
+    cloud: { callFunction: () => Promise.resolve({ result: serverResp }) },
   }
 }
 function loadMod(rel) {
@@ -44,6 +47,7 @@ function loadPage(rel, gd) {
   return cap
 }
 const mk = (cfg) => Object.assign({ data: JSON.parse(JSON.stringify(cfg.data)), setData(o) { Object.assign(this.data, o) } }, cfg)
+const wait = () => new Promise((r) => setTimeout(r, 30))
 
 let pass = 0, fail = 0
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) } }
@@ -78,15 +82,28 @@ const HANDOFF = { requestId: 'r6q_X1', answers: { age: 30, job: '厨师', income
   // D4: count = history length
   ok(RH.count() === store[KEY].length, `count matches (${RH.count()})`)
 
-  // D3b: list page renders + detail handoff (no AI call)
-  const gd = {}
+  // D3b: list page consumes the SERVER list API + detail handoff (no AI call)
+  const SERVER_ITEM = {
+    id: 'rpt_6q_9', kind: 'legacy6q', recordId: '', dateText: '2026/01/01 10:00',
+    title: '认知诊断报告', preview: 'C02',
+    payload: { fatal_sentence: 'F01', core_problem: 'C02', system_trap: 'T03', strategy_path: 'P04', turnaround_path: 'P04', advice: ['a1', 'a2'] },
+  }
+  serverResp = { code: 0, data: { items: [SERVER_ITEM], total: 1, nextCursor: null, countComplete: true } }
+  const gd = { openid: 'o123' }
   const cfg = loadPage('pages/report-history/report-history.js', gd)
-  const p = mk(cfg); p.onShow()
-  ok(p.data.reports.length === store[KEY].length, `list renders ${p.data.reports.length}`)
-  ok(p.data.reports[0].preview === 'C02' || p.data.reports[0].preview === 'F01', `Card01 preview (${p.data.reports[0].preview})`)
+  const p = mk(cfg); p.onShow(); await wait()
+  ok(p.data.reports.length === 1, `list renders server item (${p.data.reports.length})`)
+  ok(p.data.reports[0].preview === 'C02', `Card01 preview (${p.data.reports[0].preview})`)
   p.onTapReport({ currentTarget: { dataset: { id: p.data.reports[0].id } } })
-  ok(gd._legacy6qReport && gd._legacy6qReport.fatal_sentence, 'detail hands stored report via globalData')
+  ok(gd._legacy6qReport && gd._legacy6qReport.fatal_sentence, 'detail hands server payload via globalData')
   ok(global.wx._nav[0] === '/pages/legacy6q-report/legacy6q-report?mode=history', `detail route (${global.wx._nav[0]})`)
+
+  // D3b2: server ERROR → ERROR state, no silent local fallback
+  serverResp = { code: 4001, message: 'db down', data: null }
+  const cfgErr = loadPage('pages/report-history/report-history.js', { openid: 'o123' })
+  const pErr = mk(cfgErr); pErr.onShow(); await wait()
+  ok(pErr.data.status === 'error' && pErr.data.loadError === true, 'server error → ERROR state')
+  ok(pErr.data.reports.length === 0, 'no silent local fallback on server error')
 
   // D3c: result page consumes globalData._legacy6qReport, no model call
   const repSrc = fs.readFileSync(path.join(ROOT, 'pages/legacy6q-report/legacy6q-report.js'), 'utf8')

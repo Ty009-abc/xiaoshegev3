@@ -1,22 +1,22 @@
 /**
- * pages/report-history/report-history — 「我的报告」列表
+ * pages/report-history/report-history — RC8.13_P0_HISTORY_LIST_SERVER_AUTHORITY_FIX
  *
- * RC8_9_P0_PROFILE_DATA_CHAIN — 服务端权威。
- *   主来源：ai_reports{openid}（服务端权威，按 createdAt 倒序）。
- *   本地历史（legacy6q_report_history）= 次要兼容回退，仅当服务端为空/失败时使用。
- *   仅列出存在 canonical 渲染路由的报告（无死条目）：
- *     - challenge_final                     → /pages/report-preview?type=challenge_final&recordId=...
- *     - 诊断类（含 6Q 结果字段 fatal_sentence）→ /pages/legacy6q-report (globalData 交接，无 AI 调用)
- *   绝不在此发起任何 AI 调用。
+ * 「我的报告」列表：消费**服务端权威**列表 API（getReportHistory）。
+ *   - 身份由服务端 getWXContext().OPENID 解析；客户端不再直读数据库
+ *     （直读无 `_openid` 的 private 集合会被安全规则拒绝 → 曾静默回退本地）。
+ *   - total ≡ profile.reportCount（共用 canonical reportVisibility 口径）。
+ *   - 每个服务端项都有 canonical 详情路由（challenge_final→report-preview；
+ *     legacy6q→legacy6q-report 本地交接）；每个 count 项都可打开。
+ *   - 明确区分 加载中 / 空 / 错误 / 未授权；服务端失败绝不静默回退本地，
+ *     也绝不以空列表伪装成「暂无报告」。
+ *
+ * 本地历史（legacy6q_report_history）= 设备本地补充，仅在**服务端确认零**时
+ * 可选展示，且明确标注为本机记录，绝不并入服务端 total，不暗示服务端权益。
  */
 
 const reportHistory = require('../../utils/reportHistory.js')
+const aiReportService = require('../../services/aiReportService.js')
 const app = getApp()
-
-const TITLE = {
-  challenge_final: '世界模型报告',
-  diagnostic: '认知诊断报告',
-}
 
 function fmtDate (t) {
   if (!t) return ''
@@ -31,20 +31,15 @@ function preview (text) {
   return s.length > 40 ? s.slice(0, 40) + '…' : s
 }
 
-// 服务端报告 → 渲染方式（'' = 无 canonical 客户端路由 → 不列出，避免死条目）
-function kindOf (r) {
-  if (!r) return ''
-  if (r.type === 'challenge_final') return r.recordId ? 'report_preview' : ''
-  const c = r.content
-  if (c && (c.fatal_sentence || c.system_trap)) return 'legacy6q'
-  return ''
-}
-
 Page({
   data: {
     reports: [],
     loading: true,
-    loadError: false,
+    loadError: false,       // 服务端查询失败（可重试）
+    unauthorized: false,    // 身份缺失/失效
+    empty: false,           // 服务端确认 total===0
+    localOnly: false,       // 当前展示为设备本地记录（服务器确认零时的补充）
+    status: 'loading',      // loading | success | empty | error | unauthorized
   },
 
   onShow () {
@@ -52,64 +47,73 @@ Page({
   },
 
   async load () {
-    this.setData({ loading: true })
+    this.setData({ loading: true, loadError: false, unauthorized: false, empty: false, localOnly: false, status: 'loading' })
     this._rawById = {}
-    const openid = (app.globalData && app.globalData.openid) || ''
-    if (!openid) {
-      // 不以空 openid 查询；回退本地兼容历史（明确非服务端权威）
-      console.warn('[report-history] openid missing — local compatibility history only')
-      this._useLocal()
-      this.setData({ loading: false, loadError: true })
-      return
-    }
     try {
-      const db = wx.cloud.database()
-      const res = await db.collection('ai_reports')
-        .where({ openid })
-        .orderBy('createdAt', 'desc')
-        .limit(50)
-        .get()
-      const rows = res.data || []
+      const r = await aiReportService.getReportHistory({ pageSize: 50 })
+      if (!r || typeof r.code !== 'number') {
+        throw new Error('invalid response')
+      }
+      if (r.code === 401) {
+        // 未授权：不展示本地历史（不得以本地数据掩盖身份失败）
+        this.setData({ reports: [], loading: false, unauthorized: true, status: 'unauthorized' })
+        return
+      }
+      if (r.code !== 0 || !r.data) {
+        throw new Error((r && r.message) || 'getReportHistory failed')
+      }
+      const items = Array.isArray(r.data.items) ? r.data.items : []
       const reports = []
-      for (const r of rows) {
-        const kind = kindOf(r)
-        if (!kind) continue
-        const id = r.reportId || r._id
-        this._rawById[id] = r
+      for (const it of items) {
+        const id = it.id || it.reportId || ''
+        if (!id) continue
+        this._rawById[id] = it
         reports.push({
           id,
-          kind,
-          recordId: r.recordId || '',
-          dateText: fmtDate(r.createdAt),
-          title: TITLE[r.type] || (kind === 'legacy6q' ? '认知诊断报告' : '认知报告'),
-          preview: preview((r.content && (r.content.oneSentence || r.content.fatal_sentence)) || ''),
+          kind: it.kind || '',
+          recordId: it.recordId || '',
+          dateText: it.dateText || fmtDate(it.createdAt),
+          title: it.title || '认知报告',
+          preview: it.preview || '',
+          local: false,
         })
       }
-      if (reports.length === 0) {
-        this._useLocal()   // 服务端无可渲染 canonical 报告 → 本地兼容回退
+      const total = (typeof r.data.total === 'number') ? r.data.total : reports.length
+      if (total === 0) {
+        // 服务端确认零：完成态，非错误、非加载。
+        const local = this._localRecords()
+        this.setData({
+          reports: local,
+          localOnly: local.length > 0,
+          loading: false,
+          empty: local.length === 0,
+          status: 'empty',
+        })
       } else {
-        this.setData({ reports, loadError: false })
+        this.setData({ reports, loading: false, status: 'success' })
       }
-      this.setData({ loading: false })
     } catch (e) {
-      console.warn('[report-history] authoritative load fail:', e)
-      this._useLocal()
-      this.setData({ loading: false, loadError: true })
+      // 查询失败：绝不静默回退本地、绝不伪装为空
+      console.warn('[report-history] server load fail:', e && e.message)
+      this.setData({ reports: [], loading: false, loadError: true, status: 'error' })
     }
   },
 
-  // 本地 canonical 历史（legacy6q_report_history）= 次要兼容回退
-  _useLocal () {
-    const list = reportHistory.list().map((r) => ({
-      id: r.id,
-      kind: 'legacy6q',
-      recordId: '',
-      dateText: fmtDate(r.createdAt),
-      title: r.persona || '认知报告',
-      preview: preview((r.report && r.report.fatal_sentence) || ''),
-      summary: r.answersSummary || '',
-    }))
-    this.setData({ reports: list })
+  onRetry () { this.load() },
+
+  // 设备本地 6Q 记录（仅服务端确认零时的补充展示；明确标注本机）
+  _localRecords () {
+    try {
+      return reportHistory.list().map((r) => ({
+        id: r.id,
+        kind: 'legacy6q',
+        recordId: '',
+        dateText: fmtDate(r.createdAt),
+        title: r.persona || '认知报告',
+        preview: preview((r.report && r.report.fatal_sentence) || ''),
+        local: true,
+      }))
+    } catch (_) { return [] }
   },
 
   onTapReport (e) {
@@ -118,7 +122,7 @@ Page({
     const item = this.data.reports.find((r) => r.id === id)
     if (!item) return
 
-    if (item.kind === 'report_preview') {
+    if (item.kind === 'challenge_final' || item.recordId) {
       if (!item.recordId) { wx.showToast({ title: '报告暂不可用', icon: 'none' }); return }
       wx.navigateTo({
         url: '/pages/report-preview/report-preview?recordId=' + encodeURIComponent(item.recordId) + '&type=challenge_final',
@@ -127,10 +131,13 @@ Page({
       return
     }
 
-    // legacy6q：服务端 content 或本地历史 → 交接后渲染（无 AI 调用）
-    const raw = (this._rawById && this._rawById[id])
-    const payload = (raw && raw.content) || (reportHistory.get(id) && reportHistory.get(id).report)
-    if (!payload) { wx.showToast({ title: '报告已不可用', icon: 'none' }); return }
+    // legacy6q：优先用服务端随项返回的规范化载荷；否则本地记录载荷。均无 → 明确报错。
+    const raw = (this._rawById && this._rawById[id]) || null
+    const payload = (raw && raw.payload) || (reportHistory.get(id) && reportHistory.get(id).report) || null
+    if (!payload || (!payload.fatal_sentence && !payload.system_trap)) {
+      wx.showToast({ title: '报告内容已不可用', icon: 'none' })
+      return
+    }
     app.globalData._legacy6qReport = payload
     app.globalData._legacy6qReportRequestId = id
     app.globalData._legacy6qReportAt = (raw && raw.createdAt) || Date.now()

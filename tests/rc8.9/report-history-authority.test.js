@@ -3,15 +3,17 @@
 /**
  * tests/rc8.9/report-history-authority.test.js
  *
- * RC8_9_P0_PROFILE_DATA_CHAIN — 「我的报告」is server-authoritative (ai_reports).
- * Legacy local history is a compatibility fallback ONLY.
+ * RC8_9_P0_PROFILE_DATA_CHAIN + RC8_13_P0_HISTORY_LIST_SERVER_AUTHORITY_FIX —
+ * 「我的报告」is SERVER-AUTHORITATIVE via the getReportHistory cloud function.
  *
- *  D  local legacy history empty, server reports exist → server reports visible
- *  K  paid challenge_final report present            → appears, routes to report-preview
- *  L  diagnostic report (6Q content) present          → routes via legacy6q handoff
- *  D2 server empty + local present                    → local compatibility fallback
- *  E  server read failure                             → local fallback + explicit loadError
- *  F  openid missing                                  → local fallback + explicit loadError (no empty query)
+ * Local legacy history is shown ONLY when the server confirms zero, and is then
+ * labelled as local-only. It is NEVER used on server error or unauthorized.
+ *
+ *  D  server empty total → confirmed-empty (local-only shown only if present, labelled)
+ *  K  challenge_final report present     → route to report-preview (recordId)
+ *  L  legacy6q report (server payload)   → route via legacy6q handoff
+ *  E  server read failure                → ERROR state, NO local fallback, retry enabled
+ *  F  unauthorized (401)                 → UNAUTHORIZED state, no local fallback
  *  S  source invariants
  *
  * Logic + source-asset only. No network / DB / device claim.
@@ -35,20 +37,17 @@ function load (opt) {
   const errors = []
   let page = null
   const nav = []
-  const fakeDb = {
-    collection: () => {
-      const q = {
-        where: () => q, orderBy: () => q, limit: () => q,
-        get: async () => {
-          if (o.rejectReports) throw new Error('simulated ai_reports unavailable')
-          return { data: o.serverRows || [] }
-        },
-      }
-      return q
-    },
-  }
+  const gd = { openid: 'oZa463Yb2VY0k9Es_pGzdHFtigNo' }
   const sandbox = {
     require: (id) => {
+      if (id.indexOf('aiReportService') >= 0) {
+        return {
+          getReportHistory: () => {
+            if (o.reject) return Promise.reject(new Error('simulated network failure'))
+            return Promise.resolve(o.resp || { code: 0, data: { items: [], total: 0 } })
+          },
+        }
+      }
       if (id.indexOf('reportHistory') >= 0) {
         return {
           list: () => (o.localList || []),
@@ -61,9 +60,8 @@ function load (opt) {
     Page: (c) => { page = c },
     console, Date, Math, JSON, Array, Object, String, Number, Boolean, RegExp, Error, Promise,
     setTimeout: () => 0, clearTimeout: () => {},
-    getApp: () => ({ globalData: { openid: o.openid !== undefined ? o.openid : 'oZa463Yb2VY0k9Es_pGzdHFtigNo' } }),
+    getApp: () => ({ globalData: gd }),
     wx: {
-      cloud: { database: () => fakeDb },
       navigateTo: (x) => { nav.push({ m: 'navigateTo', url: x.url }); x.success && x.success({}); x.complete && x.complete() },
       showToast: () => {}, navigateBack: () => {},
     },
@@ -78,84 +76,87 @@ function load (opt) {
   p._nav = nav
   p._errors = errors
   p._warns = warns
+  p._gd = gd
   return p
 }
 
-const PAID = {
-  reportId: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', type: 'challenge_final',
-  recordId: 'CR1790632776226vtmih6', isPaid: true, status: 'ready',
-  createdAt: 1790642627127, content: { oneSentence: '一句话结论' },
-}
-const DIAG = {
-  reportId: 'rpt_6q_1', type: 'diagnostic', createdAt: 1790752345192,
-  content: { fatal_sentence: '致命一句话', system_trap: '困局', core_problem: '核心', strategy_path: '路径', advice: ['a'] },
-}
-const SHADOW = { reportId: 'shadow_1', type: 'diagnostic_world_model_v2_1_shadow', createdAt: 1790759999999, content: { score: 1 } }
+const CF_ITEM = { id: 'ARCF9bc1766a2b0fbbcdfc0cdc3f', kind: 'challenge_final', recordId: 'CR1790632776226vtmih6', dateText: '2026/01/01 10:00', title: '世界模型报告', preview: '一句话结论' }
+const LQ_ITEM = { id: 'rpt_6q_1', kind: 'legacy6q', recordId: '', dateText: '2026/01/02 10:00', title: '认知诊断报告', preview: '致命一句话', payload: { fatal_sentence: '致命一句话', system_trap: '困局', core_problem: '核心', strategy_path: '路径', advice: ['a'] } }
 
 ;(async () => {
-  // ── D + K: server reports present (paid challenge_final) ──
+  // ── D + K: server reports present (challenge_final) ──
   {
-    const p = load({ serverRows: [PAID], localList: [] })
+    const p = load({ resp: { code: 0, data: { items: [CF_ITEM], total: 1, nextCursor: null, countComplete: true } }, localList: [] })
     await p.load()
-    eq(p.data.reports.length, 1, 'D: server report visible with empty local history')
-    eq(p.data.reports[0].id, PAID.reportId, 'K: paid report in list')
-    eq(p.data.reports[0].kind, 'report_preview', 'K: challenge_final routes via report-preview')
+    eq(p.data.status, 'success', 'D: server success state')
+    eq(p.data.reports.length, 1, 'D: server report visible')
+    eq(p.data.reports[0].id, CF_ITEM.id, 'K: challenge_final item in list')
+    eq(p.data.reports[0].kind, 'challenge_final', 'K: kind challenge_final')
     eq(p.data.reports[0].recordId, 'CR1790632776226vtmih6', 'K: recordId carried')
     ok(p.data.loadError === false, 'D: no loadError on success')
-    p.onTapReport({ currentTarget: { dataset: { id: PAID.reportId } } })
+    ok(p.data.localOnly === false, 'D: not local-only on server success')
+    p.onTapReport({ currentTarget: { dataset: { id: CF_ITEM.id } } })
     const navUrl = (p._nav.find((n) => n.m === 'navigateTo') || {}).url || ''
     ok(navUrl.indexOf('/pages/report-preview/report-preview') === 0, 'K: tap → report-preview')
     ok(navUrl.indexOf('type=challenge_final') >= 0, 'K: type=challenge_final')
     ok(navUrl.indexOf('recordId=CR1790632776226vtmih6') >= 0, 'K: recordId passed')
   }
-  // ── L: diagnostic routes via legacy6q ──
+  // ── L: legacy6q uses server-provided payload → legacy6q handoff ──
   {
-    const p = load({ serverRows: [DIAG], localList: [] })
+    const p = load({ resp: { code: 0, data: { items: [LQ_ITEM], total: 1 } }, localList: [] })
     await p.load()
-    eq(p.data.reports.length, 1, 'L: diagnostic listed')
-    eq(p.data.reports[0].kind, 'legacy6q', 'L: diagnostic routes via legacy6q')
-    p.onTapReport({ currentTarget: { dataset: { id: DIAG.reportId } } })
+    eq(p.data.reports.length, 1, 'L: legacy6q item listed')
+    eq(p.data.reports[0].kind, 'legacy6q', 'L: kind legacy6q')
+    p.onTapReport({ currentTarget: { dataset: { id: LQ_ITEM.id } } })
     const navUrl = (p._nav.find((n) => n.m === 'navigateTo') || {}).url || ''
     ok(navUrl.indexOf('/pages/legacy6q-report/legacy6q-report') === 0, 'L: tap → legacy6q-report')
+    ok(p._gd._legacy6qReport && p._gd._legacy6qReport.fatal_sentence === '致命一句话', 'L: server payload handed via globalData')
   }
-  // ── non-routable types (shadow) excluded ──
+  // ── D2: server confirmed zero + local present → local-only, labelled ──
   {
-    const p = load({ serverRows: [PAID, SHADOW], localList: [] })
+    const p = load({ resp: { code: 0, data: { items: [], total: 0 } }, localList: [{ id: 'loc1', createdAt: Date.now(), persona: '行动派', report: { fatal_sentence: 'f' } }] })
     await p.load()
-    eq(p.data.reports.length, 1, 'X: non-routable report types excluded (no dead entries)')
+    eq(p.data.status, 'empty', 'D2: server-confirmed-empty state')
+    eq(p.data.reports.length, 1, 'D2: local record shown')
+    ok(p.data.localOnly === true, 'D2: flagged local-only (not merged into server total)')
+    eq(p.data.reports[0].local, true, 'D2: item labelled local')
   }
-  // ── D2: server empty → local compatibility fallback ──
+  // ── D3: server confirmed zero + no local → real EMPTY ──
   {
-    const p = load({ serverRows: [], localList: [{ id: 'loc1', createdAt: Date.now(), persona: '行动派', report: { fatal_sentence: 'f' } }] })
+    const p = load({ resp: { code: 0, data: { items: [], total: 0 } }, localList: [] })
     await p.load()
-    eq(p.data.reports.length, 1, 'D2: local fallback when server empty')
-    eq(p.data.reports[0].kind, 'legacy6q', 'D2: local entry kind legacy6q')
+    eq(p.data.status, 'empty', 'D3: empty state')
+    ok(p.data.empty === true, 'D3: empty flag (server-confirmed zero)')
+    eq(p.data.reports.length, 0, 'D3: no reports')
   }
-  // ── E: server failure → local fallback + loadError ──
+  // ── E: server failure → ERROR, NO local fallback ──
   {
-    const p = load({ rejectReports: true, localList: [{ id: 'loc1', createdAt: Date.now(), report: { fatal_sentence: 'f' } }] })
+    const p = load({ reject: true, localList: [{ id: 'loc1', createdAt: Date.now(), report: { fatal_sentence: 'f' } }] })
     await p.load()
-    ok(p.data.loadError === true, 'E: loadError on server failure')
-    eq(p.data.reports.length, 1, 'E: local fallback shown')
-    ok(p._warns.concat(p._errors).some((e) => /authoritative load fail/.test(e)), 'E: failure surfaced')
+    eq(p.data.status, 'error', 'E: error state on server failure')
+    ok(p.data.loadError === true, 'E: loadError true')
+    eq(p.data.reports.length, 0, 'E: NO silent local fallback')
+    ok(p._warns.some((e) => /server load fail/.test(e)), 'E: failure surfaced')
+    ok(typeof p.onRetry === 'function', 'E: retry handler present')
   }
-  // ── F: openid missing → no empty query, local + loadError ──
+  // ── F: unauthorized (401) → UNAUTHORIZED, no local fallback ──
   {
-    const p = load({ openid: '', localList: [] })
+    const p = load({ resp: { code: 401, message: 'auth', data: null }, localList: [{ id: 'loc1', report: { fatal_sentence: 'f' } }] })
     await p.load()
-    ok(p.data.loadError === true, 'F: loadError when openid missing')
-    ok(p._errors.length === 0 || true, 'F: no crash')
+    eq(p.data.status, 'unauthorized', 'F: unauthorized state')
+    ok(p.data.unauthorized === true, 'F: unauthorized flag')
+    eq(p.data.reports.length, 0, 'F: no local fallback on unauthorized')
   }
 
   // ── S: source invariants ──
   {
     const src = fs.readFileSync(PAGE, 'utf8')
-    ok(/collection\('ai_reports'\)/.test(src), 'S1: reads ai_reports (server authority)')
-    ok(/if \(!openid\)/.test(src), 'S2: explicit openid guard (no empty-openid query)')
-    ok(/reportHistory\.list\(\)/.test(src), 'S3: local 6Q history retained as compatibility fallback')
+    ok(/getReportHistory/.test(src), 'S1: consumes server-authoritative list API')
+    ok(!/wx\.cloud\.database\(\)/.test(src), 'S2: no client direct-DB read')
+    ok(/USE_ON_SERVER_ERROR_NOT|status: 'error'|loadError: true/.test(src), 'S3: explicit error state')
     ok(src.indexOf('/pages/report-preview/report-preview') >= 0, 'S4: challenge_final route present')
-    ok(src.indexOf('/pages/legacy6q-report/legacy6q-report') >= 0, 'S5: diagnostic legacy6q route present')
-    ok(!/catch\s*\(\s*_\s*\)\s*\{\s*\}/.test(src), 'S6: no empty catch(_) swallow')
+    ok(src.indexOf('/pages/legacy6q-report/legacy6q-report') >= 0, 'S5: legacy6q route present')
+    ok(!/catch[\s\S]{0,240}_useLocal/.test(src), 'S6: local fallback NOT wired into server-error catch')
   }
 
   console.log(`  _TEST pass=${pass} fail=${fail}`)

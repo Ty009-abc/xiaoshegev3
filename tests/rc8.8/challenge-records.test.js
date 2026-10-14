@@ -4,7 +4,8 @@
  * tests/rc8.8/challenge-records.test.js
  *
  * H. Challenge records — history list page + profile route rewiring.
- *    Source: challenge_records where { openid } (client-direct read).
+ *    Source: getChallengeRecords (SERVER-AUTHORITATIVE list cloud function).
+ *    RC8_13_P0_HISTORY_LIST_SERVER_AUTHORITY_FIX — client direct collection read removed.
  *
  * Node built-ins only. Runnable from repo root.
  */
@@ -14,25 +15,20 @@ const fs = require('fs')
 const ROOT = path.resolve(__dirname, '..', '..')
 const APP = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'))
 
-let dbData = []
+let listResp = { code: 0, data: { items: [], total: 0, finishedTotal: 0, nextCursor: null, countComplete: true } }
+let calls = []
 function makeWx() {
   return {
     cloud: {
-      database: () => ({
-        collection: (name) => ({
-          where: () => ({
-            orderBy: () => ({ limit: () => ({ get: () => Promise.resolve({ data: name === 'challenge_records' ? dbData : [] }) }) }),
-          }),
-        }),
-      }),
+      callFunction: (x) => { calls.push(x && x.name); return Promise.resolve({ result: listResp }) },
     },
     navigateTo(o) { this._nav = this._nav || []; this._nav.push(o.url) },
     navigateBack() {}, showToast() {},
   }
 }
-function loadPage(rel, openid) {
+function loadPage(rel) {
   global.wx = makeWx()
-  global.getApp = () => ({ globalData: { openid: openid === undefined ? 'o123' : openid } })
+  global.getApp = () => ({ globalData: { openid: 'o123' } })
   let cap = null
   global.Page = (c) => { cap = c }
   const abs = path.join(ROOT, rel)
@@ -47,28 +43,46 @@ let pass = 0, fail = 0
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) } }
 
 ;(async () => {
-  // C1: renders records with status/day/date
-  dbData = [
-    { recordId: 'CR1', status: 'processing', currentDay: 3, startedAt: 1700000000000, finalType: '' },
-    { recordId: 'CR2', status: 'finished', currentDay: 30, startedAt: 1690000000000, finalType: '系统构建者' },
-    { recordId: 'CR3', status: 'weird', currentDay: 1, createdAt: 1680000000000 },
-  ]
+  // C1: renders server items with status/day/date
+  listResp = { code: 0, data: {
+    items: [
+      { recordId: 'CR1', status: 'processing', statusText: '进行中', day: 3, finalType: '', action: 'resume', startedAt: 1700000000000 },
+      { recordId: 'CR2', status: 'finished', statusText: '已完成', day: 0, finalType: '系统构建者', action: 'detail', startedAt: 1690000000000 },
+      { recordId: 'CR3', status: 'unknown', statusText: '未知', day: 1, finalType: '', action: 'none', createdAt: 1680000000000 },
+    ],
+    total: 3, finishedTotal: 1, nextCursor: null, countComplete: true,
+  } }
+  calls = []
   const cfg = loadPage('pages/challenge-records/challenge-records.js')
   const p = mk(cfg); p.onShow(); await wait()
+  ok(calls[0] === 'getChallengeRecords', `uses server list API (${calls[0]})`)
+  ok(p.data.status === 'success', `success state (${p.data.status})`)
   ok(p.data.records.length === 3, `renders 3 (${p.data.records.length})`)
   ok(p.data.records[0].statusText === '进行中' && p.data.records[0].dayText === '第 3 天', 'processing + day')
   ok(p.data.records[1].statusText === '已完成' && p.data.records[1].typeText === '系统构建者', 'finished + type')
   ok(/\d{4}\/\d{2}\/\d{2}/.test(p.data.records[0].dateText), `date formatted (${p.data.records[0].dateText})`)
-  ok(p.data.records[2].statusText === 'weird', 'unknown status passthrough')
+  ok(p.data.records[2].statusText === '未知', 'unknown status normalized')
 
-  // C2: tap → challenge-result?recordId=
-  p.onTapRecord({ currentTarget: { dataset: { id: 'CR2' } } })
+  // C2: tap finished → challenge-result?recordId=
+  p.onTapRecord({ currentTarget: { dataset: { id: 'CR2', status: 'finished' } } })
   ok(global.wx._nav[0] === '/pages/challenge-result/challenge-result?recordId=CR2', `detail route (${global.wx._nav[0]})`)
+  // tap processing → challenge-play resume (server-authorized action)
+  p.onTapRecord({ currentTarget: { dataset: { id: 'CR1', status: 'processing' } } })
+  ok(global.wx._nav[1] === '/pages/challenge-play/challenge-play?mode=challenge&recordId=CR1', `resume route (${global.wx._nav[1]})`)
 
-  // C3: empty state (no openid)
-  const cfg2 = loadPage('pages/challenge-records/challenge-records.js', '')
+  // C3: server-confirmed zero → EMPTY (not error)
+  listResp = { code: 0, data: { items: [], total: 0, finishedTotal: 0, nextCursor: null, countComplete: true } }
+  const cfg2 = loadPage('pages/challenge-records/challenge-records.js')
   const p2 = mk(cfg2); p2.onShow(); await wait()
-  ok(p2.data.records.length === 0 && p2.data.loading === false, 'empty when no openid')
+  ok(p2.data.records.length === 0 && p2.data.loading === false, 'empty when server total 0')
+  ok(p2.data.status === 'empty' && p2.data.empty === true, 'EMPTY only on server-confirmed zero')
+
+  // C3b: server error → ERROR (never false empty)
+  listResp = { code: 4001, message: 'db down', data: null }
+  const cfg3 = loadPage('pages/challenge-records/challenge-records.js')
+  const p3 = mk(cfg3); p3.onShow(); await wait()
+  ok(p3.data.status === 'error' && p3.data.loadError === true, 'server error → ERROR state (no false empty)')
+  ok(p3.data.records.length === 0 && p3.data.empty === false, 'error is NOT empty')
 
   // C4: profile rewired
   const prof = fs.readFileSync(path.join(ROOT, 'pages/profile/profile.js'), 'utf8')
@@ -80,9 +94,11 @@ const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  ✗ ' + m) }
   ok(APP.tabBar.list.some((i) => i.pagePath === 'pages/challenge-start/challenge-start'), 'challenge-start still a tabBar page')
   ok(APP.pages.includes('pages/challenge-records/challenge-records'), 'challenge-records registered')
 
-  // C6: count source is now server-authoritative
-  // (RC8_13_P0_PROFILE_HISTORY_AUTHORITY_FIX — client direct-DB count removed)
+  // C6: count source is server-authoritative; page consumes server list
   ok(/name:\s*'getProfileStats'/.test(prof), 'profile challengeCount comes from getProfileStats (server-authoritative)')
+  const pageSrc = fs.readFileSync(path.join(ROOT, 'pages/challenge-records/challenge-records.js'), 'utf8')
+  ok(/getChallengeRecords/.test(pageSrc), 'challenge-records consumes getChallengeRecords')
+  ok(!/wx\.cloud\.database\(\)/.test(pageSrc), 'challenge-records no longer reads DB directly')
 
   console.log(`\nCHALLENGE_RECORDS_TEST pass=${pass} fail=${fail}`)
   process.exit(fail ? 1 : 0)

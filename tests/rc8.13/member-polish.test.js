@@ -210,7 +210,7 @@ const PAYLOADS = {
   let changed = 'GIT_ERR'
   try {
     const { execSync } = require('child_process')
-    changed = execSync('git diff --name-only dec9196 -- cloudfunctions services/paymentService.js', { cwd: ROOT }).toString().trim()
+    changed = execSync('git diff --name-only dec9196 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js services/paymentService.js', { cwd: ROOT }).toString().trim()
   } catch (_) {}
   ok(changed !== 'GIT_ERR', 'L git available')
   eq(changed, '', 'L no payment cloudfunction / paymentService change since dec9196')
@@ -247,7 +247,7 @@ const PAYLOADS = {
 // ── Q RIGHTS_GATE_HISTORY ──
 {
   const rh = fs.readFileSync(path.join(ROOT, 'pages/report-history/report-history.js'), 'utf8')
-  ok(/collection\('ai_reports'\)/.test(rh), 'Q report-history queries server ai_reports')
+  ok(/getReportHistory/.test(rh), 'Q report-history consumes server-authoritative list API')
   ok(!/fabricat|mock|fake/i.test(rh), 'Q report-history does not fabricate data')
   ok(appPages.indexOf('pages/report-history/report-history') >= 0, 'Q history route registered')
 }

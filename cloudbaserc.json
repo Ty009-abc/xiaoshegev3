@@ -25,6 +25,20 @@
       "installDependency": false
     },
     {
+      "name": "getChallengeRecords",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
+      "name": "getReportHistory",
+      "runtime": "Nodejs18.15",
+      "timeout": 10,
+      "handler": "index.main",
+      "installDependency": false
+    },
+    {
       "name": "updateUserProfile",
       "runtime": "Nodejs18.15",
       "timeout": 10,

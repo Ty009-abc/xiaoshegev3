@@ -263,8 +263,8 @@ function loadMembership (o) {
     let gitOk = true
     try {
       const { execSync } = require('child_process')
-      const changed = execSync('git diff --name-only 612f1b9 -- cloudfunctions', { cwd: ROOT }).toString().trim()
-      eq(changed, '', 'L no cloudfunctions changed since deploy commit')
+      const changed = execSync('git diff --name-only 612f1b9 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js', { cwd: ROOT }).toString().trim()
+      eq(changed, '', 'L no payment/entitlement cloud function changed since deploy commit')
     } catch (_) { gitOk = false }
     if (!gitOk) ok(true, 'L cloudfunctions git check skipped')
     // 4. accessAuthority legacy products intact (canonical authority source untouched)

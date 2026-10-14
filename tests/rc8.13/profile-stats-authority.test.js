@@ -26,7 +26,8 @@ const vm = require('vm')
 const ROOT = path.resolve(__dirname, '..', '..')
 const FN_DIR = path.join(ROOT, 'cloudfunctions', 'getProfileStats')
 const INDEX = path.join(FN_DIR, 'index.js')
-const POLICY = path.join(FN_DIR, 'lib', 'countPolicy.js')
+const POLICY = path.join(FN_DIR, 'lib', 'reportVisibility.js')
+const CHALLENGE_POLICY = path.join(FN_DIR, 'lib', 'challengeListability.js')
 
 let pass = 0, fail = 0
 const ok = (c, m) => { if (c) pass++; else { fail++; console.log('  x ' + m) } }
@@ -35,6 +36,7 @@ const eq = (a, b, m) => ok(a === b, (m || 'eq') + ': ' + JSON.stringify(a) + ' !
 console.log('RC8_13_PROFILE_STATS_AUTHORITY')
 
 const policy = require(POLICY)
+const challengePolicy = require(CHALLENGE_POLICY)
 const idxSrc = fs.readFileSync(INDEX, 'utf8')
 
 ;(async () => {
@@ -63,9 +65,34 @@ const idxSrc = fs.readFileSync(INDEX, 'utf8')
   eq(policy.pagesFor(0, 100), 0, 'A pagesFor(0)=0')
   eq(policy.pagesFor(6, 100), 1, 'A pagesFor(6)=1')
   eq(policy.pagesFor(250, 100), 3, 'A pagesFor(250)=3')
+  // single canonical challenge listability predicate (shared w/ getChallengeRecords)
+  ok(challengePolicy.isListableChallenge({ status: 'processing' }) === true, 'A processing listable')
+  ok(challengePolicy.isListableChallenge({ status: 'finished' }) === true, 'A finished listable')
+  ok(challengePolicy.isListableChallenge({}) === true, 'A owner row listable')
+  ok(challengePolicy.isListableChallenge(null) === false, 'A null NOT listable')
+  eq(challengePolicy.statusKind('processing'), 'processing', 'A statusKind processing')
+  eq(challengePolicy.statusKind('finished'), 'finished', 'A statusKind finished')
+  eq(challengePolicy.statusKind('weird'), 'unknown', 'A statusKind unknown closed-set')
+  eq(challengePolicy.displayDay(31, 'finished'), 0, 'A finished shows no day (day=31 artifact hidden)')
+  eq(challengePolicy.displayDay(31, 'processing'), 30, 'A processing day capped at 30')
+  eq(challengePolicy.displayDay(4, 'processing'), 4, 'A processing day passthrough <=30')
+  // parity: the visibility rule lives in the SHARED module consumed by BOTH
+  // getProfileStats and getReportHistory (identical artifact) — no client copy.
+  const rhFn = fs.readFileSync(path.join(ROOT, 'cloudfunctions', 'getReportHistory', 'index.js'), 'utf8')
+  ok(/reportVisibility\.js/.test(rhFn), 'A getReportHistory uses shared reportVisibility policy')
+  ok(/reportVisibility\.js/.test(idxSrc), 'A getProfileStats uses shared reportVisibility policy')
+  const chFn = fs.readFileSync(path.join(ROOT, 'cloudfunctions', 'getChallengeRecords', 'index.js'), 'utf8')
+  ok(/challengeListability\.js/.test(chFn), 'A getChallengeRecords uses shared challengeListability policy')
+  ok(/challengeListability\.js/.test(idxSrc), 'A getProfileStats uses shared challengeListability policy')
+  const rhPage = fs.readFileSync(path.join(ROOT, 'pages/report-history/report-history.js'), 'utf8')
+  ok(!/function kindOf/.test(rhPage), 'A client report-history carries NO policy copy')
+  ok(/getReportHistory/.test(rhPage), 'A client report-history consumes the server list API')
   // parity with report-history kindOf source
-  const rh = fs.readFileSync(path.join(ROOT, 'pages/report-history/report-history.js'), 'utf8')
-  ok(/r\.type === 'challenge_final'/.test(rh) && /c\.fatal_sentence \|\| c\.system_trap/.test(rh), 'A parity w/ report-history kindOf rule')
+  // parity: profile & report-history share ONE visibility rule (identical artifact)
+  const profVis = require(path.join(ROOT, 'cloudfunctions/getProfileStats/lib/reportVisibility.js'))
+  const rhVis = require(path.join(ROOT, 'cloudfunctions/getReportHistory/lib/reportVisibility.js'))
+  ok(profVis.kindOf({ type: 'challenge_final', recordId: 'x' }) === rhVis.kindOf({ type: 'challenge_final', recordId: 'x' }), 'A parity: profile & report-history share one visibility rule')
+  ok(profVis.kindOf({ type: 'diagnostic', content: { fatal_sentence: 'x' } }) === 'legacy6q', 'A parity: legacy6q visible in shared rule')
 }
 
 // ── handler harness ──
@@ -117,7 +144,8 @@ function loadFn (data, openid, event) {
         }
       }
       if (id.indexOf('response.js') >= 0) return require(path.join(FN_DIR, 'lib', 'response.js'))
-      if (id.indexOf('countPolicy.js') >= 0) return policy
+      if (id.indexOf('reportVisibility.js') >= 0) return policy
+      if (id.indexOf('challengeListability.js') >= 0) return challengePolicy
       throw new Error('unexpected require: ' + id)
     },
     module: { exports: {} }, exports: {},
@@ -252,7 +280,8 @@ function loadFn (data, openid, event) {
     require: (id) => {
       if (id === 'wx-server-sdk') return { init: () => {}, DYNAMIC_CURRENT_ENV: 'e', database: () => ({ collection: () => { throw new Error('db down') } }), getWXContext: () => ({ OPENID: OWN }) }
       if (id.indexOf('response.js') >= 0) return require(path.join(FN_DIR, 'lib', 'response.js'))
-      if (id.indexOf('countPolicy.js') >= 0) return policy
+      if (id.indexOf('reportVisibility.js') >= 0) return policy
+      if (id.indexOf('challengeListability.js') >= 0) return challengePolicy
       throw new Error('unexpected require: ' + id)
     },
     module: { exports: {} }, exports: {},
@@ -273,7 +302,8 @@ function loadFn (data, openid, event) {
   ok(/cloud\.getWXContext\(\)/.test(idxSrc) && /wxContext\.OPENID/.test(idxSrc), 'K identity from cloud.getWXContext()')
   ok(!/event\.openid/.test(idxSrc), 'K never reads event.openid')
   ok(/if \(!openid\) return fail\(CODES\.AUTH_FAILED\)/.test(idxSrc), 'K explicit AUTH_FAILED guard')
-  ok(/countPolicy\.js/.test(idxSrc), 'K uses shared countPolicy')
+  ok(/reportVisibility\.js/.test(idxSrc), 'K uses shared reportVisibility policy')
+  ok(/challengeListability\.js/.test(idxSrc), 'K uses shared challengeListability policy')
   // frozen payment functions untouched
   let changed = ''
   try { changed = require('child_process').execSync('git diff --name-only b19a05d -- cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/payCallback cloudfunctions/verifyPayment', { cwd: ROOT }).toString().trim() } catch (_) { changed = 'GIT_ERR' }

@@ -14,8 +14,17 @@
  *     - 身份一律取自 cloud.getWXContext().OPENID，绝不信任客户端传入 openid。
  *     - 只读查询，无任何写操作。
  *     - 仅按已认证 openid 查询 → 无跨用户泄漏。
- *     - 服务端权威规则与 report-history 的可见性规则一致（countPolicy.js）。
  *     - 返回 {code:0,data} 包裹，兼容既有页面响应解析。
+ *
+ *   RC8_13_P0_HISTORY_LIST_SERVER_AUTHORITY_FIX
+ *     - 可见性口径与列表函数**共用同一源**（字节一致共享产物）：
+ *         lib/reportVisibility.js     ← getReportHistory 同源
+ *         lib/challengeListability.js ← getChallengeRecords 同源
+ *       保证 profileCount ≡ list.total，杜绝口径漂移：
+ *         reportCount    === getReportHistory.total
+ *         challengeCount === getChallengeRecords.total
+ *     - challengeFinishedCount 独立统计（status==='finished'）。
+ *     - 计数基于完整集合；扫描上限触发时标记不完整（reportCountComplete=false）。
  */
 
 const cloud = require('wx-server-sdk')
@@ -23,7 +32,8 @@ cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
 const { ok, fail, CODES } = require('./lib/response.js')
-const { countViewableReports, pagesFor } = require('./lib/countPolicy.js')
+const { countViewableReports, pagesFor } = require('./lib/reportVisibility.js')
+const { isListableChallenge } = require('./lib/challengeListability.js')
 
 const PAGE_SIZE = 100
 const MAX_PAGES = 100 // 上限保护：最多扫描 10,000 条，避免超时；超出则标记报告计数不完整
@@ -50,8 +60,28 @@ exports.main = async (event, context) => {
 
     const reportTotalRecords = (reportTotalRes && reportTotalRes.total) || 0
     const paidReportCount = (paidRes && paidRes.total) || 0
-    const challengeCount = (challengeRes && challengeRes.total) || 0
     const challengeFinishedCount = (challengeFinRes && challengeFinRes.total) || 0
+
+    // challengeCount 与 getChallengeRecords.total 共用同一 owner 口径：
+    // 每条 owner 记录都通过 isListableChallenge（见 challengeListability.js）。
+    // 这里对 owner 记录做一次物化校验，确保口径一致且不因未来谓词收敛而静默漂移。
+    let challengeCount = 0
+    {
+      const rawTotal = (challengeRes && challengeRes.total) || 0
+      const pages = pagesFor(rawTotal, PAGE_SIZE)
+      const scanPages = Math.min(pages, MAX_PAGES)
+      for (let i = 0; i < scanPages; i++) {
+        const pageRes = await challengeRecords
+          .where({ openid })
+          .orderBy('createdAt', 'desc')
+          .orderBy('recordId', 'asc')
+          .skip(i * PAGE_SIZE)
+          .limit(PAGE_SIZE)
+          .field({ recordId: true, status: true })
+          .get()
+        for (const r of (pageRes.data || [])) if (isListableChallenge(r)) challengeCount++
+      }
+    }
 
     // 报告可见数 = 物化扫描 ai_reports{openid} 后按 canonical 可见性规则计数
     const pages = pagesFor(reportTotalRecords, PAGE_SIZE)

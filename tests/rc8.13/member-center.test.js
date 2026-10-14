@@ -278,7 +278,7 @@ function await0 () {}
   let changed = ''
   try {
     const { execSync } = require('child_process')
-    changed = execSync('git diff --name-only 612f1b9 -- cloudfunctions services/paymentService.js', { cwd: ROOT }).toString().trim()
+    changed = execSync('git diff --name-only 612f1b9 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js services/paymentService.js', { cwd: ROOT }).toString().trim()
   } catch (_) { changed = 'GIT_ERR' }
   ok(changed !== 'GIT_ERR', 'Q git available')
   eq(changed, '', 'Q no payment cloudfunction / paymentService change since deploy')

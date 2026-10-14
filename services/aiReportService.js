@@ -55,4 +55,13 @@ function generateV2ShadowReport(answersArray) {
   })
 }
 
-module.exports = { generateAiReport, getAiReport, generateDiagnosticReport, generateV2ShadowReport }
+/**
+ * RC8_13_P0_HISTORY_LIST_SERVER_AUTHORITY_FIX — 服务端权威可查看报告列表。
+ * 身份由 getWXContext().OPENID 解析；total ≡ profile.reportCount。
+ * @param {{pageToken?:string,pageSize?:number}} data
+ */
+function getReportHistory(data) {
+  return call('getReportHistory', data || {})
+}
+
+module.exports = { generateAiReport, getAiReport, generateDiagnosticReport, generateV2ShadowReport, getReportHistory }

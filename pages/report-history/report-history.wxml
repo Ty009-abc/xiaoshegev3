@@ -1,10 +1,23 @@
-<!-- pages/report-history — 我的报告列表（本地历史） -->
+<!-- pages/report-history — 我的报告列表（服务端权威） -->
 <view class="page">
   <xsg-navbar title="我的报告" light />
 
   <view class="content">
-    <view wx:if="{{loadError && reports.length}}" style="margin:16rpx 24rpx;padding:12rpx 20rpx;border-radius:12rpx;background:rgba(244,63,94,0.10);color:#f43f5e;font-size:22rpx;text-align:center;">服务端数据加载失败，当前显示本地记录</view>
-    <block wx:if="{{reports.length}}">
+    <!-- LOADING -->
+    <view wx:if="{{status === 'loading'}}" class="state-hint">正在加载报告…</view>
+
+    <!-- UNAUTHORIZED -->
+    <view wx:elif="{{status === 'unauthorized'}}" class="state-hint state-error">身份验证失败，请重新进入</view>
+
+    <!-- ERROR（可重试；绝不回退本地） -->
+    <view wx:elif="{{status === 'error'}}" class="state-error-wrap">
+      <text class="state-error">加载失败，请重试</text>
+      <button class="state-retry" bindtap="onRetry">重试</button>
+    </view>
+
+    <!-- SUCCESS / 服务端确认零时的本地补充 -->
+    <block wx:elif="{{reports.length}}">
+      <view wx:if="{{localOnly}}" class="local-notice">服务端暂无报告，以下为**本机记录**（非服务端权益，仅供本地查看）</view>
       <view class="report-list">
         <view
           class="report-card"
@@ -18,6 +31,7 @@
           <view class="report-head">
             <text class="report-date">{{item.dateText}}</text>
             <text class="report-persona" wx:if="{{item.title}}">{{item.title}}</text>
+            <text class="report-local-tag" wx:if="{{item.local}}">本机</text>
           </view>
           <text class="report-preview">{{item.preview || '认知翻身报告'}}</text>
           <text class="report-summary" wx:if="{{item.summary}}">{{item.summary}}</text>
@@ -25,8 +39,9 @@
       </view>
     </block>
 
+    <!-- EMPTY（仅服务端确认 total===0 且无本地记录） -->
     <xsg-empty
-      wx:elif="{{!loading}}"
+      wx:elif="{{status === 'empty'}}"
       icon="📄"
       title="暂无报告"
       desc="完成一次认知诊断后会出现在这里"
