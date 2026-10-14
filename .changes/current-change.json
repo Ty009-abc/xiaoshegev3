@@ -1,30 +1,24 @@
 {
-  "taskId": "RC8_14_A_R2_LEGACY_RECOVERY_AND_POOL_PREP",
+  "taskId": "RC8_14_G_STAGING_GUARD_HARDENING",
   "stage": "14",
   "priority": "P0",
-  "phase": "Fix active legacy challenge recovery (release-gate blockers B1/B3) and prepare an offline event batch. B1: getChallengeEvent._ensurePlan no longer builds a fresh plan for records that already carry answered choices; it now routes those through the planAuthority.recoverLegacyPlan path, which strictly preserves the answered prefix in original order and guarantees future eventIds never intersect the answered set; unsafe/duplicated/overflow prefixes return explicit LEGACY_PLAN_UNRECOVERABLE and never silently resequence or re-serve. B3: removed the dead resolvePersonalizedEvent import. PHASE_2 atomicity: plan persistence is now a single-document conditional update guarded by planLocked != true (first writer wins; concurrent writers converge by re-reading the persisted plan), so an existing valid plan is never overwritten (no blind last-writer-wins). PHASE_4 (offline only): authored rc814-staging/rc814-batch1 with 10 low-capital universal events (GAME013-GAME022) drawn from the 51 IMPORT_CANDIDATEs, all PENDING_OWNER_REVIEW, preserving sourceEventId/provenance, three choices each, nine-dim effects authored from behavioral evidence (never derived from game rate) under a |delta|<=14 cap, chef+delivery eligibility verified, semantic uniqueness LOW vs CE001-CE030. Nothing imported into runtime; no CE001-CE030 edit; nine-dim engine unchanged; 22-tag authority NOT activated. No payment/membership change; no production deploy; no production DB write.",
-  "baseCommit": "5d5f3fa",
-  "scope": "~ cloudfunctions/getChallengeEvent/index.js (wire recoverLegacyPlan into _ensurePlan; conditional plan persistence; explicit LEGACY_PLAN_UNRECOVERABLE; remove dead import). ~ tests/rc8.14/_harness.js (add db.command support). ~ tests/rc8.14/run.js (+2 suites). + tests/rc8.14/legacy-recovery-wiring.test.js. + tests/rc8.14/plan-persistence.test.js. Offline-only (git-excluded, not deployed): rc814-staging/rc814-batch1/{batch1-events.json,batch1-scoring-and-eligibility.md,verify-batch1.js}.",
+  "phase": "Harden the staging preflight/deploy guards and track the guard tooling. preflight.sh rewritten fail-closed: rejects unset STAGING_ENV_ID, production envId (exact + substring), missing/non-matching allowlist, unreachable CLI, and — for the fixed marker doc (collection 'staging', _id 'staging') — missing doc, unparseable CLI output, staging!==true, and envId!=target. No error swallowing (CLI/parse failures are non-zero exits). deploy-guard.sh: removed the built-in allowlist default (now required), removed an inert self-referencing PROD_ENV loop, kept prod-env/command-text/payment-fn/prod-secret/allowlist denials, and still runs preflight as the final gate. Added guard-selftest.sh (stub tcb; 14 local scenarios, no cloud writes: 1 pass + 5 reject + prod/allowlist/secret-var rejections). Unified collection references to the source names challenge_events / challenge_records (no parallel collections). Alignment: d3-smoke-test.js marker now reads collection 'staging' _id 'staging' and asserts staging===true + envId===target. Tooling promoted from local-only exclude to tracked: .git/info/exclude narrowed to '/rc814-staging/*' + '!/rc814-staging/staging-infra/' so ONLY staging-infra tooling+docs are versioned; all staging data/assets remain isolated. The 3 business challenge functions are unchanged.",
+  "baseCommit": "57b4e4f",
+  "scope": "~ rc814-staging/staging-infra/preflight.sh (fail-closed + hardened marker contract). ~ rc814-staging/staging-infra/deploy-guard.sh (require allowlist, drop inert loop). + rc814-staging/staging-infra/guard-selftest.sh. + rc814-staging/staging-infra/README.md. + rc814-staging/staging-infra/BASELINE-HISTORY.md. ~ rc814-staging/rc814-batch1/d3/d3-smoke-test.js (marker contract). ~ .git/info/exclude (local; narrow staging exclusion). No change to cloudfunctions/* business logic.",
   "filesChanged": [
-    "cloudfunctions/getChallengeEvent/index.js",
-    "tests/rc8.14/_harness.js",
-    "tests/rc8.14/run.js",
-    "tests/rc8.14/legacy-recovery-wiring.test.js",
-    "tests/rc8.14/plan-persistence.test.js"
+    "rc814-staging/staging-infra/preflight.sh",
+    "rc814-staging/staging-infra/deploy-guard.sh",
+    "rc814-staging/staging-infra/guard-selftest.sh",
+    "rc814-staging/staging-infra/README.md",
+    "rc814-staging/staging-infra/BASELINE-HISTORY.md"
   ],
   "offlineArtifacts": [
-    "rc814-staging/rc814-batch1/batch1-events.json",
-    "rc814-staging/rc814-batch1/batch1-scoring-and-eligibility.md",
-    "rc814-staging/rc814-batch1/verify-batch1.js"
+    "rc814-staging/staging-infra/cloudbaserc.staging.json",
+    "rc814-staging/staging-infra/deploy-staging.sh"
   ],
   "deployTargets": [],
   "requiredTests": [
-    "node tests/rc8.14/run.js",
-    "node tests/rc8.9/run.js",
-    "node tests/rc8.13/run.js",
-    "node tests/rc8.10/run.js",
-    "node tests/rc8.11/run.js",
-    "node tests/rc8.8/run.js",
-    "node tests/legacy6q/run.js"
+    "bash rc814-staging/staging-infra/guard-selftest.sh",
+    "node tests/rc8.14/run.js"
   ]
 }
