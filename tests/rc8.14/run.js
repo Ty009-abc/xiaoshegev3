@@ -17,6 +17,7 @@ const ALL = [
   'legacy-recovery-wiring.test.js',
   'plan-persistence.test.js',
   'concurrency-resume.test.js',
+  'submit-atomicity.test.js',
   'property.test.js',
 ]
 const dir = __dirname
