@@ -25,3 +25,7 @@
 .btn[disabled] { background: #374151; color: #9ca3af; }
 
 .logline { font-size: 22rpx; color: #d1d5db; word-break: break-all; margin: 4rpx 0; }
+.warn { background: #7c2d12; border-radius: 8rpx; padding: 8rpx 12rpx; }
+.pre { white-space: pre-wrap; font-size: 22rpx; color: #a7f3d0; }
+.inp { flex: 1; background: #1f2937; color: #e5e7eb; border-radius: 8rpx; height: 64rpx; line-height: 64rpx; padding: 0 12rpx; font-size: 24rpx; }
+.picker { background: #1f2937; color: #e5e7eb; border-radius: 8rpx; height: 64rpx; line-height: 64rpx; padding: 0 16rpx; min-width: 120rpx; }

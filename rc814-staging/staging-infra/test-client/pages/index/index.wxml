@@ -28,6 +28,28 @@
   </view>
 
   <view class="card">
+    <view class="title">RC8.14 D10 CAS验证</view>
+    <view class="row warn"><text class="v">⚠ 仅隔离 staging 环境（非生产）。固定 recordId + 历史 eventId 提交；诊断当日使用，可能改写题目进度。</text></view>
+    <view class="row"><text class="k">目标环境</text><text class="v">{{stagingEnv}}</text></view>
+
+    <view class="row"><text class="k">recordId</text>
+      <input class="inp" value="{{d10.recordId}}" bindinput="onD10RecordIdInput" placeholder="CR..." /></view>
+    <view class="row"><text class="k">eventId</text>
+      <input class="inp" value="{{d10.eventId}}" bindinput="onD10EventIdInput" placeholder="CE012" /></view>
+    <view class="row"><text class="k">choiceKey</text>
+      <picker mode="selector" range="{{d10.choiceOptions}}" value="{{d10.choiceIndex}}" bindchange="onD10ChoiceChange">
+        <view class="picker">{{d10.choiceKey}} ▾</view>
+      </picker></view>
+
+    <button class="btn btn-wide" bindtap="onD10Submit" disabled="{{busy || d10.inFlight}}">提交指定选择（SUBMIT_SPECIFIED_CHOICE）</button>
+    <button class="btn btn-wide" bindtap="onD10GetEvent" disabled="{{busy || d10.inFlight}}">查当前事件（GET_CURRENT_EVENT · 只读）</button>
+
+    <view class="row"><text class="k">提交前</text><text class="v">{{stagingEnv}} / {{d10.recordId}} / {{d10.eventId}} / {{d10.choiceKey}}</text></view>
+    <view class="row" wx:if="{{d10.submitText}}"><text class="k">提交响应</text><text class="v pre">{{d10.submitText}}</text></view>
+    <view class="row" wx:if="{{d10.getText}}"><text class="k">GET响应</text><text class="v pre">{{d10.getText}}</text></view>
+  </view>
+
+  <view class="card">
     <view class="title">C1–C10</view>
     <button class="btn" bindtap="goRunner" disabled="{{busy || !identityOk}}">进入 C1–C10 Runner</button>
   </view>
