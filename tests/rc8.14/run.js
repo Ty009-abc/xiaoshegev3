@@ -18,6 +18,8 @@ const ALL = [
   'plan-persistence.test.js',
   'concurrency-resume.test.js',
   'submit-atomicity.test.js',
+  'trial-resume-atomic.test.js',
+  'active-session-authority.test.js',
   'property.test.js',
 ]
 const dir = __dirname

@@ -178,19 +178,28 @@ async function claim ({ db, openid, now }) {
       : { won: false, token, session: await readActive(db, openid), reason: 'STEAL_LOST' }
   }
 
-  // (c) READY session whose pointed record the caller found unusable → CAS reclaim
-  if (cur.state === CLAIM_STATE.READY) {
-    const res = await db.collection(COLLECTION)
-      .where({ _id: openid, ownerToken: cur.ownerToken, state: CLAIM_STATE.READY })
-      .update({ data: { ownerToken: token, state: CLAIM_STATE.CLAIMING, recordId: null, claimedAt: now, readyAt: null, expiresAt } })
-    const won = !!(res && res.stats && res.stats.updated === 1)
-    return won
-      ? { won: true, token, session: null, mode: 'RECLAIM' }
-      : { won: false, token, session: await readActive(db, openid), reason: 'RECLAIM_LOST' }
-  }
-
-  // (d) another LIVE holder → report it
+  // (c) READY session is AUTHORITATIVE. A fresh create must NEVER silently
+  //     replace it (that was the RC8_14_D12 B1 duplicate-creation window).
+  //     Invalidation of a READY session is only ever done EXPLICITLY via
+  //     reclaimInvalid() after authoritative verification.
   return { won: false, token, session: cur, reason: 'HELD' }
+}
+
+/**
+ * Explicitly INVALIDATE a READY session whose pointed record is missing,
+ * un-owned, or finished — CAS on the observed READY state. Only after the
+ * caller has AUTHORITATIVELY verified the target is unusable (never from an
+ * ordinary challenge_records list scan miss).
+ * @returns {{won:boolean, token:string, priorRecordId:string|null, session:object|null}}
+ */
+async function reclaimInvalid ({ db, openid, expectedRecordId, expectedToken, now }) {
+  const token = newToken(now)
+  const expiresAt = now + CLAIM_TTL_MS
+  const res = await db.collection(COLLECTION)
+    .where({ _id: openid, ownerToken: expectedToken, state: CLAIM_STATE.READY, recordId: expectedRecordId })
+    .update({ data: { ownerToken: token, state: CLAIM_STATE.CLAIMING, recordId: null, claimedAt: now, readyAt: null, expiresAt } })
+  const won = !!(res && res.stats && res.stats.updated === 1)
+  return { won, token, priorRecordId: expectedRecordId, session: won ? null : await readActive(db, openid) }
 }
 
 /**
@@ -203,6 +212,22 @@ async function markReady ({ db, openid, token, recordId, now }) {
     .update({ data: { state: CLAIM_STATE.READY, recordId, readyAt: now, expiresAt: null } })
   const won = !!(res && res.stats && res.stats.updated === 1)
   return { won, session: won ? null : await readActive(db, openid) }
+}
+
+/**
+ * Read-only pointer reconciliation: repoint a READY session to another owned
+ * record (or null) via CAS on the observed READY state. Used ONLY when the
+ * authoritative target is provably not ours — never to steal another owner's
+ * record and never to create.
+ * @returns {{won:boolean}}
+ */
+async function reconcileReady ({ db, openid, expectedToken, expectedRecordId, recordId }) {
+  try {
+    const res = await db.collection(COLLECTION)
+      .where({ _id: openid, ownerToken: expectedToken, state: CLAIM_STATE.READY, recordId: expectedRecordId })
+      .update({ data: { recordId } })
+    return { won: !!(res && res.stats && res.stats.updated === 1) }
+  } catch (_) { return { won: false } }
 }
 
 /** Voluntarily give up a CLAIMING token (immediate expiry → stealable). */
@@ -234,5 +259,5 @@ async function converge ({ db, openid, tries = 20 }) {
 module.exports = {
   COLLECTION, TRIAL_LIMIT, CLAIM_TTL_MS, CLAIM_STATE, ACTIONS,
   newToken, validateCandidate, selectResumable,
-  readActive, loadRecord, claim, markReady, release, converge,
+  readActive, loadRecord, claim, reclaimInvalid, reconcileReady, markReady, release, converge,
 }

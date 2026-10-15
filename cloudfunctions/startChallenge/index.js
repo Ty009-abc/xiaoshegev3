@@ -149,9 +149,74 @@ function _trialBoundaryResponse (record) {
   })
 }
 
+// Authoritative READY session (challenge_active) — the SINGLE source of truth
+// for "which record is this user's active challenge". Never inferred from an
+// ordinary challenge_records list scan.
+async function _readReadySession (db, openid) {
+  const s = await activeSession.readActive(db, openid)
+  return (s && s.state === activeSession.CLAIM_STATE.READY && s.recordId) ? s : null
+}
+
+// Resume / payment-boundary result for an owned trial record (shared by the
+// explicit READY authority and by legacy scan selection).
+function _trialResumeResult (record, hasAccess) {
+  if (record.trialMode && !hasAccess && (record.currentEventIndex || 0) >= activeSession.TRIAL_LIMIT) {
+    console.log(`[startChallenge] trial boundary reached recordId=${record.recordId}`)
+    return _trialBoundaryResponse(record)
+  }
+  console.log(`[startChallenge] resume record recordId=${record.recordId} idx=${record.currentEventIndex}`)
+  return _resumeStateFromRecord(record)
+}
+
+// Finalize an ACTIVE claim into a concrete record and mark the session READY.
+// Deterministic identity = session._id (=openid); at most one record per claim.
+async function _finishCreate ({ db, openid, ts, token, trialMode, mode, isDiagnostic }) {
+  const entitled = !trialMode && !isDiagnostic
+  const recordId = genRecordId(ts)
+  const record = _buildRecord({ recordId, openid, ts, trialMode, mode, extra: entitled ? { unlocked: true } : {} })
+  const planned = await _buildPlanOrFail({ db, openid, record, isDiagnostic })
+  if (!planned.ok) {
+    await activeSession.release({ db, openid, token })
+    return fail(CODES.NEED_PAYMENT, entitled ? '可用题目不足，暂无法开启完整挑战' : '可用题目不足，暂无法开启挑战', {
+      code: 'INSUFFICIENT_ELIGIBLE_EVENTS', eligibleCount: planned.eligibleCount, required: planned.required,
+    })
+  }
+  record.plan = planned.plan
+  record.planVersion = planned.plan.planVersion
+  record.planCreatedAt = planned.plan.createdAt
+  try {
+    await db.collection('challenge_records').add({ data: record })
+  } catch (e) {
+    await activeSession.release({ db, openid, token })
+    return fail(CODES.DB_ERROR, e.message)
+  }
+  await activeSession.markReady({ db, openid, token, recordId, now: ts })
+  return ok({
+    recordId, currentDay: 1, currentEventIndex: 0, trialMode,
+    ...(entitled ? { unlocked: true } : {}),
+    mode, scoringVersion: 'normalized_v2', rawScores: { ...DEFAULT_INIT },
+    planVersion: planned.plan.planVersion,
+    ...(trialMode ? { trialLimit: 3 } : {}),
+  })
+}
+
+// Atomically acquire the create token, then finalize. Losers converge on the
+// winner's READY record instead of creating.
+async function _createViaClaim ({ db, openid, ts, trialMode, mode, isDiagnostic }) {
+  const cl = await activeSession.claim({ db, openid, now: ts })
+  if (cl.won) return await _finishCreate({ db, openid, ts, token: cl.token, trialMode, mode, isDiagnostic })
+  const conv = await activeSession.converge({ db, openid })
+  if (conv) {
+    console.log(`[startChallenge] concurrent start converged recordId=${conv.record.recordId}`)
+    return _resumeStateFromRecord(conv.record)
+  }
+  return fail(CODES.SERVER_ERROR, '并发开始冲突，请重试', { code: 'CONCURRENT_START_CONFLICT' })
+}
+
 /**
- * For a FREE (no-entitlement) user, reuse an existing ACTIVE trial record
- * instead of creating a new one. Returns:
+ * For a FREE (no-entitlement) user with NO READY authority and NO owned record:
+ * reuse an existing ACTIVE trial record (legacy scan) instead of creating one.
+ * Returns:
  *   - resume response (valid active trial, idx 0..2)
  *   - payment-boundary response (idx >= 3 — never create another free trial)
  *   - fail(UNRECOVERABLE) when only malformed active trials exist
@@ -187,63 +252,6 @@ async function _resumeTrialOrBoundary ({ db, openid, hasAccess }) {
     })
   }
   return null
-}
-
-/**
- * Create a NEW record under an atomic active-session claim so N parallel
- * `startChallenge` calls converge on exactly ONE authoritative recordId.
- * Losers converge to the winner's record instead of creating duplicates.
- */
-async function _startFreshWithClaim ({ db, openid, ts, trialMode, mode, isDiagnostic }) {
-  const cl = await activeSession.claim({ db, openid, now: ts })
-  if (!cl.won) {
-    const conv = await activeSession.converge({ db, openid })
-    if (conv) {
-      console.log(`[startChallenge] concurrent start converged recordId=${conv.record.recordId}`)
-      return _resumeStateFromRecord(conv.record)
-    }
-    // No convergent record → fail closed (never create a duplicate).
-    return fail(CODES.SERVER_ERROR, '并发开始冲突，请重试', { code: 'CONCURRENT_START_CONFLICT' })
-  }
-
-  const entitled = !trialMode && !isDiagnostic
-  const recordId = genRecordId(ts)
-  const record = _buildRecord({
-    recordId, openid, ts, trialMode, mode,
-    extra: entitled ? { unlocked: true } : {},
-  })
-  const planned = await _buildPlanOrFail({ db, openid, record, isDiagnostic })
-  if (!planned.ok) {
-    await activeSession.release({ db, openid, token: cl.token })
-    return fail(CODES.NEED_PAYMENT, entitled ? '可用题目不足，暂无法开启完整挑战' : '可用题目不足，暂无法开启挑战', {
-      code: 'INSUFFICIENT_ELIGIBLE_EVENTS',
-      eligibleCount: planned.eligibleCount,
-      required: planned.required,
-    })
-  }
-  record.plan = planned.plan
-  record.planVersion = planned.plan.planVersion
-  record.planCreatedAt = planned.plan.createdAt
-  try {
-    await db.collection('challenge_records').add({ data: record })
-  } catch (e) {
-    await activeSession.release({ db, openid, token: cl.token })
-    return fail(CODES.DB_ERROR, e.message)
-  }
-  await activeSession.markReady({ db, openid, token: cl.token, recordId, now: ts })
-
-  return ok({
-    recordId,
-    currentDay: 1,
-    currentEventIndex: 0,
-    trialMode,
-    ...(entitled ? { unlocked: true } : {}),
-    mode,
-    scoringVersion: 'normalized_v2',
-    rawScores: { ...DEFAULT_INIT },
-    planVersion: planned.plan.planVersion,
-    ...(trialMode ? { trialLimit: 3 } : {}),
-  })
 }
 
 exports.main = async (event, context) => {
@@ -328,22 +336,63 @@ exports.main = async (event, context) => {
         })
       }
 
-      // ── B. 无已拥有记录但持有权益 → entitled 新一轮（原子认领，并发收敛）──
-      // 产品契约：challenge_39_9 = 一次完整挑战（结果页为核心交付）。
-      // 当已拥有记录存在时上面已复用/路由；此处仅为“权益存在但无归属记录”
-      // 的兜底（例如记录被清理），绝不再造 trial。
-      if (hasAccess) {
-        return await _startFreshWithClaim({ db, openid, ts, trialMode: false, mode: 'challenge', isDiagnostic: false })
+      // ── A0. challenge_active READY 是用户活跃会话的唯一权威 ──
+      // 绝不因普通 challenge_records 列表扫描未命中而判定其无效（B1 重复窗口修复）。
+      const ready = await _readReadySession(db, openid)
+      if (ready) {
+        // 按 recordId + openid 精确校验被指记录。
+        const rec = await activeSession.loadRecord(db, openid, ready.recordId)
+        if (rec && rec.status !== 'finished') {
+          const v = activeSession.validateCandidate(rec)
+          if (v.ok) return _trialResumeResult(rec, hasAccess)
+          // 畸形目标 → fail-closed（未证明可安全恢复前不新建/不重认领）。
+          return fail(CODES.DB_ERROR, '历史进度无法安全恢复，请联系客服', {
+            code: 'LEGACY_PLAN_UNRECOVERABLE', reason: v.reason,
+          })
+        }
+        if (rec && rec.status === 'finished') {
+          // 已完成目标 → 路由结果页，绝不新建/重认领。
+          return ok({
+            recordId: rec.recordId, currentDay: rec.currentDay, currentEventIndex: rec.currentEventIndex,
+            trialMode: rec.trialMode === true, ...(rec.trialMode === true ? {} : { unlocked: true }),
+            mode: 'challenge', scoringVersion: rec.scoringVersion || 'normalized_v2', rawScores: rec.rawScores,
+            finalType: rec.finalType || '', resumed: true, completed: true, destination: 'challenge_result',
+          })
+        }
+        // 目标缺失/非本人：先尝试**非新建**地重指向另一条自有有效记录；
+        // 否则经 CAS 显式失效（reclaimInvalid）后方可新建。
+        let reconRecord = null
+        try {
+          const rr = await db.collection('challenge_records')
+            .where({ openid, mode: 'challenge', status: _.neq('finished') })
+            .orderBy('createdAt', 'desc').limit(20).get()
+          const sel = activeSession.selectResumable(rr.data || [], { hasAccess })
+          if (sel.action === activeSession.ACTIONS.RESUME || sel.action === activeSession.ACTIONS.NEED_PAYMENT) reconRecord = sel.record
+        } catch (_e) {}
+        if (reconRecord) {
+          await activeSession.reconcileReady({ db, openid, expectedToken: ready.ownerToken, expectedRecordId: ready.recordId, recordId: reconRecord.recordId })
+          return _trialResumeResult(reconRecord, hasAccess)
+        }
+        const rl = await activeSession.reclaimInvalid({ db, openid, expectedRecordId: ready.recordId, expectedToken: ready.ownerToken, now: ts })
+        if (rl.won) return await _finishCreate({ db, openid, ts, token: rl.token, trialMode, mode: 'challenge', isDiagnostic: false })
+        const conv = await activeSession.converge({ db, openid })
+        if (conv) return _resumeStateFromRecord(conv.record)
+        return fail(CODES.SERVER_ERROR, '并发开始冲突，请重试', { code: 'CONCURRENT_START_CONFLICT' })
       }
 
-      // ── A0. 免费用户：优先复用既有 ACTIVE 试用记录（RC8_14_D12 TRIAL RESUME）──
+      // ── B. 无 READY、无 owned：持有权益 → entitled 新一轮（原子认领，并发收敛）──
+      if (hasAccess) {
+        return await _createViaClaim({ db, openid, ts, trialMode: false, mode: 'challenge', isDiagnostic: false })
+      }
+
+      // ── A1. 无 READY、无 owned、免费：legacy 活跃试用扫描（不创建）──
       // 复用而非新建；到达 Day-3 边界返回支付门槛；畸形活跃记录显式拒绝。
       const resumedTrial = await _resumeTrialOrBoundary({ db, openid, hasAccess })
       if (resumedTrial) return resumedTrial
     }
 
-    // ── C. 真正无权益（或诊断模式）→ 原子认领后新建 trial / diagnostic ──
-    return await _startFreshWithClaim({
+    // ── C. 无任何可复用 → 原子认领后新建 trial / diagnostic ──
+    return await _createViaClaim({
       db, openid, ts, trialMode,
       mode: isDiagnostic ? 'diagnostic' : 'challenge',
       isDiagnostic,
