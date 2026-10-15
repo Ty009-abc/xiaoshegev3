@@ -15,6 +15,9 @@
  */
 const STAGING_ENV = 'fanshen002-d9g0rjr3b6e313af5'
 
+// RC8_14_D10_R4 — shared (test-client-only) parsing + redaction helpers.
+const { redactOpenid, redactJson, parseSubmitResponse, fmtFlag } = require('../../lib/preview-utils.js')
+
 // Local wall-clock with explicit UTC offset — never an ambiguous bare time.
 function stamp () {
   const d = new Date()
@@ -79,7 +82,7 @@ Page({
     this._log('→ stagingIdentityProbe (身份自检)')
     try {
       const res = await wx.cloud.callFunction({ name: 'stagingIdentityProbe', data: {} }).then(r => r.result)
-      this._log('← ' + JSON.stringify(res).slice(0, 260))
+      this._log('← ' + this._redact(JSON.stringify(res).slice(0, 260)))
       const d = (res && res.data) || {}
       if (res && res.code === 0 && d.identityPresent) {
         this.setData({
@@ -107,7 +110,7 @@ Page({
     this._log('→ startChallenge')
     try {
       const res = await wx.cloud.callFunction({ name: 'startChallenge', data: {} }).then(r => r.result)
-      this._log('← ' + JSON.stringify(res).slice(0, 260))
+      this._log('← ' + this._redact(JSON.stringify(res).slice(0, 260)))
       if (res && res.code === 0 && res.data && res.data.recordId) {
         this.setData({ recordId: res.data.recordId, startStatus: '✅ 已创建/复用记录', startError: '' })
       } else {
@@ -127,7 +130,7 @@ Page({
     this._log('→ getChallengeEvent ' + this.data.recordId)
     try {
       const res = await wx.cloud.callFunction({ name: 'getChallengeEvent', data: { recordId: this.data.recordId } }).then(r => r.result)
-      this._log('← ' + JSON.stringify(res).slice(0, 260))
+      this._log('← ' + this._redact(JSON.stringify(res).slice(0, 260)))
       const ev = (res && res.data) || null
       this.setData({ lastEvent: ev, eventLabel: ev && ev.eventId ? (ev.eventId + ' (day ' + ev.day + ')') : '（无可用题目/已完成）' })
     } catch (e) { this._log('✗ ' + String((e && e.errMsg) || e)) }
@@ -146,7 +149,7 @@ Page({
         name: 'submitChallengeChoice',
         data: { recordId, eventId: lastEvent.eventId, choiceKey },
       }).then(r => r.result)
-      this._log('← ' + JSON.stringify(res).slice(0, 220))
+      this._log('← ' + this._redact(JSON.stringify(res).slice(0, 220)))
       this.setData({ submitStatus: (res && res.code === 0) ? '✅ 提交成功' : ('❌ 提交失败：' + this._reason(res)) })
     } catch (e) {
       this.setData({ submitStatus: '❌ 调用异常：' + String((e && e.errMsg) || e) })
@@ -160,8 +163,8 @@ Page({
   //   仅 test-client；不调用 startChallenge；身份仅来自 getWXContext。
   // ══════════════════════════════════════════════════════════════════════
   _redact (s) {
-    // 脱敏：openid 形态（o + 27/28 base62）永不完整落日志
-    return String(s == null ? '' : s).replace(/o[A-Za-z0-9_-]{20,}/g, m => m.slice(0, 6) + '…')
+    // 脱敏：openid 形态（o + 20/28 base62）永不完整落日志（含嵌套 JSON）
+    return redactOpenid(s)
   },
   _nowMs () { return Date.now() },
 
@@ -203,18 +206,16 @@ Page({
     try {
       const res = await wx.cloud.callFunction({ name: 'submitChallengeChoice', data: req }).then(r => r.result)
       const t1 = this._nowMs()
-      const dup = !!(res && res.duplicate)
-      const idem = !!(res && res.idempotent)
-      const conflict = !!(res && res.data && res.data.conflict)
-      const txt = 'code=' + (res && res.code) + ' message=' + ((res && res.message) || '-') +
-        '\nduplicate=' + dup + ' idempotent=' + idem + ' conflict=' + conflict +
-        '\ncurrentEventIndex=' + ((res && res.currentEventIndex !== undefined) ? res.currentEventIndex :
-          ((res && res.data && res.data.currentEventIndex !== undefined) ? res.data.currentEventIndex : '-')) +
-        '\ndata=' + JSON.stringify((res && res.data) || null) +
+      // 从正确层级(res.data)读取业务标志；缺省(null)与显式 false 区分；不合成 PASS。
+      const p = parseSubmitResponse(res)
+      const txt = 'code=' + p.code + ' message=' + (p.message || '-') +
+        '\nduplicate=' + fmtFlag(p.duplicate) + ' idempotent=' + fmtFlag(p.idempotent) + ' conflict=' + fmtFlag(p.conflict) +
+        '\ncurrentEventIndex=' + (p.currentEventIndex === null ? '-' : p.currentEventIndex) +
+        '\ndata=' + this._redact(redactJson(p.data)) +
         '\nt0=' + t0 + ' t1=' + t1 + ' dt=' + (t1 - t0) + 'ms'
       // 保留原始服务端响应；不合成 flag、不把意外响应转 PASS
       this.setData({ 'd10.submitResp': res, 'd10.submitText': txt })
-      this._log('← [D10] submit ' + this._redact('code=' + (res && res.code) + ' dup=' + dup + ' idem=' + idem + ' conflict=' + conflict))
+      this._log('← [D10] submit ' + this._redact('code=' + p.code + ' dup=' + fmtFlag(p.duplicate) + ' idem=' + fmtFlag(p.idempotent) + ' conflict=' + fmtFlag(p.conflict)))
     } catch (e) {
       const t1 = this._nowMs()
       const msg = String((e && e.errMsg) || e)

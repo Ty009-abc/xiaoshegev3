@@ -52,15 +52,15 @@ ok(/wx\.showModal\(/.test(idxJs) && /if \(m\.confirm\)/.test(idxJs), 'guard: vis
 ok(!/retry/i.test(idxJs.match(/onD10Submit[\s\S]*?_d10DoSubmit/)[0]), 'no automatic retry on 409')
 
 // ── response handling: preserve, don't synthesize ──
-ok(/dup = !!\(res && res\.duplicate\)/.test(idxJs), 'reads duplicate flag from server response')
-ok(/idem = !!\(res && res\.idempotent\)/.test(idxJs), 'reads idempotent flag from server response')
-ok(/conflict = !!\(res && res\.data && res\.data\.conflict\)/.test(idxJs), 'reads conflict flag from server data')
+ok(/parseSubmitResponse\(res\)/.test(idxJs), 'uses parseSubmitResponse helper')
+ok(!/res\.duplicate/.test(idxJs), 'no direct top-level res.duplicate read in panel')
+ok(!/\(res && res\.idempotent\)/.test(idxJs), 'no direct top-level res.idempotent read in panel')
 ok(!/= 'PASS'/.test(idxJs), 'never converts response to a PASS string')
 ok(/setData\(\{ 'd10\.submitResp': res/.test(idxJs), 'preserves original server response object')
 
 // ── redaction + timestamps ──
 ok(/_redact/.test(idxJs), 'has openid redaction helper')
-ok(/replace\(\/o\[A-Za-z0-9_-\]\{20,\}\/g/.test(idxJs), 'redaction masks openid-like tokens')
+ok(/redactOpenid\(s\)/.test(idxJs), '_redact delegates to shared redactOpenid helper')
 ok(/const t0 = this\._nowMs\(\)/.test(idxJs) && /const t1 = this\._nowMs\(\)/.test(idxJs), 'captures request + response timestamps')
 ok(/code=' \+ \(res && res\.code\)/.test(idxJs), 'displays response code')
 

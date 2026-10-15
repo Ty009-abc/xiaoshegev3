@@ -1,4 +1,6 @@
 const { runAll } = require('../../lib/c1-c10-runner.js')
+// RC8_14_D10_R4 — redact identity BEFORE logging/display (test-client-only helper).
+const { redactOpenid, redactJson } = require('../../lib/preview-utils.js')
 
 function stamp () {
   const d = new Date()
@@ -25,7 +27,7 @@ Page({
       const ok = res && res.code === 0 && res.data && res.data.identityPresent
       this.setData({
         identityOk: !!ok,
-        status: ok ? ('✅ 身份已核验 ' + (res.data.openidMasked || '')) : ('❌ 身份核验失败 ' + JSON.stringify(res)),
+        status: ok ? ('✅ 身份已核验 ' + (res.data.openidMasked || '')) : ('❌ 身份核验失败 ' + redactJson(res, 300)),
       })
     } catch (e) {
       this.setData({ identityOk: false, status: '❌ ' + String((e && e.errMsg) || e) })
@@ -36,7 +38,7 @@ Page({
     if (!this.data.identityOk) { this.setData({ status: '请先完成身份自检' }); return }
     this.setData({ status: 'running', lines: ['[' + stamp() + '] running C1–C10…'] })
     runAll((s) => {
-      const lines = s.rows.map(r => r.id + ' [' + r.status + '] ' + r.name + ' — ' + r.detail)
+      const lines = s.rows.map(r => r.id + ' [' + r.status + '] ' + r.name + ' — ' + redactOpenid(r.detail))
       this.setData({
         status: 'done',
         summary: s,
