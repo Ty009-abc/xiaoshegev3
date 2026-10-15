@@ -50,6 +50,34 @@
   </view>
 
   <view class="card">
+    <view class="title">RC8.14 D11 真实并发CAS测试</view>
+    <view class="row warn"><text class="v">⚠ 仅隔离 staging（非生产）。同一 recordId + 当前未答 eventId，两个不同 choiceKey 并发提交；只应一个成功。诊断当日使用，会改写题目进度。</text></view>
+    <view class="row"><text class="k">目标环境</text><text class="v">{{stagingEnv}}</text></view>
+    <view class="row"><text class="k">身份状态</text><text class="v">{{identityStatus}}</text></view>
+
+    <view class="row"><text class="k">recordId</text>
+      <input class="inp" value="{{d11.recordId}}" bindinput="onD11RecordIdInput" placeholder="CR..." /></view>
+    <view class="row"><text class="k">eventId</text>
+      <input class="inp" value="{{d11.eventId}}" bindinput="onD11EventIdInput" placeholder="GAME015" /></view>
+    <view class="row"><text class="k">choice A</text>
+      <input class="inp" value="{{d11.choiceA}}" bindinput="onD11ChoiceAInput" maxlength="1" placeholder="A" /></view>
+    <view class="row"><text class="k">choice B</text>
+      <input class="inp" value="{{d11.choiceB}}" bindinput="onD11ChoiceBInput" maxlength="1" placeholder="B" /></view>
+
+    <button class="btn btn-wide" bindtap="onD11VerifyTarget" disabled="{{busy || d11.inFlight || d11.verifying || !identityOk}}">VERIFY_TARGET（校验当前未答事件）</button>
+    <view class="row" wx:if="{{d11.verifyText}}"><text class="k">校验</text><text class="v pre">{{d11.verifyText}}</text></view>
+    <view class="row" wx:if="{{d11.target}}"><text class="k">目标</text><text class="v">idx={{d11.target.currentEventIndex}} · choices={{d11.target.choiceKeys[0]}}/{{d11.target.choiceKeys[1]}} ✅</text></view>
+
+    <button class="btn btn-wide" bindtap="onD11Run" disabled="{{busy || d11.inFlight || !d11.target}}">RUN_TWO_CONCURRENT_CHOICES（并发提交 A+B）</button>
+    <view class="row" wx:if="{{d11.runText}}"><text class="k">执行</text><text class="v">{{d11.runText}}</text></view>
+    <view class="row" wx:if="{{d11.respAText}}"><text class="k">响应 A</text><text class="v pre">{{d11.respAText}}</text></view>
+    <view class="row" wx:if="{{d11.respBText}}"><text class="k">响应 B</text><text class="v pre">{{d11.respBText}}</text></view>
+
+    <button class="btn btn-wide" bindtap="onD11GetEvent" disabled="{{busy || d11.inFlight}}">GET_CURRENT_EVENT（只读读回）</button>
+    <view class="row" wx:if="{{d11.getText}}"><text class="k">GET响应</text><text class="v pre">{{d11.getText}}</text></view>
+  </view>
+
+  <view class="card">
     <view class="title">C1–C10</view>
     <button class="btn" bindtap="goRunner" disabled="{{busy || !identityOk}}">进入 C1–C10 Runner</button>
   </view>

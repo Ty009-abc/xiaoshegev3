@@ -62,6 +62,22 @@ Page({
       getResp: null,
       getText: '',
     },
+    // ── RC8.14 D11 真实并发 CAS 测试面板（隔离；仅 test-client）──
+    d11: {
+      recordId: 'CR17920376443640tylag',
+      eventId: 'GAME015',
+      choiceA: 'A',
+      choiceB: 'B',
+      verifying: false,
+      verifyText: '',
+      target: null,        // {recordId,eventId,currentEventIndex,choiceKeys}
+      inFlight: false,
+      runText: '',
+      respA: null, respB: null,
+      respAText: '', respBText: '',
+      getResp: null, getText: '',
+      overlap: null,
+    },
     log: [],
   },
 
@@ -249,6 +265,143 @@ Page({
       this._log('✗ [D10] getEvent ' + this._redact(msg))
     }
     this.setData({ 'd10.inFlight': false })
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // RC8.14 D11 — 真实并发 CAS 测试面板
+  //   同一 recordId + 同一(当前未答)eventId，两个不同 choiceKey 并发提交；
+  //   客户端不 await 任一请求，Promise.allSettled 收集；不自动重试；
+  //   固定 staging env；身份来自 getWXContext；不调用 startChallenge。
+  // ══════════════════════════════════════════════════════════════════════
+  onD11RecordIdInput (e) { this.setData({ 'd11.recordId': (e.detail.value || '').trim() }) },
+  onD11EventIdInput (e) { this.setData({ 'd11.eventId': (e.detail.value || '').trim() }) },
+  onD11ChoiceAInput (e) { this.setData({ 'd11.choiceA': (e.detail.value || '').trim().toUpperCase() }) },
+  onD11ChoiceBInput (e) { this.setData({ 'd11.choiceB': (e.detail.value || '').trim().toUpperCase() }) },
+
+  _d11Guard () {
+    const d = this.data.d11
+    if (!d.recordId) { this._log('⛔ [D11] recordId 为空，已拒绝'); return null }
+    if (!d.eventId) { this._log('⛔ [D11] eventId 为空，已拒绝'); return null }
+    if (!/^[A-Z]$/.test(d.choiceA) || !/^[A-Z]$/.test(d.choiceB)) { this._log('⛔ [D11] choiceKey 非法（需单个 A-Z），已拒绝'); return null }
+    if (d.choiceA === d.choiceB) { this._log('⛔ [D11] 两个 choiceKey 相同，已拒绝（须不同）'); return null }
+    return d
+  },
+
+  // VERIFY_TARGET — 只读校验（getChallengeEvent）；确认 eventId 为当前未答事件。
+  async onD11VerifyTarget () {
+    if (!this.data.identityOk) { this._log('⛔ [D11] 请先完成身份自检'); return }
+    if (this.data.d11.inFlight) { this._log('⛔ [D11] 请求进行中，忽略重复点击'); return }
+    const d = this._d11Guard(); if (!d) return
+    this.setData({ 'd11.verifying': true, 'd11.verifyText': '校验中…', 'd11.target': null })
+    const t0 = this._nowMs()
+    this._log('→ [D11] verifyTarget t0=' + t0 + ' recordId=' + d.recordId)
+    try {
+      const res = await wx.cloud.callFunction({ name: 'getChallengeEvent', data: { recordId: d.recordId } }).then(r => r.result)
+      const t1 = this._nowMs()
+      const ev = (res && res.data) || {}
+      const isCurrent = !!(res && res.code === 0 && ev.eventId === d.eventId && ev.finished !== true)
+      const txt = 'code=' + (res && res.code) +
+        '\ncurrentEventId=' + (ev.eventId || '-') +
+        '\ncurrentEventIndex=' + (ev.currentEventIndex !== undefined ? ev.currentEventIndex : '-') +
+        '\ndisplayDay=' + (ev.displayDay !== undefined ? ev.displayDay : (ev.day !== undefined ? ev.day : '-')) +
+        '\nfinished=' + (ev.finished === true) +
+        '\ntargetMatch=' + isCurrent +
+        '\nt0=' + t0 + ' t1=' + t1 + ' dt=' + (t1 - t0) + 'ms'
+      this.setData({
+        'd11.verifyText': txt,
+        'd11.target': isCurrent ? { recordId: d.recordId, eventId: d.eventId, currentEventIndex: (ev.currentEventIndex !== undefined ? ev.currentEventIndex : null), choiceKeys: [d.choiceA, d.choiceB] } : null,
+      })
+      this._log('← [D11] verifyTarget ' + this._redact('code=' + (res && res.code) + ' ev=' + (ev.eventId || '-') + ' match=' + isCurrent))
+    } catch (e) {
+      const msg = String((e && e.errMsg) || e)
+      this.setData({ 'd11.verifyText': '调用异常/被拒: ' + msg })
+      this._log('✗ [D11] verifyTarget ' + this._redact(msg))
+    }
+    this.setData({ 'd11.verifying': false })
+  },
+
+  onD11Run () {
+    if (this.data.d11.inFlight) { this._log('⛔ [D11] 并发测试进行中，忽略重复点击'); return }
+    const d = this._d11Guard(); if (!d) return
+    if (!d.target) { this._log('⛔ [D11] 请先 VERIFY_TARGET 校验目标（当前未答事件）'); return }
+    wx.showModal({
+      title: '确认并发提交（staging）',
+      content: '环境 ' + STAGING_ENV + '\nrecordId ' + d.recordId + '\neventId ' + d.eventId +
+        '\nchoice A=' + d.choiceA + ' / B=' + d.choiceB +
+        '\n\n两请求将并发提交，只应一个成功。仅隔离 staging，非生产。确认执行？',
+      confirmText: '并发提交',
+      cancelText: '取消',
+      success: (m) => { if (m.confirm) this._d11RunTwo(d) },
+    })
+  },
+
+  // 并发：先构造两请求 → 不 await 任一 → Promise.allSettled 收集；不自动重试。
+  async _d11RunTwo (d) {
+    this.setData({
+      'd11.inFlight': true, 'd11.runText': '并发提交中…', 'd11.overlap': null,
+      'd11.respA': null, 'd11.respB': null, 'd11.respAText': '', 'd11.respBText': '',
+      'd11.target': null,  // 运行后必须重新 VERIFY（防止在已答事件上重跑）
+    })
+    const reqA = { recordId: d.recordId, eventId: d.eventId, choiceKey: d.choiceA }
+    const reqB = { recordId: d.recordId, eventId: d.eventId, choiceKey: d.choiceB }
+    // 构造完成 → 并发派发（先不 await）
+    const tA0 = this._nowMs()
+    const pA = wx.cloud.callFunction({ name: 'submitChallengeChoice', data: reqA }).then(r => r.result, e => ({ __netError: String((e && e.errMsg) || e) }))
+    const tB0 = this._nowMs()
+    const pB = wx.cloud.callFunction({ name: 'submitChallengeChoice', data: reqB }).then(r => r.result, e => ({ __netError: String((e && e.errMsg) || e) }))
+    this._log('→ [D11] concurrent dispatch tA0=' + tA0 + ' tB0=' + tB0 + ' reqA=' + JSON.stringify(reqA) + ' reqB=' + JSON.stringify(reqB))
+    const settled = await Promise.allSettled([pA, pB])
+    const tA1 = this._nowMs(), tB1 = this._nowMs()
+    const val = (s) => (s && s.status === 'fulfilled') ? s.value : { __netError: 'rejected: ' + String(s && s.reason) }
+    const resA = val(settled[0]), resB = val(settled[1])
+
+    const fmt = (res, key, t0, t1) => {
+      if (res && res.__netError) return key + ' 网络/调用错误: ' + this._redact(res.__netError) + '\nt0=' + t0 + ' t1=' + t1 + ' dt=' + (t1 - t0) + 'ms'
+      const p = parseSubmitResponse(res)
+      return key + ' code=' + p.code + ' message=' + (p.message || '-') +
+        '\nduplicate=' + fmtFlag(p.duplicate) + ' idempotent=' + fmtFlag(p.idempotent) + ' conflict=' + fmtFlag(p.conflict) +
+        '\nsubmittedChoice=' + ((p.data && p.data.submittedChoice) || '-') +
+        '\ncurrentEventIndex=' + (p.currentEventIndex === null ? '-' : p.currentEventIndex) +
+        '\ndata=' + this._redact(redactJson(p.data)) +
+        '\nt0=' + t0 + ' t1=' + t1 + ' dt=' + (t1 - t0) + 'ms'
+    }
+    const overlap = (tA0 < tB1 && tB0 < tA1)
+    this.setData({
+      'd11.respA': resA, 'd11.respB': resB,
+      'd11.respAText': fmt(resA, 'A:' + d.choiceA, tA0, tA1),
+      'd11.respBText': fmt(resB, 'B:' + d.choiceB, tB0, tB1),
+      'd11.overlap': overlap,
+      'd11.runText': '完成。clientOverlap=' + overlap + '（tA=[' + tA0 + ',' + tA1 + '] tB=[' + tB0 + ',' + tB1 + ']）',
+    })
+    const cA = parseSubmitResponse(resA).code, cB = parseSubmitResponse(resB).code
+    this._log('← [D11] concurrent done codeA=' + cA + ' codeB=' + cB + ' overlap=' + overlap)
+    this.setData({ 'd11.inFlight': false })
+  },
+
+  // 只读：取当前事件（并发后读回）
+  async onD11GetEvent () {
+    if (this.data.d11.inFlight) { this._log('⛔ [D11] 请求进行中，忽略重复点击'); return }
+    const d = this._d11Guard(); if (!d) return
+    this.setData({ 'd11.inFlight': true, 'd11.getText': '查询中…' })
+    const t0 = this._nowMs()
+    this._log('→ [D11] getEvent t0=' + t0 + ' recordId=' + d.recordId)
+    try {
+      const res = await wx.cloud.callFunction({ name: 'getChallengeEvent', data: { recordId: d.recordId } }).then(r => r.result)
+      const t1 = this._nowMs()
+      const ev = (res && res.data) || {}
+      const txt = 'code=' + (res && res.code) + ' eventId=' + (ev.eventId || '-') +
+        ' currentEventIndex=' + (ev.currentEventIndex !== undefined ? ev.currentEventIndex : '-') +
+        ' displayDay=' + (ev.displayDay !== undefined ? ev.displayDay : (ev.day !== undefined ? ev.day : '-')) +
+        ' finished=' + (ev.finished === true) +
+        '\nt0=' + t0 + ' t1=' + t1 + ' dt=' + (t1 - t0) + 'ms'
+      this.setData({ 'd11.getResp': res, 'd11.getText': txt })
+      this._log('← [D11] getEvent ' + this._redact('code=' + (res && res.code) + ' eventId=' + (ev.eventId || '-')))
+    } catch (e) {
+      const msg = String((e && e.errMsg) || e)
+      this.setData({ 'd11.getResp': { error: msg }, 'd11.getText': '调用异常/被拒: ' + msg })
+      this._log('✗ [D11] getEvent ' + this._redact(msg))
+    }
+    this.setData({ 'd11.inFlight': false })
   },
 
   goRunner () { wx.navigateTo({ url: '/pages/runner/runner' }) },
