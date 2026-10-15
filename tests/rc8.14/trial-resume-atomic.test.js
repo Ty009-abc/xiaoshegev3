@@ -171,7 +171,7 @@ async function main () {
     ok(cnt(db, 'challenge_records') === 0, 'creation failure: no record persisted')
   }
 
-  // 11) claim finalization failure → NO false success, NO orphan (R2.3 rollback)
+  // 11) claim finalization failure → NO false success, record PRESERVED (never deleted)
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
     const orig = db.collection.bind(db)
@@ -187,7 +187,9 @@ async function main () {
     const r = await fn({})
     restore()
     ok(r.code !== 0, 'finalization failure: NO false successful recordId')
-    ok(cnt(db, 'challenge_records') === 0, 'finalization failure: unconfirmed record rolled back (no orphan)')
+    ok(cnt(db, 'challenge_records') === 1, 'finalization failure: record PRESERVED (non-destructive, never deleted)')
+    const s = (db._store.challenge_active || [])[0]
+    ok(s && s.state !== 'READY', 'finalization failure: record NOT marked authoritative (recoverable pending)')
   }
 
   // 12) concurrent start + submit on same record → no duplicate, submit advances once

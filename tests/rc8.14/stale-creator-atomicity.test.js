@@ -117,7 +117,7 @@ async function main () {
     ok(cl.won === true && cl.mode === 'STEAL_STALE', 'released claim: stealable (crash recovery)')
   }
 
-  // 5) uncertain commit (insert commits, response lost) → rollback, no orphan, retry clean
+  // 5) uncertain commit (insert commits, response lost) → recoverable, no duplicate, never deleted
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
     const orig = db.collection.bind(db)
@@ -135,12 +135,12 @@ async function main () {
     let main2 = require(FN).main
     const r1 = await main2({}); restore()
     db.collection = orig
-    ok(r1.code !== 0, 'uncertain commit: no false success')
-    ok(cnt(db, 'challenge_records') === 0, 'uncertain commit: possibly-committed record rolled back (no orphan)')
+    ok(r1.code === 0 && typeof r1.data.recordId === 'string', 'uncertain commit: converges on the committed record (no false failure)')
+    ok(cnt(db, 'challenge_records') === 1, 'uncertain commit: committed record PRESERVED (non-destructive, never deleted)')
     restore = stubCloud('uA', db); delete require.cache[require.resolve(FN)]
     main2 = require(FN).main
     const r2 = await main2({}); restore()
-    ok(r2.code === 0 && cnt(db, 'challenge_records') === 1, 'uncertain commit: retry yields exactly ONE record')
+    ok(r2.code === 0 && r2.data.recordId === r1.data.recordId && cnt(db, 'challenge_records') === 1, 'uncertain commit: retry idempotent on the SAME recordId')
   }
 
   // 6) READY target temporarily unreadable → fail closed, session + records untouched

@@ -174,10 +174,16 @@ function _trialResumeResult (record, hasAccess) {
 // insertion (pre-insert fence) so it can never create an independently
 // authoritative orphan record. Success is reported ONLY when the session is
 // confirmed to be READY and pointing at our exact recordId.
-async function _finishCreate ({ db, openid, ts, token, trialMode, mode, isDiagnostic }) {
+async function _finishCreate ({ db, openid, ts, token, creationId, trialMode, mode, isDiagnostic }) {
   const entitled = !trialMode && !isDiagnostic
-  const recordId = genRecordId(ts)
+  // Prefer the claim's DETERMINISTIC creation identity (stable across lease
+  // takeover) so retries/concurrent identical attempts converge on ONE record.
+  const recordId = creationId || genRecordId(ts)
   const record = _buildRecord({ recordId, openid, ts, trialMode, mode, extra: entitled ? { unlocked: true } : {} })
+  // Bind the DETERMINISTIC identity to the document `_id` so uniqueness is
+  // enforced by the database: a duplicate key means the SAME logical creation
+  // already committed. (recordId is also kept as a field for lookups.)
+  record._id = recordId
   const planned = await _buildPlanOrFail({ db, openid, record, isDiagnostic })
   if (!planned.ok) {
     await activeSession.release({ db, openid, token })
@@ -199,12 +205,14 @@ async function _finishCreate ({ db, openid, ts, token, trialMode, mode, isDiagno
   try {
     await db.collection('challenge_records').add({ data: record })
   } catch (e) {
-    // Insert failed — but the commit outcome may be UNKNOWN (timeout after
-    // commit). Remove our OWN possibly-committed record (exact recordId+openid)
-    // so an uncertain commit can never leave an orphan, then release + fail.
-    await activeSession.removeRecord(db, openid, recordId)
-    await activeSession.release({ db, openid, token })
-    return fail(CODES.DB_ERROR, e.message)
+    // Duplicate key on our deterministic `_id` means the SAME logical creation
+    // already committed (uncertain earlier commit / concurrent identical
+    // attempt) → reconcile NON-destructively on that exact record.
+    const dup = await activeSession.loadRecord(db, openid, recordId)
+    if (!dup) {
+      await activeSession.release({ db, openid, token })
+      return fail(CODES.DB_ERROR, e.message)
+    }
   }
 
   // Finalize with BOUNDED markReady retries. Success is reported ONLY when the
@@ -224,22 +232,21 @@ async function _finishCreate ({ db, openid, ts, token, trialMode, mode, isDiagno
     })
   }
 
-  // Unconfirmed: we were superseded OR could not finalize. Roll back our OWN
-  // unconfirmed record (exact recordId+openid — never a pre-existing/historical
-  // record) so it can never become an independently authoritative orphan, then
-  // converge on the winner (if any) instead of reporting a false success.
-  await activeSession.removeRecord(db, openid, recordId)
+  // Unconfirmed. NEVER delete: a READY session may already point at this record
+  // (that was the R2.4 P0). Our record is authoritative ONLY if markReady
+  // (fenced CAS) set the READY pointer; otherwise it is a RECOVERABLE PENDING
+  // record. Converge on the winner if one exists (its markReady won the CAS),
+  // else surface a recoverable-failure (retry is idempotent on the identity).
   const conv = await activeSession.converge({ db, openid })
   if (conv) return _resumeStateFromRecord(conv.record)
-  await activeSession.release({ db, openid, token })
-  return fail(CODES.SERVER_ERROR, '开始请求未确认，请重试', { code: 'CONCURRENT_START_CONFLICT' })
+  return fail(CODES.SERVER_ERROR, '开始请求未确认，请重试', { code: 'START_UNCONFIRMED_RECOVERABLE', retryable: true })
 }
 
 // Atomically acquire the create token, then finalize. Losers converge on the
 // winner's READY record instead of creating.
 async function _createViaClaim ({ db, openid, ts, trialMode, mode, isDiagnostic }) {
   const cl = await activeSession.claim({ db, openid, now: ts })
-  if (cl.won) return await _finishCreate({ db, openid, ts, token: cl.token, trialMode, mode, isDiagnostic })
+  if (cl.won) return await _finishCreate({ db, openid, ts, token: cl.token, creationId: cl.creationId, trialMode, mode, isDiagnostic })
   const conv = await activeSession.converge({ db, openid })
   if (conv) {
     console.log(`[startChallenge] concurrent start converged recordId=${conv.record.recordId}`)

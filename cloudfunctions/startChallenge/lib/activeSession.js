@@ -146,18 +146,20 @@ async function loadRecordStrict (db, openid, recordId) {
 }
 
 /**
- * Compensating delete: remove EXACTLY the record this request just created
- * (by recordId+openid) when it did not become the authoritative session
- * target. Guarantees a superseded creator leaves no orphan canonical record.
- * Never touches a pre-existing/historical record (unique random recordId).
- * @returns {number} removed count
+ * Deterministic creation identity for one claim operation. Stable across
+ * retries of the SAME session claim, so a committed-but-unacknowledged insert
+ * can be detected (duplicate key on `_id`) instead of duplicated.
  */
-async function removeRecord (db, openid, recordId) {
-  try {
-    const res = await db.collection('challenge_records').where({ recordId, openid }).remove()
-    return (res && res.stats && res.stats.removed) || 0
-  } catch (_) { return 0 }
+function makeRecordId (ts) {
+  return 'CR' + Number(ts || Date.now()).toString(36) + Math.random().toString(36).slice(2, 10)
 }
+
+/**
+ * NOTE: there is deliberately NO destructive compensation helper here.
+ * An uncertain authority outcome must NEVER delete a record: a READY session may
+ * already point at it. Superseded/failed creations are left as recoverable
+ * pending records and are reconciled non-destructively (never deleted).
+ */
 
 /**
  * Authoritative pre-insert fence: are we STILL the current CLAIMING holder?
@@ -191,8 +193,11 @@ async function claim ({ db, openid, now }) {
   const expiresAt = now + CLAIM_TTL_MS
   const cur = await readActive(db, openid)
 
-  // (a) no doc → atomic insert
+  // (a) no doc → atomic insert. A deterministic creationId is minted HERE and
+  //     is PRESERVED across a lease takeover, so a superseded retry reuses the
+  //     SAME record identity → record creation stays idempotent (unique _id).
   if (!cur) {
+    const creationId = makeRecordId(now)
     try {
       await db.collection(COLLECTION).add({
         data: {
@@ -200,12 +205,13 @@ async function claim ({ db, openid, now }) {
           ownerToken: token,
           state: CLAIM_STATE.CLAIMING,
           recordId: null,
+          creationId,
           claimedAt: now,
           readyAt: null,
           expiresAt,
         },
       })
-      return { won: true, token, session: null, mode: 'INSERT' }
+      return { won: true, token, creationId, session: null, mode: 'INSERT' }
     } catch (_e) {
       return { won: false, token, session: await readActive(db, openid), reason: 'INSERT_LOST' }
     }
@@ -214,13 +220,16 @@ async function claim ({ db, openid, now }) {
   // (b) stale CLAIMING (creator crashed / expired) → CAS steal.
   //     A released claim (expiresAt=0) is immediately stealable (crash/abort
   //     recovery). An EXPIRED lease is stealable. A live lease is not.
+  //     The creationId is PRESERVED so the new owner targets the SAME record
+  //     identity (no duplicate, no cross-lease overwrite).
   if (cur.state === CLAIM_STATE.CLAIMING && (cur.expiresAt || 0) <= now) {
+    const creationId = cur.creationId || makeRecordId(now)
     const res = await db.collection(COLLECTION)
       .where({ _id: openid, ownerToken: cur.ownerToken, state: CLAIM_STATE.CLAIMING, expiresAt: cur.expiresAt })
-      .update({ data: { ownerToken: token, state: CLAIM_STATE.CLAIMING, recordId: null, claimedAt: now, readyAt: null, expiresAt } })
+      .update({ data: { ownerToken: token, state: CLAIM_STATE.CLAIMING, recordId: null, creationId, claimedAt: now, readyAt: null, expiresAt } })
     const won = !!(res && res.stats && res.stats.updated === 1)
     return won
-      ? { won: true, token, session: null, mode: 'STEAL_STALE' }
+      ? { won: true, token, creationId, session: null, mode: 'STEAL_STALE' }
       : { won: false, token, session: await readActive(db, openid), reason: 'STEAL_LOST' }
   }
 
@@ -241,11 +250,13 @@ async function claim ({ db, openid, now }) {
 async function reclaimInvalid ({ db, openid, expectedRecordId, expectedToken, now }) {
   const token = newToken(now)
   const expiresAt = now + CLAIM_TTL_MS
+  // A deliberately NEW round: mint a fresh creationId (distinct record identity).
+  const creationId = makeRecordId(now)
   const res = await db.collection(COLLECTION)
     .where({ _id: openid, ownerToken: expectedToken, state: CLAIM_STATE.READY, recordId: expectedRecordId })
-    .update({ data: { ownerToken: token, state: CLAIM_STATE.CLAIMING, recordId: null, claimedAt: now, readyAt: null, expiresAt } })
+    .update({ data: { ownerToken: token, state: CLAIM_STATE.CLAIMING, recordId: null, creationId, claimedAt: now, readyAt: null, expiresAt } })
   const won = !!(res && res.stats && res.stats.updated === 1)
-  return { won, token, priorRecordId: expectedRecordId, session: won ? null : await readActive(db, openid) }
+  return { won, token, creationId, priorRecordId: expectedRecordId, session: won ? null : await readActive(db, openid) }
 }
 
 /**
@@ -304,6 +315,6 @@ async function converge ({ db, openid, tries = 20 }) {
 
 module.exports = {
   COLLECTION, TRIAL_LIMIT, CLAIM_TTL_MS, CLAIM_STATE, ACTIONS,
-  newToken, validateCandidate, selectResumable,
-  readActive, loadRecord, loadRecordStrict, removeRecord, stillClaiming, isAuthoritative, claim, reclaimInvalid, reconcileReady, markReady, release, converge,
+  newToken, makeRecordId, validateCandidate, selectResumable,
+  readActive, loadRecord, loadRecordStrict, stillClaiming, isAuthoritative, claim, reclaimInvalid, reconcileReady, markReady, release, converge,
 }
