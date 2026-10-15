@@ -136,6 +136,50 @@ async function loadRecord (db, openid, recordId) {
 }
 
 /**
+ * Strict variant: THROWS on a read ERROR (e.g. transient DB failure) so callers
+ * can distinguish "temporarily unreadable" (fail closed, never invalidate a
+ * READY pointer) from "genuinely absent" (returns null).
+ */
+async function loadRecordStrict (db, openid, recordId) {
+  const r = await db.collection('challenge_records').where({ recordId, openid }).limit(1).get()
+  return (r && r.data && r.data[0]) || null
+}
+
+/**
+ * Compensating delete: remove EXACTLY the record this request just created
+ * (by recordId+openid) when it did not become the authoritative session
+ * target. Guarantees a superseded creator leaves no orphan canonical record.
+ * Never touches a pre-existing/historical record (unique random recordId).
+ * @returns {number} removed count
+ */
+async function removeRecord (db, openid, recordId) {
+  try {
+    const res = await db.collection('challenge_records').where({ recordId, openid }).remove()
+    return (res && res.stats && res.stats.removed) || 0
+  } catch (_) { return 0 }
+}
+
+/**
+ * Authoritative pre-insert fence: are we STILL the current CLAIMING holder?
+ * If a stale steal / takeover happened while we were building the record, this
+ * returns false so the caller aborts the insertion (no orphan record).
+ */
+async function stillClaiming ({ db, openid, token }) {
+  const s = await readActive(db, openid)
+  return !!(s && s.state === CLAIM_STATE.CLAIMING && s.ownerToken === token)
+}
+
+/**
+ * Post-create authority check: is the session READY and pointing at exactly
+ * the recordId we created, still owned by our token? Success may be reported
+ * ONLY when this is true (never on an unconfirmed insert).
+ */
+async function isAuthoritative ({ db, openid, token, recordId }) {
+  const s = await readActive(db, openid)
+  return !!(s && s.state === CLAIM_STATE.READY && s.recordId === recordId && s.ownerToken === token)
+}
+
+/**
  * Attempt to become the SOLE owner of the user's active session.
  * Atomic primitives (verified SDK 4.0.2):
  *   - insert with explicit `_id` (unique) → only one INSERT can win;
@@ -167,7 +211,9 @@ async function claim ({ db, openid, now }) {
     }
   }
 
-  // (b) stale CLAIMING (creator crashed / expired) → CAS steal
+  // (b) stale CLAIMING (creator crashed / expired) → CAS steal.
+  //     A released claim (expiresAt=0) is immediately stealable (crash/abort
+  //     recovery). An EXPIRED lease is stealable. A live lease is not.
   if (cur.state === CLAIM_STATE.CLAIMING && (cur.expiresAt || 0) <= now) {
     const res = await db.collection(COLLECTION)
       .where({ _id: openid, ownerToken: cur.ownerToken, state: CLAIM_STATE.CLAIMING, expiresAt: cur.expiresAt })
@@ -259,5 +305,5 @@ async function converge ({ db, openid, tries = 20 }) {
 module.exports = {
   COLLECTION, TRIAL_LIMIT, CLAIM_TTL_MS, CLAIM_STATE, ACTIONS,
   newToken, validateCandidate, selectResumable,
-  readActive, loadRecord, claim, reclaimInvalid, reconcileReady, markReady, release, converge,
+  readActive, loadRecord, loadRecordStrict, removeRecord, stillClaiming, isAuthoritative, claim, reclaimInvalid, reconcileReady, markReady, release, converge,
 }

@@ -170,6 +170,10 @@ function _trialResumeResult (record, hasAccess) {
 
 // Finalize an ACTIVE claim into a concrete record and mark the session READY.
 // Deterministic identity = session._id (=openid); at most one record per claim.
+// Fencing: a stale creator (lease stolen while it was paused) MUST abort before
+// insertion (pre-insert fence) so it can never create an independently
+// authoritative orphan record. Success is reported ONLY when the session is
+// confirmed to be READY and pointing at our exact recordId.
 async function _finishCreate ({ db, openid, ts, token, trialMode, mode, isDiagnostic }) {
   const entitled = !trialMode && !isDiagnostic
   const recordId = genRecordId(ts)
@@ -184,20 +188,51 @@ async function _finishCreate ({ db, openid, ts, token, trialMode, mode, isDiagno
   record.plan = planned.plan
   record.planVersion = planned.plan.planVersion
   record.planCreatedAt = planned.plan.createdAt
+
+  // Pre-insert fence: if we were superseded while building, do NOT insert.
+  if (!(await activeSession.stillClaiming({ db, openid, token }))) {
+    const conv = await activeSession.converge({ db, openid })
+    if (conv) return _resumeStateFromRecord(conv.record)
+    return fail(CODES.SERVER_ERROR, '并发开始冲突，请重试', { code: 'CONCURRENT_START_CONFLICT' })
+  }
+
   try {
     await db.collection('challenge_records').add({ data: record })
   } catch (e) {
+    // Insert failed — but the commit outcome may be UNKNOWN (timeout after
+    // commit). Remove our OWN possibly-committed record (exact recordId+openid)
+    // so an uncertain commit can never leave an orphan, then release + fail.
+    await activeSession.removeRecord(db, openid, recordId)
     await activeSession.release({ db, openid, token })
     return fail(CODES.DB_ERROR, e.message)
   }
-  await activeSession.markReady({ db, openid, token, recordId, now: ts })
-  return ok({
-    recordId, currentDay: 1, currentEventIndex: 0, trialMode,
-    ...(entitled ? { unlocked: true } : {}),
-    mode, scoringVersion: 'normalized_v2', rawScores: { ...DEFAULT_INIT },
-    planVersion: planned.plan.planVersion,
-    ...(trialMode ? { trialLimit: 3 } : {}),
-  })
+
+  // Finalize with BOUNDED markReady retries. Success is reported ONLY when the
+  // session is CONFIRMED READY and pointing at exactly our recordId.
+  let confirmed = false
+  for (let i = 0; i < 3 && !confirmed; i++) {
+    await activeSession.markReady({ db, openid, token, recordId, now: ts })
+    confirmed = await activeSession.isAuthoritative({ db, openid, token, recordId })
+  }
+  if (confirmed) {
+    return ok({
+      recordId, currentDay: 1, currentEventIndex: 0, trialMode,
+      ...(entitled ? { unlocked: true } : {}),
+      mode, scoringVersion: 'normalized_v2', rawScores: { ...DEFAULT_INIT },
+      planVersion: planned.plan.planVersion,
+      ...(trialMode ? { trialLimit: 3 } : {}),
+    })
+  }
+
+  // Unconfirmed: we were superseded OR could not finalize. Roll back our OWN
+  // unconfirmed record (exact recordId+openid — never a pre-existing/historical
+  // record) so it can never become an independently authoritative orphan, then
+  // converge on the winner (if any) instead of reporting a false success.
+  await activeSession.removeRecord(db, openid, recordId)
+  const conv = await activeSession.converge({ db, openid })
+  if (conv) return _resumeStateFromRecord(conv.record)
+  await activeSession.release({ db, openid, token })
+  return fail(CODES.SERVER_ERROR, '开始请求未确认，请重试', { code: 'CONCURRENT_START_CONFLICT' })
 }
 
 // Atomically acquire the create token, then finalize. Losers converge on the
@@ -341,7 +376,13 @@ exports.main = async (event, context) => {
       const ready = await _readReadySession(db, openid)
       if (ready) {
         // 按 recordId + openid 精确校验被指记录。
-        const rec = await activeSession.loadRecord(db, openid, ready.recordId)
+        // 用 strict 变体：读取**出错**（暂时不可读）→ fail-closed，绝不当成“缺失”而失效 READY。
+        let rec
+        try {
+          rec = await activeSession.loadRecordStrict(db, openid, ready.recordId)
+        } catch (_e) {
+          return fail(CODES.DB_ERROR, '暂时无法读取当前进度，请重试', { code: 'ACTIVE_TARGET_UNREADABLE' })
+        }
         if (rec && rec.status !== 'finished') {
           const v = activeSession.validateCandidate(rec)
           if (v.ok) return _trialResumeResult(rec, hasAccess)

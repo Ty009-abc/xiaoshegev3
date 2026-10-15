@@ -185,7 +185,7 @@ async function main () {
     ok((db._store.challenge_active || [])[0].recordId === 'CR_new', 'stale creator cannot override new authority')
   }
 
-  // 11) failed markReady after record creation → record still returned once (no crash, no dup)
+  // 11) failed markReady after record creation → NO false success, NO orphan
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
     const orig = db.collection.bind(db)
@@ -197,8 +197,8 @@ async function main () {
     const { main: fn, restore } = load(db, 'uA')
     const r = await fn({})
     restore()
-    ok(r.code === 0 && typeof r.data.recordId === 'string', 'failed finalization: record still returned')
-    ok(cnt(db, 'challenge_records') === 1, 'failed finalization: exactly ONE record')
+    ok(r.code !== 0, 'failed finalization: NO false recordId response')
+    ok(cnt(db, 'challenge_records') === 0, 'failed finalization: unconfirmed record rolled back (no orphan)')
   }
 
   // 12) response lost after record creation → retry resumes the same record
@@ -211,7 +211,7 @@ async function main () {
     ok(r1.data.recordId === r2.data.recordId && cnt(db, 'challenge_records') === 1, 'response lost: retry converges, no duplicate')
   }
 
-  // 13) DB timeout with uncertain commit (add inserts then throws) → orphan reconciled, no duplicate
+  // 13) DB timeout with uncertain commit (add inserts then throws) → no orphan, no false success
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
     const orig = db.collection.bind(db)
@@ -228,10 +228,10 @@ async function main () {
     const r1 = await fn({}); restore()
     db.collection = orig
     ok(r1.code !== 0, 'uncertain commit: first request fails (no false success)')
-    ok(cnt(db, 'challenge_records') === 1, 'uncertain commit: orphan record exists exactly once')
+    ok(cnt(db, 'challenge_records') === 0, 'uncertain commit: possibly-committed record rolled back (no orphan)')
     ;({ main: fn, restore } = load(db, 'uA'))
     const r2 = await fn({}); restore()
-    ok(r2.code === 0 && cnt(db, 'challenge_records') === 1, 'uncertain commit: retry reconciles to the orphan (no duplicate)')
+    ok(r2.code === 0 && cnt(db, 'challenge_records') === 1, 'uncertain commit: retry creates exactly ONE record')
   }
 
   // 14) concurrent start + submit → no duplicate, submit advances once

@@ -20,6 +20,7 @@ const ALL = [
   'submit-atomicity.test.js',
   'trial-resume-atomic.test.js',
   'active-session-authority.test.js',
+  'stale-creator-atomicity.test.js',
   'property.test.js',
 ]
 const dir = __dirname
