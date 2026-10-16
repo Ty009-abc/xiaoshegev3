@@ -187,13 +187,15 @@ async function main () {
     ok(legacyFree.code === 0, 'legacy free record (no plan) idx0 allowed')
   }
 
-  // ── 15) TOCTOU observation: stale cached permissions (expired source, not yet cleaned) ──
+  // ── 15) R6C: stale cached permissions with an EXPIRED source no longer authorize ──
   {
     const db = makeDb(); const bank = bankInto(db, 30); const ids = bank.map((e) => e.eventId)
     seed(db, 'challenge_records', { _id: 'T1', recordId: 'T1', openid: 'u', mode: 'challenge', trialMode: true, status: 'processing', currentEventIndex: 3, choices: [], plan: planOf(ids) })
     seed(db, 'entitlements', { _id: 'ENTT', openid: 'u', permissions: ['challenge_full'], sources: [{ productId: 'challenge_39_9', expiresAt: 1 }] })
+    const before = snap(rec(db, 'T1'))
     const r = await run(db, 'u', { recordId: 'T1', eventId: ids[3], choiceKey: 'A' })
-    ok(r.code === 0, 'OBSERVED: stale cached permissions array (source expired, cleanup not run) → allowed until async cleanup')
+    ok(r.code === 1002, 'R6C: stale cached permissions with EXPIRED source → DENIED(1002) (bypass closed)')
+    ok(snap(rec(db, 'T1')) === before, 'R6C: no write on expired-source denial')
   }
 
   console.log('  _TEST pass=' + pass + ' fail=' + fail)

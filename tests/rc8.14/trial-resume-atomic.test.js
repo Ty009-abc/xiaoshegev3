@@ -276,7 +276,7 @@ async function main () {
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
     const ids = bankIds()
-    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [] })
+    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [{ productId: 'challenge_39_9', expiresAt: 0 }] })
     seed(db, 'challenge_records', { recordId: 'CRt', openid: 'uA', mode: 'challenge', status: 'processing', trialMode: true, currentEventIndex: 2, choices: ids.slice(0, 2).map((id) => ({ eventId: id, choice: 'A' })), plan: planOf(ids), createdAt: 1, updatedAt: 1 })
     const { main: fn, restore } = load(db, 'uA')
     const r = await fn({})
@@ -301,7 +301,7 @@ async function main () {
   // 20) replay branch regression → explicit new entitled round (idempotent)
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
-    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [] })
+    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [{ productId: 'challenge_39_9', expiresAt: 0 }] })
     let { main: fn, restore } = load(db, 'uA')
     const r1 = await fn({ replay: true, replayRequestId: 'RID1' }); restore()
     ;({ main: fn, restore } = load(db, 'uA'))

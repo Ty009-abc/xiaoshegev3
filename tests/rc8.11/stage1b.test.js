@@ -221,8 +221,14 @@ const seed = (db, name, doc) => { db._store[name].push(Object.assign({ _id: name
     const sha = (p) => crypto.createHash('sha1').update(fs.readFileSync(path.join(ROOT, p))).digest('hex')
     eq(sha('cloudfunctions/common/entitlementService.js'), sha('cloudfunctions/payCallback/lib/entitlementService.js'), 'entitlementService copy identical')
     eq(sha('cloudfunctions/common/entitlementService.js'), sha('cloudfunctions/verifyPayment/lib/entitlementService.js'), 'entitlementService verify copy identical')
-    eq(sha('cloudfunctions/common/permissionEngine.js'), sha('cloudfunctions/payCallback/lib/permissionEngine.js'), 'permissionEngine copy identical')
+    // RC8_14_D12_R6C: the payment bundle (payCallback/verifyPayment/createVirtualOrder/
+    // verifyVirtualPayment/virtualPayCallback) is FROZEN by the rc8.13 guardrail and has
+    // NO hasPermission() call sites, so its bundled engine copy is intentionally NOT
+    // re-mirrored. The FUNCTIONAL consumers must remain identical to the canonical
+    // hardened engine.
     eq(sha('cloudfunctions/common/permissionEngine.js'), sha('cloudfunctions/startChallenge/lib/permissionEngine.js'), 'permissionEngine startChallenge copy identical')
+    eq(sha('cloudfunctions/common/permissionEngine.js'), sha('cloudfunctions/submitChallengeChoice/lib/permissionEngine.js'), 'permissionEngine submitChallengeChoice copy identical')
+    eq(sha('cloudfunctions/common/permissionEngine.js'), sha('cloudfunctions/expireMemberships/lib/permissionEngine.js'), 'permissionEngine expireMemberships copy identical')
     eq(sha('cloudfunctions/common/accessAuthority.js'), sha('cloudfunctions/createOrder/lib/accessAuthority.js'), 'accessAuthority copy identical')
   }
 

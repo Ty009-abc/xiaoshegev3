@@ -163,7 +163,10 @@ const RA = require(COMMON)
 
   // C: challenge-entitled owner + (any) report state → challenge access granted
   const { hasChallengeEntitlement } = require(path.join(ROOT, 'cloudfunctions', 'startChallenge', 'lib', 'challengeEntitlement.js'))
-  const mkdb = (perms) => ({ collection: (n) => ({ where: () => ({ limit: () => ({ get: async () => ({ data: n === 'entitlements' ? [{ permissions: perms }] : [] }) }) }) }) })
+  const mkdb = (perms) => ({ collection: (n) => ({ where: () => ({ limit: () => ({ get: async () => ({ data: n === 'entitlements' ? [{ permissions: perms, sources: [perms.includes('challenge_full') ? { productId: 'challenge_39_9', expiresAt: 0 } : { productId: 'report_9_9', expiresAt: 0 }] }] : [] }) }) }) }) })
+  // (RC8_14_D12_R6C: authorization now derives from VALID SOURCES. The challenge-entitled
+  //  case carries a permanent challenge_39_9 source; the report-only case carries only a
+  //  report source, so challenge access is correctly denied.)
   ok(await hasChallengeEntitlement(mkdb(['challenge_full', 'full_report']), 'o1') === true, 'C challenge_full → challenge access granted')
   ok(await hasChallengeEntitlement(mkdb(['full_report', 'report_history']), 'o1') === false, 'D report-only (no challenge_full) → challenge still required')
 }

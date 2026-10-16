@@ -162,7 +162,7 @@ async function main () {
   // 9) eight simultaneous starts on a fresh entitled user → ONE record
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
-    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [] })
+    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [{ productId: 'challenge_39_9', expiresAt: 0 }] })
     const { main: fn, restore } = load(db, 'uA')
     const res = await Promise.all(Array.from({ length: 8 }, () => fn({})))
     restore()
@@ -262,7 +262,7 @@ async function main () {
   // 16) paid and trial concurrent entry (two users) → isolated, no cross-escalation
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'paid' }); seed(db, 'users', { openid: 'free' })
-    seed(db, 'entitlements', { openid: 'paid', permissions: ['challenge_full'], sources: [] })
+    seed(db, 'entitlements', { openid: 'paid', permissions: ['challenge_full'], sources: [{ productId: 'challenge_39_9', expiresAt: 0 }] })
     let lp = load(db, 'paid'); let lf = load(db, 'free')
     const [rp, rf] = await Promise.all([lp.main({}), lf.main({})]); lp.restore(); lf.restore()
     ok(rp.data.trialMode === false && rp.data.unlocked === true, 'paid entry: entitled record')
@@ -295,7 +295,7 @@ async function main () {
   // 19) replay branch regression → entitled round, idempotent by replayRequestId
   {
     const db = makeDb(); seedBank(db); seed(db, 'users', { openid: 'uA' })
-    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [] })
+    seed(db, 'entitlements', { openid: 'uA', permissions: ['challenge_full'], sources: [{ productId: 'challenge_39_9', expiresAt: 0 }] })
     let { main: fn, restore } = load(db, 'uA')
     const r1 = await fn({ replay: true, replayRequestId: 'RID1' }); restore()
     ;({ main: fn, restore } = load(db, 'uA'))
