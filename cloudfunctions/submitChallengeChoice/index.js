@@ -28,6 +28,7 @@ const _ = db.command
 
 const { ok, fail, CODES } = require('./lib/response.js')
 const planAuthority = require('./lib/challengePlan.js')
+const { hasChallengeEntitlement } = require('./lib/challengeEntitlement.js')
 const {
   DIMS, SCORING_VERSION,
   normalizeScores, initRawScores, accumulateRawScores,
@@ -37,6 +38,12 @@ const now = () => Date.now()
 
 // 有界 CAS 重试：冲突者会被重新裁决（幂等 / 冲突 / 过期），不会无限自旋。
 const MAX_CAS_ATTEMPTS = 5
+
+// RC8_14_D12_R6A — 免费试用【提交侧】边界（与 startChallenge / getChallengeEvent 的 Day-3 契约一致）。
+// 试用记录（trialMode===true）且无 challenge_full 权益的用户，只允许提交 idx 0..2。
+// 权益权威：服务端 permissionEngine.challenge_full（entitlements → memberships）。
+// 该门槛在【任何写之前】判定，且只读取服务端权威记录（不信任客户端会员/试用计数/人数）。
+const TRIAL_LIMIT = 3
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -56,6 +63,27 @@ exports.main = async (event, context) => {
     const record = recRes.data[0]
     if (!record) return fail(CODES.NOT_FOUND, '挑战记录不存在')
     if (record.status === 'finished') return fail(CODES.PARAM_ERROR, '挑战已完成')
+
+    // ── RC8_14_D12_R6A：免费试用提交侧门槛（读权限，在任何写之前 fail-closed）──
+    // 仅针对试用记录（trialMode===true）且无 challenge_full 权益的用户：idx>=TRIAL_LIMIT 拒绝。
+    // 付费/解锁记录（trialMode!==true）完全不受影响（保持既有已付费推进路径）。
+    // 权限判定基于服务端 getWXContext().OPENID + 服务端权威记录/权益，绝不信任客户端字段。
+    if (record.trialMode === true) {
+      const idxForGate = Number.isInteger(record.currentEventIndex) ? record.currentEventIndex : 0
+      if (idxForGate >= TRIAL_LIMIT) {
+        // 读取权益（hasChallengeEntitlement 内部 catch → false，即 fail-closed）。绝不因异常授予访问。
+        const hasAccess = await hasChallengeEntitlement(db, openid)
+        if (!hasAccess) {
+          console.log(`[submitChoice] trial boundary denied openid=${openid} recordId=${recordId} idx=${idxForGate}`)
+          const deny = fail(CODES.NEED_PAYMENT, '免费体验已结束，付费后解锁完整30天挑战')
+          deny.data = {
+            recordId, trialMode: true, currentEventIndex: idxForGate,
+            needPayment: true, locked: true, code: 'TRIAL_BOUNDARY_REACHED',
+          }
+          return deny
+        }
+      }
+    }
 
     // 2) 查 event（题目本身必须存在且 active）
     const evtRes = await db.collection('challenge_events').where({ eventId, status: 'active' }).limit(1).get()
