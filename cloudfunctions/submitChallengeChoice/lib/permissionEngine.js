@@ -141,6 +141,21 @@ const FREE_PERMISSIONS = ['daily_insight', 'challenge_preview', 'basic_ai']
 // ═══════════════════════════
 
 // ═══════════════════════════
+// PRODUCT EXPIRY AUTHORITY — 商品政策（服务器自有静态目录）
+// ═══════════════════════════
+// RC8_14_D12_R6C_R3 — 产品感知的有效期：来源是否可用，先看【商品政策】，再看时间戳。
+// 商品政策只来自服务器自有静态目录（与 initDatabase/data/products.js 同步），
+// 绝不来自客户端、也绝不来自运行时 products 集合是否恰好存在该行
+// （运行时集合可能为空/被篡改/未知；缺失一律 fail-closed）。
+//   - 永久商品（一次性买断，durationDays=0）：expiresAt 0/null/undefined ⇒ 永久。
+//   - 时限商品（会员，durationDays>0）：必须有 >now 的有限正时间戳；缺失/0/畸形 ⇒ 拒绝。
+//   - 未知商品：拒绝（绝不隐式永久）。
+// ⚠ 目录漂移风险：新增时限商品必须同步登记于此；未登记的时限商品会被保守地拒绝（安全方向）。
+// catalogVersion = RC8_11_STAGE1 (products.js sha256 0ebc0180f509900d…)
+const TIMED_PRODUCTS = new Set(['vip_month_39_9', 'vip_month_99', 'vip_year_299'])   // durationDays>0
+const PERMANENT_PRODUCTS = new Set(['report_9_9', 'challenge_39_9'])                // durationDays=0
+
+// ═══════════════════════════
 // SOURCE VALIDITY — 授权唯一的真相
 // ═══════════════════════════
 // RC8_14_D12_R6C — 过期来源止血：授权【只】依据当前有效来源（sources）重建，
@@ -148,11 +163,28 @@ const FREE_PERMISSIONS = ['daily_insight', 'challenge_preview', 'basic_ai']
 // 映射（sources → permission）是确定性且唯一的：由 source.productId 经
 // PRODUCT_PERMISSIONS 解析；一个来源只能凭自身授予其权限，不能借用他人有效期。
 
-// 永久来源哨兵：expiresAt 为 0/undefined/null 视为永久（与 entitlementService 写入一致）。
+// 来源有效性：先判定商品政策（永久/时限/未知），再判定该政策下的时间戳。
+// expiresAt=0/null/undefined 只有在【永久商品】下才代表永久；时限商品缺失过期即拒绝。
 function _isSourceCurrentlyValid (src, ts) {
   if (!src || typeof src !== 'object' || !src.productId) return false   // 畸形来源 → 不授权
   if (src.revoked === true) return false                               // 显式撤销来源 → 不授权
+
+  // RC8_14_D12_R6C_R3 — 商品政策先行；未知商品 fail-closed（不隐式永久）。
+  const isTimed = TIMED_PRODUCTS.has(src.productId)
+  const isPermanent = PERMANENT_PRODUCTS.has(src.productId)
+  if (!isTimed && !isPermanent) return false                            // 未知商品 → 不授权
+
   const e = src.expiresAt
+
+  if (isTimed) {
+    // 时限商品：必须为有限正数时间戳且严格 > now。
+    if (e === undefined || e === null || e === 0) return false          // 缺失过期 → 拒绝（绝不升级为永久）
+    const n = Number(e)
+    if (!Number.isFinite(n) || n <= 0) return false                     // NaN/Infinity/负数/0 → 拒绝
+    return n > ts                                                       // 严格未到期（边界：expiresAt==now → 过期）
+  }
+
+  // 永久商品：0/null/undefined = 永久；否则按时间戳判定（未到期有效）。
   if (e === undefined || e === null || e === 0) return true             // 永久（一次性商品 durationDays=0）
   const n = Number(e)
   if (!Number.isFinite(n) || n < 0) return false                        // 畸形到期 → fail-closed

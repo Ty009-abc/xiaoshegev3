@@ -106,11 +106,64 @@ async function main () {
   { const db = makeDb(); ent(db, [{ expiresAt: 0 }])
     ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'source without productId → denied') }
 
-  // ── 13) missing expiry handled per product policy (permanent) ──
+  // ── 13) RC8_14_D12_R6C_R3 — expiry is PRODUCT-AWARE (permanent-vs-timed matrix) ──
+  //  Permanent products (catalog durationDays=0): missing/0/null expiry ⇒ permanent.
   { const db = makeDb(); ent(db, [{ productId: 'challenge_39_9' }])
-    ok(ALLOW(await hasPermission(db, 'u', 'challenge_full')), 'permanent source (expiresAt undefined) → allowed') }
+    ok(ALLOW(await hasPermission(db, 'u', 'challenge_full')), 'PERMANENT product (expiresAt undefined) → allowed') }
   { const db = makeDb(); ent(db, [{ productId: 'challenge_39_9', expiresAt: null }])
-    ok(ALLOW(await hasPermission(db, 'u', 'challenge_full')), 'permanent source (expiresAt null) → allowed') }
+    ok(ALLOW(await hasPermission(db, 'u', 'challenge_full')), 'PERMANENT product (expiresAt null) → allowed') }
+  { const db = makeDb(); ent(db, [{ productId: 'report_9_9' }])
+    ok(ALLOW(await hasPermission(db, 'u', 'full_report')), 'PERMANENT product report_9_9 (missing expiry) → allowed') }
+  { const db = makeDb(); ent(db, [{ productId: 'report_9_9', expiresAt: null }])
+    ok(ALLOW(await hasPermission(db, 'u', 'full_report')), 'PERMANENT product report_9_9 (null expiry) → allowed') }
+
+  //  R6C_R2 NO_GO reproducer — TIMED products with missing/0/null expiry MUST now DENY
+  //  (previously ALLOW = fail-open: any product promoted to permanent by missing expiry).
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9' }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED vip_month_39_9 (missing expiry) → DENIED (no implicit permanent)') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: null }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED vip_month_39_9 (null expiry) → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: 0 }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED vip_month_39_9 (zero expiry) → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_99' }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED vip_month_99 (missing expiry) → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_year_299' }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED vip_year_299 (missing expiry) → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_year_299', expiresAt: null }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED vip_year_299 (null expiry) → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_year_299', expiresAt: 0 }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED vip_year_299 (zero expiry) → DENIED') }
+
+  //  Timed source with malformed/negative expiry ⇒ DENY
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: 'soon' }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED malformed string expiry → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: -5 }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED negative expiry → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: {} }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED non-numeric (object) expiry → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: Infinity }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED Infinity expiry → DENIED') }
+
+  //  Unknown productId ⇒ DENY (never implicit permanent), regardless of expiry
+  { const db = makeDb(); ent(db, [{ productId: 'unknown_id', expiresAt: FUTURE }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'UNKNOWN product (future expiry) → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'unknown_id', expiresAt: 0 }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'UNKNOWN product (zero expiry) → DENIED') }
+  { const db = makeDb(); ent(db, [{ productId: 'unknown_id' }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'UNKNOWN product (missing expiry) → DENIED') }
+
+  //  Timed boundary: expiresAt == now ⇒ DENY; slightly future ⇒ ALLOW; slightly past ⇒ DENY
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: Date.now() }])
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED boundary: expiresAt == now → DENIED (strict >)') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9', expiresAt: Date.now() + 5000 }])
+    ok(ALLOW(await hasPermission(db, 'u', 'challenge_full')), 'TIMED boundary: expiresAt future → ALLOWED') }
+  { const db = makeDb(); ent(db, [{ productId: 'vip_year_299', expiresAt: Date.now() + 5000 }])
+    ok(ALLOW(await hasPermission(db, 'u', 'challenge_full')), 'TIMED annual boundary: expiresAt future → ALLOWED') }
+
+  //  No dependence on a products DB row: a timed product denies even when the runtime
+  //  products collection is absent (this is what R6C_R2 flagged as reachable in staging).
+  { const db = makeDb(); ent(db, [{ productId: 'vip_month_39_9' }])   // no products collection consulted at all
+    ok(DENY(await hasPermission(db, 'u', 'challenge_full')), 'TIMED missing expiry denied with NO products row (no durationDays=0 default)') }
 
   // ── 14) timezone / boundary semantics (absolute epoch; no wall-clock TZ dependence) ──
   { const db = makeDb(); ent(db, [{ productId: 'challenge_39_9', expiresAt: Date.now() }]) // == now → expired
