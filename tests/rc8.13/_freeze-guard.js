@@ -62,6 +62,16 @@ const SECURITY_APPROVED = new Set([
   'cloudfunctions/verifyVirtualPayment/lib/permissionEngine.js',
   'cloudfunctions/verifyVirtualPayment/lib/virtualPayEnvLock.js',
   'cloudfunctions/virtualPayCallback/lib/permissionEngine.js',
+  // RC8_14_P0_PROD_VIRTUAL_CALLBACK_CONTAINMENT (local preparation): fail-closed
+  // caller-authority module for the delivery-push path.
+  // RC8_14_P0_PROD_CALLBACK_FAIL_CLOSED_PATCH: the module is now WIRED into
+  // virtualPayCallback/index.js so every untrusted payload is denied before any
+  // DB access (empty trusted allow-list). The vulnerable 'XPAY'+outTradeNo
+  // fallback and the direct finalizePaidOrder call are removed. Neither the
+  // finalizer, entitlementService, real-payment functions, nor VIRTUAL_PAY config
+  // are touched.
+  'cloudfunctions/virtualPayCallback/lib/callbackAuthority.js',
+  'cloudfunctions/virtualPayCallback/index.js',
 ])
 
 function _git (args, cwd) {
