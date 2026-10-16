@@ -1,0 +1,78 @@
+{
+  "env": "fanshen002-d9g0rjr3b6e313af5",
+  "capturedAt": "2026-10-16T04:53:40.050Z",
+  "challenge_records_total": 21,
+  "owner_records": 12,
+  "owner_trial_true": 12,
+  "owner_records_hash": "b6a4a981a859a464",
+  "canonical_record": "42eeed266ad0530d006ce9ff22048acb",
+  "canonical_idx": "2",
+  "canonical_choices": [
+    {
+      "eventId": "CE012",
+      "choice": "A",
+      "choiceText": "坚持学完数据分析，至少拿到证书",
+      "createdAt": {
+        "$numberLong": "1792037655410"
+      }
+    },
+    {
+      "eventId": "GAME015",
+      "choice": "B",
+      "choiceText": "干三天就走，身体比全勤奖重要",
+      "createdAt": {
+        "$numberLong": "1792063530575"
+      }
+    }
+  ],
+  "synthetic_records": 9,
+  "synthetic_hash": "c1520ab8feee9ffe",
+  "challenge_active": [
+    {
+      "_id": "D12R5B1_SYNTH_STALE_B",
+      "state": "READY",
+      "recordId": "SYNTH_REC_KEEP",
+      "creationId": "SYNTH_CRE_KEEP",
+      "claimedAt": {
+        "$numberInt": "5000"
+      },
+      "expiresAt": {
+        "$numberInt": "8000"
+      },
+      "readyAt": {
+        "$numberInt": "9000"
+      }
+    },
+    {
+      "_id": "D12R5B1_SYNTH_STALE_C",
+      "state": "READY",
+      "recordId": "SYNTH_REC_KEEP",
+      "creationId": "SYNTH_CRE_KEEP",
+      "claimedAt": {
+        "$numberInt": "5000"
+      },
+      "expiresAt": {
+        "$numberInt": "8000"
+      },
+      "readyAt": {
+        "$numberInt": "9000"
+      }
+    },
+    {
+      "_id": "D12R5B1_SYNTH_UNIQ_A",
+      "state": "READY",
+      "recordId": "SYNTH_REC_A",
+      "creationId": "SYNTH_CRE_A",
+      "claimedAt": {
+        "$numberInt": "1000"
+      },
+      "expiresAt": {
+        "$numberInt": "2000"
+      },
+      "readyAt": {
+        "$numberInt": "3000"
+      }
+    }
+  ],
+  "challenge_active_hash": "0b24f7dac2da15de"
+}

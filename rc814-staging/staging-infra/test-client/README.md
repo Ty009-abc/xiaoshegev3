@@ -21,7 +21,11 @@
 | 页面 | 路径 | 作用 |
 |---|---|---|
 | 身份自检 | `pages/index/index` | 显示 openid / appid（验证真实微信上下文到达）；按钮测 3 个函数 |
+| 普通登录 | `pages/index/index`（步骤 1b） | **仅** `login`：创建/更新 `users` 记录。**不**创建挑战、**不**改权益/支付 |
 | C1–C10 | `pages/runner/runner` | 逐项运行 C1–C10，输出 PASS/FAIL/BLOCKED + 标识 |
+
+> 预览二维码：`local/preview-test-client.png`（git-ignored，由 `../preview-test-client.js` 生成，`--preview` 模式，不上传、不发布）。
+> 测试身份 onboarding 验收步骤见 `../D12-R5B-IDENTITY-ONBOARDING-EVIDENCE.md`（Phase 2 由 owner 在真机执行）。
 
 ## 身份映射（把合成 fixture 归属到真实测试身份）
 - 在 `pages/index/index` 读到真实 openid 后，**本地**运行（**不要**把 openid 提交 Git）：

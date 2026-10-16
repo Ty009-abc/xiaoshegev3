@@ -14,6 +14,15 @@
   </view>
 
   <view class="card">
+    <view class="title">步骤 1b · 普通登录（仅 login）</view>
+    <view class="row warn"><text class="v">⚠ 仅执行普通登录（账号 onboarding）。不创建挑战，不改权益/支付。</text></view>
+    <button class="btn" bindtap="onLogin" disabled="{{busy || loginBusy || !identityOk}}">登录（login）</button>
+    <view class="row" wx:if="{{loginStatus}}"><text class="k">登录状态</text><text class="v">{{loginStatus}}</text></view>
+    <view class="row" wx:if="{{loginOk}}"><text class="k">新用户</text><text class="v">{{isNewUser ? '是' : '否'}}</text></view>
+    <view class="row" wx:if="{{loginOk}}"><text class="k">会员</text><text class="v">{{membershipLevel}}</text></view>
+  </view>
+
+  <view class="card">
     <view class="title">步骤 2 · 挑战链路</view>
     <button class="btn" bindtap="onStart" disabled="{{busy || !identityOk}}">startChallenge</button>
     <view class="row" wx:if="{{startStatus}}"><text class="k">状态</text><text class="v">{{startStatus}}</text></view>
@@ -75,6 +84,16 @@
 
     <button class="btn btn-wide" bindtap="onD11GetEvent" disabled="{{busy || d11.inFlight}}">GET_CURRENT_EVENT（只读读回）</button>
     <view class="row" wx:if="{{d11.getText}}"><text class="k">GET响应</text><text class="v pre">{{d11.getText}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="title">RC8.14 D12-R5B.4 · 8 路真实并发（单批次）</view>
+    <view class="row warn"><text class="v">⚠ 仅隔离 staging（非生产）。并发派发 8 个 startChallenge(mode=challenge)：不 await 前序、不提交答案、不 replay、不重试。仅允许唯一一次批次（执行后锁定）。</text></view>
+    <view class="row"><text class="k">目标环境</text><text class="v">{{stagingEnv}}</text></view>
+    <view class="row"><text class="k">身份状态</text><text class="v">{{identityStatus}}</text></view>
+    <button class="btn btn-wide" bindtap="onEightWayRun" disabled="{{busy || eight.running || eight.done || !identityOk}}">RUN_EIGHT_WAY_START（单次 8 路并发 startChallenge）</button>
+    <view class="row" wx:if="{{eight.summaryText}}"><text class="k">汇总</text><text class="v pre">{{eight.summaryText}}</text></view>
+    <view class="row" wx:if="{{eight.perReqText}}"><text class="k">逐请求</text><text class="v pre">{{eight.perReqText}}</text></view>
   </view>
 
   <view class="card">

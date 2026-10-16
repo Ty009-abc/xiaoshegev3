@@ -40,6 +40,12 @@ Page({
     openidMasked: '',
     appid: '',
     envVerified: false,
+    // ── normal-login onboarding (D12 R5B) — login ONLY, never startChallenge ──
+    loginBusy: false,
+    loginOk: false,
+    loginStatus: '未登录',
+    isNewUser: null,
+    membershipLevel: '',
     // start
     startStatus: '',
     startError: '',
@@ -62,6 +68,14 @@ Page({
       getResp: null,
       getText: '',
     },
+    // ── RC8.14 D12 R5B_4 — 授权的 8 路真实并发（单批次；仅 test-client）──
+    eight: {
+      running: false,
+      done: false,
+      summaryText: '',
+      perReqText: '',
+      overlap: null,
+    },
     // ── RC8.14 D11 真实并发 CAS 测试面板（隔离；仅 test-client）──
     d11: {
       recordId: 'CR17920376443640tylag',
@@ -83,6 +97,13 @@ Page({
 
   _log (line) {
     this.setData({ log: this.data.log.concat('[' + stamp() + '] ' + line).slice(-60) })
+  },
+
+  // Visible, non-silent feedback for guards/cancel (never throws if wx.showToast absent).
+  _toast (title, icon) {
+    try {
+      if (typeof wx !== 'undefined' && wx.showToast) wx.showToast({ title: String(title || ''), icon: icon || 'none' })
+    } catch (_) { /* test/mock env: no toast */ }
   },
 
   _reason (res) {
@@ -117,6 +138,36 @@ Page({
       this._log('✗ ' + String((e && e.errMsg) || e))
     }
     this.setData({ busy: false })
+  },
+
+  // ── 1b) NORMAL LOGIN ONLY (creates/updates the users record for this identity) ──
+  //       Deliberately does NOT create a challenge: no challenge record, no
+  //       challenge_active session, no coupon/entitlement change. Single attempt.
+  async onLogin () {
+    if (this.data.loginBusy) { this._log('⛔ 登录请求进行中，忽略重复点击'); return }
+    if (!this.data.identityOk) { this._log('⛔ 请先完成身份自检'); return }
+    this.setData({ loginBusy: true, loginStatus: '登录中…' })
+    this._log('→ login（仅普通登录；不创建挑战、不改权益）')
+    try {
+      const out = await getApp().login()
+      if (out && out.ok) {
+        const d = (out.res && out.res.data) || {}
+        this.setData({
+          loginOk: true,
+          loginStatus: '✅ 登录成功' + (d.isNewUser ? '（新用户）' : '（老用户）'),
+          isNewUser: !!d.isNewUser,
+          membershipLevel: (d.user && d.user.membershipLevel) || 'free',
+        })
+        this._log('← login ok isNew=' + !!d.isNewUser + ' member=' + ((d.user && d.user.membershipLevel) || 'free'))
+      } else {
+        this.setData({ loginOk: false, loginStatus: '❌ 登录失败：' + ((out && out.error) || 'unknown') })
+        this._log('✗ login ' + ((out && out.error) || 'unknown'))
+      }
+    } catch (e) {
+      this.setData({ loginOk: false, loginStatus: '❌ 调用异常：' + String((e && e.errMsg) || e) })
+      this._log('✗ login ' + String((e && e.errMsg) || e))
+    }
+    this.setData({ loginBusy: false })
   },
 
   // ── 2) startChallenge (requires identity self-check first) ──
@@ -405,4 +456,94 @@ Page({
   },
 
   goRunner () { wx.navigateTo({ url: '/pages/runner/runner' }) },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // RC8.14 D12 R5B_4 — 单次授权 8 路真实并发（startChallenge, mode=challenge）
+  //   仅 test-client；身份来自 getWXContext；不 submitChoice、不 replay、
+  //   不支付、不改权益；不自动重试；只允许一次批次（运行后按钮锁定）。
+  // ══════════════════════════════════════════════════════════════════════
+  onEightWayRun () {
+    // Session-wide single-batch lock (survives page re-entry within this app session).
+    const app = getApp()
+    app.globalData = app.globalData || {}
+    if (app.globalData.eightWayDone) {
+      this.setData({ 'eight.done': true, 'eight.summaryText': '⛔ 已执行过单次批次（会话级锁定）; 本任务只允许一个批次。' })
+      this._toast('已执行过单次批次', 'none')
+      this._log('⛔ [8W] 会话级批次已锁定')
+      return
+    }
+    if (this.data.eight.running) { this._toast('批次进行中', 'none'); this._log('⛔ [8W] 批次进行中，忽略重复点击'); return }
+    if (this.data.eight.done) { this._toast('已执行过单次批次', 'none'); this._log('⛔ [8W] 已执行过单次批次'); return }
+    if (!this.data.identityOk) {
+      this.setData({ 'eight.summaryText': '❌ 未完成身份自检，未派发任何请求（0 次网络调用）' })
+      this._toast('请先完成身份自检', 'none')
+      this._log('⛔ [8W] 请先完成身份自检（0 请求）')
+      return
+    }
+    // Visible feedback IMMEDIATELY on tap, BEFORE any modal or network call.
+    this.setData({ 'eight.summaryText': '已点击：等待弹窗确认（尚未发送任何请求）…', 'eight.perReqText': '' })
+    this._log('· [8W] tap 已接收，弹窗确认中（0 请求）')
+    wx.showModal({
+      title: '确认 8 路并发（staging，单批次）',
+      content: '环境 ' + STAGING_ENV + '\n将并发派发 8 个 startChallenge(mode=challenge)。\n仅隔离 staging，非生产；不提交答案、不重试。\n\n确认执行唯一一次批次？',
+      confirmText: '执行 8 路',
+      cancelText: '取消',
+      success: (m) => {
+        if (m && m.confirm) {
+          this._log('· [8W] 已确认，开始派发 8 个请求')
+          this._eightWayDo()
+        } else {
+          // Cancellation / dismiss ⇒ ZERO requests.
+          this.setData({ 'eight.summaryText': '已取消：未派发任何请求（0 次网络调用）' })
+          this._toast('已取消，未发送请求', 'none')
+          this._log('· [8W] 已取消（0 请求）')
+        }
+      },
+      fail: (e) => {
+        this.setData({ 'eight.summaryText': '弹窗异常：未派发任何请求（0 次网络调用）' })
+        this._log('✗ [8W] showModal fail ' + String((e && e.errMsg) || e) + '（0 请求）')
+      },
+    })
+  },
+
+  async _eightWayDo () {
+    const app = getApp()
+    // Lock BOTH page + app globalData BEFORE the first await (blocks synchronous duplicate taps).
+    app.globalData = app.globalData || {}
+    app.globalData.eightWayDone = true
+    this.setData({ 'eight.running': true, 'eight.done': true, 'eight.summaryText': '并发派发中… 0/8 已完成', 'eight.perReqText': '', 'eight.overlap': null })
+    this._log('→ [8W] dispatch 8 × startChallenge(mode=challenge) — 不 await 前序、单批次、不重试')
+    try {
+      const s = await app.startChallengeEightWay(8, (done, total) => {
+        this.setData({ 'eight.summaryText': '并发派发中… ' + done + '/' + total + ' 已完成' })
+      })
+      if (!s || !s.ok) {
+        this.setData({ 'eight.running': false, 'eight.summaryText': '❌ ' + ((s && s.error) || 'unknown') })
+        this._log('✗ [8W] ' + ((s && s.error) || 'unknown'))
+        return
+      }
+      const distinct = s.successRecordIds.length
+      const summary = 'count=' + s.count +
+        '\nsuccess=' + s.successCount + ' conflict/err=' + s.conflictCount + ' netErr=' + s.errorCount +
+        '\nresponseCodes=' + JSON.stringify(s.responseCodes) +
+        '\ndistinctSuccessRecordIds=' + distinct + ' ' + JSON.stringify(s.successRecordIds) +
+        '\nclientOverlap=' + s.clientOverlap +
+        '\nbatchWallClockMs=' + s.batchWallClockMs + ' (firstDispatch=' + s.firstDispatch + ' lastSettlement=' + s.lastSettlement + ')'
+      const lines = s.perRequest.map((r) => {
+        return '#' + r.clientRequestIndex +
+          ' dispatch=' + r.dispatchTimestamp + ' settle=' + r.settlementTimestamp +
+          ' code=' + (r.code === null ? '-' : r.code) + ' msg=' + (r.message || '-') +
+          ' recordId=' + (r.recordId || '-') +
+          ' resumed=' + r.resumed + ' trialMode=' + r.trialMode +
+          ' idx=' + (r.currentEventIndex === null ? '-' : r.currentEventIndex) +
+          ' errCode=' + (r.errorCode === null ? '-' : r.errorCode) + ' retryable=' + r.retryable +
+          (r.netError ? (' netErr=' + this._redact(r.netError)) : '')
+      }).join('\n')
+      this.setData({ 'eight.running': false, 'eight.done': true, 'eight.summaryText': summary, 'eight.perReqText': lines, 'eight.overlap': s.clientOverlap })
+      this._log('← [8W] done success=' + s.successCount + ' distinct=' + distinct + ' overlap=' + s.clientOverlap)
+    } catch (e) {
+      this.setData({ 'eight.running': false, 'eight.done': true, 'eight.summaryText': '❌ 客户端异常：' + String((e && e.errMsg) || e) })
+      this._log('✗ [8W] ' + String((e && e.errMsg) || e))
+    }
+  },
 })
