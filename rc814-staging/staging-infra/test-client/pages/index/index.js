@@ -486,7 +486,7 @@ Page({
     wx.showModal({
       title: '确认 8 路并发（staging，单批次）',
       content: '环境 ' + STAGING_ENV + '\n将并发派发 8 个 startChallenge(mode=challenge)。\n仅隔离 staging，非生产；不提交答案、不重试。\n\n确认执行唯一一次批次？',
-      confirmText: '执行 8 路',
+      confirmText: '确认执行',
       cancelText: '取消',
       success: (m) => {
         if (m && m.confirm) {

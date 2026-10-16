@@ -59,6 +59,16 @@ function build (opts) {
     },
     showToast () {},
     showModal (o) {
+      state.modalCalls = (state.modalCalls || 0) + 1
+      // Enforce WeChat rule: confirmText/cancelText length must be ≤4 Chinese chars.
+      const bad = (t) => typeof t === 'string' && Array.from(t).length > 4
+      const cBad = bad(o.confirmText), xBad = bad(o.cancelText)
+      if (cBad || xBad) {
+        state.modalParamError = cBad ? 'confirmText' : 'cancelText'
+        if (o.fail) o.fail({ errMsg: 'showModal:fail ' + state.modalParamError + ' length should not larger than 4 Chinese characters' })
+        return
+      }
+      if (opts.modalFail) { if (o.fail) o.fail({ errMsg: 'showModal:fail forced' }); return }
       const m = modalQueue.length ? modalQueue.shift() : { confirm: false }
       if (opts.modalSync) { if (o.success) o.success(m) } else { setImmediate(() => { if (o.success) o.success(m) }) }
     },
@@ -189,6 +199,42 @@ function build (opts) {
   ok(!/openid/i.test(appCallWindows), 'no openid in any callFunction payload window (app.js)')
   ok(!/DYNAMIC_CURRENT_ENV/.test(appCode + idxCode), 'no DYNAMIC_CURRENT_ENV in code (no prod fallback)')
   ok(!/fanshex-d2g0adgv7dfbc9bdc/.test(idxCode), 'no production envId literal in index.js')
+
+  // ── 9) modal parameter validation (WeChat: confirmText/cancelText ≤ 4 Chinese chars) ──
+  const cnGlyphs = (s) => /^[\u4e00-\u9fff]+$/.test(s) ? Array.from(s).length : NaN
+  const modalCalls = (() => { const out = []; const re = /wx\.showModal\((\{[\s\S]*?\n    \})\)/g; let m; while ((m = re.exec(idxCode))) out.push(m[1]); return out })()
+  ok(modalCalls.length >= 1, 'at least one wx.showModal config found in index.js')
+  modalCalls.forEach((blk, i) => {
+    const c = (blk.match(/confirmText:\s*'([^']*)'/) || [])[1]
+    const x = (blk.match(/cancelText:\s*'([^']*)'/) || [])[1]
+    if (c !== undefined) ok(cnGlyphs(c) <= 4, 'modal#' + i + ' confirmText "' + c + '" ≤4 Chinese chars (len=' + cnGlyphs(c) + ')')
+    if (x !== undefined) ok(cnGlyphs(x) <= 4, 'modal#' + i + ' cancelText "' + x + '" ≤4 Chinese chars (len=' + cnGlyphs(x) + ')')
+  })
+  // the 8-way modal specifically must use the corrected text
+  const eightBlk = (idxCode.match(/title:\s*'确认 8 路并发[\s\S]*?\n    \}/) || [''])[0]
+  ok(/confirmText:\s*'确认执行'/.test(eightBlk), '8-way modal confirmText == 确认执行')
+  ok(cnGlyphs((eightBlk.match(/confirmText:\s*'([^']*)'/) || [])[1]) === 4, '8-way confirmText == exactly 4 chars')
+
+  // ── 10) modal failure ⇒ ZERO calls + visible feedback ──
+  {
+    const { page, state } = build({ modals: [{ confirm: true }], modalFail: true })
+    page.data.identityOk = true
+    page.onEightWayRun()
+    await sleep(30)
+    ok(state.calls === 0, 'modal fail: ZERO calls')
+    ok(/弹窗异常/.test(page.data.eight.summaryText), 'modal fail: visible failure status')
+    ok(state.modalParamError === undefined, 'modal fail: not a param-length error (texts valid)')
+  }
+
+  // ── 11) the 8-way modal config passes runtime ≤4 enforcement ──
+  {
+    const { page, state } = build({ modals: [{ confirm: true }], modalSync: true })
+    page.data.identityOk = true
+    page.onEightWayRun()
+    await waitFor(() => page.data.eight.running === false, 3000)
+    ok(state.modalParamError === undefined, '8-way modal: no confirmText/cancelText length error')
+    ok(state.calls === 8, '8-way modal (valid params): exactly 8 calls')
+  }
 
   const tag = 'D12_EIGHT_WAY_UI'
   console.log(tag + ' pass=' + pass + ' fail=' + fail)
