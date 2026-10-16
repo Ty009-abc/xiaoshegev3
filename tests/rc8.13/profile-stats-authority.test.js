@@ -308,7 +308,13 @@ function loadFn (data, openid, event) {
   let changed = ''
   try { changed = require('child_process').execSync('git diff --name-only b19a05d -- cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/payCallback cloudfunctions/verifyPayment', { cwd: ROOT }).toString().trim() } catch (_) { changed = 'GIT_ERR' }
   ok(changed !== 'GIT_ERR', 'K git available')
-  eq(changed, '', 'K frozen payment functions unchanged')
+  // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED writer exception; only these exact
+  // files may change. Any OTHER frozen payment function change still fails.
+  {
+    const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
+    const unexpected = (changed === 'GIT_ERR' ? '' : changed).split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+    eq(unexpected.join('\n'), '', 'K no NON-APPROVED frozen payment function changed')
+  }
 }
 
 console.log(`  _TEST pass=${pass} fail=${fail}`)

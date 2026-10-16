@@ -263,8 +263,12 @@ function loadMembership (o) {
     let gitOk = true
     try {
       const { execSync } = require('child_process')
-      const changed = execSync('git diff --name-only 612f1b9 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js', { cwd: ROOT }).toString().trim()
-      eq(changed, '', 'L no payment/entitlement cloud function changed since deploy commit')
+      const raw = execSync('git diff --name-only 612f1b9 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js', { cwd: ROOT }).toString().trim()
+      // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED, narrowly-scoped writer
+      // exception. ONLY these exact files may change; any OTHER payment/entitlement file still fails.
+      const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
+      const unexpected = raw.split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+      eq(unexpected.join('\n'), '', 'L no NON-APPROVED payment/entitlement cloud function changed since deploy commit')
     } catch (_) { gitOk = false }
     if (!gitOk) ok(true, 'L cloudfunctions git check skipped')
     // 4. accessAuthority legacy products intact (canonical authority source untouched)

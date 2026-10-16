@@ -281,7 +281,13 @@ function await0 () {}
     changed = execSync('git diff --name-only 612f1b9 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js services/paymentService.js', { cwd: ROOT }).toString().trim()
   } catch (_) { changed = 'GIT_ERR' }
   ok(changed !== 'GIT_ERR', 'Q git available')
-  eq(changed, '', 'Q no payment cloudfunction / paymentService change since deploy')
+  // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED writer exception; only these exact
+  // files may change. Any OTHER payment cloudfunction / paymentService change still fails.
+  {
+    const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
+    const unexpected = (changed === 'GIT_ERR' ? '' : changed).split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+    eq(unexpected.join('\n'), '', 'Q no NON-APPROVED payment cloudfunction / paymentService change since deploy')
+  }
   const src = fs.readFileSync(MEM_JS, 'utf8')
   ok(/requestVirtualPayment/.test(src), 'Q virtual channel retained')
   ok(!/paymentService\.requestPayment\b/.test(src), 'Q no ordinary requestPayment fallback')

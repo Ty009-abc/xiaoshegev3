@@ -51,6 +51,60 @@ function _membershipRights (productId) {
   return r ? r.slice() : (PRODUCT_PERMISSIONS[productId] || [PERM.VIP])
 }
 
+// ═══════════════════════════
+// RC8_14_D12_R6C_R5 — 可信静态商品政策（发放权威）
+// ═══════════════════════════
+// 发放权益前，先由【服务端自有静态目录】判定商品政策，绝不因运行时 products 行缺失
+// 而把时限商品误判为永久（fail-closed）。与 initDatabase/data/products.js 同步。
+//   kind='permanent' —— 一次性买断，durationDays=0，来源 expiresAt=0（永久）。
+//   kind='timed'     —— 会员类，durationDays>0，来源必须获得有限正到期时间戳。
+// 未知商品 → 拒绝发放（绝不隐式永久）。
+// ⚠ 目录漂移：新增商品须同步登记；未登记者保守拒绝（安全方向）。
+const PRODUCT_POLICY = {
+  report_9_9: { kind: 'permanent', durationDays: 0 },
+  challenge_39_9: { kind: 'permanent', durationDays: 0 },
+  vip_month_39_9: { kind: 'timed', durationDays: 30 },
+  vip_month_99: { kind: 'timed', durationDays: 30 },
+  vip_year_299: { kind: 'timed', durationDays: 365 },
+}
+
+// 解析时限会员的可信时长；未知 / 非时限 / 冲突 / 畸形 → fail-closed（不发放）。
+// 只读交叉校验：运行时商品行若存在，必须与可信目录一致（type∈MEMBERSHIP_TYPES 且 durationDays 为正数且相等）；
+// 运行时行【缺失】不视为永久，而是采用可信目录时长（绝不因缺行降级为永久）。
+async function _resolveMembershipDuration (db, productId, orderId, openid, ts) {
+  const policy = PRODUCT_POLICY[productId]
+  if (!policy) {
+    await _audit(db, { orderId, openid, productId, action: 'membership_grant_denied', reason: 'UNKNOWN_PRODUCT' }, ts)
+    return { ok: false, reason: 'UNKNOWN_PRODUCT' }
+  }
+  if (policy.kind !== 'timed') {
+    await _audit(db, { orderId, openid, productId, action: 'membership_grant_denied', reason: 'NOT_TIMED_PRODUCT' }, ts)
+    return { ok: false, reason: 'NOT_TIMED_PRODUCT' }
+  }
+  let live = null
+  try {
+    const res = await db.collection('products').where({ productId }).limit(1).get()
+    live = (res && res.data && res.data[0]) || null
+  } catch (_) { live = null }
+  // fail-closed：定时会员必须能读到实时商品配置；缺失/读失败 ⇒ 拒绝（绝不隐式永久，也不凭失信推定）。
+  if (!live) {
+    await _audit(db, { orderId, openid, productId, action: 'membership_grant_denied', reason: 'PRODUCT_NOT_FOUND' }, ts)
+    return { ok: false, reason: 'PRODUCT_NOT_FOUND' }
+  }
+  const t = live.type
+  const d = live.durationDays
+  if (!MEMBERSHIP_TYPES.includes(t)) {
+    await _audit(db, { orderId, openid, productId, action: 'membership_grant_denied', reason: 'PRODUCT_POLICY_CONFLICT', liveType: t }, ts)
+    return { ok: false, reason: 'PRODUCT_POLICY_CONFLICT' }
+  }
+  // 必须为有限正数且与可信目录一致；缺失/0/负数/NaN/Infinity/字符串/对象 → 拒绝。
+  if (typeof d !== 'number' || !Number.isFinite(d) || d <= 0 || d !== policy.durationDays) {
+    await _audit(db, { orderId, openid, productId, action: 'membership_grant_denied', reason: 'PRODUCT_DURATION_INVALID', liveDuration: d }, ts)
+    return { ok: false, reason: 'PRODUCT_DURATION_INVALID' }
+  }
+  return { ok: true, durationDays: policy.durationDays }
+}
+
 // 审计集合（缺失时静默失败，绝不影响权威结果）
 async function _audit (db, doc, ts) {
   try {
@@ -166,9 +220,11 @@ async function applyChallengeUnlock (db, order, ts) {
  */
 async function applyMembership (db, order, ts) {
   const { openid, orderId } = order
-  const productRes = await db.collection('products').where({ productId: order.productId }).limit(1).get()
-  const product = (productRes && productRes.data && productRes.data[0]) || {}
-  const durationDays = product.durationDays || 0
+  // RC8_14_D12_R6C_R5 — 时限会员发放前，先以【可信静态目录】解析政策；未知/冲突/畸形 fail-closed。
+  const dur = await _resolveMembershipDuration(db, order.productId, orderId, openid, ts)
+  if (!dur.ok) return { ok: false, applied: false, reason: dur.reason }
+  const durationDays = dur.durationDays
+  const durationMs = durationDays * DAY_MS          // 有限正数（受政策保证）
   const level = _productIdToLevel(order.productId)
 
   // ── 幂等闸门：该 orderId 是否已发放过会员权益 ──
@@ -185,14 +241,14 @@ async function applyMembership (db, order, ts) {
   if (existingMember && existingMember.data && existingMember.data.length > 0) {
     // 续费：从当前 expiredAt 延长（RC8_11 renewal rule）
     const old = existingMember.data[0]
-    const newExpires = Math.max(old.expiredAt || 0, ts) + durationDays * DAY_MS
+    const newExpires = Math.max(old.expiredAt || 0, ts) + durationMs
     const mergedRights = [...new Set([...(old.rights || []), ..._membershipRights(order.productId)])]
     await db.collection('memberships').doc(old._id).update({
       data: { expiredAt: newExpires, rights: mergedRights, lastOrderId: orderId, updatedAt: ts },
     })
     effectiveExpiredAt = newExpires
   } else {
-    const expiresAt = durationDays > 0 ? ts + durationDays * DAY_MS : 0
+    const expiresAt = ts + durationMs
     await db.collection('memberships').add({
       data: {
         openid, status: 'active', level,
@@ -229,37 +285,41 @@ async function grantEntitlements (db, order, ts = now()) {
   if (!openid || !productId) return { success: false, granted: [], applied: false, summary: '缺少 openid 或 productId' }
 
   try {
+    // RC8_14_D12_R6C_R5 — 可信商品政策先行；未知商品 fail-closed（绝不隐式永久）。
+    const policy = PRODUCT_POLICY[productId]
+    if (!policy) {
+      await _audit(db, { orderId, openid, productId, action: 'grant_denied_unknown_product' }, ts)
+      return { success: false, granted: [], applied: false, reason: 'UNKNOWN_PRODUCT', summary: '未知商品，拒绝发放' }
+    }
     const productRes = await db.collection('products').where({ productId }).limit(1).get()
     const product = (productRes && productRes.data && productRes.data[0]) || {}
     const perms = PRODUCT_PERMISSIONS[productId] || [product.permission || productId]
 
     let target = { ok: true, applied: true, reason: 'NO_TARGET_REQUIRED' }
     const granted = []
-    let sourceExpiresAt = 0 // 一次/退休商品 = 永久(0)；会员 = 会员到期时间
+    let sourceExpiresAt = 0 // 永久一次性商品 = 永久(0)；会员 = 会员到期时间（有限正数）
 
-    // ── 显式商品权益权威（非 permList 推断）──
-    // RC8_11：会员商品优先判定（vip_month_39_9/year 等），避免 legacy 'vip' permission
-    //          误入报告/挑战专用分支；同时保证 vip_year_299 即使 permission 为 vip 也走会员分支。
-    // 路由顺序：报告(显式 permission/report_9_9) → 挑战(显式 permission/challenge_39_9) → 会员(type=membership)
-    // —— report_9_9/challenge_39_9 的 permission 为 report_unlock/challenge_unlock，必先命中；
-    //    会员商品(permission='vip', type='membership') 自然落入会员分支。
-    if (product.permission === PERM.REPORT_UNLOCK || productId === 'report_9_9') {
-      target = await applyReportUnlock(db, order, ts)
-      if (!target.ok) return _fail(target, '报告权益未发放（目标未证明）')
-      granted.push(PERM.REPORT_UNLOCK, ...perms.filter((p) => p !== PERM.CHALLENGE_UNLOCK))
-    } else if (product.permission === PERM.CHALLENGE_UNLOCK || productId === 'challenge_39_9') {
-      target = await applyChallengeUnlock(db, order, ts)
-      if (!target.ok) return _fail(target, '挑战权益未发放（目标未证明）')
-      granted.push(PERM.CHALLENGE_UNLOCK, ...perms)
-    } else if (MEMBERSHIP_TYPES.includes(product.type)) {
+    // ── 路由由【可信静态政策】决定（permanent / timed），再用显式商品权益权威定位目标 ──
+    if (policy.kind === 'permanent') {
+      if (product.permission === PERM.REPORT_UNLOCK || productId === 'report_9_9') {
+        target = await applyReportUnlock(db, order, ts)
+        if (!target.ok) return _fail(target, '报告权益未发放（目标未证明）')
+        granted.push(PERM.REPORT_UNLOCK, ...perms.filter((p) => p !== PERM.CHALLENGE_UNLOCK))
+      } else if (product.permission === PERM.CHALLENGE_UNLOCK || productId === 'challenge_39_9') {
+        target = await applyChallengeUnlock(db, order, ts)
+        if (!target.ok) return _fail(target, '挑战权益未发放（目标未证明）')
+        granted.push(PERM.CHALLENGE_UNLOCK, ...perms)
+      } else {
+        // 其它永久一次性 / 咨询：仅登记权限字符串，无存储目标（永久）
+        granted.push(...perms)
+      }
+    } else {
+      // 时限会员：时长由可信目录 + 运行时行交叉校验保证（applyMembership 内部 fail-closed）。
       target = await applyMembership(db, order, ts)
       if (!target.ok) return _fail(target, '会员权益未发放（目标未证明）')
       granted.push(..._membershipRights(productId))
-      // 会员来源随会员到期时间失效（legacy 永久商品恒为 0）
+      // 会员来源随会员到期时间失效（有限正数）
       sourceExpiresAt = target.expiredAt || 0
-    } else {
-      // 其它一次性 / 咨询：仅登记权限字符串，无存储目标（永久）
-      granted.push(...perms)
     }
 
     // ── entitlements 权限缓存 ──
