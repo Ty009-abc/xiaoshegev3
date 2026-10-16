@@ -27,10 +27,11 @@ const {
   calcPaySig,
   calcUserSignature,
   selectAppKey,
-  resolveEnvFlag,
   URI_REQUEST_VIRTUAL_PAYMENT,
   getSessionKey,
 } = require('./lib/virtualPaySigning.js')
+// RC8_14_D12_R6C_R6_8 — 沙箱环境锁：staging 绝不选择生产 provider / 生产 AppKey
+const { resolveVirtualPayEnv } = require('./lib/virtualPayEnvLock.js')
 
 const { rightsForProduct } = require('./lib/accessAuthority.js')
 
@@ -63,8 +64,15 @@ exports.main = async (event) => {
   if (!productId) return fail(CODES.PARAM_ERROR, '缺少 productId')
 
   const cfgEnv = resolveVirtualPayConfig(process.env)
-  const envFlag = resolveEnvFlag(process.env)
   const ts = now()
+
+  // ── 沙箱环境锁（RC8_14_D12_R6C_R6_8，fail-closed）──
+  //   staging 必须解析到字面量 staging envId 且保持沙箱；任何歧义/生产模式/生产密钥 → 拒绝。
+  const envLock = resolveVirtualPayEnv({ wxContext, env: process.env, appKeyRequired: true })
+  if (!envLock.ok) {
+    return fail(CODES.CONFIG_ERROR, '虚拟支付运行环境未通过沙箱锁', { envLock: envLock.reason })
+  }
+  const envFlag = envLock.envFlag
 
   // ── 发售模式（服务端权威，失败闭合）──
   if (cfgEnv.salesMode !== 'ENABLED') {

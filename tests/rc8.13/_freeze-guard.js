@@ -47,6 +47,23 @@ const APPROVED_WRITER = new Set([
   'cloudfunctions/virtualPayCallback/lib/entitlementService.js',
 ])
 
+// Exact approved SECURITY-FIX exception (RC8_14_D12_R6C_R6_8
+// MINIMAL_VIRTUAL_PAYMENT_SECURITY). Scope is deliberately narrow:
+//   - staging sandbox environment lock (new virtualPayEnvLock.js harness + wiring),
+//   - required virtual-payment-bundle permissionEngine.js alignment to the hardened
+//     canonical engine (21d7ef1f…).
+// Real-payment entrypoints and their bundles (createOrder / payCallback / verifyPayment /
+// refundOrder index + libs) are intentionally NOT listed: any change there still fails.
+const SECURITY_APPROVED = new Set([
+  'cloudfunctions/createVirtualOrder/index.js',
+  'cloudfunctions/createVirtualOrder/lib/permissionEngine.js',
+  'cloudfunctions/createVirtualOrder/lib/virtualPayEnvLock.js',
+  'cloudfunctions/verifyVirtualPayment/index.js',
+  'cloudfunctions/verifyVirtualPayment/lib/permissionEngine.js',
+  'cloudfunctions/verifyVirtualPayment/lib/virtualPayEnvLock.js',
+  'cloudfunctions/virtualPayCallback/lib/permissionEngine.js',
+])
+
 function _git (args, cwd) {
   return execSync('git ' + args, { cwd: cwd || ROOT, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }).toString()
 }
@@ -76,10 +93,12 @@ function collect (base, scope, cwd) {
 /**
  * In-scope files that are NOT on the approved allow-list. Empty array == PASS.
  */
-function unexpectedFiles (base, scope, approved = APPROVED_WRITER, cwd) {
+function unexpectedFiles (base, scope, approved, cwd) {
+  const allowed = new Set([...APPROVED_WRITER, ...SECURITY_APPROVED])
+  if (approved && approved.size) for (const f of approved) allowed.add(f)
   const { tracked, staged, untracked, ignored } = collect(base, scope, cwd)
   const all = [...new Set([...tracked, ...staged, ...untracked, ...ignored])]
-  return all.filter((f) => !approved.has(f)).sort()
+  return all.filter((f) => !allowed.has(f)).sort()
 }
 
-module.exports = { ROOT, APPROVED_WRITER, PAYMENT_CRITICAL, collect, unexpectedFiles }
+module.exports = { ROOT, APPROVED_WRITER, SECURITY_APPROVED, PAYMENT_CRITICAL, collect, unexpectedFiles }

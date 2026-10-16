@@ -140,8 +140,80 @@ const FREE_PERMISSIONS = ['daily_insight', 'challenge_preview', 'basic_ai']
 // hasPermission — 核心判断
 // ═══════════════════════════
 
+// ═══════════════════════════
+// PRODUCT EXPIRY AUTHORITY — 商品政策（服务器自有静态目录）
+// ═══════════════════════════
+// RC8_14_D12_R6C_R3 — 产品感知的有效期：来源是否可用，先看【商品政策】，再看时间戳。
+// 商品政策只来自服务器自有静态目录（与 initDatabase/data/products.js 同步），
+// 绝不来自客户端、也绝不来自运行时 products 集合是否恰好存在该行
+// （运行时集合可能为空/被篡改/未知；缺失一律 fail-closed）。
+//   - 永久商品（一次性买断，durationDays=0）：expiresAt 0/null/undefined ⇒ 永久。
+//   - 时限商品（会员，durationDays>0）：必须有 >now 的有限正时间戳；缺失/0/畸形 ⇒ 拒绝。
+//   - 未知商品：拒绝（绝不隐式永久）。
+// ⚠ 目录漂移风险：新增时限商品必须同步登记于此；未登记的时限商品会被保守地拒绝（安全方向）。
+// catalogVersion = RC8_11_STAGE1 (products.js sha256 0ebc0180f509900d…)
+const TIMED_PRODUCTS = new Set(['vip_month_39_9', 'vip_month_99', 'vip_year_299'])   // durationDays>0
+const PERMANENT_PRODUCTS = new Set(['report_9_9', 'challenge_39_9'])                // durationDays=0
+
+// ═══════════════════════════
+// SOURCE VALIDITY — 授权唯一的真相
+// ═══════════════════════════
+// RC8_14_D12_R6C — 过期来源止血：授权【只】依据当前有效来源（sources）重建，
+// 绝不再信任缓存的 `ent.permissions` 数组（那可能残留已过期会员的权限）。
+// 映射（sources → permission）是确定性且唯一的：由 source.productId 经
+// PRODUCT_PERMISSIONS 解析；一个来源只能凭自身授予其权限，不能借用他人有效期。
+
+// 来源有效性：先判定商品政策（永久/时限/未知），再判定该政策下的时间戳。
+// expiresAt=0/null/undefined 只有在【永久商品】下才代表永久；时限商品缺失过期即拒绝。
+function _isSourceCurrentlyValid (src, ts) {
+  if (!src || typeof src !== 'object' || !src.productId) return false   // 畸形来源 → 不授权
+  if (src.revoked === true) return false                               // 显式撤销来源 → 不授权
+
+  // RC8_14_D12_R6C_R3 — 商品政策先行；未知商品 fail-closed（不隐式永久）。
+  const isTimed = TIMED_PRODUCTS.has(src.productId)
+  const isPermanent = PERMANENT_PRODUCTS.has(src.productId)
+  if (!isTimed && !isPermanent) return false                            // 未知商品 → 不授权
+
+  const e = src.expiresAt
+
+  if (isTimed) {
+    // 时限商品：必须为有限正数时间戳且严格 > now。
+    if (e === undefined || e === null || e === 0) return false          // 缺失过期 → 拒绝（绝不升级为永久）
+    const n = Number(e)
+    if (!Number.isFinite(n) || n <= 0) return false                     // NaN/Infinity/负数/0 → 拒绝
+    return n > ts                                                       // 严格未到期（边界：expiresAt==now → 过期）
+  }
+
+  // 永久商品：0/null/undefined = 永久；否则按时间戳判定（未到期有效）。
+  if (e === undefined || e === null || e === 0) return true             // 永久（一次性商品 durationDays=0）
+  const n = Number(e)
+  if (!Number.isFinite(n) || n < 0) return false                        // 畸形到期 → fail-closed
+  return n > ts                                                          // 严格未到期（边界：expiresAt==now → 过期）
+}
+
+// 由【当前有效】来源重建其可授予的权限集合（不读取缓存 permissions）。
+function _validPermissionsFromSources (sources, ts) {
+  const set = new Set()
+  for (const src of (sources || [])) {
+    if (!_isSourceCurrentlyValid(src, ts)) continue
+    const perms = PRODUCT_PERMISSIONS[src.productId] || []
+    for (const p of perms) set.add(p)
+    // RC8_11：legacy 永久商品的解锁权限字符串（保底，与发放一致）
+    if (src.productId === 'report_9_9') set.add('report_unlock')
+    if (src.productId === 'challenge_39_9') set.add('challenge_unlock')
+  }
+  return set
+}
+
 /**
  * 判断用户是否拥有某权限
+ *
+ * RC8_14_D12_R6C 加固：授权来源必须【当前有效】。
+ *   - entitlements 分支：由 sources 中【未过期】的来源重建权限，缓存 permissions 不再授权。
+ *   - memberships 分支：仅 status='active' 且 expiredAt > now 的会员才参与判断。
+ *   - 任一来源无效（过期/撤销/畸形）即不授权；一个来源不能借用无关来源的有效性。
+ *   - 读取异常 / 畸形数据 → fail-closed（拒绝）。
+ *   异步清理仅维护缓存整洁，不作为授权权威。
  *
  * @param {object}   db
  * @param {string}   openid
@@ -158,22 +230,18 @@ async function hasPermission(db, openid, permission) {
   const ts = now()
 
   try {
-    // 1. 查 entitlements 缓存
+    // 1. entitlements：【只】依据当前有效的 sources 重建权限（不信任缓存 permissions）。
     const entRes = await db.collection('entitlements').where({ openid }).limit(1).get()
     const ent = entRes.data[0]
+    const sources = (ent && ent.sources) || []
 
-    if (ent && ent.permissions) {
-      // 检查 sources 中是否有过期
-      const expiredSources = (ent.sources || []).filter(s => s.expiresAt && s.expiresAt <= ts)
-      if (expiredSources.length > 0) {
-        // 有过期来源 → 降级检查（异步清理）
-        _cleanExpiredSources(db, openid, expiredSources, ent).catch(() => {})
-      }
+    if (_validPermissionsFromSources(sources, ts).has(permission)) return true
 
-      if (ent.permissions.includes(permission)) return true
-    }
+    // 注意：此路径【只读】。不再执行 fire-and-forget 清理（"不含授权副作用的读"）。
+    // 已失效来源由 revokeExpiredPermissions() 定时维护回收；缓存 permissions 字段已不再是授权
+    // 依据，残留仅属展示层、无安全影响。
 
-    // 2. 查 memberships（会员一定比 entitlements 全）
+    // 2. 查 memberships（会员一定比 entitlements 全）——仅当前有效会员。
     const memRes = await db.collection('memberships')
       .where({ openid, status: 'active', expiredAt: db.command ? db.command.gt(ts) : { $gt: ts } })
       .limit(1)
@@ -353,16 +421,6 @@ async function revokeExpiredPermissions(db) {
 function _todayKey(ts) {
   const d = new Date(ts)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-async function _cleanExpiredSources(db, openid, expiredSources, ent) {
-  try {
-    const validSources = (ent.sources || []).filter(s => !expiredSources.includes(s))
-    const validPerms = _rebuildPermissions(validSources)
-    await db.collection('entitlements').doc(ent._id).update({
-      data: { permissions: validPerms, sources: validSources, updatedAt: now() },
-    })
-  } catch (_) {}
 }
 
 async function _downgradeEntitlements(db, openid, ts) {

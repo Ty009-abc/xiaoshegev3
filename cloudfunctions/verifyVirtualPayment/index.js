@@ -22,12 +22,13 @@ const { finalizePaidOrder, REASONS } = require('./lib/paymentFinalizer.js')
 const { grantEntitlements } = require('./lib/entitlementService.js')
 const { resolveVirtualPayConfig, presenceOnly } = require('./lib/virtualPayCatalog.js')
 const {
-  resolveEnvFlag,
   selectAppKey,
   calcPaySig,
   getAccessToken,
   httpsRequestJson,
 } = require('./lib/virtualPaySigning.js')
+// RC8_14_D12_R6C_R6_8 — 沙箱环境锁：staging 绝不选择生产 provider / 生产 AppKey
+const { resolveVirtualPayEnv } = require('./lib/virtualPayEnvLock.js')
 
 const now = () => Date.now()
 const QUERY_URI = '/xpay/query_order'
@@ -46,7 +47,13 @@ exports.main = async (event) => {
   if (!orderId) return fail(CODES.PARAM_ERROR, '缺少 orderId')
 
   const ts = now()
-  const envFlag = resolveEnvFlag(process.env)
+
+  // ── 沙箱环境锁（RC8_14_D12_R6C_R6_8，fail-closed）──
+  const envLock = resolveVirtualPayEnv({ wxContext, env: process.env, appKeyRequired: true })
+  if (!envLock.ok) {
+    return fail(CODES.CONFIG_ERROR, '虚拟支付运行环境未通过沙箱锁', { envLock: envLock.reason })
+  }
+  const envFlag = envLock.envFlag
 
   const res = await db.collection('orders').where({ orderId }).limit(1).get()
   const order = res.data && res.data[0]
