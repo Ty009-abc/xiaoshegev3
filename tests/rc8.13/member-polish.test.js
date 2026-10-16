@@ -207,17 +207,14 @@ const PAYLOADS = {
 }
 // ── L PAYMENT_UNCHANGED ──
 {
-  let changed = 'GIT_ERR'
-  try {
-    const { execSync } = require('child_process')
-    changed = execSync('git diff --name-only dec9196 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js services/paymentService.js', { cwd: ROOT }).toString().trim()
-  } catch (_) {}
-  ok(changed !== 'GIT_ERR', 'L git available')
-  // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED writer exception; only these exact
-  // files may change. Any OTHER payment cloudfunction / paymentService change still fails.
+  let gitErr = false
+  try { require('child_process').execSync('git rev-parse --git-dir', { cwd: ROOT }) } catch (_) { gitErr = true }
+  ok(!gitErr, 'L git available')
+  // RC8_14_D12_R6C_R5/R6_3: exact approved writer exception + M9 (untracked/staged/ignored)
+  // coverage + payment-critical common modules. Read-only git queries.
   {
-    const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
-    const unexpected = (changed === 'GIT_ERR' ? '' : changed).split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+    const { unexpectedFiles } = require('./_freeze-guard.js')
+    const unexpected = unexpectedFiles('dec9196', ['cloudfunctions/payCallback', 'cloudfunctions/verifyPayment', 'cloudfunctions/createVirtualOrder', 'cloudfunctions/verifyVirtualPayment', 'cloudfunctions/virtualPayCallback', 'cloudfunctions/consumeFreeQuota', 'cloudfunctions/common/entitlementService.js', 'cloudfunctions/common/accessAuthority.js', 'services/paymentService.js'])
     eq(unexpected.join('\n'), '', 'L no NON-APPROVED payment cloudfunction / paymentService change since dec9196')
   }
   ok(!/wepay|mch|paySig|signData\s*=/.test(memJs), 'L no payment-signing logic in membership page')
@@ -227,13 +224,11 @@ const PAYLOADS = {
   const AA = require(path.join(ROOT, 'cloudfunctions/common/accessAuthority.js'))
   eq(AA.LEGACY_REPORT_PRODUCT, 'report_9_9', 'M legacy report product')
   eq(AA.LEGACY_CHALLENGE_PRODUCT, 'challenge_39_9', 'M legacy challenge product')
-  let entChanged = ''
-  try { entChanged = require('child_process').execSync('git diff --name-only dec9196 -- cloudfunctions/createVirtualOrder/lib/entitlementService.js cloudfunctions/common/accessAuthority.js', { cwd: ROOT }).toString().trim() } catch (_) {}
-  // RC8_14_D12_R6C_R5: the createVirtualOrder entitlementService.js mirror is under the APPROVED writer
-  // exception; accessAuthority.js remains frozen (any change there fails).
+  // RC8_14_D12_R6C_R5/R6_3: the createVirtualOrder entitlementService.js mirror is under the APPROVED
+  // writer exception; accessAuthority.js remains frozen (any change there fails). Read-only git queries.
   {
-    const APPROVED_WRITER = new Set(['cloudfunctions/createVirtualOrder/lib/entitlementService.js'])
-    const unexpected = entChanged.split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+    const { unexpectedFiles } = require('./_freeze-guard.js')
+    const unexpected = unexpectedFiles('dec9196', ['cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/common/accessAuthority.js'])
     eq(unexpected.join('\n'), '', 'M no NON-APPROVED entitlement/authority change')
   }
   ok(/RETIRED/.test(memJs), 'M retired SKU routing retained')

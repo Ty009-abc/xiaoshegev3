@@ -305,14 +305,14 @@ function loadFn (data, openid, event) {
   ok(/reportVisibility\.js/.test(idxSrc), 'K uses shared reportVisibility policy')
   ok(/challengeListability\.js/.test(idxSrc), 'K uses shared challengeListability policy')
   // frozen payment functions untouched
-  let changed = ''
-  try { changed = require('child_process').execSync('git diff --name-only b19a05d -- cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/payCallback cloudfunctions/verifyPayment', { cwd: ROOT }).toString().trim() } catch (_) { changed = 'GIT_ERR' }
-  ok(changed !== 'GIT_ERR', 'K git available')
-  // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED writer exception; only these exact
-  // files may change. Any OTHER frozen payment function change still fails.
+  let gitErr = false
+  try { require('child_process').execSync('git rev-parse --git-dir', { cwd: ROOT }) } catch (_) { gitErr = true }
+  ok(!gitErr, 'K git available')
+  // RC8_14_D12_R6C_R5/R6_3: exact approved writer exception + M9 (untracked/staged/ignored)
+  // coverage + payment-critical common modules. Read-only git queries.
   {
-    const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
-    const unexpected = (changed === 'GIT_ERR' ? '' : changed).split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+    const { unexpectedFiles } = require('./_freeze-guard.js')
+    const unexpected = unexpectedFiles('b19a05d', ['cloudfunctions/createVirtualOrder', 'cloudfunctions/verifyVirtualPayment', 'cloudfunctions/virtualPayCallback', 'cloudfunctions/payCallback', 'cloudfunctions/verifyPayment'])
     eq(unexpected.join('\n'), '', 'K no NON-APPROVED frozen payment function changed')
   }
 }

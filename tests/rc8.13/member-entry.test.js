@@ -262,12 +262,10 @@ function loadMembership (o) {
     // 3. this fix touched NO cloud function (payment/entitlement untouched)
     let gitOk = true
     try {
-      const { execSync } = require('child_process')
-      const raw = execSync('git diff --name-only 612f1b9 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js', { cwd: ROOT }).toString().trim()
-      // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED, narrowly-scoped writer
-      // exception. ONLY these exact files may change; any OTHER payment/entitlement file still fails.
-      const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
-      const unexpected = raw.split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+      const { unexpectedFiles } = require('./_freeze-guard.js')
+      // RC8_14_D12_R6C_R5/R6_3: exact approved writer exception + M9 (untracked/staged/
+      // ignored) coverage + payment-critical common modules. Read-only git queries.
+      const unexpected = unexpectedFiles('612f1b9', ['cloudfunctions/payCallback', 'cloudfunctions/verifyPayment', 'cloudfunctions/createVirtualOrder', 'cloudfunctions/verifyVirtualPayment', 'cloudfunctions/virtualPayCallback', 'cloudfunctions/consumeFreeQuota', 'cloudfunctions/common/entitlementService.js', 'cloudfunctions/common/accessAuthority.js'])
       eq(unexpected.join('\n'), '', 'L no NON-APPROVED payment/entitlement cloud function changed since deploy commit')
     } catch (_) { gitOk = false }
     if (!gitOk) ok(true, 'L cloudfunctions git check skipped')

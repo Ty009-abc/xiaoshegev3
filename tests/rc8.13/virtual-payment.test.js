@@ -205,16 +205,12 @@ console.log('RC8_13_STAGE1 virtual payment server wiring')
     let gitOk = true
     try {
       const { execSync } = require('child_process')
+      const { unexpectedFiles } = require('./_freeze-guard.js')
       const base = execSync('git rev-parse --verify -q rc8.11-stage2d-owner-accepted 2>/dev/null', { cwd: ROOT }).toString().trim()
       if (base) {
-        const raw = execSync(
-          `git diff --name-only ${base} -- cloudfunctions/createOrder cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/refundOrder`,
-          { cwd: ROOT }
-        ).toString().trim()
-        // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED, narrowly-scoped writer
-        // exception. ONLY these exact files may change; any OTHER ordinary payment file still fails.
-        const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
-        const unexpected = raw.split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+        // RC8_14_D12_R6C_R5/R6_3: exact approved writer exception + M9 (untracked/staged/
+        // ignored) coverage + payment-critical common modules. Read-only git queries.
+        const unexpected = unexpectedFiles(base, ['cloudfunctions/createOrder', 'cloudfunctions/payCallback', 'cloudfunctions/verifyPayment', 'cloudfunctions/refundOrder'])
         eq(unexpected.join('\n'), '', 'I ordinary payment functions unmodified vs accepted canonical')
       }
     } catch (_) { gitOk = false }

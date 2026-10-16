@@ -275,17 +275,14 @@ function await0 () {}
 }
 // ── Q PAYMENT_FLOW_UNCHANGED ──
 {
-  let changed = ''
-  try {
-    const { execSync } = require('child_process')
-    changed = execSync('git diff --name-only 612f1b9 -- cloudfunctions/payCallback cloudfunctions/verifyPayment cloudfunctions/createVirtualOrder cloudfunctions/verifyVirtualPayment cloudfunctions/virtualPayCallback cloudfunctions/consumeFreeQuota cloudfunctions/common/entitlementService.js cloudfunctions/common/accessAuthority.js services/paymentService.js', { cwd: ROOT }).toString().trim()
-  } catch (_) { changed = 'GIT_ERR' }
-  ok(changed !== 'GIT_ERR', 'Q git available')
-  // RC8_14_D12_R6C_R5: entitlementService.js is under an APPROVED writer exception; only these exact
-  // files may change. Any OTHER payment cloudfunction / paymentService change still fails.
+  let gitErr = false
+  try { require('child_process').execSync('git rev-parse --git-dir', { cwd: ROOT }) } catch (_) { gitErr = true }
+  ok(!gitErr, 'Q git available')
+  // RC8_14_D12_R6C_R5/R6_3: exact approved writer exception + M9 (untracked/staged/ignored)
+  // coverage + payment-critical common modules. Read-only git queries.
   {
-    const APPROVED_WRITER = new Set(['cloudfunctions/common/entitlementService.js', 'cloudfunctions/payCallback/lib/entitlementService.js', 'cloudfunctions/verifyPayment/lib/entitlementService.js', 'cloudfunctions/createVirtualOrder/lib/entitlementService.js', 'cloudfunctions/verifyVirtualPayment/lib/entitlementService.js', 'cloudfunctions/virtualPayCallback/lib/entitlementService.js'])
-    const unexpected = (changed === 'GIT_ERR' ? '' : changed).split('\n').map((s) => s.trim()).filter(Boolean).filter((f) => !APPROVED_WRITER.has(f))
+    const { unexpectedFiles } = require('./_freeze-guard.js')
+    const unexpected = unexpectedFiles('612f1b9', ['cloudfunctions/payCallback', 'cloudfunctions/verifyPayment', 'cloudfunctions/createVirtualOrder', 'cloudfunctions/verifyVirtualPayment', 'cloudfunctions/virtualPayCallback', 'cloudfunctions/consumeFreeQuota', 'cloudfunctions/common/entitlementService.js', 'cloudfunctions/common/accessAuthority.js', 'services/paymentService.js'])
     eq(unexpected.join('\n'), '', 'Q no NON-APPROVED payment cloudfunction / paymentService change since deploy')
   }
   const src = fs.readFileSync(MEM_JS, 'utf8')
