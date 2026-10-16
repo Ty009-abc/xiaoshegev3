@@ -29,3 +29,4 @@
 .pre { white-space: pre-wrap; font-size: 22rpx; color: #a7f3d0; }
 .inp { flex: 1; background: #1f2937; color: #e5e7eb; border-radius: 8rpx; height: 64rpx; line-height: 64rpx; padding: 0 12rpx; font-size: 24rpx; }
 .picker { background: #1f2937; color: #e5e7eb; border-radius: 8rpx; height: 64rpx; line-height: 64rpx; padding: 0 16rpx; min-width: 120rpx; }
+.sechead { margin-top: 20rpx; margin-bottom: 6rpx; padding: 6rpx 10rpx; background: #1f2937; border-left: 6rpx solid #2563eb; border-radius: 6rpx; color: #bfdbfe; font-size: 26rpx; font-weight: 600; }

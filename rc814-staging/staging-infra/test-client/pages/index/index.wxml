@@ -126,6 +126,23 @@
   </view>
 
   <view class="card">
+    <view class="title">Day4 付费边界负向探针（Test B / Test C · 单次 · 默认锁定）</view>
+    <view class="row"><text class="v">⚠ 仅隔离 staging（{{stagingEnvText}}）。默认锁定；各需单独解锁 + 再次确认；每项至多 1 次真实调用；绝不自动重试；不支付、不建订单、不授权益。</text></view>
+
+    <view class="sechead">Test B · startChallenge（期望同 recordId + needPayment/locked）</view>
+    <view class="row"><text class="k">recordId</text><text class="v">{{tb.recordId}}</text></view>
+    <view class="row"><switch checked="{{tb.armed}}" bindchange="onTBArm" disabled="{{tb.done || tb.busy || !identityOk}}" /><text class="k">解锁</text><text class="v">{{tb.armed ? '🔓 已解锁' : '🔒 已锁定'}}</text></view>
+    <button class="btn btn-wide" bindtap="onTBStart" disabled="{{busy || tb.busy || tb.done || !tb.armed || !identityOk}}">{{tb.done ? 'Test B 已执行（锁定）' : '执行 Test B（单次 · 需确认）'}}</button>
+    <view class="row" wx:if="{{tb.resultText}}"><text class="k">B 响应</text><text class="v pre">{{tb.resultText}}</text></view>
+
+    <view class="sechead">Test C · 直连 submit（{{tc.eventId}}/{{tc.choiceKey}}，预期 1002 NEED_PAYMENT）</view>
+    <view class="row"><text class="k">recordId</text><text class="v">{{tc.recordId}}</text></view>
+    <view class="row"><switch checked="{{tc.armed}}" bindchange="onTCArm" disabled="{{tc.done || tc.busy || !identityOk}}" /><text class="k">解锁</text><text class="v">{{tc.armed ? '🔓 已解锁' : '🔒 已锁定'}}</text></view>
+    <button class="btn btn-wide" bindtap="onTCSubmit" disabled="{{busy || tc.busy || tc.done || !tc.armed || !identityOk}}">{{tc.done ? 'Test C 已执行（锁定）' : '执行 Test C（单次 · 需确认）'}}</button>
+    <view class="row" wx:if="{{tc.resultText}}"><text class="k">C 响应</text><text class="v pre">{{tc.resultText}}</text></view>
+  </view>
+
+  <view class="card">
     <view class="title">C1–C10</view>
     <button class="btn" bindtap="goRunner" disabled="{{busy || !identityOk}}">进入 C1–C10 Runner</button>
   </view>

@@ -110,6 +110,21 @@ Page({
       submitText: '',
       phase: 'idle',
     },
+    // ── RC8.14 D12 R6D — Day4 付费边界【负向探针】Test B / Test C ──
+    //   与正式 D3 提交守卫【完全隔离】；默认锁定；需在本卡片单独解锁 + 再次确认；
+    //   每项至多 1 次真实调用（首次 await 前锁定）；绝不自动重试；仅隔离 staging。
+    stagingEnvText: STAGING_ENV,
+    tb: {
+      recordId: 'CRmvakykxsq5m5s6zj',
+      armed: false, done: false, busy: false,
+      boundaryText: '', resultText: '',
+    },
+    tc: {
+      recordId: 'CRmvakykxsq5m5s6zj',
+      eventId: 'CE014', choiceKey: 'A',
+      armed: false, done: false, busy: false,
+      resultText: '',
+    },
     log: [],
   },
 
@@ -483,6 +498,7 @@ Page({
   onD3SlotChange (e) {
     const i = Number(e.detail.value) || 0
     this.setData({ 'day3.slotIndex': i, 'day3.event': null, 'day3.selected': null, 'day3.fetchText': '', 'day3.submitText': '', 'day3.phase': 'idle' })
+    // 探针状态与正常步骤完全隔离：切换步骤仅重置 D3 面板，绝不影响/复位 Test B/C 探针。
   },
   _d3Expected () { return this.data.day3.slots[this.data.day3.slotIndex] || this.data.day3.slots[0] },
 
@@ -590,6 +606,99 @@ Page({
   },
 
   goRunner () { wx.navigateTo({ url: '/pages/runner/runner' }) },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // RC8.14 D12 R6D — Day4 付费边界【负向探针】Test B / Test C
+  //   ⚠ 仅 test-client；固定 recordId；身份服务端权威；无客户端 openid；
+  //   默认锁定；单独解锁 + 再次确认；首次 await 前锁定（至多 1 次）；
+  //   绝不自动重试；不支付、不建订单、不授权益；不修改 D3 正式守卫。
+  // ══════════════════════════════════════════════════════════════════════
+  onTBArm (e) {
+    const v = !!(e && e.detail && e.detail.value)
+    this.setData({ 'tb.armed': v, 'tb.boundaryText': v ? '🔓 已解锁：点击将发起恰好 1 次 startChallenge(mode=challenge)。' : '🔒 已锁定' })
+    this._log((v ? '🔓' : '🔒') + ' [TB] armed=' + v)
+  },
+  onTCArm (e) {
+    const v = !!(e && e.detail && e.detail.value)
+    this.setData({ 'tc.armed': v })
+    this._log((v ? '🔓' : '🔒') + ' [TC] armed=' + v)
+  },
+
+  // Test B — 单次 startChallenge（期望：同 recordId + needPayment=true/locked=true，无新试用/无重置）
+  onTBStart () {
+    const b = this.data.tb
+    if (b.done || b.busy) { this._toast('Test B 已完成或进行中', 'none'); this._log('⛔ [TB] 已锁定（单次）'); return }
+    if (!b.armed) { this._toast('请先解锁 Test B', 'none'); this._log('⛔ [TB] 未解锁（0 请求）'); return }
+    if (!this.data.identityOk) { this._toast('请先完成身份自检', 'none'); this._log('⛔ [TB] 未自检（0 请求）'); return }
+    wx.showModal({
+      title: '确认 Test B（单次）',
+      content: '将发起 1 次 startChallenge(mode=challenge)\nrecordId ' + b.recordId +
+        '\n\n仅隔离 staging，非生产。仅此一次，不重试。确认？',
+      confirmText: '确认执行',
+      cancelText: '取消',
+      success: (m) => { if (m.confirm) this._tbDoStart() },
+      fail: () => this._log('✗ [TB] showModal fail（0 请求）'),
+    })
+  },
+  async _tbDoStart () {
+    if (this.data.tb.done || this.data.tb.busy) return
+    // 首次网络 await 之前锁定（单次语义）。
+    this.setData({ 'tb.busy': true, 'tb.done': true })
+    this._log('→ [TB] startChallenge mode=challenge（仅此 1 次）')
+    try {
+      const res = await wx.cloud.callFunction({ name: 'startChallenge', data: { mode: 'challenge' } }).then(r => r.result)
+      const p = res || {}
+      const d = p.data || {}
+      const txt = 'code=' + p.code + ' message=' + (p.message || '-') +
+        '\nlocked=' + fmtFlag(d.locked) + ' needPayment=' + fmtFlag(d.needPayment) +
+        '\nrecordId=' + this._redact(String(d.recordId || '-')) +
+        '\ncurrentEventIndex=' + (d.currentEventIndex !== undefined ? d.currentEventIndex : '-') +
+        '\nresumed=' + fmtFlag(d.resumed) + ' trialMode=' + fmtFlag(d.trialMode) +
+        '\ndata=' + this._redact(redactJson(d))
+      this.setData({ 'tb.resultText': txt, 'tb.busy': false })
+      this._log('← [TB] startChallenge ' + this._redact('code=' + p.code + ' locked=' + fmtFlag(d.locked) + ' needPayment=' + fmtFlag(d.needPayment) + ' idx=' + (d.currentEventIndex !== undefined ? d.currentEventIndex : '-')))
+    } catch (e) {
+      this.setData({ 'tb.resultText': '❌ 调用异常: ' + String((e && e.errMsg) || e), 'tb.busy': false })
+      this._log('✗ [TB] ' + this._redact(String((e && e.errMsg) || e)))
+    }
+  },
+
+  // Test C — 单次直连 submit（CE014/A 为合法题库选项；期望 1002 NEED_PAYMENT、零写入）
+  onTCSubmit () {
+    const c = this.data.tc
+    if (c.done || c.busy) { this._toast('Test C 已完成或进行中', 'none'); this._log('⛔ [TC] 已锁定（单次）'); return }
+    if (!c.armed) { this._toast('请先解锁 Test C', 'none'); this._log('⛔ [TC] 未解锁（0 请求）'); return }
+    if (!this.data.identityOk) { this._toast('请先完成身份自检', 'none'); this._log('⛔ [TC] 未自检（0 请求）'); return }
+    wx.showModal({
+      title: '确认 Test C（单次）',
+      content: '将发起 1 次 submitChallengeChoice(' + c.eventId + '/' + c.choiceKey + ')\nrecordId ' + c.recordId +
+        '\n预期被拒 1002（付费边界）。仅此一次，不重试。确认？',
+      confirmText: '确认执行',
+      cancelText: '取消',
+      success: (m) => { if (m.confirm) this._tcDoSubmit() },
+      fail: () => this._log('✗ [TC] showModal fail（0 请求）'),
+    })
+  },
+  async _tcDoSubmit () {
+    if (this.data.tc.done || this.data.tc.busy) return
+    this.setData({ 'tc.busy': true, 'tc.done': true })
+    const req = { recordId: this.data.tc.recordId, eventId: this.data.tc.eventId, choiceKey: this.data.tc.choiceKey }
+    this._log('→ [TC] submit ' + JSON.stringify(req) + '（仅此 1 次，预期 1002 NEED_PAYMENT）')
+    try {
+      const res = await wx.cloud.callFunction({ name: 'submitChallengeChoice', data: req }).then(r => r.result)
+      const p = parseSubmitResponse(res)
+      const dd = p.data || {}
+      const txt = 'code=' + p.code + ' message=' + (p.message || '-') +
+        '\nneedPayment=' + fmtFlag(dd.needPayment) + ' locked=' + fmtFlag(dd.locked) +
+        '\ncurrentEventIndex=' + (p.currentEventIndex === null ? '-' : p.currentEventIndex) +
+        '\ndata=' + this._redact(redactJson(dd))
+      this.setData({ 'tc.resultText': (p.code === 1002 ? '⛔ 预期拒绝 1002 NEED_PAYMENT\n' : '⚠ 非预期响应 code=' + p.code + '\n') + txt, 'tc.busy': false })
+      this._log('← [TC] submit ' + this._redact('code=' + p.code + ' needPayment=' + fmtFlag(dd.needPayment) + ' locked=' + fmtFlag(dd.locked)))
+    } catch (e) {
+      this.setData({ 'tc.resultText': '❌ 调用异常: ' + String((e && e.errMsg) || e), 'tc.busy': false })
+      this._log('✗ [TC] ' + this._redact(String((e && e.errMsg) || e)))
+    }
+  },
 
   // ══════════════════════════════════════════════════════════════════════
   // RC8.14 D12 R5B_4 — 单次授权 8 路真实并发（startChallenge, mode=challenge）
