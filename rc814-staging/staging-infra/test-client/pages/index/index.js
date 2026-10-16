@@ -92,6 +92,24 @@ Page({
       getResp: null, getText: '',
       overlap: null,
     },
+    // ── RC8.14 D12 R6D — Day1–Day3 受控验收（OWNER-ASSISTED；仅 test-client）──
+    //   固定 recordId；逐步：取当前题 → owner 手动选择 → 单次提交。
+    //   绝不自动选择 / 自动提交 / 自动重试；不调用 startChallenge。
+    day3: {
+      recordId: 'CRmvakykxsq5m5s6zj',
+      slots: [
+        { n: 1, eventId: 'CE012' },
+        { n: 2, eventId: 'GAME015' },
+        { n: 3, eventId: 'CE011' },
+      ],
+      slotIndex: 0,
+      busy: false,
+      event: null,      // server-served event {eventId,day,title,description,choices:[{key,text}]}
+      selected: null,   // 'A' | 'B' | 'C' — set only by an owner tap
+      fetchText: '',
+      submitText: '',
+      phase: 'idle',
+    },
     log: [],
   },
 
@@ -453,6 +471,122 @@ Page({
       this._log('✗ [D11] getEvent ' + this._redact(msg))
     }
     this.setData({ 'd11.inFlight': false })
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  // RC8.14 D12 R6D — Day1–Day3 受控验收面板（OWNER-ASSISTED；仅 test-client）
+  //   固定 recordId；逐步：取当前题 → 手动选择 → 单次提交。
+  //   绝不自动选择 / 自动提交 / 自动重试；不调用 startChallenge；
+  //   身份来自 getWXContext；固定 staging env；不支付、不改权益。
+  // ══════════════════════════════════════════════════════════════════════
+  onD3RecordIdInput (e) { this.setData({ 'day3.recordId': (e.detail.value || '').trim() }) },
+  onD3SlotChange (e) {
+    const i = Number(e.detail.value) || 0
+    this.setData({ 'day3.slotIndex': i, 'day3.event': null, 'day3.selected': null, 'day3.fetchText': '', 'day3.submitText': '', 'day3.phase': 'idle' })
+  },
+  _d3Expected () { return this.data.day3.slots[this.data.day3.slotIndex] || this.data.day3.slots[0] },
+
+  // 取当前题（只读）。不提交、不自动选择。
+  async onD3Fetch () {
+    // Always clear any previous submission result FIRST — a blocked guard must never leave a stale
+    // success line visible beside a new (or refused) fetch.
+    this.setData({ 'day3.submitText': '' })
+    if (!this.data.identityOk) { this._toast('请先完成身份自检', 'none'); this._log('⛔ [D3] 请先身份自检（0 请求）'); return }
+    if (this.data.day3.busy) { this._log('⛔ [D3] 请求进行中，忽略重复点击'); return }
+    const recordId = this.data.day3.recordId
+    if (!recordId) { this._toast('recordId 为空', 'none'); return }
+    const exp = this._d3Expected()
+    this.setData({ 'day3.busy': true, 'day3.fetchText': '查询中…', 'day3.event': null, 'day3.selected': null, 'day3.submitText': '' })
+    this._log('→ [D3] getChallengeEvent ' + recordId + ' day=' + exp.n + ' expect=' + exp.eventId)
+    try {
+      const res = await wx.cloud.callFunction({ name: 'getChallengeEvent', data: { recordId } }).then(r => r.result)
+      const ev = (res && res.data) || {}
+      let phase = 'error', txt = ''
+      if (res && res.code === 0 && ev.locked === true && ev.needPayment === true) {
+        phase = 'blocked'
+        txt = '⛔ 付费边界：needPayment=true locked=true\ncurrentEventIndex=' + (ev.currentEventIndex !== undefined ? ev.currentEventIndex : '-') + '\n未下发题目（符合预期）。'
+        this._log('← [D3] BOUNDARY needPayment=true（无题目）')
+      } else if (res && res.code === 0 && ev.finished === true) {
+        phase = 'done'; txt = '✅ 已完成（finished=true）。'
+      } else if (res && res.code === 0 && ev.eventId) {
+        const match = ev.eventId === exp.eventId
+        phase = match ? 'choose' : 'mismatch'
+        txt = 'code=0 eventId=' + ev.eventId + ' day=' + ev.day +
+          '\ntrialMode=' + (ev.trialMode === true) + ' trialRemaining=' + (ev.trialRemaining !== undefined ? ev.trialRemaining : '-') +
+          '\n计划期望 eventId=' + exp.eventId + ' → ' + (match ? '✅ 匹配' : '⚠ 不匹配（已阻止提交，0 请求）')
+        this._log('← [D3] getEvent ' + this._redact('eventId=' + ev.eventId + ' day=' + ev.day + ' match=' + match))
+      } else {
+        txt = '异常响应：' + this._redact(JSON.stringify(res).slice(0, 200))
+        this._log('✗ [D3] ' + this._redact(JSON.stringify(res).slice(0, 200)))
+      }
+      // 仅在真正匹配（phase==='choose'）时下发可提交事件；不匹配/边界/异常 ⇒ event=null（隐藏选择与提交控件）。
+      this.setData({ 'day3.event': (phase === 'choose' && ev && ev.eventId) ? ev : null, 'day3.fetchText': txt, 'day3.phase': phase })
+    } catch (e) {
+      this.setData({ 'day3.fetchText': '调用异常: ' + String((e && e.errMsg) || e), 'day3.phase': 'error' })
+      this._log('✗ [D3] ' + this._redact(String((e && e.errMsg) || e)))
+    }
+    this.setData({ 'day3.busy': false })
+  },
+
+  // owner 手动选择其一 —— 永远不自动选择。
+  onD3Select (e) {
+    if (this.data.day3.busy) return
+    const key = e.currentTarget.dataset.key
+    this.setData({ 'day3.selected': key, 'day3.submitText': '' })
+    this._log('· [D3] owner 选择 ' + key + '（尚未提交）')
+  },
+
+  onD3Submit () {
+    const d = this.data.day3
+    if (d.busy) { this._log('⛔ [D3] 请求进行中，忽略重复点击'); return }
+    // 付费边界：显式处理，绝不当作普通不匹配，也绝不发起提交。
+    if (d.phase === 'blocked') { this._toast('已到付费边界（needPayment）', 'none'); this._log('⛔ [D3] locked/needPayment，已阻止提交（0 请求）'); return }
+    // 强制门禁：仅当 phase==='choose' 才允许提交。
+    if (d.phase !== 'choose') { this._toast('当前题未就绪，已阻止提交', 'none'); this._log('⛔ [D3] phase=' + d.phase + '，已阻止提交（0 请求）'); return }
+    if (!d.event || !d.event.eventId) { this._toast('请先取当前题', 'none'); return }
+    // 二次校验：当前事件必须等于所选步骤的期望 eventId，否则在联网前失败。
+    const exp = this._d3Expected()
+    const servedId = d.event.eventId
+    if (servedId !== exp.eventId) {
+      this.setData({ 'day3.event': null, 'day3.selected': null, 'day3.phase': 'mismatch' })
+      this._toast('目标不匹配，已阻止提交', 'none')
+      this._log('⛔ [D3] 不匹配（' + servedId + '≠' + exp.eventId + '），已阻止提交（0 请求）')
+      return
+    }
+    if (d.selected !== 'A' && d.selected !== 'B' && d.selected !== 'C') { this._toast('请先选择一个选项', 'none'); return }
+    wx.showModal({
+      title: '确认提交（staging）',
+      content: '环境 ' + STAGING_ENV + '\nrecordId ' + d.recordId +
+        '\neventId ' + d.event.eventId + '\nchoice ' + d.selected +
+        '\n\n仅隔离 staging，非生产。单次提交，不重试。确认？',
+      confirmText: '提交',
+      cancelText: '取消',
+      success: (m) => { if (m.confirm) this._d3DoSubmit() },
+      fail: () => { this._log('✗ [D3] showModal fail（0 请求）') },
+    })
+  },
+
+  async _d3DoSubmit () {
+    const d = this.data.day3
+    this.setData({ 'day3.busy': true, 'day3.submitText': '提交中…' })
+    const req = { recordId: d.recordId, eventId: d.event.eventId, choiceKey: d.selected }
+    const t0 = Date.now()
+    this._log('→ [D3] submit ' + JSON.stringify(req))
+    try {
+      const res = await wx.cloud.callFunction({ name: 'submitChallengeChoice', data: req }).then(r => r.result)
+      const t1 = Date.now()
+      const p = parseSubmitResponse(res)
+      const txt = 'code=' + p.code + ' message=' + (p.message || '-') +
+        '\nduplicate=' + fmtFlag(p.duplicate) + ' idempotent=' + fmtFlag(p.idempotent) + ' conflict=' + fmtFlag(p.conflict) +
+        '\ncurrentEventIndex=' + (p.currentEventIndex === null ? '-' : p.currentEventIndex) +
+        '\ndata=' + this._redact(redactJson(p.data)) + '\ndt=' + (t1 - t0) + 'ms'
+      this.setData({ 'day3.submitText': (p.code === 0 ? '✅ 提交成功\n' : '❌ 提交失败\n') + txt, 'day3.phase': 'submitted', 'day3.event': null, 'day3.selected': null })
+      this._log('← [D3] submit ' + this._redact('code=' + p.code + ' dup=' + fmtFlag(p.duplicate) + ' idem=' + fmtFlag(p.idempotent) + ' idx=' + (p.currentEventIndex === null ? '-' : p.currentEventIndex)))
+    } catch (e) {
+      this.setData({ 'day3.submitText': '❌ 调用异常: ' + String((e && e.errMsg) || e) })
+      this._log('✗ [D3] submit ' + this._redact(String((e && e.errMsg) || e)))
+    }
+    this.setData({ 'day3.busy': false })
   },
 
   goRunner () { wx.navigateTo({ url: '/pages/runner/runner' }) },

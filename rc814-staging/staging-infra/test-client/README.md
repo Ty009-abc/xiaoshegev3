@@ -23,6 +23,13 @@
 | 身份自检 | `pages/index/index` | 显示 openid / appid（验证真实微信上下文到达）；按钮测 3 个函数 |
 | 普通登录 | `pages/index/index`（步骤 1b） | **仅** `login`：创建/更新 `users` 记录。**不**创建挑战、**不**改权益/支付 |
 | C1–C10 | `pages/runner/runner` | 逐项运行 C1–C10，输出 PASS/FAIL/BLOCKED + 标识 |
+| Day1–Day3 受控验收 | `pages/index/index`（R6D 面板） | OWNER-ASSISTED：取当前题 → **手动**选择 → 单次提交；不自动选择/提交/重试；不调用 startChallenge |
+
+## R6D · Day1–Day3 受控验收面板（OWNER-ASSISTED）
+- 固定 `recordId`（默认 `CRmvakykxsq5m5s6zj`）；步骤选择 Day1 `CE012` / Day2 `GAME015` / Day3 `CE011`。
+- 每步：**取当前题**（`getChallengeEvent`，只读，显示后端下发的真实 `eventId`/`day`/A·B·C）→ owner **手动点选**一个选项 → **提交所选**（`submitChallengeChoice`，单次、需 `showModal` 确认）。
+- 安全：**不**自动选择、**不**自动提交、**不**自动重试；无题时不提交；提交前须可见确认；身份来自 `getWXContext`；固定 staging env；**不**调用 `startChallenge`。
+- 第 4 步（idx≥3）期望 `getChallengeEvent` 返回 `needPayment=true / locked=true`（付费边界）。
 
 > 预览二维码：`local/preview-test-client.png`（git-ignored，由 `../preview-test-client.js` 生成，`--preview` 模式，不上传、不发布）。
 > 测试身份 onboarding 验收步骤见 `../D12-R5B-IDENTITY-ONBOARDING-EVIDENCE.md`（Phase 2 由 owner 在真机执行）。

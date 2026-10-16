@@ -97,6 +97,35 @@
   </view>
 
   <view class="card">
+    <view class="title">RC8.14 D12 R6D · Day1–Day3 受控验收（OWNER-ASSISTED）</view>
+    <view class="row warn"><text class="v">⚠ 仅隔离 staging（非生产）。固定 recordId，逐步：取当前题 → 手动选择 → 单次提交。绝不自动选择/自动提交/自动重试；不调用 startChallenge；不支付、不改权益。</text></view>
+    <view class="row"><text class="k">目标环境</text><text class="v">{{stagingEnv}}</text></view>
+    <view class="row"><text class="k">身份状态</text><text class="v">{{identityStatus}}</text></view>
+
+    <view class="row"><text class="k">recordId</text>
+      <input class="inp" value="{{day3.recordId}}" bindinput="onD3RecordIdInput" placeholder="CR..." /></view>
+    <view class="row"><text class="k">步骤</text>
+      <picker mode="selector" range="{{['Day1 CE012','Day2 GAME015','Day3 CE011']}}" value="{{day3.slotIndex}}" bindchange="onD3SlotChange">
+        <view class="picker">{{day3.slots[day3.slotIndex].n}} · {{day3.slots[day3.slotIndex].eventId}} ▾</view>
+      </picker></view>
+
+    <button class="btn btn-wide" bindtap="onD3Fetch" disabled="{{busy || day3.busy || !identityOk}}">取当前题（getChallengeEvent · 只读）</button>
+    <view class="row" wx:if="{{day3.fetchText}}"><text class="k">取题</text><text class="v pre">{{day3.fetchText}}</text></view>
+    <view class="row warn" wx:if="{{day3.phase === 'mismatch'}}"><text class="v">⚠ 不匹配：服务端返回的题目与所选步骤不一致。已隐藏选项并阻止提交（0 请求）。请核对进度或改用正确步骤。</text></view>
+    <view class="row warn" wx:if="{{day3.phase === 'blocked'}}"><text class="v">⛔ 付费边界：needPayment=true / locked=true。服务端未下发题目；提交已禁用；不触发支付、不授予权益。</text></view>
+
+    <block wx:if="{{day3.event}}">
+      <view class="row"><text class="k">当前题</text><text class="v">{{day3.event.eventId}} · Day {{day3.event.day}}</text></view>
+      <view class="row"><text class="k">题干</text><text class="v">{{day3.event.title}}</text></view>
+      <view class="row"><text class="k">选择</text><text class="v">已选：{{day3.selected || '（未选，请手动点选）'}}</text></view>
+      <button wx:for="{{day3.event.choices}}" wx:key="key" class="btn btn-wide"
+        bindtap="onD3Select" data-key="{{item.key}}" disabled="{{busy || day3.busy}}">{{item.key}} · {{item.text}}</button>
+      <button class="btn btn-wide" bindtap="onD3Submit" disabled="{{busy || day3.busy || !day3.selected || day3.phase !== 'choose'}}">提交所选（单次 · 需确认）</button>
+    </block>
+    <view class="row" wx:if="{{day3.submitText}}"><text class="k">提交响应</text><text class="v pre">{{day3.submitText}}</text></view>
+  </view>
+
+  <view class="card">
     <view class="title">C1–C10</view>
     <button class="btn" bindtap="goRunner" disabled="{{busy || !identityOk}}">进入 C1–C10 Runner</button>
   </view>
