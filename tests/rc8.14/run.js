@@ -19,6 +19,7 @@ const ALL = [
   'concurrency-resume.test.js',
   'submit-atomicity.test.js',
   'submit-trial-gate.test.js',
+  'submit-authority-closure.test.js',
   'permission-expiry-hardening.test.js',
   'entitlement-writer-fail-closed.test.js',
   'trial-resume-atomic.test.js',

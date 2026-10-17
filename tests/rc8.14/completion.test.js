@@ -21,6 +21,21 @@ function planOf (ids) {
 }
 function baseBank () { return makeBank(30) }
 
+// RC814_SUBMIT_AUTHORITY_FINAL_CLOSURE:
+// 生产不变式 —— challenge_records.trialMode=false 只由支付发放路径写入，
+// 且同一次发放必然留下 challenge_full 权益（entitlementService 原子写
+// trialMode=false + unlocked=true，finalizer 回读证明后才标记 granted）。
+// 因此「paid 记录 + 无权益」是不可能出现的状态；这些 fixture 属于付费用户，
+// 必须同时具备权益才有意义。
+function seedPaidEntitlement (db, openid) {
+  seed(db, 'entitlements', {
+    _id: 'ENT_' + openid,
+    openid,
+    permissions: ['challenge_full'],
+    sources: [{ productId: 'challenge_39_9', orderId: 'TEST_ORDER_' + openid }],
+  })
+}
+
 async function main () {
   console.log('RC8_14_A — COMPLETION + IDEMPOTENCY')
 
@@ -30,6 +45,7 @@ async function main () {
     for (const e of baseBank()) seed(db, 'challenge_events', e)
     const ids = baseBank().map((e) => e.eventId)
     seed(db, 'challenge_records', { recordId: 'CR1', openid: 'u', mode: 'challenge', status: 'processing', trialMode: false, currentEventIndex: 0, choices: [], plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const { main: fn, restore } = loadFn(db)
     const r = await fn({ recordId: 'CR1', eventId: ids[0], choiceKey: 'A' })
     restore()
@@ -44,6 +60,7 @@ async function main () {
     for (const e of baseBank()) seed(db, 'challenge_events', e)
     const ids = baseBank().map((e) => e.eventId)
     seed(db, 'challenge_records', { recordId: 'CR2', openid: 'u', mode: 'challenge', status: 'processing', trialMode: false, currentEventIndex: 2, choices: [{ eventId: ids[0], choice: 'A' }, { eventId: ids[1], choice: 'B' }], plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const { main: fn, restore } = loadFn(db)
     const r = await fn({ recordId: 'CR2', eventId: ids[0], choiceKey: 'A' }) // resubmit index 0
     restore()
@@ -59,6 +76,7 @@ async function main () {
     for (const e of baseBank()) seed(db, 'challenge_events', e)
     const ids = baseBank().map((e) => e.eventId)
     seed(db, 'challenge_records', { recordId: 'CR3', openid: 'u', mode: 'challenge', status: 'processing', trialMode: false, currentEventIndex: 5, choices: [], plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const { main: fn, restore } = loadFn(db)
     const r = await fn({ recordId: 'CR3', eventId: ids[9], choiceKey: 'A' }) // wrong event for index 5
     restore()
@@ -73,6 +91,7 @@ async function main () {
     const choices = []
     for (let i = 0; i < 29; i++) choices.push({ eventId: ids[i], choice: 'A' })
     seed(db, 'challenge_records', { recordId: 'CR4', openid: 'u', mode: 'challenge', status: 'processing', trialMode: false, currentEventIndex: 29, choices, plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const { main: fn, restore } = loadFn(db)
     const r = await fn({ recordId: 'CR4', eventId: ids[29], choiceKey: 'A' })
     restore()
@@ -92,6 +111,7 @@ async function main () {
     const choices = []
     for (let i = 0; i < 10; i++) choices.push({ eventId: ids[i], choice: 'A' })
     seed(db, 'challenge_records', { recordId: 'CR5', openid: 'u', mode: 'challenge', status: 'processing', trialMode: false, currentEventIndex: 10, choices, plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const { main: fn, restore } = loadFn(db)
     const r = await fn({ recordId: 'CR5', eventId: ids[10], choiceKey: 'A' })
     restore()
@@ -104,6 +124,7 @@ async function main () {
     for (const e of baseBank()) seed(db, 'challenge_events', e)
     const ids = baseBank().map((e) => e.eventId)
     seed(db, 'challenge_records', { recordId: 'CR6', openid: 'u', mode: 'challenge', status: 'finished', trialMode: false, currentEventIndex: 30, choices: [], plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const { main: fn, restore } = loadFn(db)
     const r = await fn({ recordId: 'CR6', eventId: ids[0], choiceKey: 'A' })
     restore()

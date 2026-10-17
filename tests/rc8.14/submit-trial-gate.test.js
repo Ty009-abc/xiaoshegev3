@@ -32,6 +32,20 @@ const rec = (db, rid) => db._store.challenge_records.find((x) => x.recordId === 
 const snap = (o) => JSON.stringify(o)
 async function run (db, openid, args) { const { main: fn, restore } = load(db, openid); try { return await fn(args) } finally { restore() } }
 
+// RC814_SUBMIT_AUTHORITY_FINAL_CLOSURE:
+// 生产不变式 —— challenge 记录的 trialMode=false 只由支付发放路径写入，
+// 且同一次发放必然留下 challenge_full 权益（entitlementService 原子写
+// trialMode=false + unlocked=true，finalizer 回读证明后才置 granted）。
+// 因此「付费记录 + 无权益」在生产不可达；这类 fixture 必须带权益。
+function seedPaidEntitlement (db, openid) {
+  seed(db, 'entitlements', {
+    _id: 'ENT_' + openid,
+    openid,
+    permissions: ['challenge_full'],
+    sources: [{ productId: 'challenge_39_9', orderId: 'TEST_ORDER_' + openid }],
+  })
+}
+
 async function main () {
   console.log('RC8_14_D12_R6A — SUBMIT-SIDE FREE-TRIAL GATE (engine level)')
 
@@ -89,6 +103,7 @@ async function main () {
   {
     const db = makeDb(); const bank = bankInto(db, 30); const ids = bank.map((e) => e.eventId)
     seed(db, 'challenge_records', { _id: 'P3', recordId: 'P3', openid: 'u', mode: 'challenge', trialMode: false, unlocked: true, status: 'processing', currentEventIndex: 3, choices: [], plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const r = await run(db, 'u', { recordId: 'P3', eventId: ids[3], choiceKey: 'A' })
     ok(r.code === 0 && r.data.currentEventIndex === 4, 'paid idx3 valid submit succeeds → idx4 (paid path preserved)')
   }
@@ -180,6 +195,7 @@ async function main () {
   {
     const db = makeDb(); const bank = bankInto(db, 30); const ids = bank.map((e) => e.eventId)
     seed(db, 'challenge_records', { _id: 'L1', recordId: 'L1', openid: 'u', mode: 'challenge', trialMode: false, status: 'processing', currentEventIndex: 5, choices: [], plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const paid = await run(db, 'u', { recordId: 'L1', eventId: ids[5], choiceKey: 'A' })
     ok(paid.code === 0 && paid.data.currentEventIndex === 6, 'legacy owned (trialMode:false) idx5 allowed (no regression)')
     seed(db, 'challenge_records', { _id: 'L2', recordId: 'L2', openid: 'u2', mode: 'challenge', trialMode: true, status: 'processing', currentEventIndex: 0, choices: [] })

@@ -40,10 +40,35 @@ const now = () => Date.now()
 const MAX_CAS_ATTEMPTS = 5
 
 // RC8_14_D12_R6A — 免费试用【提交侧】边界（与 startChallenge / getChallengeEvent 的 Day-3 契约一致）。
-// 试用记录（trialMode===true）且无 challenge_full 权益的用户，只允许提交 idx 0..2。
 // 权益权威：服务端 permissionEngine.challenge_full（entitlements → memberships）。
 // 该门槛在【任何写之前】判定，且只读取服务端权威记录（不信任客户端会员/试用计数/人数）。
 const TRIAL_LIMIT = 3
+
+// RC814_SUBMIT_AUTHORITY_FINAL_CLOSURE — 挑战/诊断的权威区分。
+//
+// 权威来源只有一个：服务端已落库的 challenge_records.mode。
+//   - 绝不读取 event.mode（客户端可伪造）。
+//   - 绝不读取 event.trialMode（客户端可伪造）。
+//   - updateData 从不包含 mode，因此提交期间 record.mode 无法被客户端覆写。
+//
+// 语义：
+//   'diagnostic'  → 诊断模式，固定 6 题上限，属于独立产品路径，不要求付费权益
+//                   （保留既有合法诊断行为）；其进度天然不会计入 30 天挑战
+//                   （进度只存在于该诊断记录内，且 startChallenge 恢复查询
+//                   以 mode='challenge' 过滤）。
+//   其它/缺失    → fail-closed 视为 'challenge'（历史记录无 mode 字段时按挑战处理）。
+const MODE_DIAGNOSTIC = 'diagnostic'
+const MODE_CHALLENGE = 'challenge'
+const DIAGNOSTIC_LENGTH = 6
+
+/**
+ * 解析记录的业务模式（fail-closed）。
+ * 只有明确等于 'diagnostic' 才走诊断语义；任何其它值（含缺失/畸形/大小写不符）
+ * 一律按 'challenge' 处理 → 必须通过权益校验，绝不因畸形字段放宽授权。
+ */
+function resolveRecordMode (record) {
+  return (record && record.mode === MODE_DIAGNOSTIC) ? MODE_DIAGNOSTIC : MODE_CHALLENGE
+}
 
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
@@ -64,24 +89,36 @@ exports.main = async (event, context) => {
     if (!record) return fail(CODES.NOT_FOUND, '挑战记录不存在')
     if (record.status === 'finished') return fail(CODES.PARAM_ERROR, '挑战已完成')
 
-    // ── RC8_14_D12_R6A：免费试用提交侧门槛（读权限，在任何写之前 fail-closed）──
-    // 仅针对试用记录（trialMode===true）且无 challenge_full 权益的用户：idx>=TRIAL_LIMIT 拒绝。
-    // 付费/解锁记录（trialMode!==true）完全不受影响（保持既有已付费推进路径）。
-    // 权限判定基于服务端 getWXContext().OPENID + 服务端权威记录/权益，绝不信任客户端字段。
-    if (record.trialMode === true) {
-      const idxForGate = Number.isInteger(record.currentEventIndex) ? record.currentEventIndex : 0
-      if (idxForGate >= TRIAL_LIMIT) {
-        // 读取权益（hasChallengeEntitlement 内部 catch → false，即 fail-closed）。绝不因异常授予访问。
-        const hasAccess = await hasChallengeEntitlement(db, openid)
-        if (!hasAccess) {
-          console.log(`[submitChoice] trial boundary denied openid=${openid} recordId=${recordId} idx=${idxForGate}`)
-          const deny = fail(CODES.NEED_PAYMENT, '免费体验已结束，付费后解锁完整30天挑战')
-          deny.data = {
-            recordId, trialMode: true, currentEventIndex: idxForGate,
-            needPayment: true, locked: true, code: 'TRIAL_BOUNDARY_REACHED',
-          }
-          return deny
+    // ── RC814_SUBMIT_AUTHORITY_FINAL_CLOSURE：挑战推进的权益门槛 ──
+    // 在任何写之前判定，fail-closed。
+    //
+    // 授权只依赖两件服务端权威事实：
+    //   1) 已落库记录的模式（record.mode），而非请求里的 event.mode；
+    //   2) 该 openid 当前真实持有的 challenge_full 权益。
+    //
+    // trialMode 不再是授权依据 —— 无论 true / false / 缺失，挑战模式在 idx>=TRIAL_LIMIT
+    // 一律要求有效权益。这关闭了「trialMode=false 即可续跑」的绕过面。
+    //
+    // 诊断模式是独立产品路径（固定 6 题），保留既有行为，不要求付费权益；
+    // 它不会推进 30 天挑战进度（见下方 target 计算 + startChallenge 仅按 mode='challenge' 恢复）。
+    const recMode = resolveRecordMode(record)
+    const idxForGate = Number.isInteger(record.currentEventIndex) ? record.currentEventIndex : 0
+
+    if (recMode === MODE_CHALLENGE && idxForGate >= TRIAL_LIMIT) {
+      // hasChallengeEntitlement 内部已 catch → false（fail-closed）；绝不因异常授予访问。
+      const hasAccess = await hasChallengeEntitlement(db, openid)
+      if (!hasAccess) {
+        console.log(`[submitChoice] challenge entitlement denied openid=${openid} recordId=${recordId} idx=${idxForGate} trialMode=${record.trialMode}`)
+        const deny = fail(CODES.NEED_PAYMENT, '免费体验已结束，付费后解锁完整30天挑战')
+        deny.data = {
+          recordId,
+          trialMode: record.trialMode === true,
+          currentEventIndex: idxForGate,
+          needPayment: true,
+          locked: true,
+          code: 'TRIAL_BOUNDARY_REACHED',
         }
+        return deny
       }
     }
 
@@ -155,8 +192,9 @@ exports.main = async (event, context) => {
 
       // 7) 进度 —— 完成以【持久化 plan 长度】为准（非 bank count）
       const newIndex = baseIdx + 1
-      const isDiagnostic = base.mode === 'diagnostic'
-      const diagLimit = 6
+      // 模式一律取服务端已落库的 base.mode（fail-closed 解析），不看请求字段。
+      const isDiagnostic = resolveRecordMode(base) === MODE_DIAGNOSTIC
+      const diagLimit = DIAGNOSTIC_LENGTH
       let totalEvents
       if (plan) {
         totalEvents = plan.eventIds.length

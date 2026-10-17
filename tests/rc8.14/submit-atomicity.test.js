@@ -29,6 +29,19 @@ function planOf (ids) {
 function bankInto (db, n) { const b = makeBank(n); for (const e of b) seed(db, 'challenge_events', e); return b }
 const rec1 = (db, rid) => db._store.challenge_records.find((x) => x.recordId === rid)
 
+// RC814_SUBMIT_AUTHORITY_FINAL_CLOSURE:
+// 授权门槛在 idx>=3 对 challenge 模式要求 challenge_full 权益。
+// 本文件验证的是 CAS（推进至 idx>=3 之后的冲突语义），不是授权；
+// 故这些已推进记录必须带真实权益，否则被授权闸提前拦下，测不到 CAS。
+function seedPaidEntitlement (db, openid) {
+  seed(db, 'entitlements', {
+    _id: 'ENT_' + openid,
+    openid,
+    permissions: ['challenge_full'],
+    sources: [{ productId: 'challenge_39_9', orderId: 'TEST_ORDER_' + openid }],
+  })
+}
+
 async function main () {
   console.log('RC8_14_B — SUBMIT ATOMICITY / CONFLICT SEMANTICS (engine level)')
 
@@ -87,6 +100,7 @@ async function main () {
   {
     const db = makeDb(); const bank = bankInto(db, 30); const ids = bank.map((e) => e.eventId)
     seed(db, 'challenge_records', { recordId: 'CR4', openid: 'u', mode: 'challenge', status: 'processing', currentEventIndex: 5, choices: ids.slice(0, 5).map((id) => ({ eventId: id, choice: 'A' })), plan: planOf(ids) })
+    seedPaidEntitlement(db, 'u')
     const { main: fn, restore } = load(db)
     const stale = await fn({ recordId: 'CR4', eventId: ids[2], choiceKey: 'B' }) // already answered, diff choice
     const ahead = await fn({ recordId: 'CR4', eventId: ids[9], choiceKey: 'A' }) // future event, not current
