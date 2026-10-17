@@ -79,6 +79,19 @@ async function _resolveChallengeAccess(openid, ts) {
   return hasAccess
 }
 
+// ── 启动模式白名单（服务端权威，fail-closed）──
+// 真实客户端调用 startChallenge() 时不传 mode；只有精确的 'diagnostic'
+// 才进入诊断分支。其余任何值（未知字符串 / 大小写变体 / 数字 / 布尔 /
+// 对象 / 数组 / boxed String）一律拒绝，且在任何数据库访问之前返回。
+const START_MODE = Object.freeze({ DEFAULT: 'default', DIAGNOSTIC: 'diagnostic' })
+const ALLOWED_START_MODES = new Set([START_MODE.DEFAULT, START_MODE.DIAGNOSTIC])
+
+function resolveStartMode (raw) {
+  if (raw === undefined || raw === null || raw === '') return START_MODE.DEFAULT
+  if (typeof raw !== 'string') return null
+  return ALLOWED_START_MODES.has(raw) ? raw : null
+}
+
 exports.main = async (event, context) => {
   const wxContext = cloud.getWXContext()
   const openid = wxContext.OPENID
@@ -87,8 +100,14 @@ exports.main = async (event, context) => {
   // 请求级时间戳 —— 同一个请求内所有时间字段使用同一个 ts
   const ts = now()
 
-  const { mode = 'default', replay = false, replayRequestId = '', replaySource = '' } = event
-  const isDiagnostic = mode === 'diagnostic'
+  const { mode: rawMode, replay = false, replayRequestId = '', replaySource = '' } = event
+
+  const mode = resolveStartMode(rawMode)
+  if (mode === null) {
+    // 在 users 查询 / 记录创建 / 任何写入之前拒绝：零 DB 访问。
+    return fail(CODES.PARAM_ERROR, '不支持的启动模式')
+  }
+  const isDiagnostic = mode === START_MODE.DIAGNOSTIC
 
   try {
     const userRes = await db.collection('users').where({ openid }).limit(1).get()
@@ -101,8 +120,9 @@ exports.main = async (event, context) => {
     }
 
     // 服务端权威权益（一次性解析，后续复用）
-    const hasAccess = isDiagnostic ? false : await _resolveChallengeAccess(openid, ts)
-    const trialMode = isDiagnostic ? false : !hasAccess
+    // 权益权威始终由服务端解析；mode 不再能强制 trialMode=false（付费标记注入）。
+    const hasAccess = await _resolveChallengeAccess(openid, ts)
+    const trialMode = !hasAccess
 
     // ── A. 已拥有记录优先（trialMode===false 或 unlocked===true，取最新）──
     if (!isDiagnostic) {
