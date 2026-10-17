@@ -45,6 +45,41 @@ const { buildPersonalizedPlan } = require('./lib/challengePersonalization.js')
 const ucb = require('./lib/context/userContextBuilder.js')
 const now = () => Date.now()
 
+// ════════════════════════════════════════════════════════════════════════
+// RC814_STARTCHALLENGE_MODE_AUTHORITY
+// ════════════════════════════════════════════════════════════════════════
+// `mode` is a CLIENT-SUPPLIED field. It may only select among a closed
+// allow-list of shapes the server knows how to honor; it must never influence
+// *authority*.
+//
+// Before this guard, `mode === 'diagnostic'` did two dangerous things:
+//   1. it derived `trialMode = false` — the exact marker the payment finalizer
+//      writes for a PAID user. A free user could therefore mint a record whose
+//      persisted shape claims paid status, defeating any consumer that treats
+//      `trialMode === false` as "entitled".
+//   2. it claimed the per-user READY session (challenge_active), so a later
+//      normal start resolved to a non-challenge record and fail-closed forever
+//      (WRONG_MODE → LEGACY_PLAN_UNRECOVERABLE) — an account lockout.
+//
+// Invariants enforced now:
+//   - unknown / malformed mode  → 400 PARAM_ERROR, ZERO writes
+//   - `trialMode` derives ONLY from the server-resolved entitlement
+//     (`trialMode = !hasAccess`), never from `mode`
+//   - diagnostic never claims the challenge READY session and never resumes as one
+const START_MODE = Object.freeze({ DEFAULT: 'default', DIAGNOSTIC: 'diagnostic' })
+const ALLOWED_START_MODES = new Set([START_MODE.DEFAULT, START_MODE.DIAGNOSTIC])
+
+/**
+ * Fail-closed mode resolver. Absent/empty ⇒ default (legacy clients send
+ * nothing at all). Anything not exactly in the allow-list ⇒ null (reject).
+ * @returns {string|null} canonical mode, or null when not allow-listed
+ */
+function resolveStartMode (raw) {
+  if (raw === undefined || raw === null || raw === '') return START_MODE.DEFAULT
+  if (typeof raw === 'string' && ALLOWED_START_MODES.has(raw)) return raw
+  return null
+}
+
 // ── RC8_14_A: build an immutable, distinct 30-event plan BEFORE activation ──
 // Fail-closed: if the eligible pool < challenge length, NO record is created and
 // the caller maps the failure to INSUFFICIENT_ELIGIBLE_EVENTS (never partial/dup).
@@ -304,8 +339,18 @@ exports.main = async (event, context) => {
   // 请求级时间戳 —— 同一个请求内所有时间字段使用同一个 ts
   const ts = now()
 
-  const { mode = 'default', replay = false, replayRequestId = '', replaySource = '' } = event
-  const isDiagnostic = mode === 'diagnostic'
+  const { replay = false, replayRequestId = '', replaySource = '' } = event
+
+  // ── RC814_STARTCHALLENGE_MODE_AUTHORITY: server-side mode allow-list ──
+  // Reject unknown/malformed mode BEFORE any DB access: zero writes, zero
+  // session claim, zero record creation. Never echo the offending value back.
+  const resolvedMode = resolveStartMode(event.mode)
+  if (resolvedMode === null) {
+    console.warn('[startChallenge] rejected unsupported mode')
+    return fail(CODES.PARAM_ERROR, '不支持的启动模式')
+  }
+  const mode = resolvedMode
+  const isDiagnostic = mode === START_MODE.DIAGNOSTIC
 
   try {
     const userRes = await db.collection('users').where({ openid }).limit(1).get()
@@ -318,8 +363,11 @@ exports.main = async (event, context) => {
     }
 
     // 服务端权威权益（一次性解析，后续复用）
-    const hasAccess = isDiagnostic ? false : await _resolveChallengeAccess(openid, ts)
-    const trialMode = isDiagnostic ? false : !hasAccess
+    // RC814_STARTCHALLENGE_MODE_AUTHORITY: trialMode is derived ONLY from the
+    // server-resolved entitlement. `mode` can no longer inject `trialMode=false`
+    // (the paid marker) for a free user.
+    const hasAccess = await _resolveChallengeAccess(openid, ts)
+    const trialMode = !hasAccess
 
     // ── A. 已拥有记录优先（trialMode===false 或 unlocked===true，取最新）──
     if (!isDiagnostic) {
@@ -439,11 +487,44 @@ exports.main = async (event, context) => {
       if (resumedTrial) return resumedTrial
     }
 
-    // ── C. 无任何可复用 → 原子认领后新建 trial / diagnostic ──
+    // ── C. 无任何可复用 → 新建 trial / diagnostic ──
+    // RC814_STARTCHALLENGE_MODE_AUTHORITY: a diagnostic record is NOT a challenge
+    // session. It must never claim the per-user READY pointer (that would later
+    // resolve to a non-challenge record and lock the account out), so it is
+    // created directly with no session claim.
+    if (isDiagnostic) {
+      const recordId = genRecordId(ts)
+      const record = _buildRecord({ recordId, openid, ts, trialMode, mode: START_MODE.DIAGNOSTIC, extra: {} })
+      record._id = recordId
+      const planned = await _buildPlanOrFail({ db, openid, record, isDiagnostic: true })
+      if (!planned.ok) {
+        // Preserve the pre-existing contract for this (practically unreachable)
+        // branch: the diagnosis needs only 6 events from a 30-event bank.
+        return fail(CODES.NEED_PAYMENT, '可用题目不足，暂无法开启诊断', {
+          code: 'INSUFFICIENT_ELIGIBLE_EVENTS', eligibleCount: planned.eligibleCount, required: planned.required,
+        })
+      }
+      record.plan = planned.plan
+      record.planVersion = planned.plan.planVersion
+      record.planCreatedAt = planned.plan.createdAt
+      try {
+        await db.collection('challenge_records').add({ data: record })
+      } catch (e) {
+        const dup = await activeSession.loadRecord(db, openid, recordId)
+        if (!dup) return fail(CODES.DB_ERROR, e.message)
+      }
+      console.log(`[startChallenge] diagnostic created recordId=${recordId}`)
+      return ok({
+        recordId, currentDay: 1, currentEventIndex: 0, trialMode,
+        mode: START_MODE.DIAGNOSTIC, scoringVersion: 'normalized_v2', rawScores: { ...DEFAULT_INIT },
+        planVersion: planned.plan.planVersion,
+        ...(trialMode ? { trialLimit: 3 } : {}),
+      })
+    }
     return await _createViaClaim({
       db, openid, ts, trialMode,
-      mode: isDiagnostic ? 'diagnostic' : 'challenge',
-      isDiagnostic,
+      mode: 'challenge',
+      isDiagnostic: false,
     })
   } catch (err) {
     console.error('[startChallenge] 异常:', err)

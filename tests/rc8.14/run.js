@@ -26,6 +26,7 @@ const ALL = [
   'active-session-authority.test.js',
   'stale-creator-atomicity.test.js',
   'authority-preserving-creation.test.js',
+  'start-mode-authority.test.js',
   'batch3-virtual-payment-security.test.js',
   'property.test.js',
 ]
