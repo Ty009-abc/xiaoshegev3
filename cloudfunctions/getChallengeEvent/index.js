@@ -76,7 +76,10 @@ async function _ensurePlan (db, openid, record) {
         db, openid, record, ctx, buildPersonalizedPlan, eventMeta: catalog.EVENT_META,
       })
     : await planAuthority.buildPlan({
-        db, openid, record, ctx, buildPersonalizedPlan,
+        // RC814 Phase 2 — the fresh-plan path must carry the same catalog scope as
+        // the recovery path, otherwise a metadata-less historical row (GAME*) could
+        // enter a brand-new plan.
+        db, openid, record, ctx, buildPersonalizedPlan, eventMeta: catalog.EVENT_META,
       })
 
   if (res.status !== planAuthority.PLAN_STATUS.OK) {

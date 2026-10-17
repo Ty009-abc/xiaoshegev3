@@ -179,13 +179,18 @@ async function buildPlan (args) {
   const dup = _checkBankUnique(bank.list)
   if (dup) return { status: PLAN_STATUS.BANK_ERROR, reasonCode: dup }
 
+  // RC814 Phase 2 — restrict the candidate set to catalog-backed events.
+  const scope = _scopeBank(bank.list, a.eventMeta)
+  const candidates = scope.list
+  if (!candidates.length) return { status: PLAN_STATUS.BANK_ERROR, reasonCode: 'BANK_NO_SCOPED_EVENTS' }
+
   let built
-  try { built = a.buildPersonalizedPlan(bank.list, a.ctx || {}, record.choices || [], { openid: a.openid }) }
+  try { built = a.buildPersonalizedPlan(candidates, a.ctx || {}, record.choices || [], { openid: a.openid }) }
   catch (e) { return { status: PLAN_STATUS.BANK_ERROR, reasonCode: 'PLAN_BUILD_FAILED' } }
 
   const res = finalizeFromParts({
     record,
-    allEventIds: bank.list.map((e) => e.eventId),
+    allEventIds: candidates.map((e) => e.eventId),
     orderedIds: (built.plan || []).map((x) => (x && (x.eventId || x)) || null),
     filteredIds: (built.filteredOut || []).map((f) => f && f.eventId).filter(Boolean),
     source: 'personalized_v1',
@@ -220,12 +225,19 @@ async function recoverLegacyPlan (args) {
   const dup = _checkBankUnique(bank.list)
   if (dup) return { status: PLAN_STATUS.BANK_ERROR, reasonCode: dup }
 
+  // RC814 Phase 2 — the candidate set for BACKFILL is catalog-backed only.
+  // NOTE: answered history is validated against the FULL bank below, so a legacy
+  // record that already answered a non-catalog event keeps its history intact.
+  const scope = _scopeBank(bank.list, a.eventMeta)
+  const candidates = scope.list
+  if (!candidates.length) return { status: PLAN_STATUS.BANK_ERROR, reasonCode: 'BANK_NO_SCOPED_EVENTS' }
+
   let built
-  try { built = a.buildPersonalizedPlan(bank.list, a.ctx || {}, answered.map((id) => ({ eventId: id })), { openid: a.openid }) }
+  try { built = a.buildPersonalizedPlan(candidates, a.ctx || {}, answered.map((id) => ({ eventId: id })), { openid: a.openid }) }
   catch (e) { return { status: PLAN_STATUS.BANK_ERROR, reasonCode: 'PLAN_BUILD_FAILED' } }
 
   const filteredIds = (built.filteredOut || []).map((f) => f && f.eventId).filter(Boolean)
-  const elig = eligibleIds(bank.list, (a.ctx && a.ctx.explicitProfile && a.ctx.explicitProfile.occupation) || '', a.eventMeta)
+  const elig = eligibleIds(candidates, (a.ctx && a.ctx.explicitProfile && a.ctx.explicitProfile.occupation) || '', a.eventMeta)
   const eligSet = new Set(elig)
 
   // prefix = answered (immutable history) + deterministic backfill
@@ -251,7 +263,7 @@ async function recoverLegacyPlan (args) {
   const plan = {
     planVersion: PLAN_VERSION,
     challengeLength: want,
-    eventBankVersion: computeEventBankVersion(bank.list),
+    eventBankVersion: computeEventBankVersion(candidates),
     eventIds,
     createdAt: Date.now(),
     source: 'legacy_recovery_v1',
@@ -272,6 +284,32 @@ async function _loadBank (db) {
   } catch (e) {
     return { error: 'BANK_LOAD_FAILED', list: [] }
   }
+}
+
+
+/**
+ * RC814 Phase 2 — canonical candidate scope.
+ *
+ * A NEW plan may only draw from events that carry catalog metadata (EVENT_META).
+ * Historical rows without metadata (e.g. GAME015/016/020/021) are PRESERVED in
+ * the collection but must never be load-bearing for a new plan: decorateEvent
+ * would silently fabricate `scenarioTags: []` and a default cognitiveDimension
+ * for them, which collapses STEP_5's dedupe key (scenarioTags[0]) and makes the
+ * plan's scoring surface unreliable.
+ *
+ * When no eventMeta is supplied the scope is the whole bank (pre-RC814 behaviour),
+ * so this is backward compatible for callers that omit it.
+ */
+function _scopeBank (list, eventMeta) {
+  if (!eventMeta || typeof eventMeta !== 'object') return { list: list, excluded: [] }
+  const scoped = []
+  const excluded = []
+  for (const e of list) {
+    const id = e && e.eventId
+    if (id && Object.prototype.hasOwnProperty.call(eventMeta, id)) scoped.push(e)
+    else excluded.push(id)
+  }
+  return { list: scoped, excluded: excluded }
 }
 
 function _checkBankUnique (list) {

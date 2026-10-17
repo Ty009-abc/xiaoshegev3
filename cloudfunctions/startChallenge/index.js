@@ -89,7 +89,9 @@ async function _buildPlanOrFail ({ db, openid, record, isDiagnostic }) {
     ctx = await ucb.buildUserContext(db, openid, { scenario: 'career', message: '', memoryEnabled: true })
   } catch (_) { ctx = {} }
   const res = await planAuthority.buildPlan({
-    db, openid, record, ctx, buildPersonalizedPlan,
+    // RC814 Phase 2 — restrict new-plan candidates to catalog-backed events so a
+    // historical non-canonical row (no EVENT_META) can never enter a new plan.
+    db, openid, record, ctx, buildPersonalizedPlan, eventMeta: catalog.EVENT_META,
   })
   if (res.status !== planAuthority.PLAN_STATUS.OK) {
     return {

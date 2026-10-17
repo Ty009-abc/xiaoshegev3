@@ -13,6 +13,9 @@
 // RC8.9B — 用户行为埋点（best-effort，绝不阻塞主流程）
 const userTrack = require('./utils/userTrack.js')
 
+// RC814 — 云端环境由构建目标决定（禁止硬编码）。解析失败即拒绝启动。
+const cloudEnv = require('./config/cloudEnv.js')
+
 App({
   globalData: {
     openid: '',
@@ -42,8 +45,27 @@ App({
       }
     } catch (_) {}
 
+    // ═══ RC814 环境解析（fail closed）═══
+    // 构建目标来自 config/cloudEnv.generated.js，只允许 production / staging。
+    // 任何未知或缺失的目标都会抛错，此时【绝不】调用 wx.cloud.init，
+    // 以免请求被静默路由到非预期环境。
+    let resolvedEnv
+    try {
+      resolvedEnv = cloudEnv.resolveCloudEnv()
+    } catch (e) {
+      console.error('[app] 云端环境解析失败，已拒绝启动:', e && e.message)
+      this.globalData.envError = (e && e.message) || 'CLOUD_ENV_UNRESOLVED'
+      this.globalData.ready = false
+      this._showEnvError()
+      return
+    }
+
+    this.globalData.cloudEnvTarget = resolvedEnv.target
+    this.globalData.cloudEnvId = resolvedEnv.envId
+    console.log('[app] 云端环境: target=' + resolvedEnv.target)
+
     wx.cloud.init({
-      env: 'fanshex-d2g0adgv7dfbc9bdc',
+      env: resolvedEnv.envId,
       traceUser: true,
     })
 
@@ -112,6 +134,20 @@ App({
       console.error('[app] 启动流程异常:', err)
       setTimeout(() => this._doLogin(), 3000)
     }
+  },
+
+  /**
+   * RC814 — 环境解析失败时的用户可见兜底。
+   * 不发起任何云调用，不重试，只提示用户升级到正确版本。
+   */
+  _showEnvError() {
+    try {
+      wx.showModal({
+        title: '版本异常',
+        content: '当前版本未配置正确的云端环境，请升级到最新版本后重试。',
+        showCancel: false,
+      })
+    } catch (_) {}
   },
 
   onReady(callback) {

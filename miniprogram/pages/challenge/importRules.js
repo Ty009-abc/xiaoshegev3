@@ -119,7 +119,20 @@ async function main() {
   // 尝试方案 A：如果 wx-server-sdk 可用，直接写入
   try {
     const cloud = require('wx-server-sdk');
-    cloud.init({ env: 'fanshex-d2g0adgv7dfbc9bdc' });
+    // RC814 — 禁止硬编码环境。此脚本是开发者工具，不是小程序运行时，
+    // 因此必须由操作者显式给出目标环境，且必须与构建目标一致。
+    const _cfg = require('../../../config/cloudEnv.generated.js');
+    const _want = process.env.CLOUD_ENV_TARGET || '';
+    if (!_want) {
+      throw new Error('拒绝写入：未指定 CLOUD_ENV_TARGET（production|staging）');
+    }
+    if (_want !== _cfg.buildTarget) {
+      throw new Error('拒绝写入：CLOUD_ENV_TARGET=' + _want + ' 与构建目标 ' + _cfg.buildTarget + ' 不一致');
+    }
+    if (process.env.CLOUD_ENV_CONFIRM !== _cfg.envId) {
+      throw new Error('拒绝写入：需设置 CLOUD_ENV_CONFIRM=<envId> 以确认目标环境');
+    }
+    cloud.init({ env: _cfg.envId });
     const db = cloud.database();
     const _ = db.command;
 

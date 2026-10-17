@@ -29,6 +29,10 @@ const ALL = [
   'start-mode-authority.test.js',
   'batch3-virtual-payment-security.test.js',
   'delivery-30day.test.js',
+  'client-env-isolation.test.js',
+  'client-behaviour.test.js',
+  'canonical-only-30.test.js',
+  'mixed-version-release.test.js',
   'property.test.js',
 ]
 const dir = __dirname
