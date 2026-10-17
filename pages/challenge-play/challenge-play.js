@@ -71,6 +71,20 @@ Page({
     try {
       const r = await challengeService.getChallengeEvent(this.data.recordId)
 
+      // ── RC814_CHALLENGE_30DAY_DELIVERY: server-authoritative gating ──
+      // 1002 = the free-trial boundary (or an insufficient eligible pool).
+      // Rendering it as a generic "load failed" was the permanent-error-screen
+      // bug: the user could never be routed to payment.
+      if (r && r.code === 1002) {
+        this.setData({
+          loading: false,
+          loadFailed: false,
+          challengeLocked: true,
+          lockReason: r.message || '免费体验已完成',
+        })
+        return
+      }
+
       if (!r || r.code !== 0 || !r.data) {
         throw new Error(r?.message || '题目加载失败')
       }
@@ -184,6 +198,29 @@ Page({
       )
 
       if (!r || r.code !== 0) {
+        // 1002 — the trial boundary was reached server-side. Lock + route to
+        // payment instead of showing a retry toast the user can never satisfy.
+        if (r && r.code === 1002) {
+          this.setData({
+            submitted: false,
+            animOut: false,
+            challengeLocked: true,
+            lockReason: r.message || '免费体验已完成',
+          })
+          return
+        }
+
+        // 409 — the answer for this event already exists (duplicate submission)
+        // or a concurrent writer won. The server is authoritative: re-sync to
+        // its CURRENT index instead of re-sending the same stale question
+        // (re-sending would 409 forever — the permanent-error-screen loop).
+        if (r && r.code === 409) {
+          this.setData({ submitted: false, animOut: false })
+          wx.showToast({ title: '进度已同步，正在恢复', icon: 'none' })
+          await this.nextEvent()
+          return
+        }
+
         throw new Error(r?.message || '提交失败')
       }
 
@@ -241,18 +278,30 @@ Page({
     })
   },
   async onShow() {
-    if (!this.data.challengeLocked || !this.data.recordId) return
-    try {
-      const r = await challengeService.getChallengeRecord(this.data.recordId)
-      if (r.code === 0 && r.data) {
-        const rec = r.data
-        if (rec.trialMode === false || rec.unlocked === true) {
-          console.log('[ChallengeUnlock] record unlocked, resuming', rec)
-          this.setData({ challengeLocked: false, lockReason: '' })
-          this.nextEvent()
+    if (!this.data.recordId || this.data.mode === 'diagnostic') return
+
+    // Locked → poll once for the payment finalizer having unlocked the record.
+    if (this.data.challengeLocked) {
+      try {
+        const r = await challengeService.getChallengeRecord(this.data.recordId)
+        if (r.code === 0 && r.data) {
+          const rec = r.data
+          if (rec.trialMode === false || rec.unlocked === true) {
+            console.log('[ChallengeUnlock] record unlocked, resuming', rec)
+            this.setData({ challengeLocked: false, lockReason: '' })
+            this.nextEvent()
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+      return
+    }
+
+    // Cold restart / returning to the page with no event loaded → restore the
+    // progress for the SAME recordId (identity is never regenerated).
+    if (!this.data.event && !this.data.loading && !this.data.loadFailed && !this.data.end) {
+      console.log('[ChallengeRestore] restoring progress for', this.data.recordId)
+      this.nextEvent()
+    }
   },
   goResult() {
     wx.redirectTo({ url:'/pages/challenge-result/challenge-result?recordId=' + this.data.recordId })

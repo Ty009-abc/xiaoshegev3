@@ -28,6 +28,7 @@ const ALL = [
   'authority-preserving-creation.test.js',
   'start-mode-authority.test.js',
   'batch3-virtual-payment-security.test.js',
+  'delivery-30day.test.js',
   'property.test.js',
 ]
 const dir = __dirname

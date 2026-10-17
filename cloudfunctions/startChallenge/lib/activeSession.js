@@ -61,6 +61,25 @@ function validateCandidate (record, opts) {
   if (record.mode !== 'challenge') return { ok: false, reason: 'WRONG_MODE' }
   if (record.status === 'finished') return { ok: false, reason: 'FINISHED' }
 
+  // ── RC814_CHALLENGE_30DAY_DELIVERY: PRE-PLAN (legacy) records ──
+  // Records created before the plan mechanism carry no `plan`. They are NOT
+  // malformed: their own invariants still hold (index advances one per answer,
+  // one distinct answer per position). Returning UNRECOVERABLE here was the
+  // exact account-lockout path — every legacy record looked "malformed" and the
+  // owner could never resume. Marked `legacy:true` so the CALLER must recover
+  // the plan EXPLICITLY; this function never infers or builds one.
+  if (!planAuthority.hasPlan(record)) {
+    const lChoices = Array.isArray(record.choices) ? record.choices : []
+    const lIdx = Number.isInteger(record.currentEventIndex) ? record.currentEventIndex : 0
+    if (lIdx < 0) return { ok: false, reason: 'INDEX_NEGATIVE' }
+    if (lChoices.length !== lIdx) return { ok: false, reason: 'INDEX_CHOICE_MISMATCH' }
+    const lIds = lChoices.map((c) => c && c.eventId).filter(Boolean)
+    if (lIds.length !== lChoices.length) return { ok: false, reason: 'CHOICE_MISSING_EVENT' }
+    if (new Set(lIds).size !== lIds.length) return { ok: false, reason: 'CHOICE_DUPLICATE' }
+    if (lIdx > planAuthority.CHALLENGE_LENGTH) return { ok: false, reason: 'INDEX_OVERFLOW' }
+    return { ok: true, legacy: true }
+  }
+
   const plan = record.plan
   const v = planAuthority.validatePlan(plan, record)
   if (!v.ok) return { ok: false, reason: 'PLAN_INVALID:' + v.reasonCode }

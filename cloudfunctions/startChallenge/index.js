@@ -192,9 +192,102 @@ async function _readReadySession (db, openid) {
   return (s && s.state === activeSession.CLAIM_STATE.READY && s.recordId) ? s : null
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// RC814_CHALLENGE_30DAY_DELIVERY — LEGACY PLAN RECOVERY (resume path)
+// ════════════════════════════════════════════════════════════════════════
+// A record created before the plan mechanism has no `plan`. Recovery ALIGNS a
+// plan prefix with the answers already given and backfills the remainder from
+// the eligible pool. It NEVER rewrites choices, rawScores, tags, currentEventIndex,
+// trialMode, ownership, or reporting fields.
+//
+// Post-condition on success: record.plan/planVersion/planCreatedAt/planLocked are
+// persisted (CAS: first writer wins), so getChallengeEvent and submitChallengeChoice
+// afterwards read the SAME immutable plan. Idempotent: a second call adopts the
+// persisted plan instead of building a different one.
+//
+// On any failure the record is left BYTE-IDENTICAL (no write), so progress is
+// never destroyed — the caller surfaces a recoverable error instead.
+async function _ensureLegacyPlan ({ db, openid, record }) {
+  // Already planned (concurrent recovery won) → adopt, validate, never rebuild.
+  if (planAuthority.hasPlan(record)) {
+    const v = planAuthority.validatePlan(record.plan, record)
+    if (v.ok) return { ok: true, plan: record.plan, recovered: false }
+    return { ok: false, code: 'PLAN_INVALID', reason: v.reasonCode }
+  }
+
+  let ctx = {}
+  try {
+    ctx = await ucb.buildUserContext(db, openid, { scenario: 'career', message: '', memoryEnabled: true })
+  } catch (_) { ctx = {} }
+
+  const res = await planAuthority.recoverLegacyPlan({
+    db, openid, record, ctx, buildPersonalizedPlan, eventMeta: catalog.EVENT_META,
+  })
+  if (res.status !== planAuthority.PLAN_STATUS.OK) {
+    return {
+      ok: false,
+      code: res.status === planAuthority.PLAN_STATUS.INSUFFICIENT
+        ? 'INSUFFICIENT_ELIGIBLE_EVENTS'
+        : (res.reasonCode || 'LEGACY_PLAN_UNRECOVERABLE'),
+      eligibleCount: res.eligibleCount,
+      required: res.required,
+    }
+  }
+
+  const plan = res.plan
+  // Defence in depth: the recovered plan MUST keep the answered prefix intact.
+  const answered = (record.choices || []).map((c) => c && c.eventId).filter(Boolean)
+  for (let i = 0; i < answered.length; i++) {
+    if (plan.eventIds[i] !== answered[i]) {
+      return { ok: false, code: 'LEGACY_PREFIX_NOT_PRESERVED', reason: 'PREFIX_MISMATCH' }
+    }
+  }
+
+  const data = {
+    plan, planVersion: plan.planVersion, planCreatedAt: plan.createdAt,
+    planSource: plan.source, planLocked: true, updatedAt: Date.now(),
+  }
+  // CAS: only the FIRST writer locks. A concurrent recovery that already locked
+  // wins and we converge onto ITS plan (never last-writer-wins).
+  try {
+    const r = await db.collection('challenge_records')
+      .where({ _id: record._id, planLocked: _.neq(true) })
+      .update({ data })
+    const updated = (r && r.stats && (r.stats.updated || r.stats.modified)) || 0
+    if (updated > 0) {
+      console.log(`[startChallenge] legacy plan recovered recordId=${record.recordId} len=${plan.eventIds.length}`)
+      return { ok: true, plan, recovered: true }
+    }
+  } catch (_e) { /* fall through to convergence */ }
+
+  try {
+    const fresh = await db.collection('challenge_records').where({ _id: record._id }).limit(1).get()
+    const fr = fresh.data[0]
+    if (fr && planAuthority.hasPlan(fr.plan) && planAuthority.validatePlan(fr.plan, fr).ok) {
+      return { ok: true, plan: fr.plan, recovered: true, converged: true }
+    }
+  } catch (_e) {}
+
+  return { ok: false, code: 'PLAN_PERSIST_UNCONFIRMED', reason: 'CAS_LOST_NO_PLAN' }
+}
+
 // Resume / payment-boundary result for an owned trial record (shared by the
-// explicit READY authority and by legacy scan selection).
-function _trialResumeResult (record, hasAccess) {
+// explicit READY authority and by legacy scan selection). Recovers a legacy
+// plan BEFORE resuming so downstream functions can serve/submit against it.
+async function _trialResumeResult (record, hasAccess, openid) {
+  if (!planAuthority.hasPlan(record)) {
+    const rec = await _ensureLegacyPlan({ db, openid, record })
+    if (!rec.ok) {
+      return fail(CODES.DB_ERROR, '历史进度正在修复，请稍后重试', {
+        code: rec.code || 'LEGACY_PLAN_UNRECOVERABLE',
+        reason: rec.reason,
+        eligibleCount: rec.eligibleCount,
+        required: rec.required,
+        retryable: rec.code === 'PLAN_PERSIST_UNCONFIRMED',
+      })
+    }
+    record = Object.assign({}, record, { plan: rec.plan, planVersion: rec.plan.planVersion })
+  }
   if (record.trialMode && !hasAccess && (record.currentEventIndex || 0) >= activeSession.TRIAL_LIMIT) {
     console.log(`[startChallenge] trial boundary reached recordId=${record.recordId}`)
     return _trialBoundaryResponse(record)
@@ -312,13 +405,10 @@ async function _resumeTrialOrBoundary ({ db, openid, hasAccess }) {
   if (!rows.length) return null
 
   const sel = activeSession.selectResumable(rows, { hasAccess })
-  if (sel.action === activeSession.ACTIONS.RESUME) {
-    console.log(`[startChallenge] resume trial recordId=${sel.record.recordId} idx=${sel.record.currentEventIndex}`)
-    return _resumeStateFromRecord(sel.record)
-  }
-  if (sel.action === activeSession.ACTIONS.NEED_PAYMENT) {
-    console.log(`[startChallenge] trial boundary reached recordId=${sel.record.recordId}`)
-    return _trialBoundaryResponse(sel.record)
+  if (sel.action === activeSession.ACTIONS.RESUME || sel.action === activeSession.ACTIONS.NEED_PAYMENT) {
+    // Recover the legacy plan (if any) BEFORE resuming/boundary so every
+    // downstream function reads one immutable plan. Failures write nothing.
+    return await _trialResumeResult(sel.record, hasAccess, openid)
   }
   if (sel.action === activeSession.ACTIONS.UNRECOVERABLE) {
     // Malformed active trial(s): refuse — never silently reset and never
@@ -394,6 +484,23 @@ exports.main = async (event, context) => {
       if (owned) {
         if (owned.status !== 'finished') {
           // 未完成 → 续玩同一记录
+          // RC814_CHALLENGE_30DAY_DELIVERY: an OWNED record can also predate the
+          // plan mechanism. Recover it here too (same fail-closed contract) so
+          // every entry point converges on ONE immutable plan. Failure writes
+          // nothing and never touches progress.
+          if (!planAuthority.hasPlan(owned)) {
+            const rec = await _ensureLegacyPlan({ db, openid, record: owned })
+            if (!rec.ok) {
+              return fail(CODES.DB_ERROR, '历史进度正在修复，请稍后重试', {
+                code: rec.code || 'LEGACY_PLAN_UNRECOVERABLE',
+                reason: rec.reason,
+                eligibleCount: rec.eligibleCount,
+                required: rec.required,
+                retryable: rec.code === 'PLAN_PERSIST_UNCONFIRMED',
+              })
+            }
+            owned = Object.assign({}, owned, { plan: rec.plan, planVersion: rec.plan.planVersion })
+          }
           console.log(`[startChallenge] resume owned record recordId=${owned.recordId}`)
           return ok({
             recordId: owned.recordId,
@@ -404,6 +511,7 @@ exports.main = async (event, context) => {
             mode: 'challenge',
             scoringVersion: owned.scoringVersion || 'normalized_v2',
             rawScores: owned.rawScores,
+            planVersion: owned.planVersion,
             resumed: true,
             completed: false,
           })
@@ -440,7 +548,7 @@ exports.main = async (event, context) => {
         }
         if (rec && rec.status !== 'finished') {
           const v = activeSession.validateCandidate(rec)
-          if (v.ok) return _trialResumeResult(rec, hasAccess)
+          if (v.ok) return await _trialResumeResult(rec, hasAccess, openid)
           // 畸形目标 → fail-closed（未证明可安全恢复前不新建/不重认领）。
           return fail(CODES.DB_ERROR, '历史进度无法安全恢复，请联系客服', {
             code: 'LEGACY_PLAN_UNRECOVERABLE', reason: v.reason,
@@ -467,7 +575,7 @@ exports.main = async (event, context) => {
         } catch (_e) {}
         if (reconRecord) {
           await activeSession.reconcileReady({ db, openid, expectedToken: ready.ownerToken, expectedRecordId: ready.recordId, recordId: reconRecord.recordId })
-          return _trialResumeResult(reconRecord, hasAccess)
+          return await _trialResumeResult(reconRecord, hasAccess, openid)
         }
         const rl = await activeSession.reclaimInvalid({ db, openid, expectedRecordId: ready.recordId, expectedToken: ready.ownerToken, now: ts })
         if (rl.won) return await _finishCreate({ db, openid, ts, token: rl.token, trialMode, mode: 'challenge', isDiagnostic: false })

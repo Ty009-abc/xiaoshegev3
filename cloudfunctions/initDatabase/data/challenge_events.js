@@ -1634,6 +1634,1106 @@ const DEFAULT_CHALLENGE_EVENTS = [
     "status": "active",
     "createdAt": 1752570000000,
     "updatedAt": 1752570000000
+  },
+  {
+    "eventId": "CE031",
+    "day": 31,
+    "title": "有人出300块买你整个周末",
+    "description": "老同学找你帮两天忙，给300块。你平时周末也在刷手机，但这两天你原本打算整理一下自己想做的那件事的思路。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "接了，反正闲着也是闲着",
+        "effects": {
+          "laborMindset": 6,
+          "decisionStability": -3,
+          "cv": 1
+        },
+        "tags": [
+          "时间换钱",
+          "即时满足"
+        ],
+        "tradeoff": "两天的注意力卖了300块，价格是你自己定的"
+      },
+      {
+        "key": "B",
+        "text": "拒绝，把这两天用来搭自己的东西",
+        "effects": {
+          "leverageThinking": 6,
+          "longTermism": 5,
+          "cv": 5
+        },
+        "tags": [
+          "时间自主",
+          "长期投入"
+        ],
+        "tradeoff": "两天没有现金进账，换一个可能值钱的东西"
+      },
+      {
+        "key": "C",
+        "text": "报个价：800，两天全包",
+        "effects": {
+          "leverageThinking": 4,
+          "capitalThinking": 3,
+          "cv": 4
+        },
+        "tags": [
+          "定价权",
+          "谈判"
+        ],
+        "tradeoff": "可能丢掉这单，也可能把自己的价重新标一次"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 1,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE032",
+    "day": 32,
+    "title": "亲戚聚会上的\"你现在做什么\"",
+    "description": "家里人问起你的收入和在做的事。你觉得现状说不出口，脑子里冒出两个版本的说法：一个是体面的，一个是真实的。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "说个体面的版本",
+        "effects": {
+          "laborMindset": 5,
+          "decisionStability": -4,
+          "cv": 0
+        },
+        "tags": [
+          "面子",
+          "回避"
+        ],
+        "tradeoff": "当下不尴尬，但你会记住自己说了不真的话"
+      },
+      {
+        "key": "B",
+        "text": "实话实说，顺便说说自己在试的方向",
+        "effects": {
+          "decisionStability": 6,
+          "informationSensitivity": 3,
+          "cv": 4
+        },
+        "tags": [
+          "坦诚",
+          "可被帮助"
+        ],
+        "tradeoff": "可能被追问，但别人知道你在做什么才可能帮你"
+      },
+      {
+        "key": "C",
+        "text": "不正面回答，把话题转开",
+        "effects": {
+          "riskAwareness": 2,
+          "decisionStability": 1,
+          "cv": 1
+        },
+        "tags": [
+          "回避",
+          "缓冲"
+        ],
+        "tradeoff": "省掉一次解释，也省掉一次被理解的机会"
+      }
+    ],
+    "blackSwanRate": 0.01,
+    "difficulty": 1,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE033",
+    "day": 33,
+    "title": "原价899，现在299",
+    "description": "你看到一个课程，页面写着\"原价899，限时299\"，倒计时还剩2小时。你其实没比较过同类课程到底值多少。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "立刻下单，怕涨价",
+        "effects": {
+          "probabilityMindset": -4,
+          "informationSensitivity": -5,
+          "cv": -2
+        },
+        "tags": [
+          "锚定",
+          "冲动"
+        ],
+        "tradeoff": "你买的不是课程，是\"便宜了600\"的感觉"
+      },
+      {
+        "key": "B",
+        "text": "先搜同类课程的价格再决定",
+        "effects": {
+          "informationSensitivity": 7,
+          "probabilityMindset": 4,
+          "cv": 5
+        },
+        "tags": [
+          "比价",
+          "信息核验"
+        ],
+        "tradeoff": "可能错过限时，但你会知道真实价位"
+      },
+      {
+        "key": "C",
+        "text": "关掉页面，明天还想买再说",
+        "effects": {
+          "decisionStability": 6,
+          "longTermism": 3,
+          "cv": 4
+        },
+        "tags": [
+          "冷静期",
+          "延迟决策"
+        ],
+        "tradeoff": "真正想要的东西，明天还在"
+      }
+    ],
+    "blackSwanRate": 0.03,
+    "difficulty": 1,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE034",
+    "day": 34,
+    "title": "群里每天都在晒收益",
+    "description": "一个群里十几个人天天晒收益截图，说跟着某个方法能稳定赚钱。你观察了两周，一次亏损截图都没见过。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "跟着投一笔试试",
+        "effects": {
+          "probabilityMindset": -6,
+          "riskAwareness": -5,
+          "cv": -3
+        },
+        "tags": [
+          "从众",
+          "幸存者偏差"
+        ],
+        "tradeoff": "你看到的是被筛选过的样本，亏损的人不在群里"
+      },
+      {
+        "key": "B",
+        "text": "找三个晒单的人，要完整流水",
+        "effects": {
+          "informationSensitivity": 7,
+          "riskAwareness": 6,
+          "cv": 6
+        },
+        "tags": [
+          "交叉验证",
+          "要证据"
+        ],
+        "tradeoff": "大多数人要不到，这本身就是答案"
+      },
+      {
+        "key": "C",
+        "text": "退群，这类东西不看也罢",
+        "effects": {
+          "riskAwareness": 5,
+          "decisionStability": 3,
+          "cv": 2
+        },
+        "tags": [
+          "屏蔽噪音",
+          "风险规避"
+        ],
+        "tradeoff": "也许错过机会，但保住了判断力"
+      }
+    ],
+    "blackSwanRate": 0.04,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE035",
+    "day": 35,
+    "title": "你觉得自己三个月就能做成",
+    "description": "你打算做一件事，估计三个月能月入过万。你没做过，但你觉得自己的学习能力还可以。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "按三个月的计划，把主业也辞了全职投入",
+        "effects": {
+          "probabilityMindset": -5,
+          "riskAwareness": -6,
+          "cv": -3
+        },
+        "tags": [
+          "过度自信",
+          "无退路"
+        ],
+        "tradeoff": "你赌的不是能力，是第一次做就能踩准所有坑"
+      },
+      {
+        "key": "B",
+        "text": "给自己留12个月，先保住主业",
+        "effects": {
+          "longTermism": 6,
+          "riskAwareness": 5,
+          "cv": 5
+        },
+        "tags": [
+          "留余地",
+          "现金流"
+        ],
+        "tradeoff": "慢一些，但失败了还能继续"
+      },
+      {
+        "key": "C",
+        "text": "先用每周5小时验证，跑通了再加码",
+        "effects": {
+          "probabilityMindset": 6,
+          "systemThinking": 4,
+          "cv": 5
+        },
+        "tags": [
+          "小步验证",
+          "低成本试错"
+        ],
+        "tradeoff": "验证期更长，但每一步都有数据"
+      }
+    ],
+    "blackSwanRate": 0.05,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE036",
+    "day": 36,
+    "title": "亏了8000，要不要割",
+    "description": "你买的东西跌了8000。你一直不肯卖，因为\"卖了就真的亏了\"。今天它又跌了。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "不卖，等回本",
+        "effects": {
+          "riskAwareness": -7,
+          "decisionStability": -5,
+          "cv": -4
+        },
+        "tags": [
+          "损失厌恶",
+          "死扛"
+        ],
+        "tradeoff": "你等的不是回本，是\"不用承认判断错了\""
+      },
+      {
+        "key": "B",
+        "text": "卖了，认这8000",
+        "effects": {
+          "decisionStability": 7,
+          "riskAwareness": 6,
+          "cv": 6
+        },
+        "tags": [
+          "止损",
+          "承认错误"
+        ],
+        "tradeoff": "8000变成确定的损失，换回判断的自由"
+      },
+      {
+        "key": "C",
+        "text": "先不卖，但写下明确的止损线",
+        "effects": {
+          "riskAwareness": 5,
+          "systemThinking": 4,
+          "cv": 4
+        },
+        "tags": [
+          "止损线",
+          "规则约束"
+        ],
+        "tradeoff": "规则写下来才有用，写下来就得执行"
+      }
+    ],
+    "blackSwanRate": 0.04,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE037",
+    "day": 37,
+    "title": "这个月多赚了5000",
+    "description": "你这个月多赚了5000块。你一直想换个新手机，也想过把钱放到能生钱的地方去。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "换手机，犒劳自己",
+        "effects": {
+          "capitalThinking": -3,
+          "longTermism": -4,
+          "cv": 0
+        },
+        "tags": [
+          "即时满足",
+          "消费"
+        ],
+        "tradeoff": "爽是真的爽，但这5000不会再生钱"
+      },
+      {
+        "key": "B",
+        "text": "全部投出去",
+        "effects": {
+          "capitalThinking": 5,
+          "longTermism": 5,
+          "cv": 4
+        },
+        "tags": [
+          "资本积累",
+          "延迟满足"
+        ],
+        "tradeoff": "一点不留，遇到急事就得借"
+      },
+      {
+        "key": "C",
+        "text": "3000投出去，2000留着应急",
+        "effects": {
+          "capitalThinking": 4,
+          "riskAwareness": 3,
+          "cv": 4
+        },
+        "tags": [
+          "配置",
+          "留缓冲"
+        ],
+        "tradeoff": "两头都占一点，也两头都不极致"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 1,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE038",
+    "day": 38,
+    "title": "你干了8年的手艺在贬值",
+    "description": "你干了8年的活，这两年价格越来越低，客户越来越挑。你也听说过有人用工具把同样的活做得更快更便宜。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "继续干，熟能生巧，总会有人要",
+        "effects": {
+          "laborMindset": 6,
+          "informationSensitivity": -5,
+          "cv": -2
+        },
+        "tags": [
+          "路径依赖",
+          "忽视变化"
+        ],
+        "tradeoff": "你赌的是这门手艺的价格不再往下走"
+      },
+      {
+        "key": "B",
+        "text": "花三个月学新工具，把手艺升级",
+        "effects": {
+          "leverageThinking": 6,
+          "longTermism": 5,
+          "cv": 6
+        },
+        "tags": [
+          "工具杠杆",
+          "技能升级"
+        ],
+        "tradeoff": "三个月收入会降，但单价可能翻倍"
+      },
+      {
+        "key": "C",
+        "text": "一边接活一边试新方式，哪个赚得多跟哪个",
+        "effects": {
+          "probabilityMindset": 5,
+          "systemThinking": 4,
+          "cv": 5
+        },
+        "tags": [
+          "并行试错",
+          "数据决策"
+        ],
+        "tradeoff": "两边都做，精力会被摊薄"
+      }
+    ],
+    "blackSwanRate": 0.03,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE039",
+    "day": 39,
+    "title": "你只有一份收入",
+    "description": "你算了一下：全部收入来自一份工作。如果这份工作明天没了，你下个月就得动存款。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "先不想这么远，过一天算一天",
+        "effects": {
+          "longTermism": -5,
+          "riskAwareness": -4,
+          "cv": -2
+        },
+        "tags": [
+          "回避",
+          "单点依赖"
+        ],
+        "tradeoff": "不想不等于不会发生"
+      },
+      {
+        "key": "B",
+        "text": "用业余时间做一个第二收入，哪怕很小",
+        "effects": {
+          "longTermism": 6,
+          "leverageThinking": 5,
+          "cv": 6
+        },
+        "tags": [
+          "第二收入",
+          "分散风险"
+        ],
+        "tradeoff": "前期投入多、回报小，很容易放弃"
+      },
+      {
+        "key": "C",
+        "text": "先存够6个月生活费，再谈第二收入",
+        "effects": {
+          "riskAwareness": 6,
+          "capitalThinking": 5,
+          "cv": 5
+        },
+        "tags": [
+          "应急金",
+          "先筑底"
+        ],
+        "tradeoff": "更稳，但第二收入会晚开始"
+      }
+    ],
+    "blackSwanRate": 0.03,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE040",
+    "day": 40,
+    "title": "被骂了一顿之后",
+    "description": "你刚被上级当众说了一顿，心里憋着火。这时候收到一条消息：有个项目，今晚必须定，明天就没了。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "立刻答应，想证明自己",
+        "effects": {
+          "decisionStability": -7,
+          "riskAwareness": -5,
+          "cv": -3
+        },
+        "tags": [
+          "情绪决策",
+          "证明欲"
+        ],
+        "tradeoff": "你答应的是情绪，不是这个项目"
+      },
+      {
+        "key": "B",
+        "text": "回一句明天答复，先睡一觉",
+        "effects": {
+          "decisionStability": 7,
+          "riskAwareness": 5,
+          "cv": 6
+        },
+        "tags": [
+          "冷静期",
+          "延迟决策"
+        ],
+        "tradeoff": "\"明天就没了\"的东西，大多明天还在"
+      },
+      {
+        "key": "C",
+        "text": "直接拒绝，什么都不想接",
+        "effects": {
+          "decisionStability": 2,
+          "informationSensitivity": -2,
+          "cv": 1
+        },
+        "tags": [
+          "情绪反弹",
+          "一刀切"
+        ],
+        "tradeoff": "拒绝了情绪，也可能拒绝掉一个真机会"
+      }
+    ],
+    "blackSwanRate": 0.04,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE041",
+    "day": 41,
+    "title": "同事第三次让你帮个忙",
+    "description": "同事第三次把自己的活推给你。前两次你都接了，没有人记得。这次你自己手上也有事。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "还是接了，怕关系搞僵",
+        "effects": {
+          "laborMindset": 5,
+          "decisionStability": -4,
+          "cv": 0
+        },
+        "tags": [
+          "讨好",
+          "边界模糊"
+        ],
+        "tradeoff": "你保住的是关系，付出的是自己的时间"
+      },
+      {
+        "key": "B",
+        "text": "直接说：我这边排满了，做不了",
+        "effects": {
+          "decisionStability": 6,
+          "leverageThinking": 4,
+          "cv": 5
+        },
+        "tags": [
+          "边界感",
+          "拒绝"
+        ],
+        "tradeoff": "对方可能不高兴，但下次会先问你有没有空"
+      },
+      {
+        "key": "C",
+        "text": "可以接，但要求他下次帮你一次",
+        "effects": {
+          "leverageThinking": 5,
+          "capitalThinking": 3,
+          "cv": 4
+        },
+        "tags": [
+          "交换",
+          "价值对等"
+        ],
+        "tradeoff": "把人情变成交易，关系会变清爽也可能变淡"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE042",
+    "day": 42,
+    "title": "坚持了5个月，断了",
+    "description": "有件事你坚持了5个月，上个月因为太忙断了。现在想重新开始，感觉像从零开始。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "算了，反正断了",
+        "effects": {
+          "longTermism": -6,
+          "decisionStability": -5,
+          "cv": -3
+        },
+        "tags": [
+          "全或无",
+          "放弃"
+        ],
+        "tradeoff": "一次中断被当成永久失败，这才是真正的损失"
+      },
+      {
+        "key": "B",
+        "text": "今天重新开始，不追究上个月",
+        "effects": {
+          "longTermism": 6,
+          "decisionStability": 6,
+          "cv": 6
+        },
+        "tags": [
+          "重启",
+          "不追责"
+        ],
+        "tradeoff": "不追究不等于不总结"
+      },
+      {
+        "key": "C",
+        "text": "把目标改小，改成不会断的量",
+        "effects": {
+          "systemThinking": 6,
+          "longTermism": 4,
+          "cv": 5
+        },
+        "tags": [
+          "可持续",
+          "降低门槛"
+        ],
+        "tradeoff": "目标小了，但能一直做下去"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE043",
+    "day": 43,
+    "title": "免费的机会，值不值得",
+    "description": "有个免费的合作机会，要你投入三个月时间。没有现金回报，但可能带来一些人脉。这三个月你本来可以接活赚钱。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "免费就去做，反正是机会",
+        "effects": {
+          "capitalThinking": -4,
+          "probabilityMindset": -3,
+          "cv": 0
+        },
+        "tags": [
+          "免费陷阱",
+          "不计成本"
+        ],
+        "tradeoff": "免费的东西，成本往往写在别的地方"
+      },
+      {
+        "key": "B",
+        "text": "算一下三个月不接活少赚多少，再决定",
+        "effects": {
+          "capitalThinking": 6,
+          "systemThinking": 5,
+          "cv": 5
+        },
+        "tags": [
+          "机会成本",
+          "算账"
+        ],
+        "tradeoff": "算完可能发现这笔账根本不划算"
+      },
+      {
+        "key": "C",
+        "text": "拒绝，三个月时间太贵",
+        "effects": {
+          "capitalThinking": 3,
+          "informationSensitivity": -1,
+          "cv": 2
+        },
+        "tags": [
+          "时间定价",
+          "取舍"
+        ],
+        "tradeoff": "守住时间，也可能错过关键人脉"
+      }
+    ],
+    "blackSwanRate": 0.03,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE044",
+    "day": 44,
+    "title": "朋友借2万，说下月还",
+    "description": "一个关系不错的朋友向你借2万，说下个月发了钱就还。这2万是你全部的应急存款。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "借，朋友都开口了",
+        "effects": {
+          "riskAwareness": -6,
+          "decisionStability": -4,
+          "cv": -2
+        },
+        "tags": [
+          "人情",
+          "无缓冲"
+        ],
+        "tradeoff": "你把自己的应急能力借出去了"
+      },
+      {
+        "key": "B",
+        "text": "借5000，说明这已是上限",
+        "effects": {
+          "riskAwareness": 5,
+          "decisionStability": 4,
+          "cv": 4
+        },
+        "tags": [
+          "设上限",
+          "保缓冲"
+        ],
+        "tradeoff": "钱变少了，但关系和你都还有余地"
+      },
+      {
+        "key": "C",
+        "text": "不借，但把原因说清楚",
+        "effects": {
+          "decisionStability": 5,
+          "riskAwareness": 4,
+          "cv": 3
+        },
+        "tags": [
+          "边界感",
+          "坦诚"
+        ],
+        "tradeoff": "可能伤感情，但不会伤到你的底线"
+      }
+    ],
+    "blackSwanRate": 0.03,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE045",
+    "day": 45,
+    "title": "帮人签个字",
+    "description": "亲戚要办一笔贷款，让你去做担保人，说\"就是签个字，跟你没关系\"。你其实不太清楚担保到底意味着什么。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "签，亲戚不会坑我",
+        "effects": {
+          "riskAwareness": -8,
+          "informationSensitivity": -5,
+          "cv": -4
+        },
+        "tags": [
+          "担保",
+          "责任盲区"
+        ],
+        "tradeoff": "他还不上的时候，这笔钱就是你要还的"
+      },
+      {
+        "key": "B",
+        "text": "先问清楚：他还不上我要还多少",
+        "effects": {
+          "informationSensitivity": 7,
+          "riskAwareness": 7,
+          "cv": 6
+        },
+        "tags": [
+          "连带责任",
+          "问清楚"
+        ],
+        "tradeoff": "问清楚之后，你可能就不想签了"
+      },
+      {
+        "key": "C",
+        "text": "直接拒绝，这种事不碰",
+        "effects": {
+          "riskAwareness": 6,
+          "decisionStability": 4,
+          "cv": 3
+        },
+        "tags": [
+          "风险规避",
+          "边界感"
+        ],
+        "tradeoff": "关系会尴尬，但你的资产负债表不变"
+      }
+    ],
+    "blackSwanRate": 0.05,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE046",
+    "day": 46,
+    "title": "每月三百，保一份",
+    "description": "有人向你推荐一份保险，每月300。你觉得\"我还年轻，应该用不上\"，但也拿不准该不该买。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "不买，浪费钱",
+        "effects": {
+          "riskAwareness": -5,
+          "capitalThinking": -3,
+          "cv": -2
+        },
+        "tags": [
+          "侥幸",
+          "省小钱"
+        ],
+        "tradeoff": "省下的是小钱，赌的是自己不会遇上大事"
+      },
+      {
+        "key": "B",
+        "text": "先搞清楚保什么、不保什么",
+        "effects": {
+          "informationSensitivity": 6,
+          "riskAwareness": 5,
+          "cv": 5
+        },
+        "tags": [
+          "看清条款",
+          "风险转移"
+        ],
+        "tradeoff": "条款看得越清楚，越知道该不该买"
+      },
+      {
+        "key": "C",
+        "text": "买，就当买个安心",
+        "effects": {
+          "riskAwareness": 4,
+          "capitalThinking": 1,
+          "cv": 2
+        },
+        "tags": [
+          "风险转移",
+          "图安心"
+        ],
+        "tradeoff": "安心也是收益，但别买重复的"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 1,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE047",
+    "day": 47,
+    "title": "再熬三个月",
+    "description": "你现在要做的事，需要连续三个月每天只睡5小时。你觉得年轻扛得住。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "熬，趁现在拼一把",
+        "effects": {
+          "longTermism": -6,
+          "decisionStability": -4,
+          "cv": -2
+        },
+        "tags": [
+          "透支",
+          "短视"
+        ],
+        "tradeoff": "你用未来的身体，换现在的进度"
+      },
+      {
+        "key": "B",
+        "text": "不熬，把周期拉长到六个月",
+        "effects": {
+          "longTermism": 5,
+          "systemThinking": 4,
+          "cv": 5
+        },
+        "tags": [
+          "可持续",
+          "节奏"
+        ],
+        "tradeoff": "慢了一倍，但能走完全程"
+      },
+      {
+        "key": "C",
+        "text": "先试两周，身体报警就停",
+        "effects": {
+          "riskAwareness": 5,
+          "probabilityMindset": 4,
+          "cv": 4
+        },
+        "tags": [
+          "小步试",
+          "设止损"
+        ],
+        "tradeoff": "两周的数据能告诉你真实代价"
+      }
+    ],
+    "blackSwanRate": 0.03,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE048",
+    "day": 48,
+    "title": "学了半年，用不上",
+    "description": "你花了半年学一个技能，学完发现自己的工作里根本用不到，也没找到能用的地方。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "白学了，认了",
+        "effects": {
+          "decisionStability": -4,
+          "longTermism": -3,
+          "cv": -1
+        },
+        "tags": [
+          "沉没成本",
+          "自我否定"
+        ],
+        "tradeoff": "把半年定性为浪费，它才真的变成浪费"
+      },
+      {
+        "key": "B",
+        "text": "找一个能立刻用上的小场景，先用起来",
+        "effects": {
+          "systemThinking": 6,
+          "leverageThinking": 5,
+          "cv": 6
+        },
+        "tags": [
+          "学习迁移",
+          "先用起来"
+        ],
+        "tradeoff": "小场景不体面，但能让技能长出复利"
+      },
+      {
+        "key": "C",
+        "text": "复盘：下次学之前先确认用武之地",
+        "effects": {
+          "informationSensitivity": 6,
+          "systemThinking": 4,
+          "cv": 5
+        },
+        "tags": [
+          "先验证需求",
+          "复盘"
+        ],
+        "tradeoff": "这次的半年没法追回，下次可以"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE049",
+    "day": 49,
+    "title": "对方报了个价",
+    "description": "有人找你做事，报了一个价。这个价比你预期的低三成，但你现在手上没别的活。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "直接答应",
+        "effects": {
+          "laborMindset": 5,
+          "leverageThinking": -4,
+          "cv": -1
+        },
+        "tags": [
+          "接受报价",
+          "不敢谈"
+        ],
+        "tradeoff": "你答应的价格，会成为以后所有报价的起点"
+      },
+      {
+        "key": "B",
+        "text": "报回去，并说明你能多做什么",
+        "effects": {
+          "leverageThinking": 6,
+          "capitalThinking": 4,
+          "cv": 5
+        },
+        "tags": [
+          "谈判",
+          "价值说明"
+        ],
+        "tradeoff": "可能谈崩，也可能把单价抬起来"
+      },
+      {
+        "key": "C",
+        "text": "答应，但只做这个价对应的那部分",
+        "effects": {
+          "leverageThinking": 4,
+          "decisionStability": 4,
+          "cv": 4
+        },
+        "tags": [
+          "范围界定",
+          "对等"
+        ],
+        "tradeoff": "价格不动，交付范围缩小"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 2,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
+  },
+  {
+    "eventId": "CE050",
+    "day": 50,
+    "title": "\"我就是这样的人\"",
+    "description": "你一直觉得自己\"不擅长跟人打交道\"，所以很多需要开口的机会你都绕开了。最近有个机会，必须开口。",
+    "choices": [
+      {
+        "key": "A",
+        "text": "不去，我本来就不擅长",
+        "effects": {
+          "decisionStability": -5,
+          "leverageThinking": -4,
+          "cv": -1
+        },
+        "tags": [
+          "身份认同",
+          "自我设限"
+        ],
+        "tradeoff": "你用一个标签，关掉了一整类可能性"
+      },
+      {
+        "key": "B",
+        "text": "去，把这次当成一次实验",
+        "effects": {
+          "decisionStability": 5,
+          "probabilityMindset": 5,
+          "cv": 5
+        },
+        "tags": [
+          "自我设限",
+          "实验心态"
+        ],
+        "tradeoff": "可能表现很差，但会拿到真实数据"
+      },
+      {
+        "key": "C",
+        "text": "去，提前把要说的话写下来练三遍",
+        "effects": {
+          "systemThinking": 6,
+          "decisionStability": 4,
+          "cv": 5
+        },
+        "tags": [
+          "准备",
+          "可训练"
+        ],
+        "tradeoff": "准备不能保证结果，但能把随机性压低"
+      }
+    ],
+    "blackSwanRate": 0.02,
+    "difficulty": 3,
+    "status": "active",
+    "createdAt": 1760000000000,
+    "updatedAt": 1760000000000
   }
 ]
 
